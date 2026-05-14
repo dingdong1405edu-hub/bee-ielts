@@ -28,9 +28,10 @@ type SpeakingResult = {
 type Phase = "intro" | "part1" | "part2-prep" | "part2-speak" | "part3" | "grading" | "done";
 
 // Per-question time budget (sec)
-const PART1_PER_Q = 45;
-const PART2_PREP = 60;
-const PART2_SPEAK = 120;
+// Part 1: no timer — user paces themselves (set to 0 to disable countdown)
+const PART1_PER_Q = 0;
+const PART2_PREP = 75; // 1 phút 15 giây chuẩn bị
+const PART2_SPEAK = 60; // 1 phút nói
 const PART3_PER_Q = 75;
 
 export function SpeakingPlayer({
@@ -139,9 +140,9 @@ export function SpeakingPlayer({
     }
   };
 
-  // --- timer for current step ---
+  // --- timer for current step (Part 1 has no auto-advance timer) ---
   useEffect(() => {
-    if (phase === "intro" || phase === "done" || phase === "grading") return;
+    if (phase === "intro" || phase === "done" || phase === "grading" || phase === "part1") return;
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
       setRemaining((r) => {
@@ -186,7 +187,6 @@ export function SpeakingPlayer({
     if (phase === "part1") {
       if (qIdx + 1 < part1Questions.length) {
         setQIdx((i) => i + 1);
-        setRemaining(PART1_PER_Q);
       } else {
         setPhase("part2-prep");
         setQIdx(0);
@@ -277,7 +277,6 @@ export function SpeakingPlayer({
             await speak("Welcome to the speaking practice. Let's begin with part one.");
             setPhase("part1");
             setQIdx(0);
-            setRemaining(PART1_PER_Q);
             // start recording right away so user can answer immediately
             setTimeout(() => startRecording(1), 500);
           }}
@@ -365,9 +364,15 @@ export function SpeakingPlayer({
             <div className="font-extrabold">{phaseLabel}</div>
           </div>
         </div>
-        <Badge variant="outline" className="bg-white/15 border-white/30 text-white text-base px-3 py-1">
-          <Clock className="h-4 w-4 mr-1" /> {formatDuration(remaining)}
-        </Badge>
+        {phase === "part1" ? (
+          <Badge variant="outline" className="bg-white/15 border-white/30 text-white text-base px-3 py-1">
+            Tự do — không tính giờ
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="bg-white/15 border-white/30 text-white text-base px-3 py-1">
+            <Clock className="h-4 w-4 mr-1" /> {formatDuration(remaining)}
+          </Badge>
+        )}
       </div>
 
       <AnimatePresence mode="wait">

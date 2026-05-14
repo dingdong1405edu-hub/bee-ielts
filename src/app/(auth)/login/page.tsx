@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, ArrowLeft } from "lucide-react";
+import { ScrollReveal } from "@/components/scroll-reveal";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function LoginPage() {
   return (
@@ -49,42 +51,52 @@ function LoginForm() {
         <ArrowLeft className="h-4 w-4" /> Trang chủ
       </Link>
 
+      <div className="absolute top-5 right-5">
+        <ThemeToggle />
+      </div>
+
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl gradient-brand text-white text-2xl shadow-lg shadow-primary/20 mb-4">
-            🐝
+        <ScrollReveal>
+          <div className="text-center mb-8">
+            <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl gradient-brand text-white text-2xl shadow-lg shadow-primary/20 mb-4">
+              🐝
+            </div>
+            <h1 className="text-3xl font-extrabold tracking-tight">Chào mừng quay lại</h1>
+            <p className="text-muted-foreground mt-1">Sẵn sàng level up tiếng Anh hôm nay?</p>
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight">Chào mừng quay lại</h1>
-          <p className="text-muted-foreground mt-1">Sẵn sàng level up tiếng Anh hôm nay?</p>
-        </div>
+        </ScrollReveal>
 
-        <div className="rounded-3xl border bg-card/80 backdrop-blur p-6 md:p-8 shadow-xl shadow-primary/5">
-          <form onSubmit={onSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="password">Mật khẩu</Label>
-              <Input id="password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
-            </div>
-            <Button type="submit" variant="brand" className="w-full" size="lg" disabled={loading}>
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              Đăng nhập
-            </Button>
-          </form>
-          <p className="mt-6 text-center text-sm text-muted-foreground">
-            Chưa có tài khoản?{" "}
-            <Link href="/register" className="font-semibold text-primary hover:underline">
-              Đăng ký free
-            </Link>
-          </p>
-        </div>
+        <ScrollReveal delay={150}>
+          <div className="rounded-3xl border bg-card/80 backdrop-blur p-6 md:p-8 shadow-xl shadow-primary/5">
+            <form onSubmit={onSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="password">Mật khẩu</Label>
+                <Input id="password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+              </div>
+              <Button type="submit" variant="brand" className="w-full" size="lg" disabled={loading}>
+                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                Đăng nhập
+              </Button>
+            </form>
+            <p className="mt-6 text-center text-sm text-muted-foreground">
+              Chưa có tài khoản?{" "}
+              <Link href="/register" className="font-semibold text-primary hover:underline">
+                Đăng ký free
+              </Link>
+            </p>
+          </div>
+        </ScrollReveal>
 
-        <div className="mt-4 rounded-2xl border-2 border-dashed border-primary/20 bg-accent/40 p-4 text-xs text-center">
-          <p className="font-semibold mb-1">✨ Thử demo nhanh</p>
-          <code className="text-[11px]">demo@bee-ielts.com</code> · <code className="text-[11px]">demo1234</code>
-        </div>
+        <ScrollReveal delay={300}>
+          <div className="mt-4 rounded-2xl border-2 border-dashed border-primary/20 bg-accent/40 p-4 text-xs text-center">
+            <p className="font-semibold mb-1">✨ Thử demo nhanh</p>
+            <code className="text-[11px]">demo@bee-ielts.com</code> · <code className="text-[11px]">demo1234</code>
+          </div>
+        </ScrollReveal>
       </div>
     </div>
   );

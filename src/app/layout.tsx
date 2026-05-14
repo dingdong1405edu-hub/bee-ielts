@@ -19,9 +19,14 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="vi" className={jakarta.variable}>
-      <body className="min-h-screen font-sans">
+      <body className="min-h-screen font-sans" suppressHydrationWarning>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem('theme');var d=t==='dark'||(!t||t==='system')&&window.matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.classList.add('dark')}catch(e){}`,
+          }}
+        />
         <Providers>{children}</Providers>
-        <Toaster position="top-center" richColors closeButton theme="light" />
+        <Toaster position="top-center" richColors closeButton theme="system" />
       </body>
     </html>
   );

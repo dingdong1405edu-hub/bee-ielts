@@ -85,8 +85,11 @@ export function GrammarPlayer({
           ← {unitTitle}
         </button>
         <div className="text-center space-y-3">
-          <div className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-gradient-to-br from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/30">
-            <BookOpenText className="h-8 w-8" />
+          <div className="relative mx-auto">
+            <div className="mx-auto grid h-24 w-24 place-items-center text-6xl animate-float">🐝</div>
+            <div className="absolute -top-2 -right-2 grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 text-white shadow-md">
+              <BookOpenText className="h-4 w-4" />
+            </div>
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight">
             Luyện tập <span className="gradient-brand-text">Grammar</span>
@@ -195,21 +198,25 @@ export function GrammarPlayer({
             <h2 className="text-2xl font-extrabold leading-tight">Điền từ thích hợp vào chỗ trống</h2>
           </div>
 
-          <div
-            className={cn(
-              "rounded-3xl border-2 bg-card p-6 text-center text-xl font-bold leading-relaxed",
-              feedback === "wrong" && "animate-shake border-destructive",
-            )}
-          >
-            {current.prompt.split(/(_+)/).map((part, i) =>
-              /_+/.test(part) ? (
-                <span key={i} className="inline-block min-w-[3em] border-b-2 border-primary mx-1 text-primary">
-                  {input && feedback ? input : "____"}
-                </span>
-              ) : (
-                <span key={i}>{part}</span>
-              ),
-            )}
+          <div className="flex items-end gap-3">
+            <div className="grid h-14 w-14 place-items-center text-4xl shrink-0">🐝</div>
+            <div
+              className={cn(
+                "relative flex-1 rounded-3xl border-2 bg-card p-5 text-center text-xl font-bold leading-relaxed",
+                "before:content-[''] before:absolute before:-left-2 before:bottom-4 before:h-4 before:w-4 before:rotate-45 before:bg-card before:border-l-2 before:border-b-2 before:border-[inherit]",
+                feedback === "wrong" && "animate-shake border-destructive",
+              )}
+            >
+              {current.prompt.split(/(_+)/).map((part, i) =>
+                /_+/.test(part) ? (
+                  <span key={i} className="inline-block min-w-[3em] border-b-2 border-primary mx-1 text-primary">
+                    {input && feedback ? input : "____"}
+                  </span>
+                ) : (
+                  <span key={i}>{part}</span>
+                ),
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
