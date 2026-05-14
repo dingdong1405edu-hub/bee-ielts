@@ -1,37 +1,22 @@
-import { redirect } from "next/navigation";
-import { auth } from "@/auth";
-import { prisma } from "@/lib/db";
+import { Headphones, Clock, Volume2, Brain, Trophy } from "lucide-react";
+import { SkillIntro } from "@/components/learn/skill-intro";
 
 export const dynamic = "force-dynamic";
 
-export default async function ListeningAutoPickPage() {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
-
-  const recent = await prisma.attempt.findMany({
-    where: { userId: session.user.id, skill: "LISTENING" },
-    orderBy: { createdAt: "desc" },
-    take: 3,
-    select: { refId: true },
-  });
-  const recentIds = recent.map((r) => r.refId.replace("mock-", ""));
-
-  let test = await prisma.listeningTest.findFirst({
-    where: { id: { notIn: recentIds.length > 0 ? recentIds : ["__none__"] } },
-    orderBy: { createdAt: "desc" },
-  });
-  if (!test) {
-    const all = await prisma.listeningTest.findMany({ select: { id: true } });
-    if (all.length === 0) {
-      return (
-        <div className="max-w-md mx-auto text-center py-20">
-          <h1 className="text-2xl font-extrabold">Chưa có đề Listening</h1>
-          <p className="text-muted-foreground mt-2">Admin hãy seed thêm.</p>
-        </div>
-      );
-    }
-    test = (await prisma.listeningTest.findUnique({ where: { id: all[Math.floor(Math.random() * all.length)].id } }))!;
-  }
-
-  redirect(`/listening/${test.id}`);
+export default function ListeningIntroPage() {
+  return (
+    <SkillIntro
+      title="Listening"
+      subtitle="1 audio · 4-6 câu hỏi · audio có speed control"
+      icon={Headphones}
+      grad="from-amber-500 to-orange-500"
+      startHref="/listening/start"
+      bullets={[
+        { icon: Volume2, text: "Audio có nút điều chỉnh tốc độ 0.75x – 2x" },
+        { icon: Clock, text: "Timer riêng cho mỗi bài, hết giờ tự nộp" },
+        { icon: Brain, text: "Đề chọn ngẫu nhiên, có cả transcript để review sau khi nộp" },
+        { icon: Trophy, text: "Sau khi nộp, AI đưa tips để nghe tốt hơn lần sau" },
+      ]}
+    />
+  );
 }

@@ -341,4 +341,148 @@ export const SPEAKING_SETS: SpeakingSetData[] = [
       "How important is it to be flexible about long-term plans?",
     ],
   },
+  {
+    topic: "Reading habits & books",
+    part1Questions: [
+      "Do you enjoy reading? Why or why not?",
+      "What kind of books do you usually read?",
+      "Do you prefer paper books or e-books?",
+      "Has your taste in reading changed since you were a child?",
+    ],
+    part2CueCard: {
+      topic: "Describe a book that left a strong impression on you",
+      points: [
+        "What the book was about",
+        "When and how you read it",
+        "What you remember most clearly",
+        "Why it left such a strong impression",
+      ],
+    },
+    part3Questions: [
+      "Are people reading more or less than in the past?",
+      "What role do libraries still play in modern life?",
+      "Do you think children should be encouraged to read fiction?",
+      "How does reading affect the way people think?",
+    ],
+  },
+  {
+    topic: "Food & cooking",
+    part1Questions: [
+      "What kind of food do you usually eat at home?",
+      "Do you like cooking, or do you prefer eating out?",
+      "Has the food in your country changed in recent years?",
+      "Is there a dish you would like to learn to make?",
+    ],
+    part2CueCard: {
+      topic: "Describe a meal you really enjoyed",
+      points: [
+        "Where you ate it",
+        "Who you were with",
+        "What was on the table",
+        "Why you remember it",
+      ],
+    },
+    part3Questions: [
+      "How has fast food changed eating habits in your country?",
+      "Why do some people prefer to cook at home rather than eat out?",
+      "Are traditional dishes being lost as societies modernise?",
+      "Should schools teach children how to cook?",
+    ],
+  },
+  {
+    topic: "Cities & where people live",
+    part1Questions: [
+      "Do you live in a city or a smaller town?",
+      "What do you like most about where you live?",
+      "Is there anything you would like to change about it?",
+      "Would you want to move to a different city in the future?",
+    ],
+    part2CueCard: {
+      topic: "Describe a city you would like to visit",
+      points: [
+        "Where it is",
+        "What you know about it",
+        "What you would do there",
+        "Why it appeals to you",
+      ],
+    },
+    part3Questions: [
+      "What makes a city a good place to live?",
+      "Is it better to grow up in a big city or in the countryside?",
+      "How can cities reduce traffic and pollution?",
+      "What problems do rapidly growing cities face?",
+    ],
+  },
+  {
+    topic: "Friendship",
+    part1Questions: [
+      "How often do you meet your close friends?",
+      "How did you make your closest friend?",
+      "Is it easy to make new friends as an adult?",
+      "Do you prefer spending time with one friend or with a group?",
+    ],
+    part2CueCard: {
+      topic: "Describe a friend who helped you during a difficult time",
+      points: [
+        "Who the friend is",
+        "What the difficult situation was",
+        "What they did for you",
+        "How you feel about them now",
+      ],
+    },
+    part3Questions: [
+      "Do people today have fewer close friends than in the past?",
+      "How is friendship different in childhood and in adulthood?",
+      "Can online friendships be as real as offline ones?",
+      "Why is it sometimes hard to keep long friendships alive?",
+    ],
+  },
+  {
+    topic: "Technology in daily life",
+    part1Questions: [
+      "Which device do you use most often during the day?",
+      "Has technology made daily life easier or more stressful for you?",
+      "Do you remember the first phone you owned?",
+      "Are there any technologies you try to avoid?",
+    ],
+    part2CueCard: {
+      topic: "Describe a piece of technology you find very useful",
+      points: [
+        "What it is",
+        "How long you have used it",
+        "What you use it for",
+        "Why you find it especially useful",
+      ],
+    },
+    part3Questions: [
+      "How will daily life change in the next ten years because of technology?",
+      "Should children be taught to code at school?",
+      "Are people becoming too dependent on smartphones?",
+      "How can older adults be helped to use new technology?",
+    ],
+  },
+  {
+    topic: "Clothes & fashion",
+    part1Questions: [
+      "How do you usually decide what to wear?",
+      "Do you follow fashion trends?",
+      "Where do you usually buy your clothes?",
+      "Are clothes important to you when meeting new people?",
+    ],
+    part2CueCard: {
+      topic: "Describe an item of clothing you really like",
+      points: [
+        "What it looks like",
+        "When and where you got it",
+        "How often you wear it",
+        "Why you like it so much",
+      ],
+    },
+    part3Questions: [
+      "Why are some people willing to spend a lot of money on clothes?",
+      "How has fashion in your country changed over the last twenty years?",
+      "Is it a problem that fashion changes so quickly?",
+      "Should schools require students to wear uniforms?",
+    ],
+  },
 ];
