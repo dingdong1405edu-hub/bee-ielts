@@ -1,0 +1,400 @@
+"use client";
+import { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Mic, MicOff, Volume2, Clock } from "lucide-react";
+import { formatDuration } from "@/lib/utils";
+import { speakWithPauses, stopSpeaking, isTTSSupported } from "@/lib/tts";
+
+const INTRO_TEXT =
+  "Welcome to the speaking portion of the IELTS exam. My name is Adrian. I will be your examiner for this part of the test, and I will give you instructions for each of the three parts. Firstly, I will record this for marking purposes.";
+
+const PART2_PREP_SEC = 60;
+const PART2_SPEAK_SEC = 120;
+
+type Phase =
+  | "intro"
+  | "part1"
+  | "part2-prep"
+  | "part2-speak"
+  | "part3"
+  | "review";
+
+interface Props {
+  topic: string;
+  part1Questions: string[];
+  part2CueCard: { topic: string; points: string[] };
+  part3Questions: string[];
+  onDone: (transcripts: { 1: string; 2: string; 3: string }) => void;
+}
+
+export function MockSpeaking({ topic, part1Questions, part2CueCard, part3Questions, onDone }: Props) {
+  const [phase, setPhase] = useState<Phase>("intro");
+  const [questionIdx, setQuestionIdx] = useState(0);
+  const [speaking, setSpeaking] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [transcripts, setTranscripts] = useState<{ 1: string; 2: string; 3: string }>({ 1: "", 2: "", 3: "" });
+  const recRef = useRef<unknown>(null);
+  const [part2Remaining, setPart2Remaining] = useState(PART2_PREP_SEC);
+  const part2TimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const speak = async (text: string) => {
+    if (!isTTSSupported()) return;
+    setSpeaking(true);
+    try {
+      await speakWithPauses(text, { rate: 0.92 });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSpeaking(false);
+    }
+  };
+
+  const startRecording = (part: 1 | 2 | 3) => {
+    const W = window as unknown as { SpeechRecognition?: new () => unknown; webkitSpeechRecognition?: new () => unknown };
+    const SR = W.SpeechRecognition || W.webkitSpeechRecognition;
+    if (!SR) {
+      alert("Trình duyệt không hỗ trợ recording. Dùng Chrome desktop nhé.");
+      return;
+    }
+    const r = new (SR as new () => {
+      lang: string;
+      continuous: boolean;
+      interimResults: boolean;
+      onresult: (e: { results: ArrayLike<{ 0: { transcript: string }; isFinal: boolean }>; resultIndex: number }) => void;
+      onerror: (e: unknown) => void;
+      onend: () => void;
+      start: () => void;
+      stop: () => void;
+    })();
+    r.lang = "en-US";
+    r.continuous = true;
+    r.interimResults = true;
+    let final = transcripts[part];
+    r.onresult = (e) => {
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) final += t + " ";
+        else interim += t;
+      }
+      setTranscripts((prev) => ({ ...prev, [part]: (final + interim).trim() }));
+    };
+    r.onerror = () => setRecording(false);
+    r.onend = () => setRecording(false);
+    r.start();
+    recRef.current = r;
+    setRecording(true);
+  };
+
+  const stopRecording = () => {
+    if (recRef.current) {
+      (recRef.current as { stop: () => void }).stop();
+      recRef.current = null;
+    }
+    setRecording(false);
+  };
+
+  // Intro flow
+  useEffect(() => {
+    if (phase !== "intro") return;
+    (async () => {
+      await speak(INTRO_TEXT);
+      await new Promise((r) => setTimeout(r, 500));
+      setPhase("part1");
+      setQuestionIdx(0);
+    })();
+    return () => stopSpeaking();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
+  // Auto-read part 1 questions when phase or idx changes
+  useEffect(() => {
+    if (phase !== "part1") return;
+    const q = part1Questions[questionIdx];
+    if (!q) return;
+    (async () => {
+      await speak(`Question ${questionIdx + 1}. ${q}`);
+    })();
+    return () => stopSpeaking();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, questionIdx]);
+
+  // Part 2 prep timer
+  useEffect(() => {
+    if (phase !== "part2-prep") return;
+    setPart2Remaining(PART2_PREP_SEC);
+    if (part2TimerRef.current) clearInterval(part2TimerRef.current);
+    part2TimerRef.current = setInterval(() => {
+      setPart2Remaining((r) => {
+        if (r <= 1) {
+          if (part2TimerRef.current) clearInterval(part2TimerRef.current);
+          setPhase("part2-speak");
+          return 0;
+        }
+        return r - 1;
+      });
+    }, 1000);
+    return () => {
+      if (part2TimerRef.current) clearInterval(part2TimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
+  // Part 2 speak timer
+  useEffect(() => {
+    if (phase !== "part2-speak") return;
+    setPart2Remaining(PART2_SPEAK_SEC);
+    if (part2TimerRef.current) clearInterval(part2TimerRef.current);
+    startRecording(2);
+    part2TimerRef.current = setInterval(() => {
+      setPart2Remaining((r) => {
+        if (r <= 1) {
+          if (part2TimerRef.current) clearInterval(part2TimerRef.current);
+          stopRecording();
+          setPhase("part3");
+          setQuestionIdx(0);
+          return 0;
+        }
+        return r - 1;
+      });
+    }, 1000);
+    return () => {
+      if (part2TimerRef.current) clearInterval(part2TimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
+  // Auto-read part 3 questions
+  useEffect(() => {
+    if (phase !== "part3") return;
+    const q = part3Questions[questionIdx];
+    if (!q) return;
+    (async () => {
+      await speak(`Question ${questionIdx + 1}. ${q}`);
+    })();
+    return () => stopSpeaking();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, questionIdx]);
+
+  const nextPart1 = () => {
+    stopRecording();
+    if (questionIdx + 1 < part1Questions.length) {
+      setQuestionIdx(questionIdx + 1);
+    } else {
+      stopSpeaking();
+      (async () => {
+        await speak("Thank you. Now let's move to part 2. I will give you a topic, and you have one minute to prepare. Then you will speak for one to two minutes.");
+        await speak(`The topic is: ${part2CueCard.topic}`);
+        setPhase("part2-prep");
+      })();
+    }
+  };
+
+  const nextPart3 = () => {
+    stopRecording();
+    if (questionIdx + 1 < part3Questions.length) {
+      setQuestionIdx(questionIdx + 1);
+    } else {
+      stopSpeaking();
+      (async () => {
+        await speak("Thank you. That is the end of the speaking test.");
+        setPhase("review");
+      })();
+    }
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-4">
+      <div className="rounded-2xl border bg-indigo-600 text-white p-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Mic className="h-6 w-6" />
+          <div>
+            <div className="text-xs uppercase tracking-wider opacity-80">Section 4/4 · {topic}</div>
+            <div className="font-extrabold">Speaking</div>
+          </div>
+        </div>
+        <Badge variant="outline" className="bg-white/15 border-white/30 text-white text-base px-3 py-1">
+          {phase === "part1" ? "Part 1" : phase === "part2-prep" ? "Part 2 (prep)" : phase === "part2-speak" ? "Part 2" : phase === "part3" ? "Part 3" : phase === "intro" ? "Intro" : "Review"}
+        </Badge>
+      </div>
+
+      {phase === "intro" && (
+        <Card>
+          <CardContent className="p-8 text-center space-y-3">
+            <div className={`mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-indigo-100 text-indigo-600 ${speaking ? "animate-pulse" : ""}`}>
+              <Volume2 className="h-7 w-7" />
+            </div>
+            <h3 className="text-xl font-bold">Examiner đang nói...</h3>
+            <p className="text-sm text-muted-foreground italic">"{INTRO_TEXT}"</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {phase === "part1" && (
+        <Card>
+          <CardContent className="p-6 space-y-4">
+            <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">
+              Part 1 — Câu {questionIdx + 1}/{part1Questions.length}
+            </div>
+            <div className="flex items-start gap-3">
+              <div className={`grid h-10 w-10 place-items-center rounded-xl bg-indigo-100 text-indigo-600 ${speaking ? "animate-pulse" : ""}`}>
+                <Volume2 className="h-5 w-5" />
+              </div>
+              <p className="text-lg font-bold flex-1">{part1Questions[questionIdx]}</p>
+            </div>
+            <div className="flex gap-2">
+              {!recording ? (
+                <Button onClick={() => startRecording(1)} className="flex-1" variant="brand">
+                  <Mic className="h-4 w-4" /> Bắt đầu trả lời
+                </Button>
+              ) : (
+                <Button onClick={stopRecording} className="flex-1" variant="destructive">
+                  <MicOff className="h-4 w-4" /> Dừng
+                </Button>
+              )}
+              <Button onClick={nextPart1} variant="outline">
+                {questionIdx + 1 < part1Questions.length ? "Câu tiếp →" : "Sang Part 2 →"}
+              </Button>
+            </div>
+            <Textarea
+              value={transcripts[1]}
+              onChange={(e) => setTranscripts((t) => ({ ...t, 1: e.target.value }))}
+              placeholder="Transcript sẽ hiện ở đây khi bạn nói..."
+              className="min-h-[120px]"
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {phase === "part2-prep" && (
+        <Card>
+          <CardContent className="p-6 space-y-4">
+            <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">
+              Part 2 — Chuẩn bị
+            </div>
+            <div className="text-center">
+              <div className="text-5xl font-extrabold tabular-nums">{formatDuration(part2Remaining)}</div>
+              <div className="text-sm text-muted-foreground mt-1">Còn lại để chuẩn bị</div>
+            </div>
+            <Card className="bg-amber-50 border-amber-200">
+              <CardContent className="p-4 space-y-2">
+                <div className="font-bold">{part2CueCard.topic}</div>
+                <div className="text-sm">You should say:</div>
+                <ul className="list-disc pl-5 text-sm space-y-1">
+                  {part2CueCard.points.map((p, i) => <li key={i}>{p}</li>)}
+                </ul>
+              </CardContent>
+            </Card>
+            <Button onClick={() => setPhase("part2-speak")} variant="outline" className="w-full">
+              Bỏ qua prep, nói luôn →
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {phase === "part2-speak" && (
+        <Card>
+          <CardContent className="p-6 space-y-4">
+            <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">
+              Part 2 — Đang nói (1-2 phút)
+            </div>
+            <div className="text-center">
+              <div className="text-5xl font-extrabold tabular-nums">{formatDuration(part2Remaining)}</div>
+              <div className="flex items-center justify-center gap-2 mt-2">
+                <div className={`h-2 w-2 rounded-full ${recording ? "bg-red-500 animate-pulse" : "bg-zinc-400"}`} />
+                <span className="text-sm text-muted-foreground">{recording ? "Đang ghi âm" : "Mic tắt"}</span>
+              </div>
+            </div>
+            <Card className="bg-amber-50 border-amber-200">
+              <CardContent className="p-4 space-y-2">
+                <div className="font-bold">{part2CueCard.topic}</div>
+                <ul className="list-disc pl-5 text-sm space-y-1">
+                  {part2CueCard.points.map((p, i) => <li key={i}>{p}</li>)}
+                </ul>
+              </CardContent>
+            </Card>
+            <Textarea
+              value={transcripts[2]}
+              onChange={(e) => setTranscripts((t) => ({ ...t, 2: e.target.value }))}
+              placeholder="Transcript..."
+              className="min-h-[120px]"
+            />
+            <Button
+              onClick={() => {
+                if (part2TimerRef.current) clearInterval(part2TimerRef.current);
+                stopRecording();
+                setPhase("part3");
+                setQuestionIdx(0);
+              }}
+              variant="outline"
+              className="w-full"
+            >
+              Kết thúc Part 2 →
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {phase === "part3" && (
+        <Card>
+          <CardContent className="p-6 space-y-4">
+            <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">
+              Part 3 — Câu {questionIdx + 1}/{part3Questions.length}
+            </div>
+            <div className="flex items-start gap-3">
+              <div className={`grid h-10 w-10 place-items-center rounded-xl bg-indigo-100 text-indigo-600 ${speaking ? "animate-pulse" : ""}`}>
+                <Volume2 className="h-5 w-5" />
+              </div>
+              <p className="text-lg font-bold flex-1">{part3Questions[questionIdx]}</p>
+            </div>
+            <div className="flex gap-2">
+              {!recording ? (
+                <Button onClick={() => startRecording(3)} className="flex-1" variant="brand">
+                  <Mic className="h-4 w-4" /> Trả lời
+                </Button>
+              ) : (
+                <Button onClick={stopRecording} className="flex-1" variant="destructive">
+                  <MicOff className="h-4 w-4" /> Dừng
+                </Button>
+              )}
+              <Button onClick={nextPart3} variant="outline">
+                {questionIdx + 1 < part3Questions.length ? "Câu tiếp →" : "Hoàn thành →"}
+              </Button>
+            </div>
+            <Textarea
+              value={transcripts[3]}
+              onChange={(e) => setTranscripts((t) => ({ ...t, 3: e.target.value }))}
+              placeholder="Transcript..."
+              className="min-h-[120px]"
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {phase === "review" && (
+        <Card>
+          <CardContent className="p-6 space-y-4">
+            <h3 className="text-xl font-bold">Đã xong phần Speaking</h3>
+            <p className="text-sm text-muted-foreground">Review nhanh transcript trước khi AI chấm:</p>
+            {[1, 2, 3].map((p) => (
+              <div key={p}>
+                <div className="font-semibold text-sm">Part {p}</div>
+                <Textarea
+                  value={transcripts[p as 1 | 2 | 3]}
+                  onChange={(e) => setTranscripts((t) => ({ ...t, [p]: e.target.value }))}
+                  className="mt-1 min-h-[80px]"
+                />
+              </div>
+            ))}
+            <Button onClick={() => onDone(transcripts)} variant="brand" size="lg" className="w-full rounded-full">
+              Nộp & chấm điểm →
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}

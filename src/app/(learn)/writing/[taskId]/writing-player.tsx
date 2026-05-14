@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Clock, PenLine, Loader2, Sparkles } from "lucide-react";
 import { formatDuration, wordCount, cn } from "@/lib/utils";
+import { TipsCard } from "@/components/learn/tips-card";
 
 type WritingResult = {
   overallBand: number;
@@ -141,6 +142,8 @@ export function WritingPlayer({
             </CardContent>
           </Card>
         )}
+
+        <TipsCard skill="WRITING" score={result.overallBand} context={`Writing Task ${taskType} essay`} />
 
         <Button onClick={() => router.push("/writing")} className="w-full" size="lg">
           Làm task khác

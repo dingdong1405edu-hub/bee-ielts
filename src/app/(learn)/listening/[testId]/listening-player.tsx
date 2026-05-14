@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, CheckCircle2, XCircle } from "lucide-react";
+import { Clock, CheckCircle2, XCircle, Play, Pause, Gauge } from "lucide-react";
 import { formatDuration, cn } from "@/lib/utils";
+import { speakText, stopSpeaking, isTTSSupported } from "@/lib/tts";
+import { TipsCard } from "@/components/learn/tips-card";
 
 type Q = {
   id: string;
@@ -78,16 +80,8 @@ export function ListeningPlayer({
         </Badge>
       </div>
 
-      <Card>
-        <CardContent className="p-5 space-y-3">
-          <audio controls src={audioUrl} className="w-full" preload="metadata">
-            Audio not supported.
-          </audio>
-          <p className="text-xs text-muted-foreground">
-            Mẹo: bạn có thể điều chỉnh tốc độ trong menu của trình phát (3 chấm).
-          </p>
-        </CardContent>
-      </Card>
+      <AudioPlayer audioUrl={audioUrl} transcript={transcript} />
+
 
       <div className="space-y-3">
         {questions.map((q, i) => {
@@ -167,6 +161,102 @@ export function ListeningPlayer({
           </CardContent>
         </Card>
       )}
+
+      {submitted && (
+        <TipsCard
+          skill="LISTENING"
+          score={(questions.filter((q) => (answers[q.id] || "").trim().toLowerCase() === q.correctAnswer.toLowerCase()).length / questions.length) * 9}
+          context={`User got ${questions.filter((q) => (answers[q.id] || "").trim().toLowerCase() === q.correctAnswer.toLowerCase()).length}/${questions.length} questions correct on a listening test.`}
+        />
+      )}
     </div>
+  );
+}
+
+function AudioPlayer({ audioUrl, transcript }: { audioUrl: string; transcript: string | null }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [speed, setSpeed] = useState(1);
+  const hasReal = audioUrl && !audioUrl.startsWith("/audio/sample");
+
+  const setRate = (r: number) => {
+    setSpeed(r);
+    if (audioRef.current) audioRef.current.playbackRate = r;
+  };
+
+  const togglePlay = async () => {
+    if (hasReal && audioRef.current) {
+      if (playing) {
+        audioRef.current.pause();
+      } else {
+        audioRef.current.playbackRate = speed;
+        await audioRef.current.play();
+      }
+      return;
+    }
+    if (!transcript) {
+      toast.error("Không có audio + transcript.");
+      return;
+    }
+    if (!isTTSSupported()) {
+      toast.error("Browser không hỗ trợ TTS.");
+      return;
+    }
+    if (playing) {
+      stopSpeaking();
+      setPlaying(false);
+      return;
+    }
+    setPlaying(true);
+    try {
+      await speakText(transcript, { rate: speed });
+    } finally {
+      setPlaying(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardContent className="p-5 space-y-3">
+        {hasReal ? (
+          <audio
+            ref={audioRef}
+            src={audioUrl}
+            controls
+            className="w-full"
+            preload="metadata"
+            onPlay={() => setPlaying(true)}
+            onPause={() => setPlaying(false)}
+            onEnded={() => setPlaying(false)}
+          />
+        ) : (
+          <Button onClick={togglePlay} variant={playing ? "destructive" : "brand"} size="lg" className="w-full">
+            {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+            {playing ? "Dừng" : "Phát audio (AI voice)"}
+          </Button>
+        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Gauge className="h-4 w-4 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground font-semibold">Tốc độ:</span>
+          {[0.75, 1, 1.25, 1.5, 2].map((r) => (
+            <button
+              key={r}
+              onClick={() => setRate(r)}
+              className={cn(
+                "rounded-full px-2.5 py-1 text-xs font-bold transition-colors",
+                speed === r ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent",
+              )}
+            >
+              {r}x
+            </button>
+          ))}
+        </div>
+        {!hasReal && (
+          <p className="text-xs text-muted-foreground italic">
+            ⚠️ Audio dùng giọng AI (Web Speech). Practice — không giới hạn lần phát.
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 }

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Sparkles, BookOpenText, BookOpen, Headphones, PenLine, Mic, ArrowRight } from "lucide-react";
+import { Sparkles, BookOpenText, BookOpen, Headphones, PenLine, Mic, ArrowRight, GraduationCap } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { computeDisplayStreak, getStreakRestoreState } from "@/lib/streak";
@@ -67,6 +67,22 @@ export default async function DashboardPage() {
         weekMinutes={weekMinutes}
         weekSessions={weekAttempts.length}
       />
+
+      <Link href="/mock" className="block group">
+        <div className="relative overflow-hidden rounded-3xl gradient-brand p-6 md:p-8 text-white shadow-xl shadow-primary/20 transition-all hover:shadow-2xl hover:shadow-primary/30 hover:-translate-y-0.5">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_15%,rgba(255,255,255,0.2),transparent_50%)]" />
+          <div className="relative flex items-center gap-4 flex-wrap">
+            <div className="grid h-14 w-14 place-items-center rounded-2xl bg-white/15 backdrop-blur border border-white/20">
+              <GraduationCap className="h-7 w-7" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">Thi thử IELTS Full</h2>
+              <p className="text-white/90 text-sm mt-0.5">4 kỹ năng → AI chấm overall + per-skill band</p>
+            </div>
+            <ArrowRight className="h-6 w-6 group-hover:translate-x-1 transition-transform" />
+          </div>
+        </div>
+      </Link>
 
       <div>
         <h2 className="text-xl font-extrabold mb-4 tracking-tight">Skill của bạn</h2>

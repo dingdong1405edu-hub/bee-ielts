@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Mic, MicOff, Loader2, Clock, Sparkles, ChevronRight } from "lucide-react";
+import { Mic, MicOff, Loader2, Clock, Sparkles, ChevronRight, Volume2 } from "lucide-react";
+import { speakWithPauses, stopSpeaking, isTTSSupported } from "@/lib/tts";
+import { TipsCard } from "@/components/learn/tips-card";
 
 type Part = 1 | 2 | 3;
 
@@ -141,6 +143,8 @@ export function SpeakingPlayer({
             <p className="text-sm text-muted-foreground mt-3 max-w-md mx-auto">{result.summary}</p>
           </CardContent>
         </Card>
+
+        <TipsCard skill="SPEAKING" score={result.overallBand} context={`Speaking Part ${resultPart}, topic: ${topic}`} />
 
         <div className="grid sm:grid-cols-2 gap-3">
           {Object.entries(result.criteria).map(([k, v]) => (

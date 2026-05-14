@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Clock, CheckCircle2, XCircle } from "lucide-react";
 import { formatDuration, cn } from "@/lib/utils";
+import { TipsCard } from "@/components/learn/tips-card";
 
 type Q = {
   id: string;
@@ -169,16 +170,23 @@ export function ReadingPlayer({
           })}
 
           {submitted && (
-            <Card className="bg-accent">
-              <CardContent className="p-5 text-center space-y-2">
-                <h3 className="text-xl font-bold">Kết quả</h3>
-                <p className="text-3xl font-bold text-primary">
-                  {correctCount}/{questions.length}
-                </p>
-                <p className="text-muted-foreground">Band ước tính: {((correctCount / questions.length) * 9).toFixed(1)}</p>
-                <Button onClick={() => router.push("/reading")} className="mt-3">Về danh sách</Button>
-              </CardContent>
-            </Card>
+            <>
+              <Card className="bg-accent">
+                <CardContent className="p-5 text-center space-y-2">
+                  <h3 className="text-xl font-bold">Kết quả</h3>
+                  <p className="text-3xl font-bold text-primary">
+                    {correctCount}/{questions.length}
+                  </p>
+                  <p className="text-muted-foreground">Band ước tính: {((correctCount / questions.length) * 9).toFixed(1)}</p>
+                  <Button onClick={() => router.push("/reading")} className="mt-3">Về danh sách</Button>
+                </CardContent>
+              </Card>
+              <TipsCard
+                skill="READING"
+                score={(correctCount / questions.length) * 9}
+                context={`Reading: ${correctCount}/${questions.length} correct`}
+              />
+            </>
           )}
         </div>
       </div>
