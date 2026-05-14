@@ -7,8 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -30,7 +29,7 @@ export default function RegisterPage() {
         return;
       }
       await signIn("credentials", { email: form.email, password: form.password, redirect: false });
-      toast.success("Chào mừng đến Bee IELTS 🐝");
+      toast.success("Chào mừng đến Bee IELTS 🎉");
       router.push("/dashboard");
       router.refresh();
     } finally {
@@ -39,42 +38,52 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen grid place-items-center px-4 bg-gradient-to-b from-background to-accent/30">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1 text-center">
-          <Link href="/" className="mx-auto mb-2 grid h-10 w-10 place-items-center rounded-lg bg-primary text-primary-foreground">
+    <div className="relative min-h-screen grid place-items-center px-4 overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute top-10 left-10 h-72 w-72 rounded-full bg-pink-300 blob" />
+        <div className="absolute bottom-10 right-10 h-72 w-72 rounded-full bg-amber-200 blob" />
+      </div>
+
+      <Link href="/" className="absolute top-6 left-6 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="h-4 w-4" /> Trang chủ
+      </Link>
+
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl gradient-brand text-white text-2xl shadow-lg shadow-primary/20 mb-4">
             🐝
-          </Link>
-          <CardTitle className="text-2xl">Đăng ký</CardTitle>
-          <CardDescription>Tạo tài khoản miễn phí để bắt đầu</CardDescription>
-        </CardHeader>
-        <CardContent>
+          </div>
+          <h1 className="text-3xl font-extrabold tracking-tight">Tạo tài khoản</h1>
+          <p className="text-muted-foreground mt-1">Free, không cần thẻ — bắt đầu trong 30 giây.</p>
+        </div>
+
+        <div className="rounded-3xl border bg-card/80 backdrop-blur p-6 md:p-8 shadow-xl shadow-primary/5">
           <form onSubmit={onSubmit} className="space-y-4">
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label htmlFor="name">Họ tên</Label>
               <Input id="name" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nguyễn Văn A" />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="you@example.com" />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label htmlFor="password">Mật khẩu</Label>
               <Input id="password" type="password" required minLength={6} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Ít nhất 6 ký tự" />
             </div>
-            <Button type="submit" className="w-full" size="lg" disabled={loading}>
+            <Button type="submit" variant="brand" className="w-full" size="lg" disabled={loading}>
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               Tạo tài khoản
             </Button>
           </form>
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Đã có tài khoản?{" "}
-            <Link href="/login" className="font-medium text-primary hover:underline">
+            <Link href="/login" className="font-semibold text-primary hover:underline">
               Đăng nhập
             </Link>
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

@@ -44,6 +44,7 @@ export function SpeakingPlayer({
   const [result, setResult] = useState<SpeakingResult | null>(null);
   const [resultPart, setResultPart] = useState<Part>(1);
   const recRef = useRef<unknown>(null);
+  const startedAtRef = useRef<number>(Date.now());
   const [supported, setSupported] = useState(true);
 
   useEffect(() => {
@@ -111,10 +112,11 @@ export function SpeakingPlayer({
     try {
       const questions = part === 1 ? part1Questions : part === 3 ? part3Questions : [];
       const cueCard = part === 2 ? part2CueCard : undefined;
+      const durationSec = Math.floor((Date.now() - startedAtRef.current) / 1000);
       const res = await fetch("/api/grade/speaking", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ setId, part, topic, questions, cueCard, transcript }),
+        body: JSON.stringify({ setId, part, topic, questions, cueCard, transcript, durationSec }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);

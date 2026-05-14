@@ -4,42 +4,62 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 4%;
+    --background: 40 33% 98%;
+    --foreground: 240 10% 8%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 4%;
-    --primary: 251 91% 64%;
+    --card-foreground: 240 10% 8%;
+
+    --primary: 263 86% 60%;
     --primary-foreground: 0 0% 100%;
+
     --secondary: 240 5% 96%;
     --secondary-foreground: 240 6% 10%;
-    --muted: 240 5% 96%;
-    --muted-foreground: 240 4% 46%;
-    --accent: 251 91% 96%;
-    --accent-foreground: 251 91% 30%;
+
+    --muted: 40 20% 95%;
+    --muted-foreground: 240 4% 40%;
+
+    --accent: 320 95% 96%;
+    --accent-foreground: 263 86% 30%;
+
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --success: 142 71% 45%;
+
+    --success: 142 76% 40%;
     --success-foreground: 0 0% 100%;
-    --border: 240 6% 90%;
+
+    --border: 240 6% 92%;
     --input: 240 6% 90%;
-    --ring: 251 91% 64%;
-    --radius: 0.75rem;
+    --ring: 263 86% 60%;
+
+    --radius: 1rem;
+
+    --brand-1: 263 86% 60%;
+    --brand-2: 320 90% 60%;
+    --brand-3: 36 100% 60%;
   }
 
   * {
     @apply border-border;
   }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
   body {
     @apply bg-background text-foreground antialiased;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
   }
-
   ::selection {
-    background-color: hsl(var(--primary) / 0.2);
+    background-color: hsl(var(--primary) / 0.25);
+  }
+  h1, h2, h3, h4 {
+    letter-spacing: -0.02em;
   }
 }
 
 @layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
   .scrollbar-thin::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -47,5 +67,21 @@
   .scrollbar-thin::-webkit-scrollbar-thumb {
     background-color: hsl(var(--border));
     border-radius: 9999px;
+  }
+  .gradient-brand {
+    background-image: linear-gradient(135deg, hsl(var(--brand-1)) 0%, hsl(var(--brand-2)) 60%, hsl(var(--brand-3)) 100%);
+  }
+  .gradient-brand-text {
+    background-image: linear-gradient(135deg, hsl(var(--brand-1)) 0%, hsl(var(--brand-2)) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .glow {
+    box-shadow: 0 0 0 1px hsl(var(--primary) / 0.1), 0 8px 30px -8px hsl(var(--primary) / 0.3);
+  }
+  .blob {
+    filter: blur(80px);
+    opacity: 0.5;
   }
 }

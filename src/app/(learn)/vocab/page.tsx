@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { auth } from "@/auth";
-import { ChevronRight, Sparkles } from "lucide-react";
+import { Check, Lock, Sparkles, Play } from "lucide-react";
 
 export default async function VocabPage() {
   const session = await auth();
@@ -23,55 +22,70 @@ export default async function VocabPage() {
   });
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="grid h-12 w-12 place-items-center rounded-xl bg-violet-500 text-white">
+    <div className="max-w-3xl mx-auto space-y-8">
+      <div className="flex items-center gap-4">
+        <div className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-lg shadow-violet-500/30">
           <Sparkles className="h-6 w-6" />
         </div>
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Vocabulary</h1>
-          <p className="text-muted-foreground">Học từ vựng theo unit & lesson</p>
+          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">Vocabulary</h1>
+          <p className="text-muted-foreground">Học từ kiểu Duolingo — ngắn, vui, có thưởng XP.</p>
         </div>
       </div>
 
       {units.length === 0 ? (
-        <Card>
-          <CardContent className="p-8 text-center text-muted-foreground">Chưa có unit nào. Quay lại sau nhé.</CardContent>
-        </Card>
+        <div className="rounded-3xl border bg-card p-10 text-center text-muted-foreground">
+          Chưa có unit nào.
+        </div>
       ) : (
-        units.map((unit) => (
-          <Card key={unit.id}>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>{unit.title}</CardTitle>
-                <Badge variant="outline">{unit.level}</Badge>
+        units.map((unit, ui) => (
+          <section key={unit.id}>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <Badge variant="brand" className="mb-2">UNIT {ui + 1} · {unit.level}</Badge>
+                <h2 className="text-xl font-extrabold tracking-tight">{unit.title}</h2>
               </div>
-              <CardDescription>{unit.lessons.length} lessons</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {unit.lessons.map((l) => {
+              <div className="text-sm text-muted-foreground">
+                {unit.lessons.filter((l) => l.progress[0]?.completed).length}/{unit.lessons.length}
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {unit.lessons.map((l, idx) => {
                 const done = l.progress[0]?.completed;
+                const prevDone = idx === 0 ? true : unit.lessons[idx - 1].progress[0]?.completed;
+                const locked = !done && !prevDone;
                 return (
                   <Link
                     key={l.id}
-                    href={`/vocab/${l.id}`}
-                    className="flex items-center justify-between rounded-lg border p-3 hover:bg-accent transition-colors"
+                    href={locked ? "#" : `/vocab/${l.id}`}
+                    aria-disabled={locked}
+                    className={`group relative overflow-hidden rounded-2xl border bg-card p-4 transition-all ${locked ? "opacity-50 pointer-events-none" : "hover:-translate-y-0.5 hover:shadow-lg"}`}
                   >
                     <div className="flex items-center gap-3">
-                      <span className={`grid h-8 w-8 place-items-center rounded-full text-sm font-semibold ${done ? "bg-success text-success-foreground" : "bg-muted"}`}>
-                        {l.order}
-                      </span>
-                      <span className="font-medium">{l.title}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {done && <Badge variant="success">Hoàn thành</Badge>}
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      <div
+                        className={`grid h-12 w-12 place-items-center rounded-xl text-white font-extrabold ${
+                          done
+                            ? "bg-gradient-to-br from-emerald-500 to-teal-500"
+                            : locked
+                              ? "bg-muted"
+                              : "bg-gradient-to-br from-violet-500 to-fuchsia-500"
+                        }`}
+                      >
+                        {done ? <Check className="h-5 w-5" /> : locked ? <Lock className="h-4 w-4 text-muted-foreground" /> : <Play className="h-4 w-4 fill-current" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold truncate">{l.title}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {done ? `Done · ${l.progress[0]?.score ?? 0}/100` : locked ? "Khoá" : "Bắt đầu"}
+                        </div>
+                      </div>
                     </div>
                   </Link>
                 );
               })}
-            </CardContent>
-          </Card>
+            </div>
+          </section>
         ))
       )}
     </div>

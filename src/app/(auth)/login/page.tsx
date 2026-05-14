@@ -7,8 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
 
 export default function LoginPage() {
   return (
@@ -34,47 +33,59 @@ function LoginForm() {
       toast.error("Email hoặc mật khẩu không đúng");
       return;
     }
-    toast.success("Đăng nhập thành công");
+    toast.success("Welcome back 💜");
     router.push(params.get("from") ?? "/dashboard");
     router.refresh();
   };
 
   return (
-    <div className="min-h-screen grid place-items-center px-4 bg-gradient-to-b from-background to-accent/30">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1 text-center">
-          <Link href="/" className="mx-auto mb-2 grid h-10 w-10 place-items-center rounded-lg bg-primary text-primary-foreground">
+    <div className="relative min-h-screen grid place-items-center px-4 overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute top-10 left-10 h-72 w-72 rounded-full bg-violet-300 blob" />
+        <div className="absolute bottom-10 right-10 h-72 w-72 rounded-full bg-pink-300 blob" />
+      </div>
+
+      <Link href="/" className="absolute top-6 left-6 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="h-4 w-4" /> Trang chủ
+      </Link>
+
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl gradient-brand text-white text-2xl shadow-lg shadow-primary/20 mb-4">
             🐝
-          </Link>
-          <CardTitle className="text-2xl">Đăng nhập</CardTitle>
-          <CardDescription>Tiếp tục hành trình học tiếng Anh của bạn</CardDescription>
-        </CardHeader>
-        <CardContent>
+          </div>
+          <h1 className="text-3xl font-extrabold tracking-tight">Chào mừng quay lại</h1>
+          <p className="text-muted-foreground mt-1">Sẵn sàng level up tiếng Anh hôm nay?</p>
+        </div>
+
+        <div className="rounded-3xl border bg-card/80 backdrop-blur p-6 md:p-8 shadow-xl shadow-primary/5">
           <form onSubmit={onSubmit} className="space-y-4">
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label htmlFor="password">Mật khẩu</Label>
               <Input id="password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
             </div>
-            <Button type="submit" className="w-full" size="lg" disabled={loading}>
+            <Button type="submit" variant="brand" className="w-full" size="lg" disabled={loading}>
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               Đăng nhập
             </Button>
           </form>
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Chưa có tài khoản?{" "}
-            <Link href="/register" className="font-medium text-primary hover:underline">
-              Đăng ký
+            <Link href="/register" className="font-semibold text-primary hover:underline">
+              Đăng ký free
             </Link>
           </p>
-          <p className="mt-3 text-center text-xs text-muted-foreground">
-            Demo: <code>demo@bee-ielts.com</code> / <code>demo1234</code>
-          </p>
-        </CardContent>
-      </Card>
+        </div>
+
+        <div className="mt-4 rounded-2xl border-2 border-dashed border-primary/20 bg-accent/40 p-4 text-xs text-center">
+          <p className="font-semibold mb-1">✨ Thử demo nhanh</p>
+          <code className="text-[11px]">demo@bee-ielts.com</code> · <code className="text-[11px]">demo1234</code>
+        </div>
+      </div>
     </div>
   );
 }

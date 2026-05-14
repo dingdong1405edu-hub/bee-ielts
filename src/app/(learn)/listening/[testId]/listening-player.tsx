@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,7 @@ export function ListeningPlayer({
   questions: Q[];
 }) {
   const router = useRouter();
+  const startedAtRef = useRef<number>(Date.now());
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [remaining, setRemaining] = useState(timeLimit);
   const [submitted, setSubmitted] = useState(false);
@@ -51,10 +52,11 @@ export function ListeningPlayer({
     ).length;
     const band = (correctCount / questions.length) * 9;
     try {
+      const durationSec = Math.floor((Date.now() - startedAtRef.current) / 1000);
       await fetch("/api/listening/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ testId, answers, correctCount, total: questions.length }),
+        body: JSON.stringify({ testId, answers, correctCount, total: questions.length, durationSec }),
       });
       toast.success(`Đúng ${correctCount}/${questions.length} — Band ~${band.toFixed(1)}`);
     } catch {

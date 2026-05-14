@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -26,6 +26,7 @@ export function LessonPlayer({
   exercises: Exercise[];
 }) {
   const router = useRouter();
+  const startedAtRef = useRef<number>(Date.now());
   const [idx, setIdx] = useState(0);
   const [selected, setSelected] = useState<string>("");
   const [typed, setTyped] = useState("");
@@ -63,6 +64,7 @@ export function LessonPlayer({
       setDone(true);
       setSubmitting(true);
       try {
+        const durationSec = Math.floor((Date.now() - startedAtRef.current) / 1000);
         await fetch("/api/vocab/complete", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -71,6 +73,7 @@ export function LessonPlayer({
             score: Math.round((correctCount / exercises.length) * 100),
             totalCorrect: correctCount + (feedback === "correct" ? 1 : 0),
             total: exercises.length,
+            durationSec,
           }),
         });
       } catch (e) {

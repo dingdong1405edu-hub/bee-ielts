@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { gradeSpeaking } from "@/lib/claude";
+import { recordActivity } from "@/lib/activity";
 
 const schema = z.object({
   setId: z.string(),
@@ -11,6 +12,7 @@ const schema = z.object({
   questions: z.array(z.string()).default([]),
   cueCard: z.object({ topic: z.string(), points: z.array(z.string()) }).optional(),
   transcript: z.string().min(20),
+  durationSec: z.number().min(0).optional(),
 });
 
 export async function POST(req: Request) {
@@ -20,7 +22,7 @@ export async function POST(req: Request) {
   const parsed = schema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: "Bad input" }, { status: 400 });
 
-  const { setId, part, topic, questions, cueCard, transcript } = parsed.data;
+  const { setId, part, topic, questions, cueCard, transcript, durationSec } = parsed.data;
   const effectiveQuestions =
     part === 2 && cueCard ? [`Cue card: ${cueCard.topic}`, ...cueCard.points] : questions;
 
@@ -40,12 +42,10 @@ export async function POST(req: Request) {
         rawAnswer: { part, transcript },
         score: result.overallBand,
         feedback: result as object,
+        durationSec: durationSec ?? null,
       },
     });
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: { xp: { increment: 50 }, lastActiveAt: new Date() },
-    });
+    await recordActivity(session.user.id, { xpGain: 50 });
     return NextResponse.json({ result });
   } catch (e) {
     console.error("[grade/speaking]", e);

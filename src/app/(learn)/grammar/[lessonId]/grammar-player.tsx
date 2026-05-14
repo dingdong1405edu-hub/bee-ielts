@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ export function GrammarPlayer({
   exercises: { type: "fill"; prompt: string; answer: string }[];
 }) {
   const router = useRouter();
+  const startedAtRef = useRef<number>(Date.now());
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [checked, setChecked] = useState(false);
 
@@ -29,11 +30,12 @@ export function GrammarPlayer({
 
   const submit = async () => {
     setChecked(true);
+    const durationSec = Math.floor((Date.now() - startedAtRef.current) / 1000);
     try {
       await fetch("/api/grammar/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lessonId, correctCount, total: exercises.length }),
+        body: JSON.stringify({ lessonId, correctCount, total: exercises.length, durationSec }),
       });
       toast.success(`Đúng ${correctCount}/${exercises.length}`);
     } catch {

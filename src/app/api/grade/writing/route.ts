@@ -3,10 +3,12 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { gradeWriting } from "@/lib/claude";
+import { recordActivity } from "@/lib/activity";
 
 const schema = z.object({
   taskId: z.string(),
   essay: z.string().min(20),
+  durationSec: z.number().min(0).optional(),
 });
 
 export async function POST(req: Request) {
@@ -34,13 +36,11 @@ export async function POST(req: Request) {
         rawAnswer: { essay: parsed.data.essay },
         score: result.overallBand,
         feedback: result as object,
+        durationSec: parsed.data.durationSec ?? null,
       },
     });
 
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: { xp: { increment: 50 }, lastActiveAt: new Date() },
-    });
+    await recordActivity(session.user.id, { xpGain: 50 });
 
     return NextResponse.json({ result });
   } catch (e) {

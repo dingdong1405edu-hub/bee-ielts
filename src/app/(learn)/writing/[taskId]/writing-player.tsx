@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { toast } from "sonner";
@@ -39,6 +39,7 @@ export function WritingPlayer({
   timeLimit: number;
 }) {
   const router = useRouter();
+  const startedAtRef = useRef<number>(Date.now());
   const [essay, setEssay] = useState("");
   const [remaining, setRemaining] = useState(timeLimit);
   const [grading, setGrading] = useState(false);
@@ -68,10 +69,11 @@ export function WritingPlayer({
     }
     setGrading(true);
     try {
+      const durationSec = Math.floor((Date.now() - startedAtRef.current) / 1000);
       const res = await fetch("/api/grade/writing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taskId, essay }),
+        body: JSON.stringify({ taskId, essay, durationSec }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Grading failed");
