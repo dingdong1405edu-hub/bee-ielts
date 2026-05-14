@@ -249,4 +249,162 @@ Some scholars argue that the real solution must be structural. Slowing the sprea
       { type: QuestionType.MCQ, prompt: "Algorithms optimised for engagement reward content that:", options: ["Is well-sourced", "Arouses strong emotion", "Is short", "Is fact-checked"], correctAnswer: "Arouses strong emotion" },
     ],
   },
+  {
+    title: "Why Bees Are Disappearing",
+    level: CEFRLevel.B2,
+    timeLimit: 1200,
+    passage: `Honey bee populations have been declining at an alarming rate across many regions of the world. In some recent years, beekeepers in North America have reported losses of more than thirty percent of their hives over a single winter. Because bees are responsible for pollinating roughly a third of the food crops humans rely on, scientists describe the decline as a serious threat to global agriculture and biodiversity.
+
+There is rarely a single cause behind the deaths. Researchers point instead to a combination of pressures acting together. The Varroa mite, a parasite that feeds on bee larvae and spreads viruses, has spread to almost every continent where honey bees are kept. Industrial agriculture is another major factor: large fields of a single crop offer bees only short, intense bursts of food, and pesticides — particularly a class known as neonicotinoids — can damage their nervous systems even at very low doses.
+
+Climate change adds further stress. Warmer springs cause flowers to bloom earlier than the bees have evolved to expect, creating a mismatch between when food is available and when colonies are ready to forage. Extended droughts reduce the number of wild plants that produce nectar, while heatwaves can kill brood inside the hive.
+
+Some governments have responded with restrictions on the most harmful pesticides, and farmers have begun planting wildflower strips along the edges of their fields to give bees diverse forage. Citizens too are encouraged to keep bee-friendly gardens. Yet ecologists caution that protecting honey bees alone is not enough. Many wild pollinators — solitary bees, hoverflies, butterflies — are in equally serious trouble, and only changes to how land is managed at a large scale can reverse the trend.`,
+    questions: [
+      { type: QuestionType.MCQ, prompt: "Approximately what proportion of human food crops rely on bee pollination?", options: ["A tenth", "A quarter", "A third", "A half"], correctAnswer: "A third" },
+      { type: QuestionType.MCQ, prompt: "Which parasite is mentioned as damaging bee larvae and spreading viruses?", options: ["The honey louse", "The Varroa mite", "The wax moth", "The pollen tick"], correctAnswer: "The Varroa mite" },
+      { type: QuestionType.TRUE_FALSE, prompt: "Neonicotinoids are described as harmless to bees at low doses.", options: ["True", "False"], correctAnswer: "False" },
+      { type: QuestionType.FILL_BLANK, prompt: "Warmer springs create a ___ between bloom timing and bee readiness.", correctAnswer: "mismatch" },
+      { type: QuestionType.MCQ, prompt: "What do ecologists warn about?", options: ["Protecting honey bees alone is enough", "Wild pollinators are also in trouble", "Pesticides are no longer used", "Climate change has stopped"], correctAnswer: "Wild pollinators are also in trouble" },
+      { type: QuestionType.TRUE_FALSE, prompt: "Some farmers plant wildflower strips to give bees more food sources.", options: ["True", "False"], correctAnswer: "True" },
+    ],
+  },
+  {
+    title: "Sleep and Memory",
+    level: CEFRLevel.B2,
+    timeLimit: 1200,
+    passage: `For much of the twentieth century, sleep was thought of as a passive state — a kind of nightly shut-down before the brain resumed its real work in the morning. Modern neuroscience has overturned that view. Far from being inactive, the sleeping brain is busy performing some of its most important tasks, particularly those related to memory.
+
+During slow-wave sleep, which dominates the first half of the night, the brain appears to replay the day's experiences. Neurons that fired together while a person was learning a new route, a piece of music or a sequence of words activate again in a compressed pattern. Researchers believe that this replay helps transfer information from the hippocampus, a temporary store, to the cortex, where it can be held for the long term. This is one reason that students who study and then sleep tend to remember material better than those who stay up all night.
+
+REM sleep, by contrast, is when dreams are most vivid. It seems to play a different role: integrating new information with what is already known, and stripping away unnecessary detail. Some scientists describe REM as the brain's "creative phase", linking apparently unrelated ideas in ways that can produce insight. People who are deprived of REM sleep perform worse on tasks that require flexible thinking.
+
+The implications go beyond academic learning. Chronic sleep loss is now linked to a higher risk of dementia, possibly because the brain uses sleep to clear out waste proteins that, when allowed to accumulate, are associated with Alzheimer's disease. Public-health campaigns increasingly treat sleep not as a luxury but as a basic pillar of cognitive and physical health, on a par with diet and exercise.`,
+    questions: [
+      { type: QuestionType.MCQ, prompt: "How was sleep viewed during much of the twentieth century?", options: ["As an active learning state", "As a passive shut-down", "As harmful to memory", "As only useful for children"], correctAnswer: "As a passive shut-down" },
+      { type: QuestionType.MCQ, prompt: "What happens during slow-wave sleep, according to the passage?", options: ["The brain stops working", "Neurons replay daytime patterns", "Dreams become most vivid", "Body temperature rises"], correctAnswer: "Neurons replay daytime patterns" },
+      { type: QuestionType.TRUE_FALSE, prompt: "Staying up all night tends to improve memory more than studying then sleeping.", options: ["True", "False"], correctAnswer: "False" },
+      { type: QuestionType.FILL_BLANK, prompt: "Some scientists describe REM as the brain's '___ phase' for linking ideas.", correctAnswer: "creative" },
+      { type: QuestionType.MCQ, prompt: "Chronic sleep loss is linked to which disease in the passage?", options: ["Parkinson's", "Stroke", "Alzheimer's", "Migraine"], correctAnswer: "Alzheimer's" },
+      { type: QuestionType.TRUE_FALSE, prompt: "Sleep is now considered a basic pillar of health alongside diet and exercise.", options: ["True", "False"], correctAnswer: "True" },
+    ],
+  },
+  {
+    title: "Urban Farming Takes Root",
+    level: CEFRLevel.B2,
+    timeLimit: 1200,
+    passage: `Across cities from Singapore to Detroit, vegetables, herbs and even fish are being produced inside the urban landscape itself. Rooftops, abandoned warehouses and the basements of office towers are being converted into farms, supplying restaurants and supermarkets with food grown a few hundred metres from where it is sold.
+
+Several factors are driving the movement. Rapid urbanisation means that more than half of humanity now lives in cities; long, energy-intensive supply chains that move food across continents are increasingly seen as fragile and polluting. Vertical farms, in which crops grow under controlled lighting on stacked trays, can use up to ninety percent less water than conventional farming, and they avoid the use of pesticides because the indoor environment can be sealed against pests.
+
+The economics, however, remain difficult. Electricity for grow-lights is expensive, and the initial cost of fitting out a warehouse with hydroponic equipment can run into millions. Most urban farms therefore focus on high-value crops — salad greens, basil, microgreens — that customers are willing to pay a premium for. Producing wheat or rice this way is not yet realistic.
+
+Beyond food, advocates point to social benefits. Community gardens in low-income neighbourhoods can improve access to fresh produce, provide jobs and turn neglected sites into green spaces. Schools sometimes use rooftop gardens as outdoor classrooms. Critics counter that urban farming, however appealing, can never replace the scale of rural agriculture and may distract attention from the more important reform of how food is produced in the countryside.`,
+    questions: [
+      { type: QuestionType.MCQ, prompt: "Which proportion of humanity now lives in cities?", options: ["A third", "Half", "More than half", "Three quarters"], correctAnswer: "More than half" },
+      { type: QuestionType.FILL_BLANK, prompt: "Vertical farms can use up to ___ percent less water than conventional farming.", correctAnswer: "ninety" },
+      { type: QuestionType.TRUE_FALSE, prompt: "Urban farms can currently produce staple crops like wheat and rice economically.", options: ["True", "False"], correctAnswer: "False" },
+      { type: QuestionType.MCQ, prompt: "Why do most urban farms focus on salad greens and herbs?", options: ["They grow fastest", "They are high-value crops customers pay a premium for", "They need no light", "They are easier to harvest"], correctAnswer: "They are high-value crops customers pay a premium for" },
+      { type: QuestionType.MCQ, prompt: "What do critics of urban farming argue?", options: ["It is too cheap", "It cannot replace the scale of rural agriculture", "It harms cities", "It produces unsafe food"], correctAnswer: "It cannot replace the scale of rural agriculture" },
+      { type: QuestionType.TRUE_FALSE, prompt: "Some schools use rooftop gardens as outdoor classrooms.", options: ["True", "False"], correctAnswer: "True" },
+    ],
+  },
+  {
+    title: "How Smell Triggers Memory",
+    level: CEFRLevel.B2,
+    timeLimit: 1200,
+    passage: `Of all the senses, smell is perhaps the most powerful at evoking memory. A whiff of pine, sun cream or a particular dish can return a person, in vivid detail, to a moment from decades earlier. This phenomenon has been the subject of growing scientific interest.
+
+The strength of the link lies partly in the anatomy of the brain. Signals from the nose travel along the olfactory nerve directly into the limbic system, the region most closely associated with emotion and long-term memory. Other senses, by contrast, take a more roundabout route, passing through the thalamus before reaching emotional centres. The shortcut taken by smell may explain why olfactory memories feel so immediate and emotionally charged.
+
+Smell memories also tend to be older than memories triggered by sound or sight. When researchers ask adults to recall events linked to particular scents, the memories often date from their first decade of life. Memories triggered by visual or verbal cues, in contrast, tend to cluster around adolescence. Some psychologists suggest that this is because childhood is a period of intense first-time exposure to smells, before they become familiar.
+
+Clinicians are beginning to apply these findings. People with dementia sometimes respond strongly to familiar scents, becoming more communicative and emotionally engaged after smelling, say, a perfume worn by a relative. Smell training is also being tested as a way to help people who have lost their sense of smell after viral infections to recover it. Whether or not such treatments prove effective at scale, they confirm that smell, long neglected by Western science, is anything but minor.`,
+    questions: [
+      { type: QuestionType.MCQ, prompt: "Why are olfactory memories felt so immediately?", options: ["They are processed slowly", "They bypass the thalamus and reach the limbic system directly", "They use more brain regions", "They are easier to forget"], correctAnswer: "They bypass the thalamus and reach the limbic system directly" },
+      { type: QuestionType.FILL_BLANK, prompt: "Smell memories often date from the first ___ of life.", correctAnswer: "decade" },
+      { type: QuestionType.TRUE_FALSE, prompt: "Visual memories tend to cluster around adolescence.", options: ["True", "False"], correctAnswer: "True" },
+      { type: QuestionType.MCQ, prompt: "What benefit do people with dementia sometimes show after smelling familiar scents?", options: ["Faster recovery", "Greater communication and engagement", "Loss of memory", "Reduced appetite"], correctAnswer: "Greater communication and engagement" },
+      { type: QuestionType.TRUE_FALSE, prompt: "Smell training is being studied as a recovery tool after viral infections.", options: ["True", "False"], correctAnswer: "True" },
+    ],
+  },
+  {
+    title: "The Economics of Streaming",
+    level: CEFRLevel.C1,
+    timeLimit: 1200,
+    passage: `For more than a decade, streaming platforms promised both consumers and creators a new golden age of entertainment: vast libraries available on demand, fairer compensation through scale, and direct access to global audiences. The reality, particularly in the music industry, has turned out to be more complicated.
+
+A streaming service typically pays a fraction of a cent per play of a song. For an artist with millions of plays, this can amount to a meaningful income, but for the vast majority of musicians, whose tracks attract perhaps a few thousand listens, the sums are negligible. The model rewards scale, and scale is hard to achieve without the marketing power of a major label. Independent musicians often find themselves working full-time on social media simply to chase the algorithmic visibility that converts into plays.
+
+Television and film face their own economic puzzles. Subscription services compete fiercely for new shows, driving up production budgets, but they also lose money when subscribers cancel after watching one popular series. To reduce this churn, platforms now release episodes weekly rather than dropping a full season at once, mimicking the broadcast television model that streaming was supposed to replace. Some have introduced advertising tiers, despite years of marketing themselves as ad-free.
+
+Whether these contortions are sustainable remains contested. Optimists argue that streaming has democratised access to culture, allowing audiences anywhere to discover work that would once have been impossible to find. Pessimists reply that the long tail of recommendations is dominated by a handful of major productions, and that the average creator earns less than in earlier media eras.`,
+    questions: [
+      { type: QuestionType.MCQ, prompt: "What does the passage say about per-play payments to musicians?", options: ["They are very high", "They are a fraction of a cent", "They are fixed per artist", "They are paid weekly"], correctAnswer: "They are a fraction of a cent" },
+      { type: QuestionType.TRUE_FALSE, prompt: "Independent musicians can typically ignore social media in this model.", options: ["True", "False"], correctAnswer: "False" },
+      { type: QuestionType.MCQ, prompt: "Why have streaming platforms started releasing episodes weekly?", options: ["To make production cheaper", "To reduce subscriber churn", "Because broadcasters demand it", "To increase advertising"], correctAnswer: "To reduce subscriber churn" },
+      { type: QuestionType.FILL_BLANK, prompt: "Platforms have introduced ___ tiers despite previously marketing themselves as ad-free.", correctAnswer: "advertising" },
+      { type: QuestionType.MCQ, prompt: "What do pessimists about streaming argue?", options: ["Access has improved", "Recommendations are dominated by major productions", "Quality is rising", "Costs are falling"], correctAnswer: "Recommendations are dominated by major productions" },
+    ],
+  },
+  {
+    title: "Microplastics in the Ocean",
+    level: CEFRLevel.C1,
+    timeLimit: 1200,
+    passage: `Plastic pollution is no longer simply a problem of visible debris washed up on beaches. Researchers have found tiny plastic fragments — known as microplastics — in every ocean basin on Earth, from the surface to the deep sea, and from the equator to the polar ice. The fragments are smaller than five millimetres, often invisible to the naked eye, and are produced in many ways: from the breakdown of larger items, from fibres released by synthetic clothing during washing, and from microbeads added to cosmetics before recent bans.
+
+Their distribution is shaped by complex ocean dynamics. Surface currents concentrate plastics into so-called garbage patches, the most famous being a vast accumulation in the North Pacific. However, recent surveys have shown that the seafloor may contain far greater quantities, particularly in deep canyons where currents deposit sinking material. Even Arctic sea ice now contains measurable concentrations, suggesting that no part of the marine environment is untouched.
+
+The ecological impacts are still being mapped. Filter-feeding animals such as mussels and small crustaceans consume microplastics directly, sometimes mistaking them for food. The particles can pass through the gut wall and lodge in tissues, carrying with them pollutants that adhere to plastic surfaces. Whether this leads to harm at the level of populations, rather than individual animals, is hotly contested. Some studies show reduced growth and fertility; others find effects only at concentrations far higher than those measured in the wild.
+
+Policy responses have been uneven. Bans on microbeads in cosmetics, adopted by several countries, address only a small fraction of the input. The far larger source — fibres from textiles and the slow weathering of larger plastic items — would require deeper changes to industrial design and waste management. International negotiations on a binding plastics treaty are ongoing, but progress is slow.`,
+    questions: [
+      { type: QuestionType.MCQ, prompt: "What size threshold defines microplastics?", options: ["Smaller than 5 millimetres", "Smaller than 5 centimetres", "Smaller than 1 millimetre", "Smaller than 1 metre"], correctAnswer: "Smaller than 5 millimetres" },
+      { type: QuestionType.TRUE_FALSE, prompt: "Microplastics have been found in Arctic sea ice.", options: ["True", "False"], correctAnswer: "True" },
+      { type: QuestionType.MCQ, prompt: "Where might the seafloor contain especially large quantities of microplastics?", options: ["Shallow lagoons", "Deep canyons", "Coral reefs", "Tidal pools"], correctAnswer: "Deep canyons" },
+      { type: QuestionType.FILL_BLANK, prompt: "Microplastics can carry ___ that adhere to plastic surfaces into animal tissues.", correctAnswer: "pollutants" },
+      { type: QuestionType.MCQ, prompt: "Why are microbead bans considered limited in effect?", options: ["They are unenforced", "They address only a small fraction of plastic input", "They are too expensive", "They came too late"], correctAnswer: "They address only a small fraction of plastic input" },
+      { type: QuestionType.TRUE_FALSE, prompt: "The passage states that the harm of microplastics to wild populations is firmly established.", options: ["True", "False"], correctAnswer: "False" },
+    ],
+  },
+  {
+    title: "Why Some Languages Are Disappearing",
+    level: CEFRLevel.C1,
+    timeLimit: 1200,
+    passage: `Linguists estimate that roughly one of the world's seven thousand languages disappears every two weeks. By the end of this century, half are projected to be lost — gone with their last speakers, taking with them ways of describing the natural world, kin relationships, and the past that have no equivalent in larger languages.
+
+Language loss rarely happens through a single catastrophe. More often it follows a slow, generational shift: parents who themselves grew up speaking a minority language choose, often under social pressure, to raise their children in a dominant national language. The choice can be entirely rational. A national language opens doors to schooling, employment and political participation; the minority tongue, by contrast, may be associated with poverty or stigma. Within a generation or two, fluent speakers become elderly, and the chain of transmission breaks.
+
+The reasons such losses matter go beyond sentiment. Each language encodes a distinct conceptual system: terms for plants and animals that biologists have not yet catalogued, navigational vocabularies that have helped Pacific Islanders cross open ocean, complex grammars that have informed cognitive science. When a language vanishes, this knowledge typically vanishes with it, since the written record — where one exists — captures only a fraction of what fluent speakers know.
+
+Revitalisation efforts have had uneven success. Welsh, Maori and Hebrew offer well-known examples of languages whose use has been substantially expanded through schooling, media and official status. Many smaller languages, however, lack the institutional support such efforts require. Digital tools — apps, dictionaries, recordings — have lowered the cost of documentation, but a language preserved only in archives is not the same as a language spoken daily.`,
+    questions: [
+      { type: QuestionType.MCQ, prompt: "How often does a language disappear, according to linguists?", options: ["Every two days", "Every two weeks", "Every two months", "Every two years"], correctAnswer: "Every two weeks" },
+      { type: QuestionType.TRUE_FALSE, prompt: "Language loss usually happens through a single catastrophic event.", options: ["True", "False"], correctAnswer: "False" },
+      { type: QuestionType.MCQ, prompt: "Why do parents often switch to a dominant national language?", options: ["For aesthetic reasons", "Because of access to schooling, employment and politics", "Because minority languages are easier", "Because of legal bans"], correctAnswer: "Because of access to schooling, employment and politics" },
+      { type: QuestionType.FILL_BLANK, prompt: "Pacific Islanders' navigational ___ helped them cross open ocean.", correctAnswer: "vocabularies" },
+      { type: QuestionType.MCQ, prompt: "Which three languages are cited as relatively successful revitalisation cases?", options: ["Welsh, Maori, Hebrew", "Latin, Welsh, Inuit", "Maori, Cornish, Latin", "Sanskrit, Hebrew, Yiddish"], correctAnswer: "Welsh, Maori, Hebrew" },
+      { type: QuestionType.TRUE_FALSE, prompt: "Digital tools have lowered the cost of documentation.", options: ["True", "False"], correctAnswer: "True" },
+    ],
+  },
+  {
+    title: "The Surprising Story of Paper",
+    level: CEFRLevel.B2,
+    timeLimit: 1200,
+    passage: `Before paper, civilisations wrote on whatever they could shape. The Mesopotamians pressed wedge marks into wet clay. The Egyptians beat strips of papyrus reed into rough sheets. Europeans for centuries scraped and treated animal skins to produce parchment — a material so expensive that monasteries reused old pages by scraping the ink away, leaving ghostly traces that scholars still puzzle over today.
+
+Paper as we know it was invented in China around two thousand years ago. The traditional account credits a court official named Cai Lun, who in 105 CE described soaking and mashing tree bark, hemp, rags and old fishing nets into a pulp, then spreading it on a screen to dry. Whether or not Cai Lun was truly the inventor, the technology spread along the Silk Road over the following centuries, reaching the Islamic world by the eighth century and Europe by the twelfth.
+
+Cheap paper transformed almost every aspect of life it touched. In the Islamic world it underpinned a vast scholarly tradition, supporting books on mathematics, astronomy and medicine. In Europe, paper made possible the printing press: Gutenberg's invention would have been unthinkable on parchment. Affordable printed books, in turn, helped fuel the Reformation, the scientific revolution and the spread of literacy.
+
+The paper economy continues to evolve. Demand for newsprint has collapsed with the rise of digital media, but packaging and tissue products are booming. Concerns about deforestation have driven greater use of recycled fibres and certified sustainable forests. Some researchers, looking ahead, are developing paper-based electronics — sensors and circuits printed on humble cellulose — suggesting that this ancient material may yet find unexpected new uses.`,
+    questions: [
+      { type: QuestionType.MCQ, prompt: "What material did Europeans scrape to make parchment?", options: ["Tree bark", "Animal skins", "Cotton fibres", "Bamboo strips"], correctAnswer: "Animal skins" },
+      { type: QuestionType.FILL_BLANK, prompt: "The traditional account credits a Chinese court official named ___ Lun with paper's invention.", correctAnswer: "Cai" },
+      { type: QuestionType.MCQ, prompt: "How did paper reach Europe?", options: ["By sea from China", "Along the Silk Road via the Islamic world", "Invented independently in Italy", "Brought by Vikings"], correctAnswer: "Along the Silk Road via the Islamic world" },
+      { type: QuestionType.TRUE_FALSE, prompt: "Gutenberg's printing press would have been practical on parchment.", options: ["True", "False"], correctAnswer: "False" },
+      { type: QuestionType.MCQ, prompt: "Which paper sector has collapsed in recent decades?", options: ["Tissue", "Packaging", "Newsprint", "Cardboard"], correctAnswer: "Newsprint" },
+      { type: QuestionType.TRUE_FALSE, prompt: "Researchers are developing paper-based electronics.", options: ["True", "False"], correctAnswer: "True" },
+    ],
+  },
 ];

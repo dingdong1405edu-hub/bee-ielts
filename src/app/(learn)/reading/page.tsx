@@ -12,7 +12,19 @@ function bandToCEFR(band: number): "A2" | "B1" | "B2" | "C1" | "C2" {
   return "C2";
 }
 
-export default async function ReadingAutoPickPage() {
+const SESSION_SIZE = 4;
+
+function pickRandom<T>(arr: T[], n: number): T[] {
+  const a = [...arr];
+  const out: T[] = [];
+  while (out.length < n && a.length > 0) {
+    const i = Math.floor(Math.random() * a.length);
+    out.push(a.splice(i, 1)[0]);
+  }
+  return out;
+}
+
+export default async function ReadingEntryPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
@@ -22,33 +34,42 @@ export default async function ReadingAutoPickPage() {
   });
   const cefr = bandToCEFR(user?.targetBand ?? 6.0);
 
-  // Find recently attempted reading tests to avoid repeating
   const recent = await prisma.attempt.findMany({
     where: { userId: session.user.id, skill: "READING" },
     orderBy: { createdAt: "desc" },
-    take: 5,
+    take: 20,
     select: { refId: true },
   });
-  const recentIds = recent.map((r) => r.refId.replace("mock-", ""));
+  const recentIds = new Set(recent.map((r) => r.refId.replace("mock-", "")));
 
-  // Try to find a test matching band that user hasn't done recently
-  let test = await prisma.readingTest.findFirst({
-    where: { level: cefr, id: { notIn: recentIds.length > 0 ? recentIds : ["__none__"] } },
-    orderBy: { createdAt: "desc" },
+  // Try band-matched + not recent
+  let candidates = await prisma.readingTest.findMany({
+    where: { level: cefr, id: { notIn: Array.from(recentIds) } },
+    select: { id: true },
   });
-  if (!test) test = await prisma.readingTest.findFirst({ where: { level: cefr } });
-  if (!test) {
-    const all = await prisma.readingTest.findMany({ select: { id: true } });
-    if (all.length === 0) {
-      return (
-        <div className="max-w-md mx-auto text-center py-20">
-          <h1 className="text-2xl font-extrabold">Chưa có đề Reading nào</h1>
-          <p className="text-muted-foreground mt-2">Admin hãy seed thêm đề.</p>
-        </div>
-      );
-    }
-    test = (await prisma.readingTest.findUnique({ where: { id: all[Math.floor(Math.random() * all.length)].id } }))!;
+  if (candidates.length < SESSION_SIZE) {
+    // Fallback: any band, not recent
+    const more = await prisma.readingTest.findMany({
+      where: { id: { notIn: Array.from(recentIds) } },
+      select: { id: true },
+    });
+    candidates = [...candidates, ...more.filter((m) => !candidates.find((c) => c.id === m.id))];
+  }
+  if (candidates.length < SESSION_SIZE) {
+    // Final fallback: any
+    candidates = await prisma.readingTest.findMany({ select: { id: true } });
   }
 
-  redirect(`/reading/${test.id}`);
+  if (candidates.length === 0) {
+    return (
+      <div className="max-w-md mx-auto text-center py-20">
+        <h1 className="text-2xl font-extrabold">Chưa có đề Reading</h1>
+        <p className="text-muted-foreground mt-2">Admin hãy seed thêm.</p>
+      </div>
+    );
+  }
+
+  const picked = pickRandom(candidates, Math.min(SESSION_SIZE, candidates.length));
+  const ids = picked.map((p) => p.id).join(",");
+  redirect(`/reading/session?ids=${ids}`);
 }
