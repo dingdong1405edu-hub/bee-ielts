@@ -1,0 +1,191 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  LEARNER
+  ADMIN
+}
+
+enum CEFRLevel {
+  A1
+  A2
+  B1
+  B2
+  C1
+  C2
+}
+
+enum Skill {
+  READING
+  LISTENING
+  WRITING
+  SPEAKING
+  VOCAB
+  GRAMMAR
+}
+
+enum QuestionType {
+  MCQ
+  FILL_BLANK
+  TRUE_FALSE
+  MATCHING
+  SHORT_ANSWER
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  passwordHash String?
+  role         Role      @default(LEARNER)
+  xp           Int       @default(0)
+  hearts       Int       @default(5)
+  streakDays   Int       @default(0)
+  lastActiveAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  vocabProgress   VocabProgress[]
+  grammarProgress GrammarProgress[]
+  attempts        Attempt[]
+}
+
+model VocabUnit {
+  id      String        @id @default(cuid())
+  title   String
+  level   CEFRLevel
+  order   Int
+  iconKey String?
+  lessons VocabLesson[]
+
+  @@unique([level, order])
+}
+
+model VocabLesson {
+  id        String          @id @default(cuid())
+  unitId    String
+  unit      VocabUnit       @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  title     String
+  order     Int
+  exercises Json
+  progress  VocabProgress[]
+}
+
+model VocabProgress {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId  String
+  lesson    VocabLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  completed Boolean     @default(false)
+  score     Int?
+  updatedAt DateTime    @updatedAt
+
+  @@unique([userId, lessonId])
+}
+
+model GrammarUnit {
+  id      String          @id @default(cuid())
+  title   String
+  level   CEFRLevel
+  order   Int
+  lessons GrammarLesson[]
+}
+
+model GrammarLesson {
+  id        String            @id @default(cuid())
+  unitId    String
+  unit      GrammarUnit       @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  title     String
+  order     Int
+  content   String            @db.Text
+  exercises Json
+  progress  GrammarProgress[]
+}
+
+model GrammarProgress {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId  String
+  lesson    GrammarLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  completed Boolean       @default(false)
+  score     Int?
+  updatedAt DateTime      @updatedAt
+
+  @@unique([userId, lessonId])
+}
+
+model ReadingTest {
+  id        String     @id @default(cuid())
+  title     String
+  level     CEFRLevel  @default(B1)
+  passage   String     @db.Text
+  timeLimit Int        @default(1200)
+  questions Question[]
+  createdAt DateTime   @default(now())
+}
+
+model ListeningTest {
+  id         String     @id @default(cuid())
+  title      String
+  audioUrl   String
+  transcript String?    @db.Text
+  timeLimit  Int        @default(1200)
+  questions  Question[]
+  createdAt  DateTime   @default(now())
+}
+
+model Question {
+  id            String         @id @default(cuid())
+  type          QuestionType
+  prompt        String         @db.Text
+  options       Json?
+  correctAnswer Json
+  explanation   String?        @db.Text
+  order         Int            @default(0)
+  readingId     String?
+  reading       ReadingTest?   @relation(fields: [readingId], references: [id], onDelete: Cascade)
+  listeningId   String?
+  listening     ListeningTest? @relation(fields: [listeningId], references: [id], onDelete: Cascade)
+}
+
+model WritingTask {
+  id        String   @id @default(cuid())
+  taskType  Int
+  prompt    String   @db.Text
+  imageUrl  String?
+  minWords  Int      @default(150)
+  timeLimit Int      @default(1200)
+  createdAt DateTime @default(now())
+}
+
+model SpeakingSet {
+  id             String   @id @default(cuid())
+  topic          String
+  part1Questions Json
+  part2CueCard   Json
+  part3Questions Json
+  createdAt      DateTime @default(now())
+}
+
+model Attempt {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skill       Skill
+  refId       String
+  rawAnswer   Json
+  score       Float?
+  feedback    Json?
+  durationSec Int?
+  createdAt   DateTime @default(now())
+
+  @@index([userId, skill])
+}

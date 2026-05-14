@@ -1,0 +1,49 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
+import { Shield, BookOpen, PenLine, Mic, Sparkles, BookOpenText, Headphones, Users, Home, ExternalLink } from "lucide-react";
+
+const nav = [
+  { href: "/admin", label: "Tổng quan", icon: Shield },
+  { href: "/admin/reading", label: "Reading", icon: BookOpen },
+  { href: "/admin/listening", label: "Listening", icon: Headphones },
+  { href: "/admin/writing", label: "Writing", icon: PenLine },
+  { href: "/admin/speaking", label: "Speaking", icon: Mic },
+  { href: "/admin/vocab", label: "Vocabulary", icon: Sparkles },
+  { href: "/admin/grammar", label: "Grammar", icon: BookOpenText },
+  { href: "/admin/users", label: "Users", icon: Users },
+];
+
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  const session = await auth();
+  if (!session?.user || session.user.role !== "ADMIN") redirect("/dashboard");
+
+  return (
+    <div className="flex min-h-screen bg-muted/30">
+      <aside className="hidden md:flex md:w-60 md:flex-col md:border-r md:bg-card md:p-4 md:h-screen md:sticky md:top-0">
+        <Link href="/admin" className="flex items-center gap-2 px-2 py-2 mb-2">
+          <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground font-bold">A</div>
+          <span className="font-bold">Admin</span>
+        </Link>
+        <nav className="flex-1 space-y-1">
+          {nav.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <Icon className="h-4 w-4" /> {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+        <Link href="/dashboard" className="mt-2 flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted">
+          <ExternalLink className="h-4 w-4" /> Về Learn
+        </Link>
+      </aside>
+      <main className="flex-1 p-4 md:p-8 min-w-0">{children}</main>
+    </div>
+  );
+}
