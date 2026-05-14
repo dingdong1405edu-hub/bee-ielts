@@ -10,6 +10,7 @@ import { Clock, CheckCircle2, XCircle, Play, Pause, Gauge } from "lucide-react";
 import { formatDuration, cn } from "@/lib/utils";
 import { speakText, stopSpeaking, isTTSSupported } from "@/lib/tts";
 import { TipsCard } from "@/components/learn/tips-card";
+import { ReviewReport, type ListeningReviewData } from "@/components/learn/review-report";
 
 type Q = {
   id: string;
@@ -163,11 +164,29 @@ export function ListeningPlayer({
       )}
 
       {submitted && (
-        <TipsCard
-          skill="LISTENING"
-          score={(questions.filter((q) => (answers[q.id] || "").trim().toLowerCase() === q.correctAnswer.toLowerCase()).length / questions.length) * 9}
-          context={`User got ${questions.filter((q) => (answers[q.id] || "").trim().toLowerCase() === q.correctAnswer.toLowerCase()).length}/${questions.length} questions correct on a listening test.`}
-        />
+        <>
+          <TipsCard
+            skill="LISTENING"
+            score={(questions.filter((q) => (answers[q.id] || "").trim().toLowerCase() === q.correctAnswer.toLowerCase()).length / questions.length) * 9}
+            context={`User got ${questions.filter((q) => (answers[q.id] || "").trim().toLowerCase() === q.correctAnswer.toLowerCase()).length}/${questions.length} questions correct on a listening test.`}
+          />
+          <ReviewReport
+            data={{
+              kind: "LISTENING",
+              title,
+              transcript: transcript ?? null,
+              questions: questions.map((q) => ({
+                prompt: q.prompt,
+                type: q.type,
+                userAnswer: answers[q.id] || "",
+                correctAnswer: q.correctAnswer,
+              })),
+              totalCorrect: questions.filter((q) => (answers[q.id] || "").trim().toLowerCase() === q.correctAnswer.toLowerCase()).length,
+              totalQuestions: questions.length,
+              band: (questions.filter((q) => (answers[q.id] || "").trim().toLowerCase() === q.correctAnswer.toLowerCase()).length / questions.length) * 9,
+            } satisfies ListeningReviewData}
+          />
+        </>
       )}
     </div>
   );

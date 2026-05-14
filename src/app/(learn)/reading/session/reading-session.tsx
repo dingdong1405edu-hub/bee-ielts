@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Clock, BookOpen, CheckCircle2, XCircle, Trophy } from "lucide-react";
 import { formatDuration, cn } from "@/lib/utils";
 import { TipsCard } from "@/components/learn/tips-card";
+import { ReviewReport, type ReadingReviewData } from "@/components/learn/review-report";
 
 type Q = {
   id: string;
@@ -161,6 +162,25 @@ export function ReadingSession({ passages }: { passages: Passage[] }) {
         </Card>
 
         <TipsCard skill="READING" score={band} context={`Reading session: ${totalCorrect}/${totalQuestions} correct across ${passages.length} passages`} />
+
+        <ReviewReport
+          data={{
+            kind: "READING",
+            passages: passages.map((p) => ({
+              title: p.title,
+              level: p.level,
+              questions: p.questions.map((q) => ({
+                prompt: q.prompt,
+                type: q.type,
+                userAnswer: answers[q.id] || "",
+                correctAnswer: q.correctAnswer,
+              })),
+            })),
+            totalCorrect,
+            totalQuestions,
+            band,
+          } satisfies ReadingReviewData}
+        />
 
         <Button onClick={() => router.push("/reading")} variant="brand" size="xl" className="w-full rounded-full">
           Làm session mới

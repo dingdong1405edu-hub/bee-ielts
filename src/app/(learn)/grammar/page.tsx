@@ -1,55 +1,237 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { BookOpenText, ChevronRight } from "lucide-react";
+import { auth } from "@/auth";
+import { Heart, Zap, Flame, BookOpenText, Play, Lock, Check, Settings } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 
-export default async function GrammarPage() {
-  const units = await prisma.grammarUnit.findMany({
-    orderBy: [{ level: "asc" }, { order: "asc" }],
-    include: { lessons: { orderBy: { order: "asc" } } },
-  });
+export const dynamic = "force-dynamic";
+
+export default async function GrammarPathPage() {
+  const session = await auth();
+  const userId = session?.user?.id;
+
+  const [units, user] = await Promise.all([
+    prisma.grammarUnit.findMany({
+      orderBy: [{ level: "asc" }, { order: "asc" }],
+      include: {
+        lessons: {
+          orderBy: { order: "asc" },
+          include: {
+            progress: userId ? { where: { userId } } : false,
+          },
+        },
+      },
+    }),
+    userId
+      ? prisma.user.findUnique({
+          where: { id: userId },
+          select: { hearts: true, xp: true, streakDays: true },
+        })
+      : Promise.resolve(null),
+  ]);
+
+  // Flatten all lessons across units to a single path
+  const flat = units.flatMap((u) =>
+    u.lessons.map((l) => ({
+      id: l.id,
+      title: l.title,
+      unitTitle: u.title,
+      level: u.level,
+      progress: (l as { progress?: { completed: boolean; score: number | null }[] }).progress?.[0],
+    })),
+  );
+
+  const totalLessons = flat.length;
+  const completed = flat.filter((l) => l.progress?.completed).length;
+  const totalXP = completed * 40;
+  const firstUnitTitle = units[0]?.title ?? "Grammar";
+
+  // Find first non-completed lesson
+  const activeIdx = flat.findIndex((l) => !l.progress?.completed);
+
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="grid h-12 w-12 place-items-center rounded-xl bg-blue-500 text-white">
-          <BookOpenText className="h-6 w-6" />
+    <div className="max-w-2xl mx-auto space-y-6">
+      {/* Hero path header */}
+      <div className="relative overflow-hidden rounded-3xl p-6 md:p-7 text-white shadow-xl shadow-cyan-500/20"
+        style={{ backgroundImage: "linear-gradient(135deg, hsl(189 90% 50%) 0%, hsl(220 90% 55%) 60%, hsl(263 80% 60%) 100%)" }}>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_15%,rgba(255,255,255,0.2),transparent_50%)]" />
+        <div className="relative flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">Beginner Path</h1>
+            <p className="text-white/85 text-sm mt-1">
+              Từ A1 → C2 · {totalLessons} bài học
+            </p>
+          </div>
+          <div className="text-right">
+            <div className="text-3xl font-extrabold leading-none">{totalXP}</div>
+            <div className="text-xs text-white/80">XP</div>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Grammar</h1>
-          <p className="text-muted-foreground">Luyện ngữ pháp qua các unit ngắn</p>
+        <div className="relative mt-5 space-y-1.5">
+          <Progress value={(completed / Math.max(1, totalLessons)) * 100} className="h-2 bg-white/20" />
+          <div className="flex items-center justify-between text-xs text-white/85">
+            <span>{completed}/{totalLessons} bài hoàn thành</span>
+            <span>{Math.round((completed / Math.max(1, totalLessons)) * 100)}%</span>
+          </div>
         </div>
       </div>
 
-      {units.length === 0 ? (
-        <Card>
-          <CardContent className="p-8 text-center text-muted-foreground">Chưa có unit nào.</CardContent>
-        </Card>
+      {/* Stats row */}
+      <div className="grid grid-cols-3 gap-3">
+        <StatPill icon={Heart} value={user?.hearts ?? 5} unit="mạng" color="text-rose-500" bg="bg-rose-500/15" />
+        <StatPill icon={Zap} value={user?.xp ?? 0} unit="lượt" color="text-cyan-400" bg="bg-cyan-500/15" />
+        <StatPill icon={Flame} value={user?.streakDays ?? 0} unit="ngày" color="text-orange-400" bg="bg-orange-500/15" />
+      </div>
+
+      {/* Unit/section banner */}
+      <Link
+        href="#"
+        className="block relative overflow-hidden rounded-2xl p-5 text-white shadow-lg"
+        style={{ backgroundImage: "linear-gradient(120deg, hsl(220 88% 60%) 0%, hsl(263 80% 60%) 100%)" }}
+      >
+        <div className="flex items-center gap-4">
+          <div className="grid h-12 w-12 place-items-center rounded-xl bg-white/20 backdrop-blur">
+            <BookOpenText className="h-6 w-6" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[11px] uppercase tracking-wider font-bold text-white/85">English Grammar</div>
+            <div className="font-extrabold text-lg truncate">{firstUnitTitle}</div>
+            <Progress value={(completed / Math.max(1, totalLessons)) * 100} className="h-1.5 bg-white/20 mt-1.5" />
+          </div>
+          <div className="text-right shrink-0">
+            <div className="text-2xl font-extrabold">{Math.round((completed / Math.max(1, totalLessons)) * 100)}%</div>
+            <div className="text-[11px] text-white/80">{completed === 0 ? "chưa bắt đầu" : "đang học"}</div>
+          </div>
+        </div>
+      </Link>
+
+      {totalLessons === 0 ? (
+        <div className="rounded-3xl border bg-card p-10 text-center text-muted-foreground">
+          Chưa có bài học nào.
+        </div>
       ) : (
-        units.map((u) => (
-          <Card key={u.id}>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>{u.title}</CardTitle>
-                <Badge variant="outline">{u.level}</Badge>
-              </div>
-              <CardDescription>{u.lessons.length} bài</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {u.lessons.map((l) => (
-                <Link
+        <div className="relative py-6">
+          {/* dashed vertical line */}
+          <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 border-l-2 border-dashed border-zinc-300 dark:border-zinc-700" aria-hidden />
+          <div className="relative space-y-12">
+            {flat.map((l, i) => {
+              const done = !!l.progress?.completed;
+              const isActive = i === activeIdx;
+              const locked = !done && !isActive && (activeIdx === -1 || i > activeIdx);
+              // zigzag horizontal offset
+              const offset = i % 4 === 0 ? "ml-0" : i % 4 === 1 ? "ml-24" : i % 4 === 2 ? "ml-12" : "-ml-12";
+              return (
+                <PathNode
                   key={l.id}
-                  href={`/grammar/${l.id}`}
-                  className="flex items-center justify-between rounded-lg border p-3 hover:bg-accent"
-                >
-                  <span className="font-medium">{l.title}</span>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </Link>
-              ))}
-            </CardContent>
-          </Card>
-        ))
+                  href={locked ? "#" : `/grammar/${l.id}`}
+                  title={l.title}
+                  level={l.level as string}
+                  state={done ? "done" : isActive ? "active" : "locked"}
+                  xp={done ? l.progress?.score ?? 0 : 40}
+                  offset={offset}
+                  locked={locked}
+                />
+              );
+            })}
+          </div>
+        </div>
       )}
+    </div>
+  );
+}
+
+function StatPill({
+  icon: Icon,
+  value,
+  unit,
+  color,
+  bg,
+}: {
+  icon: typeof Heart;
+  value: number;
+  unit: string;
+  color: string;
+  bg: string;
+}) {
+  return (
+    <div className="flex items-center gap-2 rounded-2xl border bg-card px-3 py-2.5">
+      <div className={`grid h-8 w-8 place-items-center rounded-xl ${bg}`}>
+        <Icon className={`h-4 w-4 ${color} fill-current`} />
+      </div>
+      <div>
+        <div className="text-lg font-extrabold leading-none">{value}</div>
+        <div className="text-[10px] text-muted-foreground uppercase tracking-wider">{unit}</div>
+      </div>
+    </div>
+  );
+}
+
+function PathNode({
+  href,
+  title,
+  level,
+  state,
+  xp,
+  offset,
+  locked,
+}: {
+  href: string;
+  title: string;
+  level: string;
+  state: "done" | "active" | "locked";
+  xp: number;
+  offset: string;
+  locked: boolean;
+}) {
+  const isActive = state === "active";
+  const isDone = state === "done";
+
+  const ring = isActive ? "from-cyan-400 to-blue-500" : isDone ? "from-emerald-400 to-teal-500" : "from-zinc-400 to-zinc-500";
+  const ringShadow = isActive ? "shadow-cyan-500/40" : isDone ? "shadow-emerald-500/40" : "shadow-zinc-500/20";
+
+  return (
+    <div className={`relative w-fit mx-auto flex flex-col items-center ${offset}`}>
+      <Link
+        href={href}
+        aria-disabled={locked}
+        className={`group relative ${locked ? "pointer-events-none" : ""}`}
+      >
+        <div
+          className={`
+            relative grid h-24 w-24 place-items-center rounded-[32%] bg-gradient-to-br ${ring} text-white
+            shadow-[0_8px_0_0_rgba(0,0,0,0.15)] ${ringShadow} shadow-lg
+            transition-all duration-200
+            ${isActive ? "hover:-translate-y-1" : ""}
+            ${locked ? "opacity-60" : ""}
+          `}
+        >
+          {isDone ? (
+            <Check className="h-8 w-8" strokeWidth={3} />
+          ) : isActive ? (
+            <div className="flex flex-col items-center gap-0.5">
+              <Settings className="h-6 w-6" />
+              <span className="text-[10px] font-extrabold tracking-wider">BẮT ĐẦU</span>
+            </div>
+          ) : (
+            <Lock className="h-7 w-7" />
+          )}
+        </div>
+      </Link>
+
+      <div className="mt-3 flex flex-col items-center text-center gap-1.5">
+        <span
+          className={`
+            inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-extrabold tracking-wider uppercase border
+            ${isActive ? "bg-cyan-500/15 text-cyan-400 border-cyan-500/40" : isDone ? "bg-emerald-500/15 text-emerald-500 border-emerald-500/40" : "bg-muted text-muted-foreground border-border"}
+          `}
+        >
+          {locked ? "KHOÁ" : "NGỮ PHÁP"}
+        </span>
+        <div className={`max-w-[160px] text-sm font-bold leading-tight ${locked ? "text-muted-foreground" : "text-foreground"}`}>{title}</div>
+        <div className={`text-[11px] font-bold ${isActive ? "text-cyan-400" : isDone ? "text-emerald-500" : "text-muted-foreground"}`}>
+          {isDone ? `+${xp} XP đã nhận` : locked ? `· ${level} ·` : `+${xp} XP`}
+        </div>
+      </div>
     </div>
   );
 }

@@ -11,6 +11,7 @@ import { Mic, MicOff, Loader2, Volume2, ArrowRight, Trophy, Clock, Play } from "
 import { formatDuration, cn } from "@/lib/utils";
 import { speakWithPauses, stopSpeaking, isTTSSupported } from "@/lib/tts";
 import { TipsCard } from "@/components/learn/tips-card";
+import { ReviewReport, type SpeakingReviewData } from "@/components/learn/review-report";
 
 type SpeakingResult = {
   overallBand: number;
@@ -342,6 +343,18 @@ export function SpeakingPlayer({
         )}
 
         <TipsCard skill="SPEAKING" score={result.overallBand} context={`Speaking practice, topic: ${topic}`} />
+
+        <ReviewReport
+          data={{
+            kind: "SPEAKING",
+            topic,
+            transcripts: transcripts as SpeakingReviewData["transcripts"],
+            part1Questions,
+            part2CueCard,
+            part3Questions,
+            result,
+          } satisfies SpeakingReviewData}
+        />
 
         <Button onClick={() => router.push("/speaking")} variant="brand" size="xl" className="w-full rounded-full">
           Làm bài khác
