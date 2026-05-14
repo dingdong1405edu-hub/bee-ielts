@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { gradeWriting, gradeSpeaking } from "@/lib/claude";
+import { gradeWritingGroq, gradeSpeakingGroq } from "@/lib/groq";
 
 const schema = z.object({
   listening: z.object({
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
   try {
     const wTask = await prisma.writingTask.findUnique({ where: { id: writing.taskId } });
     if (wTask && writing.essay.trim().length > 20) {
-      const wResult = (await gradeWriting({
+      const wResult = (await gradeWritingGroq({
         taskType: wTask.taskType as 1 | 2,
         prompt: wTask.prompt,
         essay: writing.essay,
@@ -88,7 +88,7 @@ export async function POST(req: Request) {
   try {
     const combinedTranscript = `[Part 1]\n${speaking.transcripts["1"]}\n\n[Part 2]\n${speaking.transcripts["2"]}\n\n[Part 3]\n${speaking.transcripts["3"]}`;
     if (combinedTranscript.replace(/\[.*?\]/g, "").trim().length > 20) {
-      const sResult = (await gradeSpeaking({
+      const sResult = (await gradeSpeakingGroq({
         part: 1,
         topic: speaking.topic,
         questions: ["Part 1 + Part 2 + Part 3 combined"],

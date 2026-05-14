@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle2, XCircle, BookOpenText } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { renderMarkdown } from "@/lib/markdown";
+import { TipsCard } from "@/components/learn/tips-card";
 
 export function GrammarPlayer({
   lessonId,
@@ -56,8 +58,8 @@ export function GrammarPlayer({
       </div>
 
       <Card>
-        <CardContent className="p-5">
-          <div className="whitespace-pre-wrap text-sm leading-relaxed">{content}</div>
+        <CardContent className="p-5 text-[15px] text-foreground">
+          {renderMarkdown(content)}
         </CardContent>
       </Card>
 
@@ -94,6 +96,14 @@ export function GrammarPlayer({
       <div className="flex justify-end">
         {!checked ? <Button size="lg" onClick={submit}>Kiểm tra</Button> : <Button onClick={() => router.push("/grammar")}>Quay lại</Button>}
       </div>
+
+      {checked && (
+        <TipsCard
+          skill="GRAMMAR"
+          score={(correctCount / exercises.length) * 9}
+          context={`Grammar lesson "${title}": ${correctCount}/${exercises.length} correct`}
+        />
+      )}
     </div>
   );
 }

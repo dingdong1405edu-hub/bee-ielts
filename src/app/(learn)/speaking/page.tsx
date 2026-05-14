@@ -1,45 +1,36 @@
-import Link from "next/link";
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mic, ChevronRight } from "lucide-react";
 
-export default async function SpeakingPage() {
-  const sets = await prisma.speakingSet.findMany({ orderBy: { createdAt: "desc" } });
-  return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="grid h-12 w-12 place-items-center rounded-xl bg-indigo-500 text-white">
-          <Mic className="h-6 w-6" />
-        </div>
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Speaking</h1>
-          <p className="text-muted-foreground">3 part IELTS — ghi âm và để AI chấm</p>
-        </div>
-      </div>
+export const dynamic = "force-dynamic";
 
-      {sets.length === 0 ? (
-        <Card>
-          <CardContent className="p-8 text-center text-muted-foreground">Chưa có set nào.</CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-3">
-          {sets.map((s) => (
-            <Link key={s.id} href={`/speaking/${s.id}`}>
-              <Card className="hover:shadow-md transition-shadow">
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <CardTitle>{s.topic}</CardTitle>
-                      <CardDescription className="mt-1">Part 1 + Part 2 + Part 3</CardDescription>
-                    </div>
-                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                </CardHeader>
-              </Card>
-            </Link>
-          ))}
+export default async function SpeakingAutoPickPage() {
+  const session = await auth();
+  if (!session?.user?.id) redirect("/login");
+
+  const recent = await prisma.attempt.findMany({
+    where: { userId: session.user.id, skill: "SPEAKING" },
+    orderBy: { createdAt: "desc" },
+    take: 3,
+    select: { refId: true },
+  });
+  const recentIds = recent.map((r) => r.refId.replace("mock-", ""));
+
+  let set = await prisma.speakingSet.findFirst({
+    where: { id: { notIn: recentIds.length > 0 ? recentIds : ["__none__"] } },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!set) {
+    const all = await prisma.speakingSet.findMany({ select: { id: true } });
+    if (all.length === 0) {
+      return (
+        <div className="max-w-md mx-auto text-center py-20">
+          <h1 className="text-2xl font-extrabold">Chưa có Speaking set</h1>
         </div>
-      )}
-    </div>
-  );
+      );
+    }
+    set = (await prisma.speakingSet.findUnique({ where: { id: all[Math.floor(Math.random() * all.length)].id } }))!;
+  }
+
+  redirect(`/speaking/${set.id}`);
 }

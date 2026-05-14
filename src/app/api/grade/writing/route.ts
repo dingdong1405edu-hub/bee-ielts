@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { gradeWriting } from "@/lib/claude";
+import { gradeWritingGroq } from "@/lib/groq";
 import { recordActivity } from "@/lib/activity";
 
 const schema = z.object({
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   if (!task) return NextResponse.json({ error: "Task không tồn tại" }, { status: 404 });
 
   try {
-    const result = (await gradeWriting({
+    const result = (await gradeWritingGroq({
       taskType: task.taskType as 1 | 2,
       prompt: task.prompt,
       essay: parsed.data.essay,

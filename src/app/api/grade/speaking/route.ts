@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { gradeSpeaking } from "@/lib/claude";
+import { gradeSpeakingGroq } from "@/lib/groq";
 import { recordActivity } from "@/lib/activity";
 
 const schema = z.object({
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     part === 2 && cueCard ? [`Cue card: ${cueCard.topic}`, ...cueCard.points] : questions;
 
   try {
-    const result = (await gradeSpeaking({
+    const result = (await gradeSpeakingGroq({
       part,
       topic,
       questions: effectiveQuestions,
