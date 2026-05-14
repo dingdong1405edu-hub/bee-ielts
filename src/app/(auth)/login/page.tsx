@@ -62,7 +62,9 @@ function LoginForm() {
               🐝
             </div>
             <h1 className="text-3xl font-extrabold tracking-tight">Chào mừng quay lại</h1>
-            <p className="text-muted-foreground mt-1">Sẵn sàng level up tiếng Anh hôm nay?</p>
+            <p className="text-muted-foreground mt-1 font-semibold">
+              Be smarter, be master, <span className="gradient-brand-text">beeielts</span>
+            </p>
           </div>
         </ScrollReveal>
 

@@ -47,9 +47,11 @@ export default function LandingPage() {
           </ScrollReveal>
           <ScrollReveal delay={100}>
             <h1 className="mt-7 text-5xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-balance leading-[1.05]">
-              Học tiếng Anh
+              Be smarter,
               <br />
-              <span className="gradient-brand-text">như chơi game.</span>
+              be master,
+              <br />
+              <span className="gradient-brand-text">beeielts.</span>
             </h1>
           </ScrollReveal>
           <ScrollReveal delay={200}>
