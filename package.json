@@ -11,8 +11,10 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
-    "db:studio": "prisma studio",
-    "postinstall": "prisma generate"
+    "db:studio": "prisma studio"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
