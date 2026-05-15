@@ -5,6 +5,8 @@ export interface ReadingData {
   level: CEFRLevel;
   timeLimit: number;
   passage: string;
+  /** Optional 4-slot tag for IELTS-style sessions (A/B/C/D). */
+  slot?: "A" | "B" | "C" | "D";
   questions: {
     type: QuestionType;
     prompt: string;

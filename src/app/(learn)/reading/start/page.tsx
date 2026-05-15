@@ -4,14 +4,8 @@ import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-function bandToCEFR(band: number): "A2" | "B1" | "B2" | "C1" | "C2" {
-  if (band <= 4.5) return "A2";
-  if (band <= 5.5) return "B1";
-  if (band <= 6.5) return "B2";
-  if (band <= 7.5) return "C1";
-  return "C2";
-}
-const SESSION_SIZE = 3;
+const SLOTS = ["A", "B", "C", "D"] as const;
+
 function pickRandom<T>(arr: T[], n: number): T[] {
   const a = [...arr];
   const out: T[] = [];
@@ -26,12 +20,6 @@ export default async function ReadingStartPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { targetBand: true },
-  });
-  const cefr = bandToCEFR(user?.targetBand ?? 6.0);
-
   const recent = await prisma.attempt.findMany({
     where: { userId: session.user.id, skill: "READING" },
     orderBy: { createdAt: "desc" },
@@ -40,23 +28,41 @@ export default async function ReadingStartPage() {
   });
   const recentIds = new Set(recent.map((r) => r.refId.replace("mock-", "")));
 
-  let candidates = await prisma.readingTest.findMany({
-    where: { level: cefr, id: { notIn: Array.from(recentIds) } },
-    select: { id: true },
-  });
-  if (candidates.length < SESSION_SIZE) {
-    const more = await prisma.readingTest.findMany({
-      where: { id: { notIn: Array.from(recentIds) } },
+  // Strategy: for each of the 4 slots (A/B/C/D), pick 1 not-recently-done passage.
+  // If a slot has no fresh passage, fall back to any from that slot. If a slot has
+  // nothing at all, fall back to any random passage so the session still gets 4.
+  const ordered: string[] = [];
+  for (const slot of SLOTS) {
+    const fresh = await prisma.readingTest.findMany({
+      where: { slot, id: { notIn: Array.from(recentIds).concat(ordered) } },
       select: { id: true },
     });
-    candidates = [...candidates, ...more.filter((m) => !candidates.find((c) => c.id === m.id))];
+    if (fresh.length > 0) {
+      ordered.push(pickRandom(fresh, 1)[0].id);
+      continue;
+    }
+    const any = await prisma.readingTest.findMany({
+      where: { slot, id: { notIn: ordered } },
+      select: { id: true },
+    });
+    if (any.length > 0) ordered.push(pickRandom(any, 1)[0].id);
   }
-  if (candidates.length < SESSION_SIZE) {
-    candidates = await prisma.readingTest.findMany({ select: { id: true } });
-  }
-  if (candidates.length === 0) redirect("/reading");
 
-  const picked = pickRandom(candidates, Math.min(SESSION_SIZE, candidates.length));
-  const ids = picked.map((p) => p.id).join(",");
-  redirect(`/reading/session?ids=${ids}`);
+  // Top up from un-slotted legacy passages if we got fewer than 4
+  if (ordered.length < 4) {
+    const filler = await prisma.readingTest.findMany({
+      where: { id: { notIn: Array.from(recentIds).concat(ordered) } },
+      select: { id: true },
+    });
+    const need = 4 - ordered.length;
+    ordered.push(...pickRandom(filler, need).map((f) => f.id));
+  }
+
+  if (ordered.length === 0) {
+    const all = await prisma.readingTest.findMany({ select: { id: true } });
+    if (all.length === 0) redirect("/reading");
+    ordered.push(...pickRandom(all, 4).map((a) => a.id));
+  }
+
+  redirect(`/reading/session?ids=${ordered.join(",")}`);
 }

@@ -136,6 +136,7 @@ model ReadingTest {
   level     CEFRLevel  @default(B1)
   passage   String     @db.Text
   timeLimit Int        @default(1200)
+  slot      String?
   questions Question[]
   createdAt DateTime   @default(now())
 }

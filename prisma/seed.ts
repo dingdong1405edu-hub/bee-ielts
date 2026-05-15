@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { VOCAB_UNITS } from "./data/vocab";
 import { GRAMMAR_UNITS } from "./data/grammar";
 import { READING_TESTS } from "./data/reading";
+import { READING_TESTS_V2 } from "./data/reading-v2";
 import { LISTENING_TESTS } from "./data/listening";
 import { WRITING_TASKS, SPEAKING_SETS } from "./data/writing-speaking";
 
@@ -87,16 +88,18 @@ async function main() {
     }
   }
 
-  // Reading: wipe + reseed
+  // Reading: wipe + reseed (combine legacy bank + v2 slot-tagged bank)
   await prisma.question.deleteMany({ where: { readingId: { not: null } } });
   await prisma.readingTest.deleteMany({});
-  for (const r of READING_TESTS) {
+  const allReadings = [...READING_TESTS, ...READING_TESTS_V2];
+  for (const r of allReadings) {
     await prisma.readingTest.create({
       data: {
         title: r.title,
         level: r.level,
         timeLimit: r.timeLimit,
         passage: r.passage,
+        slot: r.slot ?? null,
         questions: {
           create: r.questions.map((q, i) => ({
             type: q.type,

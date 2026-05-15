@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Clock, Send, GripVertical, AlertTriangle, Eye } from "lucide-react";
+import { Clock, Send, GripVertical, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ReadingGroupHeader, groupStartFor } from "@/components/learn/reading-group-header";
@@ -158,10 +158,14 @@ export function ReadingShell({ testTitle, parts, timeLimit, onSubmit, submitting
         {/* SPLITTER */}
         <div
           onMouseDown={startDrag}
-          className="hidden md:flex w-1.5 cursor-col-resize bg-border hover:bg-primary/40 transition-colors items-center justify-center group"
-          aria-label="Resize"
+          className="hidden md:flex w-2 cursor-col-resize bg-border hover:bg-primary/40 active:bg-primary/60 transition-colors items-center justify-center relative group"
+          aria-label="Resize panes"
+          role="separator"
         >
-          <GripVertical className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
+          {/* Handle button — centered, always visible */}
+          <div className="absolute z-10 grid h-12 w-7 place-items-center rounded-full border-2 border-primary bg-card shadow-md group-hover:bg-primary group-hover:border-primary group-hover:shadow-lg transition-all">
+            <GripVertical className="h-4 w-4 text-primary group-hover:text-white" />
+          </div>
         </div>
 
         {/* RIGHT: questions */}
