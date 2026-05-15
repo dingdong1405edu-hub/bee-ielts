@@ -28,9 +28,8 @@ export default async function ReadingStartPage() {
   });
   const recentIds = new Set(recent.map((r) => r.refId.replace("mock-", "")));
 
-  // Strategy: for each of the 4 slots (A/B/C/D), pick 1 not-recently-done passage.
-  // If a slot has no fresh passage, fall back to any from that slot. If a slot has
-  // nothing at all, fall back to any random passage so the session still gets 4.
+  // ONLY pick from slot-tagged passages — these have clean 2-group structure.
+  // Legacy un-slotted passages (mixed question types) are excluded from session picks.
   const ordered: string[] = [];
   for (const slot of SLOTS) {
     const fresh = await prisma.readingTest.findMany({
@@ -41,6 +40,7 @@ export default async function ReadingStartPage() {
       ordered.push(pickRandom(fresh, 1)[0].id);
       continue;
     }
+    // No fresh in this slot — fall back to any in this slot (allow repeats)
     const any = await prisma.readingTest.findMany({
       where: { slot, id: { notIn: ordered } },
       select: { id: true },
@@ -48,21 +48,7 @@ export default async function ReadingStartPage() {
     if (any.length > 0) ordered.push(pickRandom(any, 1)[0].id);
   }
 
-  // Top up from un-slotted legacy passages if we got fewer than 4
-  if (ordered.length < 4) {
-    const filler = await prisma.readingTest.findMany({
-      where: { id: { notIn: Array.from(recentIds).concat(ordered) } },
-      select: { id: true },
-    });
-    const need = 4 - ordered.length;
-    ordered.push(...pickRandom(filler, need).map((f) => f.id));
-  }
-
-  if (ordered.length === 0) {
-    const all = await prisma.readingTest.findMany({ select: { id: true } });
-    if (all.length === 0) redirect("/reading");
-    ordered.push(...pickRandom(all, 4).map((a) => a.id));
-  }
+  if (ordered.length === 0) redirect("/reading");
 
   redirect(`/reading/session?ids=${ordered.join(",")}`);
 }

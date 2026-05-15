@@ -50,13 +50,16 @@ export default async function MockTestPage() {
     );
   }
 
-  // Pick 3 readings — try same level first, then fill with any
-  const target = targetBand <= 4.5 ? "A2" : targetBand <= 5.5 ? "B1" : targetBand <= 6.5 ? "B2" : targetBand <= 7.5 ? "C1" : "C2";
-  const sameLevel = readingTests.filter((r) => r.level === target);
-  let readings = pickMany(sameLevel, 3);
-  if (readings.length < 3) {
-    const rest = readingTests.filter((r) => !readings.find((x) => x.id === r.id));
-    readings = [...readings, ...pickMany(rest, 3 - readings.length)];
+  // Pick 3 readings from 3 different slots (A/B/C/D) so each passage has clean,
+  // distinct question groups. Real IELTS uses 3 passages.
+  const slottedTests = readingTests.filter((r) => r.slot);
+  const slotsAvailable = Array.from(new Set(slottedTests.map((r) => r.slot)));
+  const pickedSlots = pickMany(slotsAvailable, 3);
+  let readings: typeof readingTests = [];
+  for (const slot of pickedSlots) {
+    const inSlot = slottedTests.filter((r) => r.slot === slot);
+    if (inSlot.length === 0) continue;
+    readings.push(pickRandom(inSlot));
   }
   if (readings.length === 0) readings = [pickByLevel(readingTests, targetBand)];
 

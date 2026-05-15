@@ -110,25 +110,25 @@ export function ReadingShell({ testTitle, parts, timeLimit, onSubmit, submitting
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-background no-print-bg">
       {/* TOP BAR */}
-      <header className="flex items-center justify-between gap-3 border-b bg-card px-4 py-2.5 md:px-6">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="grid h-8 w-8 place-items-center rounded-lg gradient-brand text-white font-extrabold text-sm shrink-0">B</div>
-          <div className="text-sm font-bold truncate">
-            <span className="text-muted-foreground">Bee IELTS </span>
-            <span className="text-muted-foreground">/ </span>
+      <header className="flex items-center justify-between gap-2 border-b bg-card px-3 py-2 md:gap-3 md:px-6 md:py-2.5">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <div className="grid h-7 w-7 md:h-8 md:w-8 place-items-center rounded-lg gradient-brand text-white font-extrabold text-xs md:text-sm shrink-0">B</div>
+          <div className="text-xs md:text-sm font-bold truncate">
+            <span className="hidden sm:inline text-muted-foreground">Bee IELTS / </span>
             <span>{testTitle}</span>
           </div>
         </div>
-        <div className="flex items-center gap-2 md:gap-3">
-          <div className="flex items-center gap-1.5 text-sm md:text-base font-extrabold">
+        <div className="flex items-center gap-1.5 md:gap-3 shrink-0">
+          <div className="flex items-center gap-1 md:gap-1.5 text-xs md:text-base font-extrabold">
             <Clock className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
-            <span>{Math.floor(remaining / 60)} minutes remaining</span>
+            <span className="hidden sm:inline">{Math.floor(remaining / 60)} minutes remaining</span>
+            <span className="sm:hidden">{Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}</span>
           </div>
           <Button
             onClick={() => onSubmit(answers)}
             disabled={submitting}
             size="sm"
-            className="rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white"
+            className="rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white h-8 md:h-9 px-3 md:px-4 text-xs md:text-sm"
           >
             Submit <Send className="h-3.5 w-3.5" />
           </Button>
@@ -205,24 +205,51 @@ function PartQuestions({
   onChange: (id: string, value: string) => void;
 }) {
   return (
-    <div className="max-w-2xl mx-auto space-y-5">
+    <div className="max-w-2xl mx-auto space-y-4 md:space-y-5">
       {questions.map((q, i) => {
         const num = startIndex + i;
         const groupStart = groupStartFor(questions, i);
         const userAns = answers[q.id] || "";
+        const isMatchingTypeWithList =
+          q.type === "MATCHING_HEADINGS" ||
+          q.type === "MATCHING_FEATURES";
         return (
           <div key={q.id} className="space-y-2">
             {groupStart && (
-              <ReadingGroupHeader
-                type={q.type}
-                start={startIndex + groupStart.start}
-                end={startIndex + groupStart.end}
-              />
+              <>
+                <ReadingGroupHeader
+                  type={q.type}
+                  start={startIndex + groupStart.start}
+                  end={startIndex + groupStart.end}
+                />
+                {isMatchingTypeWithList && q.options && q.options.length > 0 && (
+                  <ReferenceList type={q.type} options={q.options} />
+                )}
+              </>
             )}
             <QuestionInput q={q} num={num} value={userAns} onChange={(v) => onChange(q.id, v)} />
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function ReferenceList({ type, options }: { type: string; options: string[] }) {
+  const label =
+    type === "MATCHING_HEADINGS" ? "List of Headings" :
+    type === "MATCHING_FEATURES" ? "List of Options" :
+    "Options";
+  return (
+    <div className="rounded-lg border bg-muted/30 px-4 py-3 my-2">
+      <div className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground mb-2">
+        {label}
+      </div>
+      <ul className="space-y-1 text-sm leading-relaxed">
+        {options.map((opt, i) => (
+          <li key={i}>{opt}</li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -430,8 +457,8 @@ function BottomNav({
     return [...acc, acc[i - 1] + parts[i - 1].questions.length];
   }, []);
   return (
-    <nav className="border-t bg-card px-3 py-2.5 md:px-6 md:py-3 overflow-x-auto">
-      <div className="flex items-stretch gap-2 md:gap-3 min-w-max">
+    <nav className="border-t bg-card px-2 py-2 md:px-6 md:py-3 overflow-x-auto">
+      <div className="flex items-stretch gap-1.5 md:gap-3 min-w-max">
         {parts.map((p, i) => {
           const answered = p.questions.filter((q) => (answers[q.id] || "").trim()).length;
           const active = i === activePart;
@@ -441,15 +468,15 @@ function BottomNav({
               key={p.id}
               onClick={() => setActivePart(i)}
               className={cn(
-                "flex items-center gap-3 rounded-xl border-2 px-3 py-1.5 transition-colors min-w-[260px]",
-                active ? "border-primary bg-accent/30" : "border-border hover:border-primary/30",
+                "flex items-center gap-2 md:gap-3 rounded-xl border-2 px-2 py-1 md:px-3 md:py-1.5 transition-colors",
+                active ? "border-primary bg-accent/30 min-w-[180px] md:min-w-[260px]" : "border-border hover:border-primary/30",
               )}
             >
-              <span className={cn("font-bold text-sm shrink-0", active ? "text-primary" : "text-foreground")}>
+              <span className={cn("font-bold text-xs md:text-sm shrink-0", active ? "text-primary" : "text-foreground")}>
                 Part {i + 1}
               </span>
               {active ? (
-                <div className="flex items-center gap-1 flex-wrap">
+                <div className="flex items-center gap-0.5 md:gap-1 flex-wrap">
                   {p.questions.map((q, qi) => {
                     const filled = !!(answers[q.id] || "").trim();
                     const num = start + qi;
@@ -457,7 +484,7 @@ function BottomNav({
                       <span
                         key={q.id}
                         className={cn(
-                          "grid h-6 w-6 place-items-center rounded-full text-[11px] font-bold border",
+                          "grid h-5 w-5 md:h-6 md:w-6 place-items-center rounded-full text-[10px] md:text-[11px] font-bold border",
                           filled
                             ? "bg-emerald-600 text-white border-emerald-600"
                             : "bg-background border-border text-muted-foreground",
@@ -469,8 +496,8 @@ function BottomNav({
                   })}
                 </div>
               ) : (
-                <span className="text-xs text-muted-foreground">
-                  {answered} of {p.questions.length} questions
+                <span className="text-[10px] md:text-xs text-muted-foreground">
+                  {answered}/{p.questions.length}
                 </span>
               )}
             </button>

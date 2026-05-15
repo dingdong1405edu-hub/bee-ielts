@@ -49,13 +49,17 @@ export function ReadingGroupHeader({
   const instruction = INSTRUCTIONS[type] ?? "";
   const name = NICE_NAME[type] ?? type;
   return (
-    <div className="rounded-xl border-2 border-primary/15 bg-gradient-to-br from-primary/5 to-accent/40 p-4 my-2">
-      <div className="flex items-center gap-2 mb-1">
+    <div className="my-4 first:mt-0">
+      {/* Big green title like IELTS sample: 'Questions 27–29' */}
+      <h3 className="text-lg md:text-xl font-extrabold text-emerald-600 dark:text-emerald-400">
+        {range}
+      </h3>
+      <div className="mt-1 flex items-center gap-2">
         <Bookmark className="h-4 w-4 text-primary" />
         <span className="text-xs uppercase tracking-wider font-extrabold text-primary">{name}</span>
-        <span className="ml-auto text-xs font-bold text-muted-foreground">{range}</span>
       </div>
-      <p className="text-sm leading-snug">{instruction}</p>
+      <p className="mt-2 text-sm leading-relaxed text-foreground">{instruction}</p>
+      <div className="mt-3 h-px bg-border" />
     </div>
   );
 }
