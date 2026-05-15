@@ -11,7 +11,7 @@ function bandToCEFR(band: number): "A2" | "B1" | "B2" | "C1" | "C2" {
   if (band <= 7.5) return "C1";
   return "C2";
 }
-const SESSION_SIZE = 4;
+const SESSION_SIZE = 3;
 function pickRandom<T>(arr: T[], n: number): T[] {
   const a = [...arr];
   const out: T[] = [];
