@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Sparkles, BookOpenText, BookOpen, Headphones, PenLine, Mic, ArrowRight, GraduationCap } from "lucide-react";
+import { ScrollReveal } from "@/components/scroll-reveal";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { computeDisplayStreak, getStreakRestoreState } from "@/lib/streak";
@@ -87,24 +88,26 @@ export default async function DashboardPage() {
       <div>
         <h2 className="text-xl font-extrabold mb-4 tracking-tight">Skill của bạn</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {modules.map((m) => {
+          {modules.map((m, i) => {
             const Icon = m.icon;
             return (
-              <Link key={m.href} href={m.href} className="group">
-                <div className="relative h-full rounded-3xl border bg-card p-6 transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/5 overflow-hidden">
-                  <div className={`absolute -right-6 -top-6 h-24 w-24 rounded-full bg-gradient-to-br ${m.grad} opacity-20 blur-xl group-hover:opacity-40 transition-opacity`} />
-                  <div className={`relative grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br ${m.grad} text-white shadow-lg`}>
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <div className="relative mt-4 flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-bold">{m.label}</h3>
-                      <p className="text-sm text-muted-foreground mt-0.5">{m.desc}</p>
+              <ScrollReveal key={m.href} delay={i * 60}>
+                <Link href={m.href} className="group block h-full">
+                  <div className="relative h-full rounded-3xl border bg-card p-6 transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/5 overflow-hidden">
+                    <div className={`absolute -right-6 -top-6 h-24 w-24 rounded-full bg-gradient-to-br ${m.grad} opacity-20 blur-xl group-hover:opacity-40 transition-opacity`} />
+                    <div className={`relative grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br ${m.grad} text-white shadow-lg`}>
+                      <Icon className="h-5 w-5" />
                     </div>
-                    <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                    <div className="relative mt-4 flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-bold">{m.label}</h3>
+                        <p className="text-sm text-muted-foreground mt-0.5">{m.desc}</p>
+                      </div>
+                      <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                    </div>
                   </div>
-                </div>
-              </Link>
+                </Link>
+              </ScrollReveal>
             );
           })}
         </div>

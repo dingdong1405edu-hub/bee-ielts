@@ -407,4 +407,53 @@ The paper economy continues to evolve. Demand for newsprint has collapsed with t
       { type: QuestionType.TRUE_FALSE, prompt: "Researchers are developing paper-based electronics.", options: ["True", "False"], correctAnswer: "True" },
     ],
   },
+  {
+    title: "Saving the World's Coral Reefs",
+    level: CEFRLevel.B2,
+    timeLimit: 1200,
+    passage: `A. Coral reefs are sometimes called the rainforests of the sea. Although they cover less than one percent of the ocean floor, they shelter roughly a quarter of all marine species. Their three-dimensional structure provides hiding places for small fish, hunting grounds for large predators, and nurseries for many creatures that spend only part of their life cycle on the reef.
+
+B. The reefs themselves are built by tiny animals called coral polyps. Each polyp secretes a hard skeleton of calcium carbonate, and millions of these skeletons cemented together over thousands of years form the familiar mounds and ridges we see today. Inside the living tissue of each polyp live single-celled algae called zooxanthellae. The polyp provides shelter; the algae use sunlight to produce sugars that feed the polyp.
+
+C. This delicate partnership is now under serious threat. When the surrounding water warms even slightly above its usual range, the polyps expel their algae and turn ghostly white — a process known as bleaching. A short bleaching event can be survived if the water cools again, but extended events kill the coral outright. Mass bleaching events were once rare; since the 1990s they have become routine in oceans around the world.
+
+D. Beyond heat, reefs face other pressures. Ocean acidification, driven by carbon dioxide dissolving into seawater, weakens the chemistry that allows polyps to form their skeletons. Overfishing removes the herbivores that keep algae in check, so dead coral surfaces are quickly smothered. Coastal pollution adds nutrients that fuel further algal growth.
+
+E. Scientists are exploring ways to help. Some teams are breeding "super corals" in laboratories — varieties shown to tolerate higher temperatures. Others are restoring damaged reefs by transplanting coral fragments grown on underwater nurseries. Marine protected areas, where fishing is restricted, have been shown to recover faster than unprotected zones. But all researchers stress that these interventions buy time only; the long-term survival of reefs depends on cutting greenhouse-gas emissions worldwide.`,
+    questions: [
+      { type: QuestionType.MATCHING_HEADINGS, prompt: "Choose the best heading for Paragraph A.", options: ["i. How coral skeletons are formed", "ii. Why reefs are ecologically valuable", "iii. The role of scientists in reef recovery", "iv. Threats from acidification"], correctAnswer: "ii. Why reefs are ecologically valuable" },
+      { type: QuestionType.MATCHING_HEADINGS, prompt: "Choose the best heading for Paragraph B.", options: ["i. How coral skeletons are formed", "ii. Why reefs are ecologically valuable", "iii. Mass bleaching events", "iv. Multiple sources of stress"], correctAnswer: "i. How coral skeletons are formed" },
+      { type: QuestionType.MATCHING_HEADINGS, prompt: "Choose the best heading for Paragraph C.", options: ["i. The biology of polyps", "ii. Restoration projects", "iii. Bleaching: the symbiosis breaks down", "iv. Acidification"], correctAnswer: "iii. Bleaching: the symbiosis breaks down" },
+      { type: QuestionType.MATCHING_INFO, prompt: "Which paragraph mentions that mass bleaching events are now common?", options: ["A", "B", "C", "D", "E"], correctAnswer: "C" },
+      { type: QuestionType.MATCHING_INFO, prompt: "Which paragraph describes restoration through transplanting fragments?", options: ["A", "B", "C", "D", "E"], correctAnswer: "E" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Coral reefs cover less than 1% of the ocean floor.", options: ["True", "False", "Not Given"], correctAnswer: "True" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Zooxanthellae produce sugars without using sunlight.", options: ["True", "False", "Not Given"], correctAnswer: "False" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Most fish on reefs are larger than one metre.", options: ["True", "False", "Not Given"], correctAnswer: "Not Given" },
+      { type: QuestionType.FILL_BLANK, prompt: "When water warms, polyps expel their algae and become ___.", correctAnswer: "white" },
+    ],
+  },
+  {
+    title: "Three Pioneers of Modern Genetics",
+    level: CEFRLevel.C1,
+    timeLimit: 1200,
+    passage: `Modern genetics rests on the work of three remarkable scientists who lived in very different worlds. Although their discoveries are sometimes treated as a single story, each contributed something distinct and faced different obstacles in being recognised.
+
+Gregor Mendel was a nineteenth-century Augustinian monk who tended a small garden at his monastery in what is now the Czech Republic. Between 1856 and 1863 he cross-pollinated more than 28,000 pea plants and recorded, with extraordinary patience, how characteristics such as flower colour and seed shape were passed on. From these results he formulated the first quantitative laws of inheritance. His paper, published in 1866, was almost entirely ignored. Only in 1900, decades after his death, did other biologists rediscover his work.
+
+Barbara McClintock was an American researcher who began studying maize in the 1920s. By tracking the colours that appeared on the kernels of individual cobs, she came to believe that genes could move from one position to another on the chromosome — a phenomenon she called "transposition". The idea contradicted the prevailing view that genes occupied fixed locations, and for years it was treated with scepticism. McClintock continued her experiments quietly. In 1983, more than thirty years after her original publications, she received the Nobel Prize in Physiology or Medicine.
+
+Rosalind Franklin trained as a physical chemist and joined a laboratory at King's College London in 1951. Using X-ray diffraction, she produced photographs of DNA whose clarity allowed measurements of the molecule's helical structure for the first time. One image, known as Photograph 51, was shown without her knowledge to James Watson, whose model of DNA — published in 1953 with Francis Crick — drew directly on her data. Franklin died of cancer in 1958 at the age of 37, four years before the Nobel Prize was awarded for the discovery of the double helix.`,
+    questions: [
+      { type: QuestionType.MATCHING_FEATURES, prompt: "Who studied maize kernels and discovered transposition?", options: ["Gregor Mendel", "Barbara McClintock", "Rosalind Franklin"], correctAnswer: "Barbara McClintock" },
+      { type: QuestionType.MATCHING_FEATURES, prompt: "Who worked alone in a monastery garden in the 19th century?", options: ["Gregor Mendel", "Barbara McClintock", "Rosalind Franklin"], correctAnswer: "Gregor Mendel" },
+      { type: QuestionType.MATCHING_FEATURES, prompt: "Whose X-ray photograph was shown to another researcher without consent?", options: ["Gregor Mendel", "Barbara McClintock", "Rosalind Franklin"], correctAnswer: "Rosalind Franklin" },
+      { type: QuestionType.MATCHING_FEATURES, prompt: "Who received recognition only decades after their original publications?", options: ["Gregor Mendel only", "Barbara McClintock only", "Both Mendel and McClintock"], correctAnswer: "Both Mendel and McClintock" },
+      { type: QuestionType.MATCHING_SENTENCE_ENDINGS, prompt: "Mendel's 1866 paper", options: ["was ignored at first and rediscovered around 1900.", "won him the Nobel Prize immediately.", "was rejected by all journals at the time.", "was based mostly on theoretical mathematics."], correctAnswer: "was ignored at first and rediscovered around 1900." },
+      { type: QuestionType.MATCHING_SENTENCE_ENDINGS, prompt: "Barbara McClintock's idea that genes can move", options: ["was accepted immediately by the scientific community.", "contradicted the dominant view of her time.", "was inspired by Mendel's work on peas.", "applied only to fruit flies."], correctAnswer: "contradicted the dominant view of her time." },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Rosalind Franklin received the Nobel Prize before her death.", options: ["True", "False", "Not Given"], correctAnswer: "False" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Mendel cross-pollinated more than 28,000 pea plants.", options: ["True", "False", "Not Given"], correctAnswer: "True" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "McClintock was born in the same country as Mendel.", options: ["True", "False", "Not Given"], correctAnswer: "False" },
+      { type: QuestionType.FILL_BLANK, prompt: "Franklin's famous DNA image is known as Photograph ___.", correctAnswer: "51" },
+    ],
+  },
 ];

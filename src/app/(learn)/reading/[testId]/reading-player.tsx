@@ -12,7 +12,7 @@ import { TipsCard } from "@/components/learn/tips-card";
 
 type Q = {
   id: string;
-  type: "MCQ" | "FILL_BLANK" | "TRUE_FALSE" | "MATCHING" | "SHORT_ANSWER";
+  type: "MCQ" | "FILL_BLANK" | "TRUE_FALSE" | "TRUE_FALSE_NOT_GIVEN" | "MATCHING" | "MATCHING_HEADINGS" | "MATCHING_INFO" | "MATCHING_FEATURES" | "MATCHING_SENTENCE_ENDINGS" | "SHORT_ANSWER";
   prompt: string;
   options: string[] | null;
   correctAnswer: string;
