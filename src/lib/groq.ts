@@ -165,11 +165,17 @@ For each question, return a detailed explanation in JSON:
 
 {
   "quote": "<exact short excerpt copied verbatim from the passage that contains the answer — keep under 60 words>",
-  "translation": "<accurate Vietnamese translation of that quote>",
-  "reasoning": "<Vietnamese explanation: 1) chỉ rõ đoạn nào trong bài chứa thông tin, 2) tại sao đáp án đúng khớp với đoạn đó, 3) nếu là MCQ/Matching, ngắn gọn vì sao các phương án khác không đúng>"
+  "keywords": ["<list of 2-5 short key phrases from the QUOTE that are most important for choosing the answer>"],
+  "translation": "<accurate Vietnamese translation of the quote>",
+  "reasoning": "<Vietnamese explanation: chỉ rõ đoạn nào trong bài chứa thông tin, tại sao đáp án đúng khớp, nếu là MCQ/Matching, ngắn gọn vì sao các phương án khác không đúng>",
+  "mistake": "<Optional Vietnamese — ONLY IF the user's answer is wrong: phân tích cụ thể tại sao đáp án người dùng sai, lỗi tư duy gì khiến họ chọn đáp án đó, và cách tránh lỗi này lần sau. Để '' nếu user đúng.>"
 }
 
-Be precise. The quote MUST be a literal substring of the passage (same casing, same punctuation). Reasoning in Vietnamese only. Return ONLY valid JSON.`;
+Rules:
+- The quote MUST be a literal substring of the passage (same casing, same punctuation).
+- Keywords MUST be substrings of the quote.
+- All text in Vietnamese only (quote stays in English).
+- Return ONLY valid JSON.`;
 
 export interface ReadingExplainInput {
   passage: string;
@@ -180,11 +186,18 @@ export interface ReadingExplainInput {
   userAnswer?: string;
 }
 
-export async function explainReadingGroq(input: ReadingExplainInput): Promise<{
+export interface ReadingExplainResult {
   quote: string;
+  keywords: string[];
   translation: string;
   reasoning: string;
-}> {
+  mistake?: string;
+}
+
+export async function explainReadingGroq(input: ReadingExplainInput): Promise<ReadingExplainResult> {
+  const isWrong =
+    input.userAnswer !== undefined &&
+    input.userAnswer.trim().toLowerCase() !== input.correctAnswer.trim().toLowerCase();
   const userMessage = `PASSAGE:
 ${input.passage}
 
@@ -193,6 +206,7 @@ QUESTION: ${input.questionPrompt}
 ${input.options && input.options.length ? `OPTIONS:\n${input.options.map((o, i) => `${i + 1}. ${o}`).join("\n")}` : ""}
 CORRECT ANSWER: ${input.correctAnswer}
 ${input.userAnswer ? `USER'S ANSWER: ${input.userAnswer}` : ""}
+USER GOT IT ${isWrong ? "WRONG — explain in 'mistake' what made them choose that option" : "CORRECT — leave 'mistake' empty"}
 
 Return JSON only.`;
   const text = await groqChat(
@@ -200,9 +214,16 @@ Return JSON only.`;
       { role: "system", content: READING_EXPLAIN_SYS },
       { role: "user", content: userMessage },
     ],
-    { jsonMode: true, temperature: 0.2, maxTokens: 800 },
+    { jsonMode: true, temperature: 0.2, maxTokens: 1100 },
   );
-  return extractJSON(text) as { quote: string; translation: string; reasoning: string };
+  const parsed = extractJSON(text) as Partial<ReadingExplainResult>;
+  return {
+    quote: parsed.quote ?? "",
+    keywords: Array.isArray(parsed.keywords) ? parsed.keywords : [],
+    translation: parsed.translation ?? "",
+    reasoning: parsed.reasoning ?? "",
+    mistake: parsed.mistake ?? "",
+  };
 }
 
 export interface TipsInput {

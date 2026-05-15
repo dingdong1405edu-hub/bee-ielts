@@ -12,10 +12,16 @@ export default async function ReadingSessionPage({ searchParams }: { searchParam
   const ids = (searchParams.ids ?? "").split(",").filter(Boolean);
   if (ids.length < 1) redirect("/reading");
 
-  const tests = await prisma.readingTest.findMany({
-    where: { id: { in: ids } },
-    include: { questions: { orderBy: { order: "asc" } } },
-  });
+  const [tests, user] = await Promise.all([
+    prisma.readingTest.findMany({
+      where: { id: { in: ids } },
+      include: { questions: { orderBy: { order: "asc" } } },
+    }),
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { targetBand: true },
+    }),
+  ]);
 
   // Preserve order from query string
   const orderedTests = ids.map((id) => tests.find((t) => t.id === id)).filter((t) => t != null) as typeof tests;
@@ -23,6 +29,7 @@ export default async function ReadingSessionPage({ searchParams }: { searchParam
 
   return (
     <ReadingSession
+      targetBand={user?.targetBand ?? 6.0}
       passages={orderedTests.map((t) => ({
         id: t.id,
         title: t.title,

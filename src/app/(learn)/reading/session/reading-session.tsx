@@ -10,6 +10,7 @@ import { TipsCard } from "@/components/learn/tips-card";
 import { ReviewReport, type ReadingReviewData } from "@/components/learn/review-report";
 import { ReadingShell, type ShellPart, type ShellQ } from "@/components/learn/reading-shell";
 import { ReadingSolutions } from "@/components/learn/reading-solutions";
+import { MotivationalCard } from "@/components/learn/motivational-card";
 
 interface Passage {
   id: string;
@@ -21,7 +22,7 @@ interface Passage {
 
 const SESSION_SECONDS = 60 * 60;
 
-export function ReadingSession({ passages }: { passages: Passage[] }) {
+export function ReadingSession({ passages, targetBand = 6.0 }: { passages: Passage[]; targetBand?: number }) {
   const router = useRouter();
   const startedAtRef = useRef<number>(Date.now());
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -106,10 +107,12 @@ export function ReadingSession({ passages }: { passages: Passage[] }) {
           <div className="text-sm text-muted-foreground">Reading Band</div>
           <div className="text-6xl font-extrabold gradient-brand-text mt-2">{band.toFixed(1)}</div>
           <div className="text-sm text-muted-foreground mt-2">
-            {totalCorrect}/{totalQuestions} câu đúng
+            {totalCorrect}/{totalQuestions} câu đúng · Mục tiêu: Band {targetBand.toFixed(1)}
           </div>
         </CardContent>
       </Card>
+
+      <MotivationalCard currentBand={band} targetBand={targetBand} />
 
       <div className="space-y-2">
         {passages.map((p, i) => {
