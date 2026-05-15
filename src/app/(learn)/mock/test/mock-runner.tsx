@@ -34,7 +34,7 @@ type Q = {
 interface Props {
   targetBand: number;
   listening: { id: string; title: string; audioUrl: string; transcript: string | null; questions: Q[] };
-  reading: { id: string; title: string; passage: string; questions: Q[] };
+  readings: { id: string; title: string; level: string; passage: string; questions: Q[] }[];
   writing: { id: string; prompt: string; minWords: number };
   speaking: {
     id: string;
@@ -45,7 +45,7 @@ interface Props {
   };
 }
 
-export function MockRunner({ targetBand, listening, reading, writing, speaking }: Props) {
+export function MockRunner({ targetBand, listening, readings, writing, speaking }: Props) {
   const router = useRouter();
   const [stage, setStage] = useState<Stage>("intro");
   const [listeningAns, setListeningAns] = useState<Record<string, string>>({});
@@ -67,9 +67,9 @@ export function MockRunner({ targetBand, listening, reading, writing, speaking }
             questions: listening.questions.map((q) => ({ id: q.id, correctAnswer: q.correctAnswer })),
           },
           reading: {
-            testId: reading.id,
+            testIds: readings.map((r) => r.id),
             answers: readingAns,
-            questions: reading.questions.map((q) => ({ id: q.id, correctAnswer: q.correctAnswer })),
+            questions: readings.flatMap((r) => r.questions.map((q) => ({ id: q.id, correctAnswer: q.correctAnswer }))),
           },
           writing: { taskId: writing.id, essay: writingEssay },
           speaking: { setId: speaking.id, topic: speaking.topic, transcripts },
@@ -136,10 +136,8 @@ export function MockRunner({ targetBand, listening, reading, writing, speaking }
   if (stage === "reading") {
     return (
       <MockReading
-        title={reading.title}
-        passage={reading.passage}
-        questions={reading.questions}
-        timeLimit={40 * 60}
+        passages={readings}
+        timeLimit={60 * 60}
         onDone={(ans) => {
           setReadingAns(ans);
           setStage("break2");

@@ -11,7 +11,7 @@ const schema = z.object({
     questions: z.array(z.object({ id: z.string(), correctAnswer: z.string() })),
   }),
   reading: z.object({
-    testId: z.string(),
+    testIds: z.array(z.string()),
     answers: z.record(z.string()),
     questions: z.array(z.object({ id: z.string(), correctAnswer: z.string() })),
   }),
@@ -118,7 +118,7 @@ export async function POST(req: Request) {
       data: {
         userId,
         skill: "READING",
-        refId: `mock-${reading.testId}`,
+        refId: `mock-${reading.testIds.join("+")}`,
         rawAnswer: reading.answers,
         score: rBand,
       },

@@ -14,6 +14,16 @@ function pickByLevel<T extends { level: string }>(items: T[], targetBand: number
   return items.find((i) => i.level === target) ?? pickRandom(items);
 }
 
+function pickMany<T>(items: T[], n: number): T[] {
+  const pool = [...items];
+  const out: T[] = [];
+  while (out.length < n && pool.length > 0) {
+    const i = Math.floor(Math.random() * pool.length);
+    out.push(pool.splice(i, 1)[0]);
+  }
+  return out;
+}
+
 export default async function MockTestPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
@@ -40,7 +50,16 @@ export default async function MockTestPage() {
     );
   }
 
-  const reading = pickByLevel(readingTests, targetBand);
+  // Pick 3 readings — try same level first, then fill with any
+  const target = targetBand <= 4.5 ? "A2" : targetBand <= 5.5 ? "B1" : targetBand <= 6.5 ? "B2" : targetBand <= 7.5 ? "C1" : "C2";
+  const sameLevel = readingTests.filter((r) => r.level === target);
+  let readings = pickMany(sameLevel, 3);
+  if (readings.length < 3) {
+    const rest = readingTests.filter((r) => !readings.find((x) => x.id === r.id));
+    readings = [...readings, ...pickMany(rest, 3 - readings.length)];
+  }
+  if (readings.length === 0) readings = [pickByLevel(readingTests, targetBand)];
+
   const listening = pickRandom(listeningTests);
   const writing = pickRandom(writingTasks);
   const speaking = pickRandom(speakingSets);
@@ -61,9 +80,10 @@ export default async function MockTestPage() {
           correctAnswer: q.correctAnswer as string,
         })),
       }}
-      reading={{
+      readings={readings.map((reading) => ({
         id: reading.id,
         title: reading.title,
+        level: reading.level,
         passage: reading.passage,
         questions: reading.questions.map((q) => ({
           id: q.id,
@@ -72,7 +92,7 @@ export default async function MockTestPage() {
           options: (q.options as string[] | null) ?? null,
           correctAnswer: q.correctAnswer as string,
         })),
-      }}
+      }))}
       writing={{
         id: writing.id,
         prompt: writing.prompt,
