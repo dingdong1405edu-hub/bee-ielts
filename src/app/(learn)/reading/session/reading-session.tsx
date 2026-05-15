@@ -10,6 +10,7 @@ import { Clock, BookOpen, CheckCircle2, XCircle, Trophy } from "lucide-react";
 import { formatDuration, cn } from "@/lib/utils";
 import { TipsCard } from "@/components/learn/tips-card";
 import { ReviewReport, type ReadingReviewData } from "@/components/learn/review-report";
+import { ReadingGroupHeader, groupStartFor } from "@/components/learn/reading-group-header";
 
 type Q = {
   id: string;
@@ -239,8 +240,13 @@ export function ReadingSession({ passages }: { passages: Passage[] }) {
         <div className="space-y-3">
           {current.questions.map((q, i) => {
             const userAns = answers[q.id] || "";
+            const groupStart = groupStartFor(current.questions, i);
             return (
-              <Card key={q.id}>
+              <div key={q.id}>
+                {groupStart && (
+                  <ReadingGroupHeader type={q.type} start={groupStart.start + 1} end={groupStart.end + 1} />
+                )}
+                <Card>
                 <CardContent className="p-5 space-y-3">
                   <div className="flex items-start gap-2">
                     <span className="font-semibold text-primary">{i + 1}.</span>
@@ -274,6 +280,7 @@ export function ReadingSession({ passages }: { passages: Passage[] }) {
                   )}
                 </CardContent>
               </Card>
+              </div>
             );
           })}
 

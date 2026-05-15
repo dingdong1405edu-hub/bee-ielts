@@ -456,4 +456,38 @@ Rosalind Franklin trained as a physical chemist and joined a laboratory at King'
       { type: QuestionType.FILL_BLANK, prompt: "Franklin's famous DNA image is known as Photograph ___.", correctAnswer: "51" },
     ],
   },
+  {
+    title: "The Development of Renewable Energy",
+    level: CEFRLevel.B2,
+    timeLimit: 1200,
+    passage: `A. For much of modern history, global energy demand has been largely met by fossil fuels such as coal, oil and natural gas. These resources have powered industrial development and economic growth for over a century. However, concerns about environmental damage and climate change have prompted governments and scientists to search for cleaner alternatives.
+
+B. Solar energy has become one of the most promising renewable energy sources. By using photovoltaic panels, sunlight can be converted directly into electricity. As technology has improved, the cost of solar power has fallen significantly, allowing more households and businesses to adopt this form of energy.
+
+C. Wind energy has also expanded rapidly in recent decades. Large wind turbines installed on land or offshore can generate substantial amounts of electricity. Many countries have invested heavily in wind farms as part of their strategy to reduce carbon emissions and decrease dependence on fossil fuels.
+
+D. Despite the rapid growth of renewable energy technologies, several obstacles remain. Renewable sources such as solar and wind are dependent on weather conditions, meaning electricity production may fluctuate throughout the day. This variability creates challenges for maintaining a stable energy supply.
+
+E. To address these limitations, researchers are developing advanced energy storage technologies. Large-scale batteries and other storage systems can store excess electricity generated during periods of high production and release it when demand increases. Such solutions are essential for ensuring the reliability of renewable energy systems.
+
+F. As renewable energy continues to develop, international cooperation has become increasingly important. Governments, scientific institutions and private companies are collaborating to share knowledge, improve technology and accelerate the global transition toward sustainable energy systems.`,
+    questions: [
+      // Group 1: Matching Headings (Q1–6) — 8 headings, 6 paragraphs (2 distractors)
+      { type: QuestionType.MATCHING_HEADINGS, prompt: "Paragraph A", options: ["i. International collaboration in renewable energy development", "ii. The role of energy storage technologies", "iii. The growing use of wind power", "iv. The historical dependence on fossil fuels", "v. The advantages and growth of solar power", "vi. The challenges of relying on renewable energy", "vii. Government taxation on fossil fuels", "viii. Public opposition to wind farms"], correctAnswer: "iv. The historical dependence on fossil fuels" },
+      { type: QuestionType.MATCHING_HEADINGS, prompt: "Paragraph B", options: ["i. International collaboration in renewable energy development", "ii. The role of energy storage technologies", "iii. The growing use of wind power", "iv. The historical dependence on fossil fuels", "v. The advantages and growth of solar power", "vi. The challenges of relying on renewable energy", "vii. Government taxation on fossil fuels", "viii. Public opposition to wind farms"], correctAnswer: "v. The advantages and growth of solar power" },
+      { type: QuestionType.MATCHING_HEADINGS, prompt: "Paragraph C", options: ["i. International collaboration in renewable energy development", "ii. The role of energy storage technologies", "iii. The growing use of wind power", "iv. The historical dependence on fossil fuels", "v. The advantages and growth of solar power", "vi. The challenges of relying on renewable energy", "vii. Government taxation on fossil fuels", "viii. Public opposition to wind farms"], correctAnswer: "iii. The growing use of wind power" },
+      { type: QuestionType.MATCHING_HEADINGS, prompt: "Paragraph D", options: ["i. International collaboration in renewable energy development", "ii. The role of energy storage technologies", "iii. The growing use of wind power", "iv. The historical dependence on fossil fuels", "v. The advantages and growth of solar power", "vi. The challenges of relying on renewable energy", "vii. Government taxation on fossil fuels", "viii. Public opposition to wind farms"], correctAnswer: "vi. The challenges of relying on renewable energy" },
+      { type: QuestionType.MATCHING_HEADINGS, prompt: "Paragraph E", options: ["i. International collaboration in renewable energy development", "ii. The role of energy storage technologies", "iii. The growing use of wind power", "iv. The historical dependence on fossil fuels", "v. The advantages and growth of solar power", "vi. The challenges of relying on renewable energy", "vii. Government taxation on fossil fuels", "viii. Public opposition to wind farms"], correctAnswer: "ii. The role of energy storage technologies" },
+      { type: QuestionType.MATCHING_HEADINGS, prompt: "Paragraph F", options: ["i. International collaboration in renewable energy development", "ii. The role of energy storage technologies", "iii. The growing use of wind power", "iv. The historical dependence on fossil fuels", "v. The advantages and growth of solar power", "vi. The challenges of relying on renewable energy", "vii. Government taxation on fossil fuels", "viii. Public opposition to wind farms"], correctAnswer: "i. International collaboration in renewable energy development" },
+      // Group 2: True / False / Not Given (Q7–10)
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Fossil fuels have been the main source of energy for over a century.", options: ["True", "False", "Not Given"], correctAnswer: "True" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "The cost of solar power has remained the same in recent years.", options: ["True", "False", "Not Given"], correctAnswer: "False" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Most wind turbines are installed in mountainous regions.", options: ["True", "False", "Not Given"], correctAnswer: "Not Given" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Large-scale batteries help store excess electricity from renewable sources.", options: ["True", "False", "Not Given"], correctAnswer: "True" },
+      // Group 3: Sentence Completion / Fill Blank (Q11–13) — summary with paraphrase
+      { type: QuestionType.FILL_BLANK, prompt: "Summary — Q11: For many years, the world has relied heavily on coal, oil and gas, but rising concern over ___ change has driven a shift towards cleaner sources of energy.", correctAnswer: "climate" },
+      { type: QuestionType.FILL_BLANK, prompt: "Summary — Q12: Solar panels and wind turbines now produce significant electricity, although output depends on the ___, which makes the supply less reliable at times.", correctAnswer: "weather" },
+      { type: QuestionType.FILL_BLANK, prompt: "Summary — Q13: To overcome this issue, scientists are working on energy ___ systems, including large batteries that hold electricity until it is needed.", correctAnswer: "storage" },
+    ],
+  },
 ];

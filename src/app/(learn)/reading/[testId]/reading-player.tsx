@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Clock, CheckCircle2, XCircle } from "lucide-react";
 import { formatDuration, cn } from "@/lib/utils";
 import { TipsCard } from "@/components/learn/tips-card";
+import { ReadingGroupHeader, groupStartFor } from "@/components/learn/reading-group-header";
 
 type Q = {
   id: string;
@@ -115,8 +116,13 @@ export function ReadingPlayer({
           {questions.map((q, i) => {
             const userAns = answers[q.id] || "";
             const isCorrect = userAns.trim().toLowerCase() === q.correctAnswer.toLowerCase();
+            const groupStart = groupStartFor(questions, i);
             return (
-              <Card key={q.id} className={cn(submitted && (isCorrect ? "border-success" : "border-destructive"))}>
+              <div key={q.id}>
+                {groupStart && (
+                  <ReadingGroupHeader type={q.type} start={groupStart.start + 1} end={groupStart.end + 1} />
+                )}
+              <Card className={cn(submitted && (isCorrect ? "border-success" : "border-destructive"))}>
                 <CardContent className="p-5 space-y-3">
                   <div className="flex items-start gap-2">
                     <span className="font-semibold text-primary">{i + 1}.</span>
@@ -166,6 +172,7 @@ export function ReadingPlayer({
                   )}
                 </CardContent>
               </Card>
+              </div>
             );
           })}
 

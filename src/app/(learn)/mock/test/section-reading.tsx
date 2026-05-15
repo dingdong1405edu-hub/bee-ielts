@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Clock, BookOpen } from "lucide-react";
 import { formatDuration, cn } from "@/lib/utils";
+import { ReadingGroupHeader, groupStartFor } from "@/components/learn/reading-group-header";
 
 type Q = {
   id: string;
@@ -72,41 +73,47 @@ export function MockReading({
         <div className="space-y-3">
           {questions.map((q, i) => {
             const userAns = answers[q.id] || "";
+            const groupStart = groupStartFor(questions, i);
             return (
-              <Card key={q.id}>
-                <CardContent className="p-5 space-y-3">
-                  <div className="flex items-start gap-2">
-                    <span className="font-semibold text-primary">{i + 1}.</span>
-                    <p className="font-medium flex-1">{q.prompt}</p>
-                  </div>
-                  {q.options ? (
-                    <div className="space-y-2">
-                      {q.options.map((opt) => (
-                        <label
-                          key={opt}
-                          className={cn("flex items-center gap-2 rounded-lg border p-2.5 cursor-pointer", userAns === opt && "border-primary bg-accent")}
-                        >
-                          <input
-                            type="radio"
-                            name={q.id}
-                            value={opt}
-                            checked={userAns === opt}
-                            onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
-                            className="h-4 w-4"
-                          />
-                          <span className="text-sm">{opt}</span>
-                        </label>
-                      ))}
+              <div key={q.id}>
+                {groupStart && (
+                  <ReadingGroupHeader type={q.type} start={groupStart.start + 1} end={groupStart.end + 1} />
+                )}
+                <Card>
+                  <CardContent className="p-5 space-y-3">
+                    <div className="flex items-start gap-2">
+                      <span className="font-semibold text-primary">{i + 1}.</span>
+                      <p className="font-medium flex-1">{q.prompt}</p>
                     </div>
-                  ) : (
-                    <Input
-                      placeholder="Câu trả lời..."
-                      value={userAns}
-                      onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
-                    />
-                  )}
-                </CardContent>
-              </Card>
+                    {q.options ? (
+                      <div className="space-y-2">
+                        {q.options.map((opt) => (
+                          <label
+                            key={opt}
+                            className={cn("flex items-center gap-2 rounded-lg border p-2.5 cursor-pointer", userAns === opt && "border-primary bg-accent")}
+                          >
+                            <input
+                              type="radio"
+                              name={q.id}
+                              value={opt}
+                              checked={userAns === opt}
+                              onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
+                              className="h-4 w-4"
+                            />
+                            <span className="text-sm">{opt}</span>
+                          </label>
+                        ))}
+                      </div>
+                    ) : (
+                      <Input
+                        placeholder="Câu trả lời..."
+                        value={userAns}
+                        onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
+                      />
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
             );
           })}
 
