@@ -4,11 +4,12 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { CheckCircle2, XCircle, Trophy } from "lucide-react";
+import { CheckCircle2, XCircle, Trophy, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TipsCard } from "@/components/learn/tips-card";
 import { ReviewReport, type ReadingReviewData } from "@/components/learn/review-report";
 import { ReadingShell, type ShellPart, type ShellQ } from "@/components/learn/reading-shell";
+import { ReadingSolutions } from "@/components/learn/reading-solutions";
 
 interface Passage {
   id: string;
@@ -26,6 +27,7 @@ export function ReadingSession({ passages }: { passages: Passage[] }) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
+  const [showSolutions, setShowSolutions] = useState(false);
 
   const handleSubmit = async (finalAnswers: Record<string, string>) => {
     if (submitted) return;
@@ -164,6 +166,48 @@ export function ReadingSession({ passages }: { passages: Passage[] }) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Xem lời giải chi tiết — call AI to explain each question */}
+      <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-accent/30">
+        <CardContent className="p-5">
+          <div className="flex items-start gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-xl gradient-brand text-white shrink-0">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-extrabold">Lời giải chi tiết</h3>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Xem đoạn nào trong bài chứa đáp án, bản dịch tiếng Việt, và lý do chọn đáp án đó.
+              </p>
+            </div>
+          </div>
+          <Button
+            onClick={() => setShowSolutions((v) => !v)}
+            variant={showSolutions ? "outline" : "brand"}
+            className="w-full mt-3 rounded-full"
+          >
+            {showSolutions ? "Đóng lời giải" : "Xem lời giải chi tiết"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {showSolutions && (
+        <ReadingSolutions
+          passages={passages.map((p) => ({
+            id: p.id,
+            title: p.title,
+            passage: p.passage,
+            questions: p.questions.map((q) => ({
+              id: q.id,
+              type: q.type,
+              prompt: q.prompt,
+              options: q.options ?? null,
+              correctAnswer: q.correctAnswer,
+            })),
+          }))}
+          answers={answers}
+        />
+      )}
 
       <TipsCard skill="READING" score={band} context={`Reading session: ${totalCorrect}/${totalQuestions} correct across ${passages.length} passages`} />
 

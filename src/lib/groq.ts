@@ -160,6 +160,51 @@ Score and return JSON only.`;
   return extractJSON(text);
 }
 
+const READING_EXPLAIN_SYS = `You are an IELTS Reading teacher writing in Vietnamese for Vietnamese learners.
+For each question, return a detailed explanation in JSON:
+
+{
+  "quote": "<exact short excerpt copied verbatim from the passage that contains the answer — keep under 60 words>",
+  "translation": "<accurate Vietnamese translation of that quote>",
+  "reasoning": "<Vietnamese explanation: 1) chỉ rõ đoạn nào trong bài chứa thông tin, 2) tại sao đáp án đúng khớp với đoạn đó, 3) nếu là MCQ/Matching, ngắn gọn vì sao các phương án khác không đúng>"
+}
+
+Be precise. The quote MUST be a literal substring of the passage (same casing, same punctuation). Reasoning in Vietnamese only. Return ONLY valid JSON.`;
+
+export interface ReadingExplainInput {
+  passage: string;
+  questionPrompt: string;
+  questionType: string;
+  options?: string[] | null;
+  correctAnswer: string;
+  userAnswer?: string;
+}
+
+export async function explainReadingGroq(input: ReadingExplainInput): Promise<{
+  quote: string;
+  translation: string;
+  reasoning: string;
+}> {
+  const userMessage = `PASSAGE:
+${input.passage}
+
+QUESTION TYPE: ${input.questionType}
+QUESTION: ${input.questionPrompt}
+${input.options && input.options.length ? `OPTIONS:\n${input.options.map((o, i) => `${i + 1}. ${o}`).join("\n")}` : ""}
+CORRECT ANSWER: ${input.correctAnswer}
+${input.userAnswer ? `USER'S ANSWER: ${input.userAnswer}` : ""}
+
+Return JSON only.`;
+  const text = await groqChat(
+    [
+      { role: "system", content: READING_EXPLAIN_SYS },
+      { role: "user", content: userMessage },
+    ],
+    { jsonMode: true, temperature: 0.2, maxTokens: 800 },
+  );
+  return extractJSON(text) as { quote: string; translation: string; reasoning: string };
+}
+
 export interface TipsInput {
   skill: "READING" | "LISTENING" | "WRITING" | "SPEAKING" | "VOCAB" | "GRAMMAR";
   score?: number;

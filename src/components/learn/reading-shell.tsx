@@ -4,6 +4,12 @@ import { Clock, Send, GripVertical, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ReadingGroupHeader, groupStartFor } from "@/components/learn/reading-group-header";
+import {
+  HighlightablePassage,
+  HighlightToolbar,
+  type Highlight,
+  type HighlightTool,
+} from "@/components/learn/highlightable-passage";
 import { formatDuration, cn } from "@/lib/utils";
 
 export type QType =
@@ -49,6 +55,8 @@ export function ReadingShell({ testTitle, parts, timeLimit, onSubmit, submitting
   const [leftWidth, setLeftWidth] = useState(50);
   const containerRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
+  const [tool, setTool] = useState<HighlightTool>("none");
+  const [highlightsByPart, setHighlightsByPart] = useState<Record<string, Highlight[]>>({});
 
   // global timer
   useEffect(() => {
@@ -96,6 +104,9 @@ export function ReadingShell({ testTitle, parts, timeLimit, onSubmit, submitting
   const setAnswer = (qId: string, value: string) =>
     setAnswers((a) => ({ ...a, [qId]: value }));
 
+  const setPartHighlights = (partId: string, next: Highlight[]) =>
+    setHighlightsByPart((h) => ({ ...h, [partId]: next }));
+
   const currentPart = parts[activePart];
   const totalAnswered = (p: ShellPart) =>
     p.questions.filter((q) => (answers[q.id] || "").trim()).length;
@@ -119,6 +130,9 @@ export function ReadingShell({ testTitle, parts, timeLimit, onSubmit, submitting
           </div>
         </div>
         <div className="flex items-center gap-1.5 md:gap-3 shrink-0">
+          <div className="hidden md:block">
+            <HighlightToolbar tool={tool} setTool={setTool} />
+          </div>
           <div className="flex items-center gap-1 md:gap-1.5 text-xs md:text-base font-extrabold">
             <Clock className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
             <span className="hidden sm:inline">{Math.floor(remaining / 60)} minutes remaining</span>
@@ -135,6 +149,11 @@ export function ReadingShell({ testTitle, parts, timeLimit, onSubmit, submitting
         </div>
       </header>
 
+      {/* Mobile highlight toolbar — sub-header */}
+      <div className="md:hidden border-b bg-card px-2 py-1.5 flex items-center justify-center">
+        <HighlightToolbar tool={tool} setTool={setTool} />
+      </div>
+
       {/* SPLIT PANE */}
       <div ref={containerRef} className="flex-1 flex overflow-hidden">
         {/* LEFT: passage */}
@@ -146,14 +165,25 @@ export function ReadingShell({ testTitle, parts, timeLimit, onSubmit, submitting
             <h2 className="text-center text-xl md:text-2xl font-extrabold tracking-tight mb-4">
               {currentPart.title}
             </h2>
-            <div className="text-[15px] leading-relaxed whitespace-pre-wrap text-foreground">
-              {currentPart.passage}
-            </div>
+            <HighlightablePassage
+              passage={currentPart.passage}
+              highlights={highlightsByPart[currentPart.id] ?? []}
+              tool={tool}
+              onChangeHighlights={(next) => setPartHighlights(currentPart.id, next)}
+            />
           </div>
         </div>
 
         {/* Mobile: tab toggle to switch between passage & questions */}
-        <MobileToggle currentPart={currentPart} answers={answers} setAnswer={setAnswer} startIndex={startIdxOfPart} />
+        <MobileToggle
+          currentPart={currentPart}
+          answers={answers}
+          setAnswer={setAnswer}
+          startIndex={startIdxOfPart}
+          tool={tool}
+          highlights={highlightsByPart[currentPart.id] ?? []}
+          setHighlights={(next) => setPartHighlights(currentPart.id, next)}
+        />
 
         {/* SPLITTER */}
         <div
@@ -513,11 +543,17 @@ function MobileToggle({
   answers,
   setAnswer,
   startIndex,
+  tool,
+  highlights,
+  setHighlights,
 }: {
   currentPart: ShellPart;
   answers: Record<string, string>;
   setAnswer: (id: string, v: string) => void;
   startIndex: number;
+  tool: HighlightTool;
+  highlights: Highlight[];
+  setHighlights: (next: Highlight[]) => void;
 }) {
   const [view, setView] = useState<"passage" | "questions">("passage");
   return (
@@ -540,7 +576,12 @@ function MobileToggle({
         {view === "passage" ? (
           <>
             <h2 className="text-center text-xl font-extrabold tracking-tight mb-3">{currentPart.title}</h2>
-            <div className="text-[15px] leading-relaxed whitespace-pre-wrap">{currentPart.passage}</div>
+            <HighlightablePassage
+              passage={currentPart.passage}
+              highlights={highlights}
+              tool={tool}
+              onChangeHighlights={setHighlights}
+            />
           </>
         ) : (
           <PartQuestions
