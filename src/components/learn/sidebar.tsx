@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Sparkles, BookOpenText, BookOpen, Headphones, PenLine, Mic, GraduationCap, Shield, LogOut } from "lucide-react";
+import { Home, Sparkles, BookOpenText, BookOpen, Headphones, PenLine, Mic, GraduationCap, Shield, LogOut, User } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 
@@ -44,6 +44,18 @@ export function Sidebar({ isAdmin }: { isAdmin?: boolean }) {
             </Link>
           );
         })}
+        <Link
+          href="/profile"
+          className={cn(
+            "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all",
+            pathname.startsWith("/profile")
+              ? "bg-card text-foreground shadow-sm border"
+              : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
+          )}
+        >
+          <User className={cn("h-5 w-5", pathname.startsWith("/profile") && "text-primary")} />
+          Hồ sơ
+        </Link>
         {isAdmin && (
           <Link
             href="/admin"
