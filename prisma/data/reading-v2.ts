@@ -4,13 +4,14 @@ import type { ReadingData } from "./reading";
 /**
  * Reading bank v2 — paragraph-labeled IELTS-style passages, each with EXACTLY 2 question groups.
  *
- * 4 slots × 3 passages = 12 passages. Each session picks 1 from each slot
- * so the learner always sees all 8 question-type categories distributed evenly.
+ * 4 slots × 3 passages = 12 passages. Each passage has two consecutive question
+ * groups, each a single question type drawn from two different categories
+ * (Truth Verification / Completion / Matching / Selection). Total 14-16 questions.
  *
- *   Slot A: MATCHING_HEADINGS (paragraphs A–G) + TRUE_FALSE_NOT_GIVEN
+ *   Slot A: MATCHING_HEADINGS (paragraphs A–F) + TRUE_FALSE_NOT_GIVEN
  *   Slot B: MCQ + FILL_BLANK (sentence completion)
- *   Slot C: MATCHING_INFO (which paragraph contains...) + SHORT_ANSWER
- *   Slot D: MATCHING_FEATURES + MATCHING_SENTENCE_ENDINGS
+ *   Slot C: MATCHING_INFO (which paragraph contains...) + FILL_BLANK
+ *   Slot D: MCQ + TRUE_FALSE_NOT_GIVEN
  */
 export type ReadingDataV2 = ReadingData & { slot: "A" | "B" | "C" | "D" };
 
@@ -78,7 +79,7 @@ E  Whether vinyl will keep its momentum is harder to predict. Some industry anal
       { type: QuestionType.MATCHING_HEADINGS, prompt: "Paragraph C", options: A1_HEADINGS, correctAnswer: "v. Manufacturing challenges of the comeback" },
       { type: QuestionType.MATCHING_HEADINGS, prompt: "Paragraph D", options: A1_HEADINGS, correctAnswer: "ix. The economics behind a single album" },
       { type: QuestionType.MATCHING_HEADINGS, prompt: "Paragraph E", options: A1_HEADINGS, correctAnswer: "iii. How collectors drive the market" },
-      // Group 2: True / False / Not Given (6 statements)
+      // Group 2: True / False / Not Given (10 statements)
       { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "UK vinyl sales in 2022 were more than five times higher than in 2007.", options: ["True", "False", "Not Given"], correctAnswer: "True" },
       { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Vinyl sales now exceed sales of digital streaming worldwide.", options: ["True", "False", "Not Given"], correctAnswer: "False" },
       { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Most young vinyl buyers also listen to the same albums online.", options: ["True", "False", "Not Given"], correctAnswer: "True" },
@@ -86,6 +87,9 @@ E  Whether vinyl will keep its momentum is harder to predict. Some industry anal
       { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "The specialised machinery for vinyl pressing is still being mass-produced.", options: ["True", "False", "Not Given"], correctAnswer: "False" },
       { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Rising vinyl prices have already reduced demand from young listeners.", options: ["True", "False", "Not Given"], correctAnswer: "False" },
       { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "All analysts agree that vinyl sales will continue to rise.", options: ["True", "False", "Not Given"], correctAnswer: "False" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Vinyl sales in the UK were higher than CD sales in 2022 for the first time since 1987.", options: ["True", "False", "Not Given"], correctAnswer: "True" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Major artists may wait around six months to receive vinyl copies of a finished album.", options: ["True", "False", "Not Given"], correctAnswer: "True" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Record labels had accurately predicted the return of vinyl.", options: ["True", "False", "Not Given"], correctAnswer: "False" },
     ],
   },
   {
@@ -120,6 +124,9 @@ F  None of these measures, however, can substitute for reducing the underlying c
       { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Asian cities have planted more trees than European cities.", options: ["True", "False", "Not Given"], correctAnswer: "Not Given" },
       { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Traditional building techniques have generally been preserved without interruption in Spain and Morocco.", options: ["True", "False", "Not Given"], correctAnswer: "False" },
       { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Adaptation alone will be enough to protect cities if temperatures keep rising.", options: ["True", "False", "Not Given"], correctAnswer: "False" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "The urban heat island effect is most pronounced in the early morning.", options: ["True", "False", "Not Given"], correctAnswer: "True" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Reflective roofs are described as the most affordable cooling measure.", options: ["True", "False", "Not Given"], correctAnswer: "True" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Some ambulance services begin heat-related preparations before the hot season starts.", options: ["True", "False", "Not Given"], correctAnswer: "True" },
     ],
   },
   {
@@ -154,6 +161,9 @@ F  Whatever its purpose, sleep has clearly resisted every attempt to abolish it.
       { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Most countries have introduced school-start-time reforms in response to teenage sleep needs.", options: ["True", "False", "Not Given"], correctAnswer: "Not Given" },
       { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "A causal link between sleep deprivation and dementia has been firmly established.", options: ["True", "False", "Not Given"], correctAnswer: "False" },
       { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Caffeine can permanently replace the need for sleep.", options: ["True", "False", "Not Given"], correctAnswer: "False" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "A complete sleep cycle lasts roughly ninety minutes.", options: ["True", "False", "Not Given"], correctAnswer: "True" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "The body releases growth hormone during the deepest stage of non-REM sleep.", options: ["True", "False", "Not Given"], correctAnswer: "True" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "A single night of poor sleep has no measurable effect on the immune system.", options: ["True", "False", "Not Given"], correctAnswer: "False" },
     ],
   },
 
@@ -184,6 +194,8 @@ The legacy is everywhere. From Shanghai to São Paulo, the steel-and-glass tower
       { type: QuestionType.MCQ, prompt: "Why was the Otis elevator so significant?", options: ["It was the first elevator ever built", "It was cheap to manufacture", "It included a brake that engaged if the cable failed", "It allowed buildings to be heated more efficiently"], correctAnswer: "It included a brake that engaged if the cable failed" },
       { type: QuestionType.MCQ, prompt: "What was an unexpected effect of safe passenger elevators?", options: ["Buildings became shorter", "Upper floors became at least as valuable as lower ones", "Office workers preferred ground-floor offices", "Construction times increased"], correctAnswer: "Upper floors became at least as valuable as lower ones" },
       { type: QuestionType.MCQ, prompt: "What is the writer's main point in the final paragraph?", options: ["Skyscrapers are no longer being built", "The criticisms of skyscrapers have led to a change in design", "The fundamental method developed in Chicago is still in use today", "Wind problems have never been solved"], correctAnswer: "The fundamental method developed in Chicago is still in use today" },
+      { type: QuestionType.MCQ, prompt: "How is the Home Insurance Building described?", options: ["As the tallest building of the nineteenth century", "As surprisingly light for its time", "As a failed experiment", "As built entirely from glass"], correctAnswer: "As surprisingly light for its time" },
+      { type: QuestionType.MCQ, prompt: "Which of the following is NOT mentioned as a new challenge faced by early skyscraper architects?", options: ["Delivering water to upper floors", "Anchoring a thin tower against the wind", "Evacuating workers in an emergency", "Reducing the cost of steel"], correctAnswer: "Reducing the cost of steel" },
       // Group 2: Sentence Completion — NO MORE THAN TWO WORDS
       { type: QuestionType.FILL_BLANK, prompt: "Before the late 1800s, the maximum useful height of a building was constrained by the strength of its walls and by the human limit on climbing ___.", correctAnswer: "stairs" },
       { type: QuestionType.FILL_BLANK, prompt: "In 1871, much of central Chicago was destroyed by a great ___.", correctAnswer: "fire" },
@@ -192,6 +204,7 @@ The legacy is everywhere. From Shanghai to São Paulo, the steel-and-glass tower
       { type: QuestionType.FILL_BLANK, prompt: "Elisha Otis demonstrated a ___ that locked automatically if a lift cable broke.", correctAnswer: "brake" },
       { type: QuestionType.FILL_BLANK, prompt: "Architects of early skyscrapers had to find ways to anchor a thin tower against the ___.", correctAnswer: "wind" },
       { type: QuestionType.FILL_BLANK, prompt: "Critics of high-rise design say that the verticality has come at a cost to street life and to the human sense of ___.", correctAnswer: "scale" },
+      { type: QuestionType.FILL_BLANK, prompt: "The key load-bearing frame of the new buildings was made of ___ rather than masonry.", correctAnswer: "steel" },
     ],
   },
   {
@@ -217,13 +230,15 @@ The most promising future may lie in hybrid arrangements. Outdoor agriculture co
       { type: QuestionType.MCQ, prompt: "What is described as the main cost of running a vertical farm?", options: ["Building maintenance", "Worker salaries", "Electricity for lighting", "Imported nutrients"], correctAnswer: "Electricity for lighting" },
       { type: QuestionType.MCQ, prompt: "Why is vertical farming unsuitable for crops such as wheat?", options: ["Wheat grows too slowly to justify the lighting cost", "Wheat needs soil that cannot be reproduced indoors", "Wheat is too tall to fit in stacked shelves", "Wheat cannot grow under LED light"], correctAnswer: "Wheat grows too slowly to justify the lighting cost" },
       { type: QuestionType.MCQ, prompt: "What does the writer suggest about vertical farming's future?", options: ["It will replace traditional farming completely", "It is doomed unless costs fall sharply", "It will likely coexist with outdoor agriculture in a complementary role", "It will only succeed in tropical countries"], correctAnswer: "It will likely coexist with outdoor agriculture in a complementary role" },
+      { type: QuestionType.MCQ, prompt: "How have some operators responded to the environmental paradox of indoor farming?", options: ["By switching to outdoor cultivation", "By moving to regions with cheap renewable energy", "By abandoning leafy greens", "By reducing the height of their buildings"], correctAnswer: "By moving to regions with cheap renewable energy" },
+      { type: QuestionType.MCQ, prompt: "In which settings does the writer say indoor food production becomes a necessity rather than a luxury?", options: ["Large coastal cities", "Desert cities and polar research stations", "Traditional farming regions", "Tropical river valleys"], correctAnswer: "Desert cities and polar research stations" },
       { type: QuestionType.FILL_BLANK, prompt: "In hydroponics, the plants' roots are placed in nutrient-rich ___.", correctAnswer: "water" },
       { type: QuestionType.FILL_BLANK, prompt: "Aeroponic systems supply nutrients to the roots as a fine ___ of dissolved fertiliser.", correctAnswer: "mist" },
       { type: QuestionType.FILL_BLANK, prompt: "The largest commercial vertical farms claim to use around 95 per cent less ___ than outdoor farming.", correctAnswer: "water" },
       { type: QuestionType.FILL_BLANK, prompt: "Indoor farms can be located inside the city they supply, eliminating long ___ chains.", correctAnswer: "transport" },
       { type: QuestionType.FILL_BLANK, prompt: "Electricity for the LEDs typically accounts for forty to sixty per cent of a vertical farm's total ___.", correctAnswer: "expenditure" },
       { type: QuestionType.FILL_BLANK, prompt: "If the electricity comes from coal or gas, indoor lettuce can have a higher carbon ___ than imported produce.", correctAnswer: "footprint" },
-      { type: QuestionType.FILL_BLANK, prompt: "Some experimental farms in northern Europe now claim a net-zero ___.", correctAnswer: "footprint" },
+      { type: QuestionType.FILL_BLANK, prompt: "A vertical farm can produce up to twenty ___ of leafy salad in a single year.", correctAnswer: "harvests" },
     ],
   },
   {
@@ -249,6 +264,8 @@ Severe memory loss, of the kind seen in dementia, is a different matter. Here th
       { type: QuestionType.MCQ, prompt: "What happens to a memory during sleep?", options: ["It moves to the hippocampus", "It is permanently lost", "It is replayed and transferred to the cortex", "It is shared with other people"], correctAnswer: "It is replayed and transferred to the cortex" },
       { type: QuestionType.MCQ, prompt: "What is suggested by patients with hyperthymesia?", options: ["Remembering everything is always useful", "A perfect memory may complicate decisions", "Their condition can be cured easily", "They forget more than average people"], correctAnswer: "A perfect memory may complicate decisions" },
       { type: QuestionType.MCQ, prompt: "Why do names slip away more easily than common nouns?", options: ["Names are heard less often", "Names rarely connect to meaningful networks", "Names are stored in a different brain region", "Names are usually too long"], correctAnswer: "Names rarely connect to meaningful networks" },
+      { type: QuestionType.MCQ, prompt: "What evidence suggests that forgetting is an active process?", options: ["The brain shrinks with age", "Specific molecules mark connections for deletion", "People forget faster when tired", "Memories return after exercise"], correctAnswer: "Specific molecules mark connections for deletion" },
+      { type: QuestionType.MCQ, prompt: "How is memory loss in dementia different from everyday forgetting?", options: ["It can be reversed with current drugs", "The brain tissue itself degenerates and deletion becomes chaotic", "It affects only names, not facts", "It improves with age"], correctAnswer: "The brain tissue itself degenerates and deletion becomes chaotic" },
       { type: QuestionType.FILL_BLANK, prompt: "Ebbinghaus produced the forgetting ___, showing rapid initial loss of memory.", correctAnswer: "curve" },
       { type: QuestionType.FILL_BLANK, prompt: "New experiences pass through the ___, a small structure deep in the brain.", correctAnswer: "hippocampus" },
       { type: QuestionType.FILL_BLANK, prompt: "Memories that are not replayed sufficiently are actively ___ from the brain.", correctAnswer: "pruned" },
@@ -260,7 +277,7 @@ Severe memory loss, of the kind seen in dementia, is a different matter. Here th
   },
 
   // =====================================================================
-  // SLOT C — Matching Information (which paragraph) + Short Answer
+  // SLOT C — Matching Information (which paragraph) + Sentence Completion (FILL_BLANK)
   // =====================================================================
   {
     slot: "C",
@@ -289,13 +306,15 @@ F  What is no longer in doubt is the speed of the final collapse. Detailed studi
       { type: QuestionType.MATCHING_INFO, prompt: "A comparison between this past extinction and modern biodiversity loss.", options: ["A", "B", "C", "D", "E", "F"], correctAnswer: "F" },
       { type: QuestionType.MATCHING_INFO, prompt: "A description of long-lasting volcanic activity in what is now India.", options: ["A", "B", "C", "D", "E", "F"], correctAnswer: "D" },
       { type: QuestionType.MATCHING_INFO, prompt: "An explanation of why some scientists once viewed extinction as a slow process.", options: ["A", "B", "C", "D", "E", "F"], correctAnswer: "A" },
-      // Group 2: Short Answer — NO MORE THAN THREE WORDS
-      { type: QuestionType.SHORT_ANSWER, prompt: "Approximately how many millions of years ago did the dinosaur extinction occur?", correctAnswer: "66" },
-      { type: QuestionType.SHORT_ANSWER, prompt: "Who proposed the impact theory in 1980?", correctAnswer: "Luis and Walter Alvarez" },
-      { type: QuestionType.SHORT_ANSWER, prompt: "Which rare metal was found in unusually high concentrations at the boundary?", correctAnswer: "iridium" },
-      { type: QuestionType.SHORT_ANSWER, prompt: "What is the name of the buried crater identified in 1991?", correctAnswer: "Chicxulub" },
-      { type: QuestionType.SHORT_ANSWER, prompt: "What is the name given to the Indian basalt sequence linked to massive volcanic eruptions?", correctAnswer: "Deccan Traps" },
-      { type: QuestionType.SHORT_ANSWER, prompt: "According to paragraph F, ecosystems were transformed within what timescale, rather than millennia?", correctAnswer: "years" },
+      { type: QuestionType.MATCHING_INFO, prompt: "A description of evidence found along American coastlines.", options: ["A", "B", "C", "D", "E", "F"], correctAnswer: "C" },
+      // Group 2: Sentence Completion — NO MORE THAN THREE WORDS
+      { type: QuestionType.FILL_BLANK, prompt: "The dinosaur extinction occurred roughly 66 million ___ ago.", correctAnswer: "years" },
+      { type: QuestionType.FILL_BLANK, prompt: "The impact theory was proposed in 1980 by Luis Alvarez and his geologist son ___.", correctAnswer: "Walter" },
+      { type: QuestionType.FILL_BLANK, prompt: "An unusually high concentration of the rare metal ___ was found at the Cretaceous-Paleogene boundary.", correctAnswer: "iridium" },
+      { type: QuestionType.FILL_BLANK, prompt: "The buried crater near the modern Mexican town of ___ was identified in 1991.", correctAnswer: "Chicxulub" },
+      { type: QuestionType.FILL_BLANK, prompt: "The Indian basalt layers linked to massive eruptions are known as the Deccan ___.", correctAnswer: "Traps" },
+      { type: QuestionType.FILL_BLANK, prompt: "According to paragraph F, ecosystems were transformed within ___ rather than millennia.", correctAnswer: "years" },
+      { type: QuestionType.FILL_BLANK, prompt: "The Alvarezes proposed that an asteroid roughly ten ___ across had collided with the Earth.", correctAnswer: "kilometres" },
     ],
   },
   {
@@ -324,12 +343,14 @@ F  Not every claim about the "wood-wide web" has stood up to scrutiny. Some rese
       { type: QuestionType.MATCHING_INFO, prompt: "An explanation of how a dying tree may help support younger neighbours.", options: ["A", "B", "C", "D", "E", "F"], correctAnswer: "C" },
       { type: QuestionType.MATCHING_INFO, prompt: "A measurement of how dense the fungal threads are in soil.", options: ["A", "B", "C", "D", "E", "F"], correctAnswer: "A" },
       { type: QuestionType.MATCHING_INFO, prompt: "The name of a scientist who used radioactive tracers in 1990s experiments.", options: ["A", "B", "C", "D", "E", "F"], correctAnswer: "C" },
-      { type: QuestionType.SHORT_ANSWER, prompt: "What name is given to the fungi that connect to plant roots?", correctAnswer: "mycorrhizae" },
-      { type: QuestionType.SHORT_ANSWER, prompt: "How many kilometres of fungal threads can a single teaspoon of forest soil contain?", correctAnswer: "several" },
-      { type: QuestionType.SHORT_ANSWER, prompt: "Roughly what proportion of its energy may a tree spend on feeding its fungus partner?", correctAnswer: "one third" },
-      { type: QuestionType.SHORT_ANSWER, prompt: "Who first demonstrated carbon transfer between trees in the 1990s?", correctAnswer: "Suzanne Simard" },
-      { type: QuestionType.SHORT_ANSWER, prompt: "What did Simard use to track carbon movement?", correctAnswer: "radioactive tracers" },
-      { type: QuestionType.SHORT_ANSWER, prompt: "What forestry approach is described as 'continuous-___'?", correctAnswer: "cover" },
+      { type: QuestionType.MATCHING_INFO, prompt: "A reference to results from trials in Scandinavia and the Pacific Northwest.", options: ["A", "B", "C", "D", "E", "F"], correctAnswer: "E" },
+      { type: QuestionType.FILL_BLANK, prompt: "The fungi that connect to plant roots are known as ___.", correctAnswer: "mycorrhizae" },
+      { type: QuestionType.FILL_BLANK, prompt: "A single ___ of forest soil can contain several kilometres of fungal threads.", correctAnswer: "teaspoon" },
+      { type: QuestionType.FILL_BLANK, prompt: "A tree may devote as much as a ___ of its total energy budget to feeding its fungus partner.", correctAnswer: "third" },
+      { type: QuestionType.FILL_BLANK, prompt: "Carbon transfer between trees in the 1990s was first demonstrated by the Canadian ecologist Suzanne ___.", correctAnswer: "Simard" },
+      { type: QuestionType.FILL_BLANK, prompt: "To track the movement of carbon, Simard used radioactive ___.", correctAnswer: "tracers" },
+      { type: QuestionType.FILL_BLANK, prompt: "Forestry that leaves the soil undisturbed is described as \"continuous-___\" forestry.", correctAnswer: "cover" },
+      { type: QuestionType.FILL_BLANK, prompt: "The plant-fungus relationship has existed for more than 400 million ___.", correctAnswer: "years" },
     ],
   },
   {
@@ -358,17 +379,19 @@ F  The motivation runs deeper than nostalgia. Each language carries unique categ
       { type: QuestionType.MATCHING_INFO, prompt: "A description of schools where all teaching is in the endangered language.", options: ["A", "B", "C", "D", "E", "F"], correctAnswer: "C" },
       { type: QuestionType.MATCHING_INFO, prompt: "A statement about the loss of unique cultural categories.", options: ["A", "B", "C", "D", "E", "F"], correctAnswer: "F" },
       { type: QuestionType.MATCHING_INFO, prompt: "An example of one person beginning a deliberate revival project.", options: ["A", "B", "C", "D", "E", "F"], correctAnswer: "A" },
-      { type: QuestionType.SHORT_ANSWER, prompt: "About how often does a language disappear, according to the writer?", correctAnswer: "every two weeks" },
-      { type: QuestionType.SHORT_ANSWER, prompt: "Who began coining new Hebrew words in the late nineteenth century?", correctAnswer: "Eliezer Ben-Yehuda" },
-      { type: QuestionType.SHORT_ANSWER, prompt: "By what kind of method has Hawaiian been partially rebuilt?", correctAnswer: "immersion schools" },
-      { type: QuestionType.SHORT_ANSWER, prompt: "Which two North American indigenous languages are mentioned as having adapted the Hawaiian model?", correctAnswer: "Cherokee and Mohawk" },
-      { type: QuestionType.SHORT_ANSWER, prompt: "In Welsh-speaking areas, the proportion of young speakers rose for the first time in over how many years?", correctAnswer: "a century" },
-      { type: QuestionType.SHORT_ANSWER, prompt: "What word does paragraph F use to describe language loss?", correctAnswer: "irreversible" },
+      { type: QuestionType.MATCHING_INFO, prompt: "A reference to indigenous languages remembered only by a few elderly speakers.", options: ["A", "B", "C", "D", "E", "F"], correctAnswer: "C" },
+      { type: QuestionType.FILL_BLANK, prompt: "According to the writer, a language disappears every two ___.", correctAnswer: "weeks" },
+      { type: QuestionType.FILL_BLANK, prompt: "New Hebrew words were coined in the late nineteenth century by Eliezer ___.", correctAnswer: "Ben-Yehuda" },
+      { type: QuestionType.FILL_BLANK, prompt: "Hawaiian has been partially rebuilt through ___ schools that teach entirely in the language.", correctAnswer: "immersion" },
+      { type: QuestionType.FILL_BLANK, prompt: "The Hawaiian immersion model has been adapted for Māori, Cherokee and ___.", correctAnswer: "Mohawk" },
+      { type: QuestionType.FILL_BLANK, prompt: "In Wales, the proportion of young Welsh speakers rose for the first time in over a ___.", correctAnswer: "century" },
+      { type: QuestionType.FILL_BLANK, prompt: "Paragraph F describes the loss of a language as ___.", correctAnswer: "irreversible" },
+      { type: QuestionType.FILL_BLANK, prompt: "Linguists estimate that nearly half of the world's seven thousand languages will fall silent before the end of this ___.", correctAnswer: "century" },
     ],
   },
 
   // =====================================================================
-  // SLOT D — Matching Features + Matching Sentence Endings
+  // SLOT D — Multiple Choice + True/False/Not Given
   // =====================================================================
   {
     slot: "D",
@@ -391,63 +414,24 @@ Less remembered today than the others, Howard Hughes was nevertheless one of the
 
 By the end of the 1940s, the headline-grabbing era was over. Long-distance flight had become an industry, and individual pilots were no longer national celebrities. Yet the records and reputations set by these four figures continued to shape the public understanding of what aviation could be for decades afterwards.`,
     questions: [
-      // Group 1: Matching Features — match each statement (Q1–7) to one of A/B/C/D
-      { type: QuestionType.MATCHING_FEATURES, prompt: "This pioneer ran a small craft business rather than relying on government support.", options: ["A. The Wright Brothers", "B. Amelia Earhart", "C. Charles Lindbergh", "D. Howard Hughes"], correctAnswer: "A" },
-      { type: QuestionType.MATCHING_FEATURES, prompt: "This pioneer set a record by flying alone from one continent to another.", options: ["A. The Wright Brothers", "B. Amelia Earhart", "C. Charles Lindbergh", "D. Howard Hughes"], correctAnswer: "C" },
-      { type: QuestionType.MATCHING_FEATURES, prompt: "This pioneer was the first woman to make a particular long-distance solo flight.", options: ["A. The Wright Brothers", "B. Amelia Earhart", "C. Charles Lindbergh", "D. Howard Hughes"], correctAnswer: "B" },
-      { type: QuestionType.MATCHING_FEATURES, prompt: "This pioneer built and tested aircraft using their own family fortune.", options: ["A. The Wright Brothers", "B. Amelia Earhart", "C. Charles Lindbergh", "D. Howard Hughes"], correctAnswer: "D" },
-      { type: QuestionType.MATCHING_FEATURES, prompt: "This pioneer was concerned chiefly with the problem of controlling an aircraft, rather than simply lifting it.", options: ["A. The Wright Brothers", "B. Amelia Earhart", "C. Charles Lindbergh", "D. Howard Hughes"], correctAnswer: "A" },
-      { type: QuestionType.MATCHING_FEATURES, prompt: "This pioneer used their celebrity to argue for greater inclusion of women in aviation.", options: ["A. The Wright Brothers", "B. Amelia Earhart", "C. Charles Lindbergh", "D. Howard Hughes"], correctAnswer: "B" },
-      { type: QuestionType.MATCHING_FEATURES, prompt: "This pioneer later helped to design commercial air routes within the United States.", options: ["A. The Wright Brothers", "B. Amelia Earhart", "C. Charles Lindbergh", "D. Howard Hughes"], correctAnswer: "C" },
-      // Group 2: Matching Sentence Endings — complete each sentence with the correct ending
-      { type: QuestionType.MATCHING_SENTENCE_ENDINGS, prompt: "The Wright Brothers' first powered flight at Kitty Hawk...", options: [
-        "...lasted only about twelve seconds.",
-        "...was supported by the United States government.",
-        "...took place inside a wind tunnel.",
-        "...was achieved by a pilot circling the globe along the equator.",
-        "...led to the discovery of wing-warping after the war.",
-        "...covered the Atlantic Ocean in just over thirty hours."
-      ], correctAnswer: "...lasted only about twelve seconds." },
-      { type: QuestionType.MATCHING_SENTENCE_ENDINGS, prompt: "Amelia Earhart's 1932 transatlantic flight...", options: [
-        "...lasted only about twelve seconds.",
-        "...was supported by the United States government.",
-        "...ended on farmland in Northern Ireland.",
-        "...was achieved by a pilot circling the globe along the equator.",
-        "...led to the discovery of wing-warping after the war.",
-        "...covered the Atlantic Ocean in just over thirty hours."
-      ], correctAnswer: "...ended on farmland in Northern Ireland." },
-      { type: QuestionType.MATCHING_SENTENCE_ENDINGS, prompt: "Charles Lindbergh's New York to Paris journey...", options: [
-        "...lasted only about twelve seconds.",
-        "...was supported by the United States government.",
-        "...took place inside a wind tunnel.",
-        "...was achieved by a pilot circling the globe along the equator.",
-        "...led to the discovery of wing-warping after the war.",
-        "...covered the Atlantic Ocean in just over thirty hours."
-      ], correctAnswer: "...covered the Atlantic Ocean in just over thirty hours." },
-      { type: QuestionType.MATCHING_SENTENCE_ENDINGS, prompt: "Howard Hughes's 1938 round-the-world flight...", options: [
-        "...lasted only about twelve seconds.",
-        "...halved the previous record time.",
-        "...took place inside a wind tunnel.",
-        "...was achieved by a pilot circling the globe along the equator.",
-        "...led to the discovery of wing-warping after the war.",
-        "...covered the Atlantic Ocean in just over thirty hours."
-      ], correctAnswer: "...halved the previous record time." },
-      { type: QuestionType.MATCHING_SENTENCE_ENDINGS, prompt: "Earhart's last attempted flight...", options: [
-        "...lasted only about twelve seconds.",
-        "...was supported by the United States government.",
-        "...has never been fully explained.",
-        "...was achieved by a pilot circling the globe along the equator.",
-        "...led to the discovery of wing-warping after the war.",
-        "...covered the Atlantic Ocean in just over thirty hours."
-      ], correctAnswer: "...has never been fully explained." },
-      { type: QuestionType.MATCHING_SENTENCE_ENDINGS, prompt: "By the end of the 1940s, individual pilots...", options: [
-        "...were no longer treated as national celebrities.",
-        "...were supported by the United States government.",
-        "...took place inside a wind tunnel.",
-        "...was achieved by a pilot circling the globe along the equator.",
-        "...led to the discovery of wing-warping after the war.",
-        "...covered the Atlantic Ocean in just over thirty hours."
-      ], correctAnswer: "...were no longer treated as national celebrities." },
+      // Group 1: MCQ
+      { type: QuestionType.MCQ, prompt: "How did the Wright Brothers earn a living before their aviation work?", options: ["Through government grants", "From a bicycle workshop", "As trained engineers", "Through industrial backing"], correctAnswer: "From a bicycle workshop" },
+      { type: QuestionType.MCQ, prompt: "What did the Wright Brothers identify as the main unsolved problem of flight?", options: ["Generating enough lift", "Building a light enough engine", "Controlling an aircraft in flight", "Finding a suitable launch site"], correctAnswer: "Controlling an aircraft in flight" },
+      { type: QuestionType.MCQ, prompt: "What is said about Amelia Earhart's contribution to aviation?", options: ["She invented several new aircraft", "Her significance lay in how she used existing technology", "She built the first commercial airliner", "She trained the US military to fly"], correctAnswer: "Her significance lay in how she used existing technology" },
+      { type: QuestionType.MCQ, prompt: "Where did Earhart's 1932 transatlantic flight end?", options: ["In Newfoundland", "On a farmer's field in Northern Ireland", "In Paris", "On the equator"], correctAnswer: "On a farmer's field in Northern Ireland" },
+      { type: QuestionType.MCQ, prompt: "What made Charles Lindbergh's 1927 flight remarkable?", options: ["It was the first flight across the Pacific", "It was the first solo non-stop flight from New York to Paris", "It used a multi-engined aircraft", "It was funded by the US government"], correctAnswer: "It was the first solo non-stop flight from New York to Paris" },
+      { type: QuestionType.MCQ, prompt: "In what way was Lindbergh different from the other pioneers?", options: ["He never broke any records", "He later helped plan commercial air routes", "He was a trained engineer", "He worked only outside the United States"], correctAnswer: "He later helped plan commercial air routes" },
+      { type: QuestionType.MCQ, prompt: "How was Howard Hughes's aviation work funded?", options: ["By government grants", "By a family fortune in oil-drilling equipment", "By prize money", "By an aircraft manufacturer"], correctAnswer: "By a family fortune in oil-drilling equipment" },
+      { type: QuestionType.MCQ, prompt: "What does the writer say about individual pilots by the end of the 1940s?", options: ["They were breaking more records than ever", "They were no longer national celebrities", "They had all retired from flying", "They had founded their own airlines"], correctAnswer: "They were no longer national celebrities" },
+      // Group 2: True / False / Not Given
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "The Wright Brothers had formal training as engineers.", options: ["True", "False", "Not Given"], correctAnswer: "False" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "The Wright Brothers' first powered flight lasted twelve seconds.", options: ["True", "False", "Not Given"], correctAnswer: "True" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Earhart's transatlantic flight took fifteen hours.", options: ["True", "False", "Not Given"], correctAnswer: "True" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "The wreckage of Earhart's aircraft was eventually found.", options: ["True", "False", "Not Given"], correctAnswer: "False" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Lindbergh's Spirit of St. Louis was equipped with a radio.", options: ["True", "False", "Not Given"], correctAnswer: "False" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Lindbergh received prize money for his New York to Paris flight.", options: ["True", "False", "Not Given"], correctAnswer: "True" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Hughes's 1938 round-the-world flight took less than half the time of any earlier attempt.", options: ["True", "False", "Not Given"], correctAnswer: "True" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "The H-4 transport plane played an important role in the Second World War.", options: ["True", "False", "Not Given"], correctAnswer: "False" },
     ],
   },
   {
@@ -471,61 +455,22 @@ Karlheinz Stockhausen, a composer trained at the Cologne studio for electronic m
 
 The full social impact of these inventors took decades to unfold. By the end of the twentieth century almost every recorded song bore the fingerprints of one or more of them, often without the audience being aware. Music itself had become a medium that could be carried, copied and consumed anywhere — a transformation as profound as the invention of writing was for the spoken word.`,
     questions: [
-      { type: QuestionType.MATCHING_FEATURES, prompt: "This inventor was forced by political authorities to work on surveillance equipment.", options: ["A. Edison", "B. Theremin", "C. Moog", "D. Stockhausen"], correctAnswer: "B" },
-      { type: QuestionType.MATCHING_FEATURES, prompt: "This inventor's name became, for a time, more famous than the inventor himself.", options: ["A. Edison", "B. Theremin", "C. Moog", "D. Stockhausen"], correctAnswer: "C" },
-      { type: QuestionType.MATCHING_FEATURES, prompt: "This inventor originally thought their device would be used as office equipment.", options: ["A. Edison", "B. Theremin", "C. Moog", "D. Stockhausen"], correctAnswer: "A" },
-      { type: QuestionType.MATCHING_FEATURES, prompt: "This inventor's work was deliberately experimental rather than designed to please a mass audience.", options: ["A. Edison", "B. Theremin", "C. Moog", "D. Stockhausen"], correctAnswer: "D" },
-      { type: QuestionType.MATCHING_FEATURES, prompt: "This inventor produced an instrument that the player operates without touching it.", options: ["A. Edison", "B. Theremin", "C. Moog", "D. Stockhausen"], correctAnswer: "B" },
-      { type: QuestionType.MATCHING_FEATURES, prompt: "This inventor's company fell behind because of resistance to changing formats.", options: ["A. Edison", "B. Theremin", "C. Moog", "D. Stockhausen"], correctAnswer: "A" },
-      { type: QuestionType.MATCHING_FEATURES, prompt: "This inventor was directly cited as an influence by several major pop and rock acts.", options: ["A. Edison", "B. Theremin", "C. Moog", "D. Stockhausen"], correctAnswer: "D" },
-      { type: QuestionType.MATCHING_SENTENCE_ENDINGS, prompt: "Edison's phonograph was originally intended...", options: [
-        "...as a device for office dictation.",
-        "...to imitate the human voice.",
-        "...to be played without physical contact.",
-        "...to make synthesisers playable by one musician.",
-        "...to combine voices with electronic sound.",
-        "...to record live concerts in their entirety."
-      ], correctAnswer: "...as a device for office dictation." },
-      { type: QuestionType.MATCHING_SENTENCE_ENDINGS, prompt: "Theremin's instrument allowed pitches to glide continuously...", options: [
-        "...as a device for office dictation.",
-        "...to imitate the human voice.",
-        "...to be played without physical contact.",
-        "...to make synthesisers playable by one musician.",
-        "...to combine voices with electronic sound.",
-        "...to record live concerts in their entirety."
-      ], correctAnswer: "...to imitate the human voice." },
-      { type: QuestionType.MATCHING_SENTENCE_ENDINGS, prompt: "Moog's modular system was designed...", options: [
-        "...as a device for office dictation.",
-        "...to imitate the human voice.",
-        "...to be played without physical contact.",
-        "...to make synthesisers playable by one musician.",
-        "...to combine voices with electronic sound.",
-        "...to record live concerts in their entirety."
-      ], correctAnswer: "...to make synthesisers playable by one musician." },
-      { type: QuestionType.MATCHING_SENTENCE_ENDINGS, prompt: "Stockhausen's Gesang der Jünglinge is best described as a work that aimed...", options: [
-        "...as a device for office dictation.",
-        "...to imitate the human voice.",
-        "...to be played without physical contact.",
-        "...to make synthesisers playable by one musician.",
-        "...to combine voices with electronic sound.",
-        "...to record live concerts in their entirety."
-      ], correctAnswer: "...to combine voices with electronic sound." },
-      { type: QuestionType.MATCHING_SENTENCE_ENDINGS, prompt: "Theremin's instrument was played by sensing the position of the hands...", options: [
-        "...in the air between two antennae.",
-        "...to imitate the human voice.",
-        "...to be played without physical contact.",
-        "...to make synthesisers playable by one musician.",
-        "...to combine voices with electronic sound.",
-        "...to record live concerts in their entirety."
-      ], correctAnswer: "...in the air between two antennae." },
-      { type: QuestionType.MATCHING_SENTENCE_ENDINGS, prompt: "The Switched-On Bach album succeeded in...", options: [
-        "...as a device for office dictation.",
-        "...to imitate the human voice.",
-        "...putting Moog's synthesiser on the bestseller charts.",
-        "...to make synthesisers playable by one musician.",
-        "...to combine voices with electronic sound.",
-        "...to record live concerts in their entirety."
-      ], correctAnswer: "...putting Moog's synthesiser on the bestseller charts." },
+      { type: QuestionType.MCQ, prompt: "What was Edison's phonograph originally intended for?", options: ["Recording live concerts", "Office dictation", "Broadcasting music", "Teaching music"], correctAnswer: "Office dictation" },
+      { type: QuestionType.MCQ, prompt: "Why did Edison's company fall behind its rivals?", options: ["It could not record sound clearly", "He resisted the change from cylinders to flat discs", "It refused to sell to entertainment customers", "He stopped manufacturing phonographs"], correctAnswer: "He resisted the change from cylinders to flat discs" },
+      { type: QuestionType.MCQ, prompt: "What was unusual about how Theremin's instrument was played?", options: ["It required two performers", "It produced sound without physical contact", "It could only play a single fixed note", "It needed a roomful of equipment"], correctAnswer: "It produced sound without physical contact" },
+      { type: QuestionType.MCQ, prompt: "What happened to Theremin in 1938?", options: ["He moved permanently to the United States", "He was kidnapped by Soviet agents", "He stopped inventing instruments", "He founded a film studio"], correctAnswer: "He was kidnapped by Soviet agents" },
+      { type: QuestionType.MCQ, prompt: "What made Moog's synthesiser different from earlier electronic instruments?", options: ["It produced only fixed tones", "Its keyboard-driven design made it playable by one musician", "It required a roomful of equipment", "It could not be used for recordings"], correctAnswer: "Its keyboard-driven design made it playable by one musician" },
+      { type: QuestionType.MCQ, prompt: "What was the effect of the album Switched-On Bach?", options: ["It ended interest in synthesisers", "It put Moog's instrument on the bestseller charts", "It was banned from radio", "It made Moog personally famous worldwide"], correctAnswer: "It put Moog's instrument on the bestseller charts" },
+      { type: QuestionType.MCQ, prompt: "How did Stockhausen treat the new electronic technology?", options: ["As a way to imitate older instruments", "As a fundamentally new art form", "As a tool for office work", "As a commercial entertainment product"], correctAnswer: "As a fundamentally new art form" },
+      { type: QuestionType.MCQ, prompt: "What does the writer say about the social impact of these inventors?", options: ["It was immediate and obvious", "It took decades to unfold", "It was limited to classical music", "It was confined to the United States"], correctAnswer: "It took decades to unfold" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Edison expected a market for pre-recorded entertainment from the start.", options: ["True", "False", "Not Given"], correctAnswer: "False" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Edison's phonograph was demonstrated in 1877.", options: ["True", "False", "Not Given"], correctAnswer: "True" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Theremin's instrument was a major commercial success.", options: ["True", "False", "Not Given"], correctAnswer: "False" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Theremin's invention influenced film scores from the 1930s onwards.", options: ["True", "False", "Not Given"], correctAnswer: "True" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Robert Moog studied physics at Columbia University.", options: ["True", "False", "Not Given"], correctAnswer: "True" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Moog personally performed on the album Switched-On Bach.", options: ["True", "False", "Not Given"], correctAnswer: "Not Given" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Members of The Beatles cited Stockhausen as an influence.", options: ["True", "False", "Not Given"], correctAnswer: "True" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Stockhausen's own works were popular with a mass audience.", options: ["True", "False", "Not Given"], correctAnswer: "False" },
     ],
   },
   {
@@ -547,64 +492,22 @@ Amsterdam grew rapidly in the seventeenth century, when Dutch merchants needed w
 D — Comparison and challenges
 The three cities offer instructive contrasts. Venice was built primarily for defence and trade by sea, Suzhou for inland river transport, Amsterdam for ocean-going commerce combined with land reclamation. All three face increasing pressure from climate change. Venice's situation is the most acute, but Amsterdam too has invested billions in updated flood-protection systems, and Suzhou worries about subsidence as groundwater is extracted for industry. Their continuing survival is not guaranteed, but their experience has begun to inform planners in younger cities — Jakarta, Manila, New Orleans — for whom water is becoming a problem rather than a resource.`,
     questions: [
-      { type: QuestionType.MATCHING_FEATURES, prompt: "This city's structure has changed very little since around 1500.", options: ["A. Venice", "B. Suzhou", "C. Amsterdam"], correctAnswer: "A" },
-      { type: QuestionType.MATCHING_FEATURES, prompt: "This city's water system was designed primarily to support inland trade in grain and silk.", options: ["A. Venice", "B. Suzhou", "C. Amsterdam"], correctAnswer: "B" },
-      { type: QuestionType.MATCHING_FEATURES, prompt: "This city's planners deliberately built a ring of concentric canals.", options: ["A. Venice", "B. Suzhou", "C. Amsterdam"], correctAnswer: "C" },
-      { type: QuestionType.MATCHING_FEATURES, prompt: "This city's earliest residents were refugees from a collapsing empire.", options: ["A. Venice", "B. Suzhou", "C. Amsterdam"], correctAnswer: "A" },
-      { type: QuestionType.MATCHING_FEATURES, prompt: "This city continued to expand on land while preserving its old water-bound core.", options: ["A. Venice", "B. Suzhou", "C. Amsterdam"], correctAnswer: "B" },
-      { type: QuestionType.MATCHING_FEATURES, prompt: "This city's canal system serves a quiet secondary purpose as drainage.", options: ["A. Venice", "B. Suzhou", "C. Amsterdam"], correctAnswer: "C" },
-      { type: QuestionType.MATCHING_FEATURES, prompt: "This city now experiences serious flooding several times a year.", options: ["A. Venice", "B. Suzhou", "C. Amsterdam"], correctAnswer: "A" },
-      { type: QuestionType.MATCHING_SENTENCE_ENDINGS, prompt: "Venice was originally settled in a lagoon because...", options: [
-        "...shallow water gave protection against mounted invaders.",
-        "...there was no rainfall in the region.",
-        "...rivers flowed too quickly for ships to dock.",
-        "...the seventeenth-century merchants needed warehouses.",
-        "...refugees feared a famine in Asia.",
-        "...silk and grain had to be carried across mountains."
-      ], correctAnswer: "...shallow water gave protection against mounted invaders." },
-      { type: QuestionType.MATCHING_SENTENCE_ENDINGS, prompt: "Suzhou's bridges were designed in such a way that...", options: [
-        "...shallow water gave protection against mounted invaders.",
-        "...loaded barges could pass underneath them.",
-        "...rivers flowed too quickly for ships to dock.",
-        "...the seventeenth-century merchants needed warehouses.",
-        "...refugees feared a famine in Asia.",
-        "...silk and grain had to be carried across mountains."
-      ], correctAnswer: "...loaded barges could pass underneath them." },
-      { type: QuestionType.MATCHING_SENTENCE_ENDINGS, prompt: "Amsterdam's seventeenth-century canal ring was dug because...", options: [
-        "...shallow water gave protection against mounted invaders.",
-        "...there was no rainfall in the region.",
-        "...rivers flowed too quickly for ships to dock.",
-        "...the seventeenth-century merchants needed warehouses with deep-water access.",
-        "...refugees feared a famine in Asia.",
-        "...silk and grain had to be carried across mountains."
-      ], correctAnswer: "...the seventeenth-century merchants needed warehouses with deep-water access." },
-      { type: QuestionType.MATCHING_SENTENCE_ENDINGS, prompt: "Amsterdam's tall, narrow merchant houses were built that way partly to...", options: [
-        "...shallow water gave protection against mounted invaders.",
-        "...share construction costs between neighbouring buildings.",
-        "...rivers flowed too quickly for ships to dock.",
-        "...the seventeenth-century merchants needed warehouses.",
-        "...refugees feared a famine in Asia.",
-        "...silk and grain had to be carried across mountains."
-      ], correctAnswer: "...share construction costs between neighbouring buildings." },
-      { type: QuestionType.MATCHING_SENTENCE_ENDINGS, prompt: "Suzhou's older canals are now valued primarily as...", options: [
-        "...shallow water gave protection against mounted invaders.",
-        "...cultural and tourism resources rather than working trade routes.",
-        "...rivers flowed too quickly for ships to dock.",
-        "...the seventeenth-century merchants needed warehouses.",
-        "...refugees feared a famine in Asia.",
-        "...silk and grain had to be carried across mountains."
-      ], correctAnswer: "...cultural and tourism resources rather than working trade routes." },
-      { type: QuestionType.MATCHING_SENTENCE_ENDINGS, prompt: "Younger water-affected cities such as Jakarta and Manila are now turning to historical examples because...", options: [
-        "...water is becoming a problem rather than a resource for them.",
-        "...there was no rainfall in the region.",
-        "...rivers flowed too quickly for ships to dock.",
-        "...the seventeenth-century merchants needed warehouses.",
-        "...refugees feared a famine in Asia.",
-        "...silk and grain had to be carried across mountains."
-      ], correctAnswer: "...water is becoming a problem rather than a resource for them." },
+      { type: QuestionType.MCQ, prompt: "Why, for most of history, were cities built on water?", options: ["For luxury and status", "Out of necessity", "To attract tourists", "To avoid taxation"], correctAnswer: "Out of necessity" },
+      { type: QuestionType.MCQ, prompt: "Who founded Venice in the northern Adriatic lagoons?", options: ["Dutch merchants", "Refugees fleeing the collapse of the Western Roman Empire", "Chinese traders", "Horse-mounted invaders"], correctAnswer: "Refugees fleeing the collapse of the Western Roman Empire" },
+      { type: QuestionType.MCQ, prompt: "What were Suzhou's canals primarily used for?", options: ["Defence against invaders", "Transporting grain and silk", "Recreation and tourism", "Drainage of floodwater"], correctAnswer: "Transporting grain and silk" },
+      { type: QuestionType.MCQ, prompt: "What is the Grachtengordel?", options: ["A flood-protection wall", "A ring of three concentric canals in Amsterdam", "A type of merchant house", "A waterway in China"], correctAnswer: "A ring of three concentric canals in Amsterdam" },
+      { type: QuestionType.MCQ, prompt: "Why were Amsterdam's merchant houses built tall and narrow?", options: ["To store cargo on upper floors and share construction costs", "To resist earthquakes", "To allow barges to pass beneath them", "To accommodate large families"], correctAnswer: "To store cargo on upper floors and share construction costs" },
+      { type: QuestionType.MCQ, prompt: "Which city's situation does the writer describe as the most acute?", options: ["Suzhou", "Amsterdam", "Venice", "Jakarta"], correctAnswer: "Venice" },
+      { type: QuestionType.MCQ, prompt: "What does the writer say about younger cities such as Jakarta and Manila?", options: ["They have solved their water problems", "Water is becoming a problem rather than a resource for them", "They were also built by Roman refugees", "They have abandoned their canals"], correctAnswer: "Water is becoming a problem rather than a resource for them" },
+      { type: QuestionType.MCQ, prompt: "What concern is mentioned in connection with Suzhou today?", options: ["Rising sea levels", "Subsidence as groundwater is extracted for industry", "The loss of its bridges", "A shortage of tourists"], correctAnswer: "Subsidence as groundwater is extracted for industry" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Venice's physical structure has changed very little since around 1500.", options: ["True", "False", "Not Given"], correctAnswer: "True" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Suzhou stopped expanding on land after its canals were built.", options: ["True", "False", "Not Given"], correctAnswer: "False" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "The Grand Canal runs for 1,800 kilometres.", options: ["True", "False", "Not Given"], correctAnswer: "True" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Amsterdam's seventeenth-century street plan still organises the city today.", options: ["True", "False", "Not Given"], correctAnswer: "True" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Venice attracts more tourists than Suzhou and Amsterdam.", options: ["True", "False", "Not Given"], correctAnswer: "Not Given" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Amsterdam has spent billions on updated flood-protection systems.", options: ["True", "False", "Not Given"], correctAnswer: "True" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "The wooden piles beneath Venice's buildings have all been replaced with modern materials.", options: ["True", "False", "Not Given"], correctAnswer: "False" },
+      { type: QuestionType.TRUE_FALSE_NOT_GIVEN, prompt: "Venice's canals serve as the city's main streets.", options: ["True", "False", "Not Given"], correctAnswer: "True" },
     ],
   },
 ];
-
-
-

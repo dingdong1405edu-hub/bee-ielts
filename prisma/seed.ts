@@ -88,10 +88,12 @@ async function main() {
     }
   }
 
-  // Reading: wipe + reseed (combine legacy bank + v2 slot-tagged bank)
-  await prisma.question.deleteMany({ where: { readingId: { not: null } } });
-  await prisma.readingTest.deleteMany({});
-  const allReadings = [...READING_TESTS, ...READING_TESTS_V2];
+  // Reading: reseed the slot-tagged practice bank (slot A–D) only.
+  // Admin-created reading tests (slot = null) are preserved across deploys;
+  // leftover legacy un-slotted seed tests are removed once by title.
+  await prisma.readingTest.deleteMany({ where: { slot: { not: null } } });
+  await prisma.readingTest.deleteMany({ where: { title: { in: READING_TESTS.map((r) => r.title) } } });
+  const allReadings = [...READING_TESTS_V2];
   for (const r of allReadings) {
     await prisma.readingTest.create({
       data: {
