@@ -12,12 +12,14 @@ import { formatDuration, wordCount, cn } from "@/lib/utils";
 import { TipsCard } from "@/components/learn/tips-card";
 import { ReviewReport, type WritingReviewData } from "@/components/learn/review-report";
 import { WritingFeedback, type WritingResult } from "@/components/learn/writing-feedback";
+import { TaskDiagram } from "@/components/learn/task-diagram";
 
 export function WritingPlayer({
   taskId,
   taskType,
   prompt,
   imageUrl,
+  diagramSvg,
   minWords,
   timeLimit,
 }: {
@@ -25,6 +27,7 @@ export function WritingPlayer({
   taskType: 1 | 2;
   prompt: string;
   imageUrl: string | null;
+  diagramSvg?: string | null;
   minWords: number;
   timeLimit: number;
 }) {
@@ -135,7 +138,8 @@ export function WritingPlayer({
           <CardContent className="p-5 space-y-3">
             <h3 className="font-semibold">Đề bài</h3>
             <div className="whitespace-pre-wrap text-sm">{prompt}</div>
-            {imageUrl && (
+            <TaskDiagram svg={diagramSvg} />
+            {imageUrl && !diagramSvg && (
               <div className="relative w-full aspect-video rounded-md overflow-hidden border">
                 <Image src={imageUrl} alt="task" fill className="object-contain" />
               </div>

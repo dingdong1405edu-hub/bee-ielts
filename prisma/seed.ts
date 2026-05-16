@@ -145,6 +145,7 @@ async function main() {
         taskType: t.taskType,
         prompt: t.prompt,
         imageUrl: t.imageUrl ?? null,
+        diagramSvg: t.diagramSvg ?? null,
         minWords: t.minWords,
         timeLimit: t.timeLimit,
       },

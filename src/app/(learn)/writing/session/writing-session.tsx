@@ -11,11 +11,12 @@ import { Clock, PenLine, Loader2, Trophy } from "lucide-react";
 import { formatDuration, wordCount, cn } from "@/lib/utils";
 import { TipsCard } from "@/components/learn/tips-card";
 import { WritingFeedback, type WritingResult } from "@/components/learn/writing-feedback";
+import { TaskDiagram } from "@/components/learn/task-diagram";
 
 type Result = WritingResult;
 
 interface Props {
-  task1: { id: string; prompt: string; imageUrl: string | null; minWords: number };
+  task1: { id: string; prompt: string; imageUrl: string | null; diagramSvg?: string | null; minWords: number };
   task2: { id: string; prompt: string; minWords: number };
 }
 
@@ -202,9 +203,10 @@ export function WritingSession({ task1, task2 }: Props) {
           <CardContent className="p-5 space-y-3">
             <h3 className="font-bold">Đề bài</h3>
             <div className="whitespace-pre-wrap text-sm">{currentTask.prompt}</div>
-            {isTask1 && (currentTask as Props["task1"]).imageUrl && (
+            {isTask1 && <TaskDiagram svg={task1.diagramSvg} />}
+            {isTask1 && task1.imageUrl && !task1.diagramSvg && (
               <div className="relative w-full aspect-video rounded-md overflow-hidden border">
-                <Image src={(currentTask as Props["task1"]).imageUrl!} alt="task" fill className="object-contain" />
+                <Image src={task1.imageUrl} alt="task" fill className="object-contain" />
               </div>
             )}
           </CardContent>

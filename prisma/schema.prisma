@@ -166,13 +166,14 @@ model Question {
 }
 
 model WritingTask {
-  id        String   @id @default(cuid())
-  taskType  Int
-  prompt    String   @db.Text
-  imageUrl  String?
-  minWords  Int      @default(150)
-  timeLimit Int      @default(1200)
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  taskType   Int
+  prompt     String   @db.Text
+  imageUrl   String?
+  diagramSvg String?  @db.Text
+  minWords   Int      @default(150)
+  timeLimit  Int      @default(1200)
+  createdAt  DateTime @default(now())
 }
 
 model SpeakingSet {

@@ -1,7 +1,18 @@
+import {
+  DIAGRAM_HOUSING,
+  DIAGRAM_RENEWABLE,
+  DIAGRAM_TEMPERATURE,
+  DIAGRAM_PAPER_PROCESS,
+  DIAGRAM_TOWN_MAPS,
+  DIAGRAM_EXPENDITURE,
+  DIAGRAM_TOURISTS,
+} from "./writing-diagrams";
+
 export interface WritingTaskData {
   taskType: 1 | 2;
   prompt: string;
   imageUrl?: string;
+  diagramSvg?: string;
   minWords: number;
   timeLimit: number;
 }
@@ -18,42 +29,49 @@ export const WRITING_TASKS: WritingTaskData[] = [
   {
     taskType: 1,
     prompt: "The chart below shows the percentage of households in owned and rented accommodation in England and Wales between 1918 and 2011.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.\n\nWrite at least 150 words.",
+    diagramSvg: DIAGRAM_HOUSING,
     minWords: 150,
     timeLimit: 1200,
   },
   {
     taskType: 1,
-    prompt: "The bar chart below shows the proportion of energy generated from different renewable sources (solar, wind, hydro, biomass) in five countries in 2010 and 2020.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.\n\nWrite at least 150 words.",
+    prompt: "The bar chart below shows the share of electricity generated from renewable sources in five countries in 2010 and 2020.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.\n\nWrite at least 150 words.",
+    diagramSvg: DIAGRAM_RENEWABLE,
     minWords: 150,
     timeLimit: 1200,
   },
   {
     taskType: 1,
     prompt: "The line graph below shows the average monthly temperatures in three Asian cities (Tokyo, Singapore and Mumbai) over the course of a year.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.\n\nWrite at least 150 words.",
+    diagramSvg: DIAGRAM_TEMPERATURE,
     minWords: 150,
     timeLimit: 1200,
   },
   {
     taskType: 1,
     prompt: "The diagram below illustrates the process by which paper is recycled.\n\nSummarise the information by selecting and reporting the main features.\n\nWrite at least 150 words.",
+    diagramSvg: DIAGRAM_PAPER_PROCESS,
     minWords: 150,
     timeLimit: 1200,
   },
   {
     taskType: 1,
     prompt: "The two maps below show a town centre in 1990 and in 2020.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.\n\nWrite at least 150 words.",
+    diagramSvg: DIAGRAM_TOWN_MAPS,
     minWords: 150,
     timeLimit: 1200,
   },
   {
     taskType: 1,
     prompt: "The pie charts below show the proportion of household expenditure on food, housing, transport, leisure and other categories in 2000 and 2020.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.\n\nWrite at least 150 words.",
+    diagramSvg: DIAGRAM_EXPENDITURE,
     minWords: 150,
     timeLimit: 1200,
   },
   {
     taskType: 1,
     prompt: "The table below shows the number of international tourists (in millions) visiting four countries in 2015, 2018 and 2022.\n\nSummarise the information by selecting and reporting the main features, and make comparisons where relevant.\n\nWrite at least 150 words.",
+    diagramSvg: DIAGRAM_TOURISTS,
     minWords: 150,
     timeLimit: 1200,
   },

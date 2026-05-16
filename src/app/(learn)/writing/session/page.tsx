@@ -24,6 +24,7 @@ export default async function WritingSessionPage({ searchParams }: { searchParam
         id: task1.id,
         prompt: task1.prompt,
         imageUrl: task1.imageUrl,
+        diagramSvg: task1.diagramSvg,
         minWords: task1.minWords,
       }}
       task2={{

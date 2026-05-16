@@ -11,6 +11,7 @@ export default async function WritingTaskPage({ params }: { params: { taskId: st
       taskType={task.taskType as 1 | 2}
       prompt={task.prompt}
       imageUrl={task.imageUrl}
+      diagramSvg={task.diagramSvg}
       minWords={task.minWords}
       timeLimit={task.timeLimit}
     />
