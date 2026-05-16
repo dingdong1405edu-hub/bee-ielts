@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
 import { BookOpen, Headphones, PenLine, Mic, Sparkles, BookOpenText, Zap, Flame, Target, ChevronRight } from "lucide-react";
 import { ProfileHeader } from "./profile-header";
+import { DeleteAttemptButton } from "@/components/learn/delete-attempt-button";
 
 export const dynamic = "force-dynamic";
 
@@ -65,7 +66,12 @@ export default async function ProfilePage() {
 
       {/* Attempt history */}
       <div>
-        <h2 className="text-lg font-extrabold mb-3">Bài mình đã làm</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-extrabold">Bài mình đã làm</h2>
+          {attempts.length > 0 && (
+            <span className="text-xs text-muted-foreground">Nhấn 🗑 để xoá bài không cần</span>
+          )}
+        </div>
         {attempts.length === 0 ? (
           <Card>
             <CardContent className="p-8 text-center text-sm text-muted-foreground">
@@ -78,35 +84,41 @@ export default async function ProfilePage() {
               const meta = SKILL_META[a.skill] ?? SKILL_META.READING;
               const Icon = meta.icon;
               const isWriting = a.skill === "WRITING";
-              const inner = (
-                <Card className={isWriting ? "cursor-pointer hover:shadow-md hover:border-primary/40 transition-all" : ""}>
-                  <CardContent className="p-4 flex items-center gap-3">
-                    <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br ${meta.grad} text-white`}>
-                      <Icon className="h-5 w-5" />
+              const body = (
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br ${meta.grad} text-white`}>
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold">{meta.label}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {new Date(a.createdAt).toLocaleString("vi-VN")}
+                      {a.refId.startsWith("mock-") && " · Thi thử"}
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="font-semibold">{meta.label}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {new Date(a.createdAt).toLocaleString("vi-VN")}
-                        {a.refId.startsWith("mock-") && " · Thi thử"}
-                      </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="text-lg font-extrabold text-primary">
+                      {a.score != null ? a.score.toFixed(1) : "—"}
                     </div>
-                    <div className="text-right shrink-0">
-                      <div className="text-lg font-extrabold text-primary">
-                        {a.score != null ? a.score.toFixed(1) : "—"}
-                      </div>
-                      <div className="text-[10px] text-muted-foreground uppercase">{meta.unit}</div>
-                    </div>
-                    {isWriting && <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />}
-                  </CardContent>
-                </Card>
+                    <div className="text-[10px] text-muted-foreground uppercase">{meta.unit}</div>
+                  </div>
+                  {isWriting && <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />}
+                  <DeleteAttemptButton attemptId={a.id} />
+                </CardContent>
               );
-              return isWriting ? (
-                <Link key={a.id} href={`/writing/review/${a.id}`}>
-                  {inner}
-                </Link>
-              ) : (
-                <div key={a.id}>{inner}</div>
+              return (
+                <Card
+                  key={a.id}
+                  className={isWriting ? "hover:shadow-md hover:border-primary/40 transition-all" : ""}
+                >
+                  {isWriting ? (
+                    <Link href={`/writing/review/${a.id}`} className="block">
+                      {body}
+                    </Link>
+                  ) : (
+                    body
+                  )}
+                </Card>
               );
             })}
           </div>

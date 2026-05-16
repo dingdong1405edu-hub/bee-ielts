@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PenLine, Clock, BarChart3, FileText, Trophy, History, ChevronRight } from "lucide-react";
 import { SkillIntro } from "@/components/learn/skill-intro";
 import { Card, CardContent } from "@/components/ui/card";
+import { DeleteAttemptButton } from "@/components/learn/delete-attempt-button";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 
@@ -69,9 +70,9 @@ export default async function WritingIntroPage() {
           </div>
           <div className="space-y-2">
             {history.map((h) => (
-              <Link key={h.id} href={`/writing/review/${h.id}`}>
-                <Card className="cursor-pointer hover:shadow-md hover:border-primary/40 transition-all">
-                  <CardContent className="p-4 flex items-center gap-3">
+              <Card key={h.id} className="hover:shadow-md hover:border-primary/40 transition-all">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <Link href={`/writing/review/${h.id}`} className="flex items-center gap-3 min-w-0 flex-1">
                     <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-rose-500 to-pink-500 text-white font-extrabold">
                       {(h.score ?? 0).toFixed(1)}
                     </div>
@@ -83,9 +84,10 @@ export default async function WritingIntroPage() {
                       <div className="text-sm font-semibold truncate">{h.promptHead}</div>
                     </div>
                     <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
-                  </CardContent>
-                </Card>
-              </Link>
+                  </Link>
+                  <DeleteAttemptButton attemptId={h.id} />
+                </CardContent>
+              </Card>
             ))}
           </div>
         </div>
