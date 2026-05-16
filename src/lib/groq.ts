@@ -132,27 +132,29 @@ Return ONLY valid JSON matching this exact shape:
 
 Provide 4-8 annotations, 5-7 linkingPhrases, 4-6 usefulStructures. If the essay is empty give empty annotation/structure arrays but STILL provide linkingPhrases, openingSentences, closingSentences and improvedVersion as study material.`;
 
-const SPEAKING_SYS = `You are a certified IELTS Speaking examiner. Score speaking responses (Part 1, 2, or 3) using official band descriptors.
-Evaluate 4 criteria:
-- Fluency & Coherence
-- Lexical Resource
-- Grammatical Range & Accuracy
-- Pronunciation (based on transcript only — note this limitation)
+const SPEAKING_SYS = `You are a certified IELTS Speaking examiner. Score the candidate's spoken response using official band descriptors.
+The transcript comes from a speech-recognition system; words it heard with LOW confidence are listed separately as likely mispronunciations — use them for the Pronunciation score.
+All feedback text MUST be in Vietnamese (English only for example phrases).
 
 Return ONLY valid JSON:
 
 {
   "overallBand": 6.5,
   "criteria": {
-    "fluencyCoherence": { "band": 6, "feedback": "..." },
-    "lexicalResource": { "band": 7, "feedback": "..." },
-    "grammaticalRange": { "band": 6, "feedback": "..." },
-    "pronunciation": { "band": 6, "feedback": "...", "note": "Assessed from transcript only — limited signal." }
+    "fluencyCoherence": { "band": 6, "feedback": "<tiếng Việt>" },
+    "lexicalResource": { "band": 7, "feedback": "<tiếng Việt>" },
+    "grammaticalRange": { "band": 6, "feedback": "<tiếng Việt>" },
+    "pronunciation": { "band": 6, "feedback": "<tiếng Việt — nhận xét phát âm, nhắc tới các từ phát âm chưa rõ>", "note": "Đánh giá từ transcript + độ tin cậy nhận dạng giọng nói." }
   },
-  "observations": ["...", "..."],
-  "improvedSample": "...",
-  "summary": "..."
-}`;
+  "observations": ["<nhận xét cụ thể — tiếng Việt>"],
+  "openingPhrases": ["<2-3 cách MỞ câu trả lời hay, tiếng Anh, hợp với chủ đề này>"],
+  "closingPhrases": ["<2-3 cách KẾT câu trả lời hay, tiếng Anh, hợp chủ đề>"],
+  "usefulPhrases": [{ "phrase": "<cụm/idiom tiếng Anh hữu ích cho chủ đề này>", "use": "<dùng khi nào — tiếng Việt>" }],
+  "improvedSample": "<một câu trả lời mẫu band 7.5 cho chủ đề này>",
+  "summary": "<nhận xét tổng quan ngắn — tiếng Việt>"
+}
+
+Provide 4-6 observations and 4-6 usefulPhrases. The opening/closing/useful phrases must be tailored to THIS topic, not generic.`;
 
 const TIPS_SYS = `You are a friendly IELTS coach giving practical actionable tips. Tone: warm, Gen-Z friendly. Write in Vietnamese.
 Return ONLY valid JSON:
@@ -175,6 +177,8 @@ export interface SpeakingGradeInput {
   topic: string;
   questions: string[];
   transcript: string;
+  /** Words the speech recogniser heard with low confidence (likely mispronounced). */
+  lowConfidenceWords?: string[];
 }
 
 export async function gradeWritingGroq(input: WritingGradeInput): Promise<unknown> {
@@ -199,6 +203,9 @@ Score this essay and return JSON only.`;
 }
 
 export async function gradeSpeakingGroq(input: SpeakingGradeInput): Promise<unknown> {
+  const lowConf = input.lowConfidenceWords?.length
+    ? input.lowConfidenceWords.join(", ")
+    : "(none detected)";
   const userMessage = `IELTS Speaking — Part ${input.part}
 TOPIC: ${input.topic}
 
@@ -207,6 +214,9 @@ ${input.questions.map((q, i) => `${i + 1}. ${q}`).join("\n")}
 
 CANDIDATE TRANSCRIPT:
 ${input.transcript}
+
+LIKELY MISPRONOUNCED / UNCLEAR WORDS (low recogniser confidence):
+${lowConf}
 
 Score and return JSON only.`;
 

@@ -12,6 +12,7 @@ const schema = z.object({
   questions: z.array(z.string()).default([]),
   cueCard: z.object({ topic: z.string(), points: z.array(z.string()) }).optional(),
   transcript: z.string().min(20),
+  lowConfidenceWords: z.array(z.string()).optional(),
   durationSec: z.number().min(0).optional(),
 });
 
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
   const parsed = schema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: "Bad input" }, { status: 400 });
 
-  const { setId, part, topic, questions, cueCard, transcript, durationSec } = parsed.data;
+  const { setId, part, topic, questions, cueCard, transcript, lowConfidenceWords, durationSec } = parsed.data;
   const effectiveQuestions =
     part === 2 && cueCard ? [`Cue card: ${cueCard.topic}`, ...cueCard.points] : questions;
 
@@ -32,6 +33,7 @@ export async function POST(req: Request) {
       topic,
       questions: effectiveQuestions,
       transcript,
+      lowConfidenceWords,
     })) as { overallBand: number };
 
     await prisma.attempt.create({
