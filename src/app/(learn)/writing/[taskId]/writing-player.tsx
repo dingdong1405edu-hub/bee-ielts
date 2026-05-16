@@ -7,23 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, PenLine, Loader2, Sparkles } from "lucide-react";
+import { Clock, PenLine, Loader2 } from "lucide-react";
 import { formatDuration, wordCount, cn } from "@/lib/utils";
 import { TipsCard } from "@/components/learn/tips-card";
 import { ReviewReport, type WritingReviewData } from "@/components/learn/review-report";
-
-type WritingResult = {
-  overallBand: number;
-  criteria: {
-    taskAchievement: { band: number; feedback: string };
-    coherenceCohesion: { band: number; feedback: string };
-    lexicalResource: { band: number; feedback: string };
-    grammaticalRange: { band: number; feedback: string };
-  };
-  annotations: { excerpt: string; issue: string; suggestion: string }[];
-  improvedVersion: string;
-  summary: string;
-};
+import { WritingFeedback, type WritingResult } from "@/components/learn/writing-feedback";
 
 export function WritingPlayer({
   taskId,
@@ -104,45 +92,7 @@ export function WritingPlayer({
           </CardContent>
         </Card>
 
-        <div className="grid sm:grid-cols-2 gap-3">
-          {Object.entries(result.criteria).map(([k, v]) => (
-            <Card key={k}>
-              <CardContent className="p-4">
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-sm font-medium">{labelOf(k)}</span>
-                  <span className="text-lg font-bold text-primary">{v.band.toFixed(1)}</span>
-                </div>
-                <p className="text-xs text-muted-foreground">{v.feedback}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {result.annotations.length > 0 && (
-          <Card>
-            <CardContent className="p-5 space-y-3">
-              <h3 className="font-semibold flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-primary" /> Góp ý chi tiết
-              </h3>
-              {result.annotations.map((a, i) => (
-                <div key={i} className="rounded-lg border p-3 space-y-1.5 text-sm">
-                  <div className="italic text-muted-foreground">"{a.excerpt}"</div>
-                  <div><strong className="text-destructive">Issue:</strong> {a.issue}</div>
-                  <div><strong className="text-success">Suggestion:</strong> {a.suggestion}</div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        )}
-
-        {result.improvedVersion && (
-          <Card>
-            <CardContent className="p-5">
-              <h3 className="font-semibold mb-2">Bản viết tham khảo</h3>
-              <div className="whitespace-pre-wrap text-sm text-muted-foreground">{result.improvedVersion}</div>
-            </CardContent>
-          </Card>
-        )}
+        <WritingFeedback result={result} taskLabel={`Task ${taskType}`} />
 
         <TipsCard skill="WRITING" score={result.overallBand} context={`Writing Task ${taskType} essay`} />
 
@@ -219,12 +169,3 @@ export function WritingPlayer({
   );
 }
 
-function labelOf(k: string) {
-  switch (k) {
-    case "taskAchievement": return "Task Achievement";
-    case "coherenceCohesion": return "Coherence & Cohesion";
-    case "lexicalResource": return "Lexical Resource";
-    case "grammaticalRange": return "Grammatical Range & Accuracy";
-    default: return k;
-  }
-}

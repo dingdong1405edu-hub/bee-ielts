@@ -7,7 +7,7 @@ import { computeDisplayStreak, getStreakRestoreState } from "@/lib/streak";
 import { StatsRow } from "@/components/learn/stats-row";
 
 const modules = [
-  { href: "/vocab", label: "Vocabulary", desc: "Học từ kiểu Duolingo", icon: Sparkles, grad: "from-violet-500 to-fuchsia-500" },
+  { href: "/vocab", label: "Vocabulary", desc: "Vocabulary", icon: Sparkles, grad: "from-violet-500 to-fuchsia-500" },
   { href: "/grammar", label: "Grammar", desc: "Ngữ pháp ngắn gọn", icon: BookOpenText, grad: "from-blue-500 to-cyan-500" },
   { href: "/reading", label: "Reading", desc: "Đọc hiểu IELTS", icon: BookOpen, grad: "from-emerald-500 to-teal-500" },
   { href: "/listening", label: "Listening", desc: "Nghe + Q&A", icon: Headphones, grad: "from-amber-500 to-orange-500" },
@@ -86,7 +86,7 @@ export default async function DashboardPage() {
       </Link>
 
       <div>
-        <h2 className="text-xl font-extrabold mb-4 tracking-tight">Skill của bạn</h2>
+        <h2 className="text-xl font-extrabold mb-4 tracking-tight">Phần học:</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {modules.map((m, i) => {
             const Icon = m.icon;

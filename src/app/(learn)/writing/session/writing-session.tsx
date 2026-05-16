@@ -10,11 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { Clock, PenLine, Loader2, Trophy } from "lucide-react";
 import { formatDuration, wordCount, cn } from "@/lib/utils";
 import { TipsCard } from "@/components/learn/tips-card";
+import { WritingFeedback, type WritingResult } from "@/components/learn/writing-feedback";
 
-type Result = {
-  overallBand: number;
-  summary: string;
-};
+type Result = WritingResult;
 
 interface Props {
   task1: { id: string; prompt: string; imageUrl: string | null; minWords: number };
@@ -121,9 +119,10 @@ export function WritingSession({ task1, task2 }: Props) {
   }
 
   if (stage === "done") {
-    // Task 1 weighted 33%, Task 2 weighted 67% (IELTS official)
-    const b1 = result1?.overallBand ?? 5.0;
-    const b2 = result2?.overallBand ?? 5.0;
+    // Task 1 weighted 33%, Task 2 weighted 67% (IELTS official).
+    // No result = essay not submitted / grading failed → band 0.0 (never fake 5.0).
+    const b1 = result1?.overallBand ?? 0;
+    const b2 = result2?.overallBand ?? 0;
     const overall = Math.round((b1 / 3 + (2 * b2) / 3) * 2) / 2;
 
     return (
@@ -149,7 +148,7 @@ export function WritingSession({ task1, task2 }: Props) {
                 <Badge>Task 1</Badge>
                 <div className="text-3xl font-extrabold text-primary">{b1.toFixed(1)}</div>
               </div>
-              <p className="text-xs text-muted-foreground mt-2">{result1?.summary || "Không có feedback"}</p>
+              <p className="text-xs text-muted-foreground mt-2">{result1?.summary || "Chưa có bài viết để chấm."}</p>
             </CardContent>
           </Card>
           <Card>
@@ -158,10 +157,14 @@ export function WritingSession({ task1, task2 }: Props) {
                 <Badge>Task 2</Badge>
                 <div className="text-3xl font-extrabold text-primary">{b2.toFixed(1)}</div>
               </div>
-              <p className="text-xs text-muted-foreground mt-2">{result2?.summary || "Không có feedback"}</p>
+              <p className="text-xs text-muted-foreground mt-2">{result2?.summary || "Chưa có bài viết để chấm."}</p>
             </CardContent>
           </Card>
         </div>
+
+        {/* Detailed AI feedback per task */}
+        {result1 && <WritingFeedback result={result1} taskLabel="Task 1" />}
+        {result2 && <WritingFeedback result={result2} taskLabel="Task 2" />}
 
         <TipsCard skill="WRITING" score={overall} context={`Writing session: Task 1 band ${b1.toFixed(1)}, Task 2 band ${b2.toFixed(1)}`} />
 

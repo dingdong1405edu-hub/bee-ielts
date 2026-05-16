@@ -43,15 +43,15 @@ export interface WritingReviewData {
   essay: string;
   result: {
     overallBand: number;
-    criteria: {
-      taskAchievement: { band: number; feedback: string };
-      coherenceCohesion: { band: number; feedback: string };
-      lexicalResource: { band: number; feedback: string };
-      grammaticalRange: { band: number; feedback: string };
+    criteria?: {
+      taskAchievement?: { band: number; feedback: string };
+      coherenceCohesion?: { band: number; feedback: string };
+      lexicalResource?: { band: number; feedback: string };
+      grammaticalRange?: { band: number; feedback: string };
     };
-    annotations: { excerpt: string; issue: string; suggestion: string }[];
-    improvedVersion: string;
-    summary: string;
+    annotations?: { excerpt: string; issue: string; suggestion: string }[];
+    improvedVersion?: string;
+    summary?: string;
   };
 }
 
@@ -228,15 +228,17 @@ function WritingBody({ data }: { data: WritingReviewData }) {
       </div>
 
       <div className="grid grid-cols-2 gap-2 avoid-break">
-        {Object.entries(data.result.criteria).map(([k, v]) => (
-          <div key={k} className="rounded-xl border p-3 text-sm">
-            <div className="flex items-center justify-between font-bold">
-              <span>{writingCriterionLabel(k)}</span>
-              <span className="text-primary">{v.band.toFixed(1)}</span>
+        {Object.entries(data.result.criteria ?? {}).map(([k, v]) =>
+          v ? (
+            <div key={k} className="rounded-xl border p-3 text-sm">
+              <div className="flex items-center justify-between font-bold">
+                <span>{writingCriterionLabel(k)}</span>
+                <span className="text-primary">{v.band.toFixed(1)}</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">{v.feedback}</p>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">{v.feedback}</p>
-          </div>
-        ))}
+          ) : null,
+        )}
       </div>
 
       <div className="page-break">
@@ -249,7 +251,7 @@ function WritingBody({ data }: { data: WritingReviewData }) {
         <p className="whitespace-pre-wrap text-sm font-serif">{data.essay}</p>
       </div>
 
-      {data.result.annotations.length > 0 && (
+      {data.result.annotations && data.result.annotations.length > 0 && (
         <div className="space-y-2 page-break">
           <h3 className="text-base font-extrabold border-b pb-1">Lỗi / Góp ý chi tiết</h3>
           {data.result.annotations.map((a, i) => (

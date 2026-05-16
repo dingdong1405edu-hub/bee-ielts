@@ -56,21 +56,35 @@ Evaluate 4 criteria for Writing Task 1 or Task 2:
 - Lexical Resource
 - Grammatical Range & Accuracy
 
-Be honest, specific, constructive. Quote short excerpts when giving feedback.
+SCORING RULE: If the essay is empty, off-topic, or fewer than ~30 words, give overallBand 0 and all criteria 0.
+
+Be honest, specific, constructive. Feedback text MUST be in Vietnamese (quotes/examples stay in English).
 Return ONLY valid JSON matching this exact shape:
 
 {
   "overallBand": 6.5,
   "criteria": {
-    "taskAchievement": { "band": 6, "feedback": "..." },
-    "coherenceCohesion": { "band": 7, "feedback": "..." },
-    "lexicalResource": { "band": 6, "feedback": "..." },
-    "grammaticalRange": { "band": 6.5, "feedback": "..." }
+    "taskAchievement": { "band": 6, "feedback": "<tiếng Việt>" },
+    "coherenceCohesion": { "band": 7, "feedback": "<tiếng Việt>" },
+    "lexicalResource": { "band": 6, "feedback": "<tiếng Việt>" },
+    "grammaticalRange": { "band": 6.5, "feedback": "<tiếng Việt>" }
   },
-  "annotations": [{ "excerpt": "...", "issue": "...", "suggestion": "..." }],
-  "improvedVersion": "...",
-  "summary": "..."
-}`;
+  "annotations": [
+    { "category": "grammar" | "vocabulary" | "coherence" | "task", "excerpt": "<câu/cụm sai trích từ bài>", "issue": "<lỗi gì — tiếng Việt>", "suggestion": "<sửa thế nào — tiếng Việt, kèm bản đúng>" }
+  ],
+  "linkingPhrases": [
+    { "phrase": "<cụm từ nối tiếng Anh>", "use": "<dùng khi nào — tiếng Việt>" }
+  ],
+  "usefulStructures": [
+    { "structure": "<cấu trúc câu tiếng Anh>", "example": "<câu ví dụ tiếng Anh>", "note": "<giải thích ngắn — tiếng Việt>" }
+  ],
+  "openingSentences": ["<2-3 câu mở đoạn hay, tiếng Anh, phù hợp đề bài này>"],
+  "closingSentences": ["<2-3 câu kết đoạn hay, tiếng Anh, phù hợp đề bài này>"],
+  "improvedVersion": "<bài viết mẫu hoàn chỉnh band 7.0-7.5 cho đúng đề bài này>",
+  "summary": "<nhận xét tổng quan ngắn — tiếng Việt>"
+}
+
+Provide 4-8 annotations, 5-7 linkingPhrases, 4-6 usefulStructures. If the essay is empty give empty annotation/structure arrays but STILL provide linkingPhrases, openingSentences, closingSentences and improvedVersion as study material.`;
 
 const SPEAKING_SYS = `You are a certified IELTS Speaking examiner. Score speaking responses (Part 1, 2, or 3) using official band descriptors.
 Evaluate 4 criteria:
