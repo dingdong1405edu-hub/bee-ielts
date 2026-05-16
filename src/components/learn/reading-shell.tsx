@@ -119,7 +119,7 @@ export function ReadingShell({ testTitle, parts, timeLimit, onSubmit, submitting
   const startIdxOfPart = partOffsets[activePart];
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col bg-background no-print-bg">
+    <div className="fixed inset-0 z-50 flex flex-col bg-background no-print-bg">
       {/* TOP BAR */}
       <header className="flex items-center justify-between gap-2 border-b bg-card px-3 py-2 md:gap-3 md:px-6 md:py-2.5">
         <div className="flex items-center gap-2 min-w-0 flex-1">
