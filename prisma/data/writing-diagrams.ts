@@ -376,3 +376,287 @@ export const DIAGRAM_TOURISTS = dataTable({
     ["Japan", "19.7", "31.2", "3.8"],
   ],
 });
+
+/* ===================================== additional 15 Task 1 diagrams ====== */
+
+// 8. Mobile phone ownership by age group
+export const DIAGRAM_PHONE_OWNERSHIP = groupedBarChart({
+  title: "Smartphone ownership by age group, 2010 vs 2022",
+  yUnit: "% who own a smartphone",
+  categories: ["16–24", "25–44", "45–64", "65+"],
+  yMax: 100,
+  series: [
+    { name: "2010", values: [65, 55, 38, 12] },
+    { name: "2022", values: [98, 95, 88, 55] },
+  ],
+});
+
+// 9. Population growth, three countries
+export const DIAGRAM_POPULATION = lineChart({
+  title: "Population of three countries, 1980–2020",
+  yUnit: "millions",
+  xLabels: ["1980", "1990", "2000", "2010", "2020"],
+  yMax: 250,
+  series: [
+    { name: "Nigeria", values: [73, 95, 122, 160, 206] },
+    { name: "Brazil", values: [121, 150, 175, 196, 213] },
+    { name: "Japan", values: [117, 123, 127, 128, 125] },
+  ],
+});
+
+// 10. Household energy use, two homes
+export const DIAGRAM_HOME_ENERGY = piePair({
+  title: "How energy is used in two households",
+  left: {
+    label: "Household A",
+    data: [
+      { name: "Heating", value: 45 },
+      { name: "Water heating", value: 20 },
+      { name: "Appliances", value: 18 },
+      { name: "Lighting", value: 10 },
+      { name: "Cooking", value: 7 },
+    ],
+  },
+  right: {
+    label: "Household B",
+    data: [
+      { name: "Heating", value: 30 },
+      { name: "Water heating", value: 18 },
+      { name: "Appliances", value: 30 },
+      { name: "Lighting", value: 12 },
+      { name: "Cooking", value: 10 },
+    ],
+  },
+});
+
+// 11. University enrolment by faculty
+export const DIAGRAM_ENROLMENT = dataTable({
+  title: "Student enrolment by faculty",
+  headers: ["Faculty", "2018", "2020", "2022"],
+  rows: [
+    ["Business", "1,200", "1,450", "1,680"],
+    ["Engineering", "980", "1,100", "1,320"],
+    ["Arts", "760", "720", "690"],
+    ["Science", "850", "910", "1,020"],
+  ],
+});
+
+// 12. Average weekly working hours by country and gender
+export const DIAGRAM_WORKING_HOURS = groupedBarChart({
+  title: "Average weekly working hours by country",
+  yUnit: "hours per week",
+  categories: ["Mexico", "Japan", "UK", "Germany", "Netherlands"],
+  yMax: 50,
+  series: [
+    { name: "Men", values: [45, 42, 38, 35, 33] },
+    { name: "Women", values: [40, 36, 34, 30, 26] },
+  ],
+});
+
+// 13. Unemployment rate, two countries
+export const DIAGRAM_UNEMPLOYMENT = lineChart({
+  title: "Unemployment rate in two countries, 2005–2020",
+  yUnit: "% of workforce",
+  xLabels: ["2005", "2010", "2015", "2020"],
+  yMax: 25,
+  series: [
+    { name: "Country A", values: [9, 20, 22, 15] },
+    { name: "Country B", values: [11, 7, 5, 4] },
+  ],
+});
+
+// 14. Chocolate production process
+export const DIAGRAM_CHOCOLATE_PROCESS = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" font-family="Arial,Helvetica,sans-serif">
+<rect width="640" height="420" fill="#ffffff"/>
+<text x="320" y="30" text-anchor="middle" font-size="15" font-weight="bold" fill="#111827">How chocolate is produced</text>
+<defs><marker id="arc" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#6b7280"/></marker></defs>
+<g>
+<rect x="30" y="70" width="135" height="62" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+<text x="97" y="96" text-anchor="middle" font-size="11" fill="#111827">Cacao pods</text>
+<text x="97" y="113" text-anchor="middle" font-size="11" fill="#111827">harvested</text>
+<rect x="200" y="70" width="135" height="62" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+<text x="267" y="96" text-anchor="middle" font-size="11" fill="#111827">Beans removed</text>
+<text x="267" y="113" text-anchor="middle" font-size="11" fill="#111827">and fermented</text>
+<rect x="370" y="70" width="135" height="62" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+<text x="437" y="96" text-anchor="middle" font-size="11" fill="#111827">Beans dried</text>
+<text x="437" y="113" text-anchor="middle" font-size="11" fill="#111827">in the sun</text>
+<rect x="475" y="160" width="135" height="62" rx="8" fill="#fde68a" stroke="#d97706" stroke-width="2"/>
+<text x="542" y="186" text-anchor="middle" font-size="11" fill="#111827">Beans roasted</text>
+<text x="542" y="203" text-anchor="middle" font-size="11" fill="#111827">at high heat</text>
+<line x1="165" y1="101" x2="195" y2="101" stroke="#6b7280" stroke-width="2" marker-end="url(#arc)"/>
+<line x1="335" y1="101" x2="365" y2="101" stroke="#6b7280" stroke-width="2" marker-end="url(#arc)"/>
+<path d="M 437 132 L 437 191 L 470 191" fill="none" stroke="#6b7280" stroke-width="2" marker-end="url(#arc)"/>
+<rect x="305" y="160" width="135" height="62" rx="8" fill="#fde68a" stroke="#d97706" stroke-width="2"/>
+<text x="372" y="186" text-anchor="middle" font-size="11" fill="#111827">Shells removed,</text>
+<text x="372" y="203" text-anchor="middle" font-size="11" fill="#111827">leaving nibs</text>
+<rect x="135" y="160" width="135" height="62" rx="8" fill="#fde68a" stroke="#d97706" stroke-width="2"/>
+<text x="202" y="186" text-anchor="middle" font-size="11" fill="#111827">Nibs ground</text>
+<text x="202" y="203" text-anchor="middle" font-size="11" fill="#111827">into a paste</text>
+<line x1="475" y1="191" x2="445" y2="191" stroke="#6b7280" stroke-width="2" marker-end="url(#arc)"/>
+<line x1="305" y1="191" x2="275" y2="191" stroke="#6b7280" stroke-width="2" marker-end="url(#arc)"/>
+<path d="M 202 222 L 202 281 L 235 281" fill="none" stroke="#6b7280" stroke-width="2" marker-end="url(#arc)"/>
+<rect x="240" y="250" width="160" height="62" rx="8" fill="#d1fae5" stroke="#059669" stroke-width="2"/>
+<text x="320" y="276" text-anchor="middle" font-size="11" fill="#111827">Sugar and milk</text>
+<text x="320" y="293" text-anchor="middle" font-size="11" fill="#111827">added and mixed</text>
+<rect x="430" y="250" width="160" height="62" rx="8" fill="#d1fae5" stroke="#059669" stroke-width="2"/>
+<text x="510" y="276" text-anchor="middle" font-size="11" fill="#111827">Chocolate moulded</text>
+<text x="510" y="293" text-anchor="middle" font-size="11" fill="#111827">and cooled</text>
+<line x1="400" y1="281" x2="425" y2="281" stroke="#6b7280" stroke-width="2" marker-end="url(#arc)"/>
+<text x="320" y="356" text-anchor="middle" font-size="11" fill="#6b7280" font-style="italic">The finished bars are then wrapped and sent to shops.</text>
+</g>
+</svg>`;
+
+// 15. Library books borrowed by genre
+export const DIAGRAM_LIBRARY = groupedBarChart({
+  title: "Books borrowed from a public library, by genre",
+  yUnit: "books borrowed",
+  categories: ["Fiction", "History", "Science", "Children", "Biography"],
+  yMax: 5000,
+  series: [
+    { name: "2015", values: [4200, 1800, 1500, 3600, 900] },
+    { name: "2020", values: [3800, 2100, 2400, 4100, 1200] },
+  ],
+});
+
+// 16. Global water use, two regions
+export const DIAGRAM_WATER_USE = piePair({
+  title: "How fresh water is used in two regions",
+  left: {
+    label: "Region A",
+    data: [
+      { name: "Agriculture", value: 70 },
+      { name: "Industry", value: 18 },
+      { name: "Domestic", value: 12 },
+    ],
+  },
+  right: {
+    label: "Region B",
+    data: [
+      { name: "Agriculture", value: 40 },
+      { name: "Industry", value: 42 },
+      { name: "Domestic", value: 18 },
+    ],
+  },
+});
+
+// 17. Museum visitors, three museums
+export const DIAGRAM_MUSEUM = lineChart({
+  title: "Annual visitors to three museums, 2016–2022",
+  yUnit: "millions of visitors",
+  xLabels: ["2016", "2018", "2020", "2022"],
+  yMax: 8,
+  series: [
+    { name: "Museum A", values: [5.2, 6.1, 1.8, 5.9] },
+    { name: "Museum B", values: [3.1, 3.8, 1.2, 4.0] },
+    { name: "Museum C", values: [2.0, 2.4, 0.9, 2.8] },
+  ],
+});
+
+// 18. Crime statistics, four cities
+export const DIAGRAM_CRIME = dataTable({
+  title: "Reported crimes per 10,000 people, 2022",
+  headers: ["City", "Theft", "Assault", "Burglary"],
+  rows: [
+    ["City P", "210", "48", "95"],
+    ["City Q", "165", "72", "60"],
+    ["City R", "320", "35", "140"],
+    ["City S", "90", "21", "44"],
+  ],
+});
+
+// 19. CO2 emissions per capita
+export const DIAGRAM_CO2 = groupedBarChart({
+  title: "Carbon dioxide emissions per person, 2000 vs 2020",
+  yUnit: "tonnes of CO2 per person",
+  categories: ["USA", "China", "Germany", "India", "Brazil"],
+  yMax: 25,
+  series: [
+    { name: "2000", values: [20.5, 2.7, 10.1, 0.9, 1.9] },
+    { name: "2020", values: [14.2, 7.4, 7.7, 1.8, 2.2] },
+  ],
+});
+
+// 20. Coffee and tea consumption
+export const DIAGRAM_COFFEE_TEA = lineChart({
+  title: "Coffee and tea consumption per person, 1990–2020",
+  yUnit: "kg per person per year",
+  xLabels: ["1990", "2000", "2010", "2020"],
+  yMax: 10,
+  series: [
+    { name: "Coffee", values: [4.2, 5.1, 6.3, 7.8] },
+    { name: "Tea", values: [6.5, 6.2, 5.8, 5.4] },
+  ],
+});
+
+// 21. Modes of transport, two cities
+export const DIAGRAM_TRANSPORT = piePair({
+  title: "How people travel to work in two cities",
+  left: {
+    label: "City X",
+    data: [
+      { name: "Car", value: 55 },
+      { name: "Public transport", value: 25 },
+      { name: "Cycling", value: 8 },
+      { name: "Walking", value: 12 },
+    ],
+  },
+  right: {
+    label: "City Y",
+    data: [
+      { name: "Car", value: 30 },
+      { name: "Public transport", value: 40 },
+      { name: "Cycling", value: 18 },
+      { name: "Walking", value: 12 },
+    ],
+  },
+});
+
+// 22. Life expectancy, three countries
+export const DIAGRAM_LIFE_EXPECTANCY = lineChart({
+  title: "Life expectancy at birth in three countries, 1970–2020",
+  yUnit: "years",
+  xLabels: ["1970", "1990", "2010", "2020"],
+  yMax: 90,
+  series: [
+    { name: "Japan", values: [72, 79, 83, 85] },
+    { name: "USA", values: [71, 75, 78, 77] },
+    { name: "India", values: [49, 58, 67, 70] },
+  ],
+});
+
+// 23. Online vs in-store shopping
+export const DIAGRAM_SHOPPING = groupedBarChart({
+  title: "Share of retail sales made online, by product type",
+  yUnit: "% of sales made online",
+  categories: ["Clothing", "Electronics", "Groceries", "Books", "Furniture"],
+  yMax: 80,
+  series: [
+    { name: "2014", values: [18, 30, 4, 42, 9] },
+    { name: "2024", values: [48, 65, 22, 71, 31] },
+  ],
+});
+
+// 24. Electricity generation by source
+export const DIAGRAM_ELECTRICITY_MIX = piePair({
+  title: "Sources of electricity generation, 2005 vs 2023",
+  left: {
+    label: "2005",
+    data: [
+      { name: "Coal", value: 48 },
+      { name: "Gas", value: 22 },
+      { name: "Nuclear", value: 18 },
+      { name: "Hydro", value: 9 },
+      { name: "Wind & solar", value: 3 },
+    ],
+  },
+  right: {
+    label: "2023",
+    data: [
+      { name: "Coal", value: 20 },
+      { name: "Gas", value: 28 },
+      { name: "Nuclear", value: 15 },
+      { name: "Hydro", value: 10 },
+      { name: "Wind & solar", value: 27 },
+    ],
+  },
+});
