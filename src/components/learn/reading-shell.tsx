@@ -46,21 +46,28 @@ interface Props {
   timeLimit: number;
   onSubmit: (answers: Record<string, string>) => void;
   submitting?: boolean;
+  /** Practise mode: đếm xuôi thời gian đã làm, không tự nộp khi hết giờ. */
+  countUp?: boolean;
 }
 
-export function ReadingShell({ testTitle, parts, timeLimit, onSubmit, submitting }: Props) {
+export function ReadingShell({ testTitle, parts, timeLimit, onSubmit, submitting, countUp }: Props) {
   const [activePart, setActivePart] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [remaining, setRemaining] = useState(timeLimit);
+  const [elapsed, setElapsed] = useState(0);
   const [leftWidth, setLeftWidth] = useState(50);
   const containerRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
   const [tool, setTool] = useState<HighlightTool>("none");
   const [highlightsByPart, setHighlightsByPart] = useState<Record<string, Highlight[]>>({});
 
-  // global timer
+  // global timer — đếm xuôi (practise) hoặc đếm ngược + tự nộp khi hết giờ (thi thử)
   useEffect(() => {
     const t = setInterval(() => {
+      if (countUp) {
+        setElapsed((e) => e + 1);
+        return;
+      }
       setRemaining((r) => {
         if (r <= 1) {
           clearInterval(t);
@@ -135,8 +142,23 @@ export function ReadingShell({ testTitle, parts, timeLimit, onSubmit, submitting
           </div>
           <div className="flex items-center gap-1 md:gap-1.5 text-xs md:text-base font-extrabold">
             <Clock className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
-            <span className="hidden sm:inline">{Math.floor(remaining / 60)} minutes remaining</span>
-            <span className="sm:hidden">{Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}</span>
+            {countUp ? (
+              <>
+                <span className="hidden sm:inline">
+                  {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")} đã làm
+                </span>
+                <span className="sm:hidden">
+                  {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")}
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="hidden sm:inline">{Math.floor(remaining / 60)} minutes remaining</span>
+                <span className="sm:hidden">
+                  {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}
+                </span>
+              </>
+            )}
           </div>
           <Button
             onClick={() => onSubmit(answers)}

@@ -73,12 +73,14 @@ export function ReadingSession({ passages, targetBand = 6.0 }: { passages: Passa
       passage: p.passage,
       questions: p.questions,
     }));
+    const label = passages.length > 1 ? `${passages.length} Passages` : "Practise";
     return (
       <ReadingShell
-        testTitle={`Reading Practice · ${passages.length} Passages`}
+        testTitle={`Reading · ${label}`}
         parts={shellParts}
         timeLimit={SESSION_SECONDS}
         onSubmit={handleSubmit}
+        countUp
       />
     );
   }

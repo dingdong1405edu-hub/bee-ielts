@@ -24,36 +24,25 @@ export function ReadingPlayer({
   testId,
   title,
   passage,
-  timeLimit,
   questions,
 }: {
   testId: string;
   title: string;
   passage: string;
-  timeLimit: number;
   questions: Q[];
 }) {
   const router = useRouter();
   const startedAtRef = useRef<number>(Date.now());
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [remaining, setRemaining] = useState(timeLimit);
+  const [elapsed, setElapsed] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // Practise — đếm xuôi thời gian đã làm, không giới hạn, không tự nộp.
   useEffect(() => {
     if (submitted) return;
-    const t = setInterval(() => {
-      setRemaining((r) => {
-        if (r <= 1) {
-          clearInterval(t);
-          handleSubmit();
-          return 0;
-        }
-        return r - 1;
-      });
-    }, 1000);
+    const t = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [submitted]);
 
   const handleSubmit = async () => {
@@ -93,8 +82,8 @@ export function ReadingPlayer({
           <h1 className="text-xl md:text-2xl font-bold mt-1">{title}</h1>
         </div>
         <div className="flex items-center gap-3">
-          <Badge variant={remaining < 60 ? "destructive" : "outline"} className="text-base px-3 py-1">
-            <Clock className="h-4 w-4 mr-1" /> {formatDuration(remaining)}
+          <Badge variant="outline" className="text-base px-3 py-1">
+            <Clock className="h-4 w-4 mr-1" /> Đã làm {formatDuration(elapsed)}
           </Badge>
           {!submitted && (
             <Button onClick={handleSubmit} disabled={submitting}>

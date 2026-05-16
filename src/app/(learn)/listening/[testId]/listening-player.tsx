@@ -25,26 +25,25 @@ export function ListeningPlayer({
   title,
   audioUrl,
   transcript,
-  timeLimit,
   questions,
 }: {
   testId: string;
   title: string;
   audioUrl: string;
   transcript: string | null;
-  timeLimit: number;
   questions: Q[];
 }) {
   const router = useRouter();
   const startedAtRef = useRef<number>(Date.now());
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [remaining, setRemaining] = useState(timeLimit);
+  const [elapsed, setElapsed] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const [showTranscript, setShowTranscript] = useState(false);
 
+  // Practise — đếm xuôi thời gian đã làm, không giới hạn thời gian.
   useEffect(() => {
     if (submitted) return;
-    const t = setInterval(() => setRemaining((r) => (r > 0 ? r - 1 : 0)), 1000);
+    const t = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => clearInterval(t);
   }, [submitted]);
 
@@ -76,8 +75,8 @@ export function ListeningPlayer({
           </button>
           <h1 className="text-xl md:text-2xl font-bold mt-1">{title}</h1>
         </div>
-        <Badge variant={remaining < 60 ? "destructive" : "outline"} className="text-base px-3 py-1">
-          <Clock className="h-4 w-4 mr-1" /> {formatDuration(remaining)}
+        <Badge variant="outline" className="text-base px-3 py-1">
+          <Clock className="h-4 w-4 mr-1" /> Đã làm {formatDuration(elapsed)}
         </Badge>
       </div>
 

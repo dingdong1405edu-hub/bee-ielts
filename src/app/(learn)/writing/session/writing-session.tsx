@@ -20,16 +20,15 @@ interface Props {
   task2: { id: string; prompt: string; minWords: number };
 }
 
-const TASK1_SEC = 20 * 60;
-const TASK2_SEC = 40 * 60;
-
 export function WritingSession({ task1, task2 }: Props) {
   const router = useRouter();
   const [stage, setStage] = useState<"task1" | "task2" | "grading" | "done">("task1");
   const [essay1, setEssay1] = useState("");
   const [essay2, setEssay2] = useState("");
-  const [remaining, setRemaining] = useState(TASK1_SEC);
+  // Practise: đếm xuôi thời gian đã làm, không giới hạn.
+  const [elapsed, setElapsed] = useState(0);
   const startedAtRef = useRef<number>(Date.now());
+  const task1DurRef = useRef(0);
   const [result1, setResult1] = useState<Result | null>(null);
   const [result2, setResult2] = useState<Result | null>(null);
 
@@ -55,27 +54,14 @@ export function WritingSession({ task1, task2 }: Props) {
 
   useEffect(() => {
     if (stage !== "task1" && stage !== "task2") return;
-    const t = setInterval(() => {
-      setRemaining((r) => {
-        if (r <= 1) {
-          clearInterval(t);
-          if (stage === "task1") {
-            handleTask1Done();
-          } else {
-            handleTask2Done();
-          }
-          return 0;
-        }
-        return r - 1;
-      });
-    }, 1000);
+    const t = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage]);
 
   const handleTask1Done = () => {
+    task1DurRef.current = Math.floor((Date.now() - startedAtRef.current) / 1000);
     setStage("task2");
-    setRemaining(TASK2_SEC);
+    setElapsed(0);
     startedAtRef.current = Date.now();
   };
 
@@ -87,7 +73,7 @@ export function WritingSession({ task1, task2 }: Props) {
         fetch("/api/grade/writing", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ taskId: task1.id, essay: essay1, durationSec: 20 * 60 }),
+          body: JSON.stringify({ taskId: task1.id, essay: essay1, durationSec: task1DurRef.current }),
         }).then((r) => r.json()),
         fetch("/api/grade/writing", {
           method: "POST",
@@ -194,7 +180,7 @@ export function WritingSession({ task1, task2 }: Props) {
           </div>
         </div>
         <Badge variant="outline" className="bg-white/15 border-white/30 text-white text-base px-3 py-1">
-          <Clock className="h-4 w-4 mr-1" /> {formatDuration(remaining)}
+          <Clock className="h-4 w-4 mr-1" /> {formatDuration(elapsed)} đã làm
         </Badge>
       </div>
 

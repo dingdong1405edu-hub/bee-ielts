@@ -13,7 +13,6 @@ export default async function ReadingTestPage({ params }: { params: { testId: st
       testId={test.id}
       title={test.title}
       passage={test.passage}
-      timeLimit={test.timeLimit}
       questions={test.questions.map((q) => ({
         id: q.id,
         type: q.type,
