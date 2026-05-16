@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { Shield, BookOpen, PenLine, Mic, Sparkles, BookOpenText, Headphones, Users, Home, ExternalLink } from "lucide-react";
+import { isOwner } from "@/lib/admin";
+import { Shield, BookOpen, PenLine, Mic, Sparkles, BookOpenText, Headphones, Users, KeyRound, ExternalLink } from "lucide-react";
 
 const nav = [
   { href: "/admin", label: "Tổng quan", icon: Shield },
@@ -18,6 +19,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const session = await auth();
   if (!session?.user || session.user.role !== "ADMIN") redirect("/dashboard");
 
+  const items = isOwner(session.user.email)
+    ? [...nav, { href: "/admin/access", label: "Phân quyền", icon: KeyRound }]
+    : nav;
+
   return (
     <div className="flex min-h-screen bg-muted/30">
       <aside className="hidden md:flex md:w-60 md:flex-col md:border-r md:bg-card md:p-4 md:h-screen md:sticky md:top-0">
@@ -26,7 +31,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <span className="font-bold">Admin</span>
         </Link>
         <nav className="flex-1 space-y-1">
-          {nav.map((item) => {
+          {items.map((item) => {
             const Icon = item.icon;
             return (
               <Link
