@@ -26,6 +26,7 @@ export default async function CommunityPage() {
   const feed: FeedPost[] = posts.map((p) => ({
     id: p.id,
     content: p.content,
+    imageUrl: p.imageUrl,
     createdAt: p.createdAt.toISOString(),
     author: {
       name: p.user.name ?? p.user.email.split("@")[0],

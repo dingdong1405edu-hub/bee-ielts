@@ -75,6 +75,7 @@ model Post {
   userId    String
   user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   content   String        @db.Text
+  imageUrl  String?       @db.Text
   createdAt DateTime      @default(now())
   likes     PostLike[]
   comments  PostComment[]

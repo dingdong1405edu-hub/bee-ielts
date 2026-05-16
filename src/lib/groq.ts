@@ -1,5 +1,6 @@
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const DEFAULT_MODEL = "llama-3.3-70b-versatile";
+const VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 
 interface GroqMessage {
   role: "system" | "user" | "assistant";
@@ -39,6 +40,51 @@ export async function groqChat(messages: GroqMessage[], opts: GroqOptions = {}):
   }
   const data = (await res.json()) as { choices: { message: { content: string } }[] };
   return data.choices[0]?.message?.content ?? "";
+}
+
+/**
+ * Moderate an image with a Groq vision model.
+ * Returns { safe: false } if the image looks inappropriate for a learning
+ * community (nudity, sexual content, violence/gore, weapons, drugs, hate
+ * symbols, etc.). On any error the caller should treat the image as unsafe.
+ */
+export async function moderateImageGroq(dataUrl: string): Promise<{ safe: boolean; reason: string }> {
+  const key = process.env.GROQ_API_KEY;
+  if (!key) throw new Error("GROQ_API_KEY not set");
+
+  const prompt = `You are moderating images for a Vietnamese English-learning community used by students.
+Look at the image and decide if it is appropriate.
+Mark it UNSAFE if it contains ANY of: nudity or sexual/suggestive content, violence, blood or gore, weapons used threateningly, drugs, hate symbols, gambling, or anything inappropriate or provocative for students.
+Mark it SAFE for ordinary photos: study notes, screenshots, scenery, food, pets, memes that are clean, people fully clothed in normal situations.
+Reply ONLY with JSON: {"safe": true|false, "reason": "<short reason>"}`;
+
+  const res = await fetch(GROQ_URL, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: VISION_MODEL,
+      temperature: 0,
+      max_tokens: 200,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: prompt },
+            { type: "image_url", image_url: { url: dataUrl } },
+          ],
+        },
+      ],
+    }),
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Groq vision ${res.status}: ${txt.slice(0, 200)}`);
+  }
+  const data = (await res.json()) as { choices: { message: { content: string } }[] };
+  const raw = data.choices[0]?.message?.content ?? "";
+  const parsed = extractJSON(raw) as { safe?: boolean; reason?: string };
+  return { safe: parsed.safe === true, reason: parsed.reason ?? "" };
 }
 
 function extractJSON(text: string): unknown {

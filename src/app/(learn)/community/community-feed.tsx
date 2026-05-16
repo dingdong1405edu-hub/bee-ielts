@@ -1,11 +1,37 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Heart, MessageCircle, Trash2, Loader2, Send, ShieldCheck } from "lucide-react";
+import { Heart, MessageCircle, Trash2, Loader2, Send, ShieldCheck, ImagePlus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+
+/** Resize an image file to fit within maxW×maxH and return a JPEG data URL. */
+async function resizeImage(file: File, maxW: number, maxH: number, quality = 0.8): Promise<string> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("Không đọc được ảnh"));
+      el.src = url;
+    });
+    let { width, height } = img;
+    const ratio = Math.min(maxW / width, maxH / height, 1);
+    width = Math.round(width * ratio);
+    height = Math.round(height * ratio);
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas không khả dụng");
+    ctx.drawImage(img, 0, 0, width, height);
+    return canvas.toDataURL("image/jpeg", quality);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
 
 interface Author {
   name: string;
@@ -21,6 +47,7 @@ interface FeedComment {
 export interface FeedPost {
   id: string;
   content: string;
+  imageUrl: string | null;
   createdAt: string;
   author: Author;
   isMine: boolean;
@@ -62,21 +89,37 @@ function Avatar({ author, size = 40 }: { author: Author; size?: number }) {
 export function CommunityFeed({ posts }: { posts: FeedPost[] }) {
   const router = useRouter();
   const [draft, setDraft] = useState("");
+  const [image, setImage] = useState<string | null>(null);
   const [posting, setPosting] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  const pickImage = async (file: File) => {
+    try {
+      const dataUrl = await resizeImage(file, 1280, 1280, 0.8);
+      if (dataUrl.length > 1_200_000) {
+        toast.error("Ảnh quá lớn, hãy chọn ảnh nhỏ hơn");
+        return;
+      }
+      setImage(dataUrl);
+    } catch {
+      toast.error("Không xử lý được ảnh");
+    }
+  };
 
   const submitPost = async () => {
-    if (!draft.trim() || posting) return;
+    if ((!draft.trim() && !image) || posting) return;
     setPosting(true);
     try {
       const res = await fetch("/api/community/post", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: draft.trim() }),
+        body: JSON.stringify({ content: draft.trim(), ...(image ? { imageUrl: image } : {}) }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Lỗi");
       toast.success("Đã đăng bài");
       setDraft("");
+      setImage(null);
       router.refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Đăng thất bại");
@@ -98,17 +141,49 @@ export function CommunityFeed({ posts }: { posts: FeedPost[] }) {
             placeholder="Bạn đang nghĩ gì? Chia sẻ tiến độ học, đặt câu hỏi..."
             className="w-full resize-none rounded-lg border-2 bg-background px-3 py-2 text-sm"
           />
-          <div className="mt-2 flex items-center justify-between">
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-              Tự động lọc từ ngữ thô tục
-            </span>
+          {image && (
+            <div className="relative mt-2 w-fit">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={image} alt="preview" className="max-h-56 rounded-lg border" />
+              <button
+                onClick={() => setImage(null)}
+                className="absolute -right-2 -top-2 grid h-7 w-7 place-items-center rounded-full bg-zinc-900 text-white shadow"
+                aria-label="Bỏ ảnh"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+          <input
+            ref={fileInput}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) pickImage(f);
+              e.target.value = "";
+            }}
+          />
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <button
+                onClick={() => fileInput.current?.click()}
+                className="flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-bold text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+              >
+                <ImagePlus className="h-3.5 w-3.5" /> Ảnh
+              </button>
+              <span className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground">
+                <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+                Lọc từ thô tục & duyệt ảnh AI
+              </span>
+            </div>
             <Button
               onClick={submitPost}
-              disabled={posting || !draft.trim()}
+              disabled={posting || (!draft.trim() && !image)}
               variant="brand"
               size="sm"
-              className="rounded-full"
+              className="rounded-full shrink-0"
             >
               {posting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               Đăng
@@ -231,7 +306,17 @@ function PostCard({ post }: { post: FeedPost }) {
                 </button>
               )}
             </div>
-            <p className="mt-1 text-sm whitespace-pre-wrap break-words">{post.content}</p>
+            {post.content && (
+              <p className="mt-1 text-sm whitespace-pre-wrap break-words">{post.content}</p>
+            )}
+            {post.imageUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={post.imageUrl}
+                alt="post"
+                className="mt-2 max-h-[420px] w-auto rounded-xl border"
+              />
+            )}
 
             {/* actions */}
             <div className="mt-3 flex items-center gap-4">
