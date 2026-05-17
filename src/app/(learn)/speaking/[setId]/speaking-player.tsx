@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -122,6 +122,23 @@ export function SpeakingPlayer({
       setTtsBusy(false);
     }
   };
+
+  // Auto-read the prompt aloud as soon as a question/part begins or changes.
+  useEffect(() => {
+    if (phase === "part1") {
+      const q = part1Questions[qIdx];
+      if (q) playTTS(q);
+    } else if (phase === "part3") {
+      const q = part3Questions[qIdx];
+      if (q) playTTS(q);
+    } else if (phase === "part2-prep" || phase === "part2-speak") {
+      playTTS(part2CueCard.topic);
+    }
+    return () => {
+      if (audioRef.current) audioRef.current.pause();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, qIdx]);
 
   // ---- Recording (MediaRecorder) + transcription via Deepgram ----
   const startRecording = async () => {
@@ -286,7 +303,7 @@ export function SpeakingPlayer({
         </div>
         <Card>
           <CardContent className="p-6 text-sm space-y-2">
-            <p>🔊 Đề bài được đọc to bằng <strong>Deepgram</strong> — nhấn nút loa để nghe.</p>
+            <p>🔊 Đề bài <strong>tự động được đọc to</strong> bằng Deepgram khi bắt đầu mỗi câu — nhấn nút loa để nghe lại.</p>
             <p>🎤 Cấp quyền <strong>micro</strong>: ghi âm câu trả lời, AI nhận dạng giọng nói.</p>
             <p>📝 Bài nói hiện dưới dạng văn bản — từ phát âm chưa rõ được <strong>in đậm gạch chân</strong>, nhấn để nghe phát âm đúng.</p>
             <p>📋 Part 1 ({part1Questions.length} câu) → Part 2 (1 phút chuẩn bị) → Part 3 ({part3Questions.length} câu)</p>
@@ -616,7 +633,7 @@ export function SpeakingPlayer({
                     ))}
                   </ul>
                 )}
-                <p className="text-xs text-muted-foreground mt-1">Nhấn loa để nghe đề</p>
+                <p className="text-xs text-muted-foreground mt-1">Đề tự đọc khi bắt đầu — nhấn loa để nghe lại</p>
               </div>
             </div>
 

@@ -47,10 +47,14 @@ export function VoicePicker({
         onChange={(e) => onChange(e.target.value)}
         className="bg-transparent outline-none cursor-pointer"
       >
-        {TTS_VOICES.map((v) => (
-          <option key={v.id} value={v.id}>
-            {v.name} · {v.accent} ({v.gender})
-          </option>
+        {[...new Set(TTS_VOICES.map((v) => v.accent))].map((accent) => (
+          <optgroup key={accent} label={accent}>
+            {TTS_VOICES.filter((v) => v.accent === accent).map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.name} ({v.gender})
+              </option>
+            ))}
+          </optgroup>
         ))}
       </select>
     </label>
