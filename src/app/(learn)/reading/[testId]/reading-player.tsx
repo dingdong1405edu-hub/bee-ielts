@@ -10,6 +10,7 @@ import { Clock, CheckCircle2, XCircle } from "lucide-react";
 import { formatDuration, cn } from "@/lib/utils";
 import { TipsCard } from "@/components/learn/tips-card";
 import { ReadingGroupHeader, groupStartFor } from "@/components/learn/reading-group-header";
+import { ReadingComments } from "@/components/learn/reading-comments";
 
 type Q = {
   id: string;
@@ -182,6 +183,7 @@ export function ReadingPlayer({
                 score={(correctCount / questions.length) * 9}
                 context={`Reading: ${correctCount}/${questions.length} correct`}
               />
+              <ReadingComments testId={testId} />
             </>
           )}
         </div>

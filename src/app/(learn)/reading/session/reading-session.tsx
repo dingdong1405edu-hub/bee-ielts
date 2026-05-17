@@ -10,6 +10,7 @@ import { TipsCard } from "@/components/learn/tips-card";
 import { ReviewReport, type ReadingReviewData } from "@/components/learn/review-report";
 import { ReadingShell, type ShellPart, type ShellQ } from "@/components/learn/reading-shell";
 import { ReadingSolutions } from "@/components/learn/reading-solutions";
+import { ReadingComments } from "@/components/learn/reading-comments";
 import { MotivationalCard } from "@/components/learn/motivational-card";
 
 interface Passage {
@@ -215,6 +216,16 @@ export function ReadingSession({ passages, targetBand = 6.0 }: { passages: Passa
       )}
 
       <TipsCard skill="READING" score={band} context={`Reading session: ${totalCorrect}/${totalQuestions} correct across ${passages.length} passages`} />
+
+      {/* Comment section under each reading passage */}
+      {passages.map((p) => (
+        <div key={p.id} className="space-y-1">
+          {passages.length > 1 && (
+            <p className="text-xs font-bold text-muted-foreground px-1">{p.title}</p>
+          )}
+          <ReadingComments testId={p.id} />
+        </div>
+      ))}
 
       <ReviewReport
         data={{

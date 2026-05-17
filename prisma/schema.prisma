@@ -68,6 +68,7 @@ model User {
   posts           Post[]
   postLikes       PostLike[]
   postComments    PostComment[]
+  readingComments ReadingComment[]
 }
 
 model Post {
@@ -172,14 +173,27 @@ model GrammarProgress {
 }
 
 model ReadingTest {
-  id        String     @id @default(cuid())
+  id        String           @id @default(cuid())
   title     String
-  level     CEFRLevel  @default(B1)
-  passage   String     @db.Text
-  timeLimit Int        @default(1200)
+  level     CEFRLevel        @default(B1)
+  passage   String           @db.Text
+  timeLimit Int              @default(1200)
   slot      String?
   questions Question[]
-  createdAt DateTime   @default(now())
+  comments  ReadingComment[]
+  createdAt DateTime         @default(now())
+}
+
+model ReadingComment {
+  id        String      @id @default(cuid())
+  readingId String
+  reading   ReadingTest @relation(fields: [readingId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String      @db.Text
+  createdAt DateTime    @default(now())
+
+  @@index([readingId])
 }
 
 model ListeningTest {
