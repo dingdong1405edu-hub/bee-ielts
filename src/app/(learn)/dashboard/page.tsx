@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { computeDisplayStreak, getStreakRestoreState } from "@/lib/streak";
 import { StatsRow } from "@/components/learn/stats-row";
+import { ExamCountdown } from "@/components/learn/exam-countdown";
 
 const modules = [
   { href: "/vocab", label: "Vocabulary", desc: "Vocabulary", icon: Sparkles, grad: "from-violet-500 to-fuchsia-500" },
@@ -28,6 +29,7 @@ export default async function DashboardPage() {
       targetBand: true,
       streakRestoresUsed: true,
       streakRestoreMonth: true,
+      examDate: true,
     },
   });
   if (!user) return null;
@@ -68,6 +70,8 @@ export default async function DashboardPage() {
         weekMinutes={weekMinutes}
         weekSessions={weekAttempts.length}
       />
+
+      <ExamCountdown examDate={user.examDate ? user.examDate.toISOString().slice(0, 10) : null} />
 
       <Link href="/mock" className="block group">
         <div className="relative overflow-hidden rounded-3xl gradient-brand p-6 md:p-8 text-white shadow-xl shadow-primary/20 transition-all hover:shadow-2xl hover:shadow-primary/30 hover:-translate-y-0.5">
