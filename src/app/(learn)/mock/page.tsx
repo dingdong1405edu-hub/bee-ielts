@@ -17,12 +17,10 @@ export default async function MockLandingPage() {
 
   const sections = [
     { icon: Headphones, label: "Listening", time: "~20 phút", grad: "from-amber-500 to-orange-500" },
-    { icon: Coffee, label: "Nghỉ", time: "15 phút (có thể skip)", grad: "from-zinc-400 to-zinc-500" },
-    { icon: BookOpen, label: "Reading", time: "~40 phút", grad: "from-emerald-500 to-teal-500" },
-    { icon: Coffee, label: "Nghỉ", time: "15 phút (có thể skip)", grad: "from-zinc-400 to-zinc-500" },
-    { icon: PenLine, label: "Writing", time: "~40 phút (Task 2)", grad: "from-rose-500 to-pink-500" },
-    { icon: Coffee, label: "Nghỉ", time: "15 phút (có thể skip)", grad: "from-zinc-400 to-zinc-500" },
-    { icon: Mic, label: "Speaking", time: "~12 phút (3 part)", grad: "from-indigo-500 to-blue-500" },
+    { icon: BookOpen, label: "Reading", time: "60 phút · 4 bài đọc", grad: "from-emerald-500 to-teal-500" },
+    { icon: Coffee, label: "Nghỉ giải lao", time: "15 phút (có thể skip)", grad: "from-zinc-400 to-zinc-500" },
+    { icon: PenLine, label: "Writing", time: "60 phút · Task 1 + Task 2", grad: "from-rose-500 to-pink-500" },
+    { icon: Mic, label: "Speaking", time: "~12 phút · 3 part", grad: "from-indigo-500 to-blue-500" },
   ];
 
   return (
@@ -68,7 +66,7 @@ export default async function MockLandingPage() {
 
       <Card className="border-2 border-primary/20 bg-primary/5">
         <CardContent className="p-5 text-sm space-y-1">
-          <p>📌 Tổng thời gian ước tính: <strong>~2 giờ 30 phút</strong> (bao gồm break)</p>
+          <p>📌 Tổng thời gian ước tính: <strong>~2 giờ 45 phút</strong> (gồm 1 lần nghỉ 15 phút sau Reading)</p>
           <p>🎤 Phần Speaking yêu cầu quyền truy cập micro</p>
           <p>🔇 AI giám khảo sẽ đọc câu hỏi qua loa — hãy bật âm thanh</p>
           <p>📊 Cuối bài: AI chấm điểm cả 4 kỹ năng + overall band</p>

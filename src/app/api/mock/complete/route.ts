@@ -15,7 +15,12 @@ const schema = z.object({
     answers: z.record(z.string()),
     questions: z.array(z.object({ id: z.string(), correctAnswer: z.string() })),
   }),
-  writing: z.object({ taskId: z.string(), essay: z.string() }),
+  writing: z.object({
+    task1Id: z.string(),
+    essay1: z.string(),
+    task2Id: z.string(),
+    essay2: z.string(),
+  }),
   speaking: z.object({
     setId: z.string(),
     topic: z.string(),
@@ -64,20 +69,38 @@ export async function POST(req: Request) {
   const lBand = scoreToBand(lCorrect, listening.questions.length);
   const rBand = scoreToBand(rCorrect, reading.questions.length);
 
-  // Writing: AI grade
-  let wBand = 5.0;
+  // Writing: AI grade both tasks — Task 1 weighted 1/3, Task 2 weighted 2/3.
+  let wBand = 0;
   let wFeedback = "Không chấm được Writing.";
   try {
-    const wTask = await prisma.writingTask.findUnique({ where: { id: writing.taskId } });
-    if (wTask && writing.essay.trim().length > 20) {
-      const wResult = (await gradeWritingGroq({
-        taskType: wTask.taskType as 1 | 2,
-        prompt: wTask.prompt,
-        essay: writing.essay,
+    const [wt1, wt2] = await Promise.all([
+      prisma.writingTask.findUnique({ where: { id: writing.task1Id } }),
+      prisma.writingTask.findUnique({ where: { id: writing.task2Id } }),
+    ]);
+    let b1 = 0;
+    let b2 = 0;
+    let s1 = "";
+    let s2 = "";
+    if (wt1 && writing.essay1.trim().length > 20) {
+      const r1 = (await gradeWritingGroq({
+        taskType: 1,
+        prompt: wt1.prompt,
+        essay: writing.essay1,
       })) as { overallBand: number; summary: string };
-      wBand = wResult.overallBand;
-      wFeedback = wResult.summary;
+      b1 = r1.overallBand;
+      s1 = r1.summary;
     }
+    if (wt2 && writing.essay2.trim().length > 20) {
+      const r2 = (await gradeWritingGroq({
+        taskType: 2,
+        prompt: wt2.prompt,
+        essay: writing.essay2,
+      })) as { overallBand: number; summary: string };
+      b2 = r2.overallBand;
+      s2 = r2.summary;
+    }
+    wBand = roundOverall(b1 / 3 + (2 * b2) / 3);
+    wFeedback = `Task 1 (${b1.toFixed(1)}): ${s1 || "—"} | Task 2 (${b2.toFixed(1)}): ${s2 || "—"}`;
   } catch (e) {
     console.error("[mock writing]", e);
   }
@@ -127,8 +150,8 @@ export async function POST(req: Request) {
       data: {
         userId,
         skill: "WRITING",
-        refId: `mock-${writing.taskId}`,
-        rawAnswer: { essay: writing.essay },
+        refId: `mock-${writing.task1Id}+${writing.task2Id}`,
+        rawAnswer: { essay1: writing.essay1, essay2: writing.essay2 },
         score: wBand,
         feedback: { summary: wFeedback } as object,
       },

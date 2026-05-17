@@ -9,11 +9,6 @@ function pickRandom<T>(items: T[]): T {
   return items[Math.floor(Math.random() * items.length)];
 }
 
-function pickByLevel<T extends { level: string }>(items: T[], targetBand: number): T {
-  const target = targetBand <= 4.5 ? "A2" : targetBand <= 5.5 ? "B1" : targetBand <= 6.5 ? "B2" : targetBand <= 7.5 ? "C1" : "C2";
-  return items.find((i) => i.level === target) ?? pickRandom(items);
-}
-
 function pickMany<T>(items: T[], n: number): T[] {
   const pool = [...items];
   const out: T[] = [];
@@ -34,38 +29,57 @@ export default async function MockTestPage() {
   });
   const targetBand = user?.targetBand ?? 6.0;
 
-  const [readingTests, listeningTests, writingTasks, speakingSets] = await Promise.all([
-    prisma.readingTest.findMany({ include: { questions: { orderBy: { order: "asc" } } } }),
-    prisma.listeningTest.findMany({ include: { questions: { orderBy: { order: "asc" } } } }),
-    prisma.writingTask.findMany({ where: { taskType: 2 } }),
-    prisma.speakingSet.findMany(),
-  ]);
+  const [readingTests, listeningTests, writingT1, writingT2, speakingSets, recent] =
+    await Promise.all([
+      prisma.readingTest.findMany({ include: { questions: { orderBy: { order: "asc" } } } }),
+      prisma.listeningTest.findMany({ include: { questions: { orderBy: { order: "asc" } } } }),
+      prisma.writingTask.findMany({ where: { taskType: 1 } }),
+      prisma.writingTask.findMany({ where: { taskType: 2 } }),
+      prisma.speakingSet.findMany(),
+      prisma.attempt.findMany({
+        where: { userId: session.user.id },
+        orderBy: { createdAt: "desc" },
+        take: 60,
+        select: { refId: true },
+      }),
+    ]);
 
-  if (!readingTests.length || !listeningTests.length || !writingTasks.length || !speakingSets.length) {
+  if (!readingTests.length || !listeningTests.length || !writingT1.length || !writingT2.length || !speakingSets.length) {
     return (
       <div className="max-w-2xl mx-auto text-center py-20">
         <h1 className="text-2xl font-extrabold">Chưa đủ content để mock test</h1>
-        <p className="text-muted-foreground mt-2">Cần ít nhất 1 bài mỗi kỹ năng. Admin hãy seed thêm.</p>
+        <p className="text-muted-foreground mt-2">Cần ít nhất 1 bài mỗi kỹ năng (Writing cần cả Task 1 & 2).</p>
       </div>
     );
   }
 
-  // Pick 3 readings from 3 different slots (A/B/C/D) so each passage has clean,
-  // distinct question groups. Real IELTS uses 3 passages.
+  // IDs the learner has worked on recently — used to reduce how often a test repeats.
+  const recentIds = new Set<string>();
+  for (const a of recent) {
+    a.refId.replace(/^mock-/, "").split("+").forEach((id) => id && recentIds.add(id));
+  }
+  /** Prefer items the learner has not done recently; fall back to the full pool. */
+  function fresh<T extends { id: string }>(items: T[]): T[] {
+    const f = items.filter((i) => !recentIds.has(i.id));
+    return f.length > 0 ? f : items;
+  }
+
+  // Reading: 4 passages, one from each slot (A/B/C/D) so every question type appears.
   const slottedTests = readingTests.filter((r) => r.slot);
   const slotsAvailable = Array.from(new Set(slottedTests.map((r) => r.slot)));
-  const pickedSlots = pickMany(slotsAvailable, 3);
+  const pickedSlots = pickMany(slotsAvailable, 4);
   let readings: typeof readingTests = [];
   for (const slot of pickedSlots) {
     const inSlot = slottedTests.filter((r) => r.slot === slot);
     if (inSlot.length === 0) continue;
-    readings.push(pickRandom(inSlot));
+    readings.push(pickRandom(fresh(inSlot)));
   }
-  if (readings.length === 0) readings = [pickByLevel(readingTests, targetBand)];
+  if (readings.length === 0) readings = pickMany(readingTests, Math.min(4, readingTests.length));
 
-  const listening = pickRandom(listeningTests);
-  const writing = pickRandom(writingTasks);
-  const speaking = pickRandom(speakingSets);
+  const listening = pickRandom(fresh(listeningTests));
+  const writing1 = pickRandom(fresh(writingT1));
+  const writing2 = pickRandom(fresh(writingT2));
+  const speaking = pickRandom(fresh(speakingSets));
 
   return (
     <MockRunner
@@ -97,9 +111,17 @@ export default async function MockTestPage() {
         })),
       }))}
       writing={{
-        id: writing.id,
-        prompt: writing.prompt,
-        minWords: writing.minWords,
+        task1: {
+          id: writing1.id,
+          prompt: writing1.prompt,
+          minWords: writing1.minWords,
+          diagramSvg: writing1.diagramSvg,
+        },
+        task2: {
+          id: writing2.id,
+          prompt: writing2.prompt,
+          minWords: writing2.minWords,
+        },
       }}
       speaking={{
         id: speaking.id,

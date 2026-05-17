@@ -11,7 +11,7 @@ export default async function SpeakingStartPage() {
   const recent = await prisma.attempt.findMany({
     where: { userId: session.user.id, skill: "SPEAKING" },
     orderBy: { createdAt: "desc" },
-    take: 5,
+    take: 12,
     select: { refId: true },
   });
   const recentIds = recent.map((r) => r.refId.replace("mock-", ""));

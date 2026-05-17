@@ -14,11 +14,9 @@ import { toast } from "sonner";
 type Stage =
   | "intro"
   | "listening"
-  | "break1"
   | "reading"
-  | "break2"
+  | "break"
   | "writing"
-  | "break3"
   | "speaking"
   | "grading"
   | "done";
@@ -35,7 +33,10 @@ interface Props {
   targetBand: number;
   listening: { id: string; title: string; audioUrl: string; transcript: string | null; questions: Q[] };
   readings: { id: string; title: string; level: string; passage: string; questions: Q[] }[];
-  writing: { id: string; prompt: string; minWords: number };
+  writing: {
+    task1: { id: string; prompt: string; minWords: number; diagramSvg: string | null };
+    task2: { id: string; prompt: string; minWords: number };
+  };
   speaking: {
     id: string;
     topic: string;
@@ -50,7 +51,10 @@ export function MockRunner({ targetBand, listening, readings, writing, speaking 
   const [stage, setStage] = useState<Stage>("intro");
   const [listeningAns, setListeningAns] = useState<Record<string, string>>({});
   const [readingAns, setReadingAns] = useState<Record<string, string>>({});
-  const [writingEssay, setWritingEssay] = useState("");
+  const [writingEssays, setWritingEssays] = useState<{ essay1: string; essay2: string }>({
+    essay1: "",
+    essay2: "",
+  });
   const [speakingTranscripts, setSpeakingTranscripts] = useState<{ 1: string; 2: string; 3: string }>({ 1: "", 2: "", 3: "" });
   const [result, setResult] = useState<MockResult | null>(null);
 
@@ -71,7 +75,12 @@ export function MockRunner({ targetBand, listening, readings, writing, speaking 
             answers: readingAns,
             questions: readings.flatMap((r) => r.questions.map((q) => ({ id: q.id, correctAnswer: q.correctAnswer }))),
           },
-          writing: { taskId: writing.id, essay: writingEssay },
+          writing: {
+            task1Id: writing.task1.id,
+            essay1: writingEssays.essay1,
+            task2Id: writing.task2.id,
+            essay2: writingEssays.essay2,
+          },
           speaking: { setId: speaking.id, topic: speaking.topic, transcripts },
         }),
       });
@@ -98,10 +107,10 @@ export function MockRunner({ targetBand, listening, readings, writing, speaking 
         </div>
         <Card>
           <CardContent className="p-5 text-sm space-y-2">
-            <p>📋 Sẽ làm 4 phần theo thứ tự, mỗi phần có timer riêng</p>
-            <p>⏸ Giữa các phần có break 15 phút (skip được)</p>
+            <p>📋 Listening → Reading (60′, 4 bài) → nghỉ 15′ → Writing (60′, 2 task) → Speaking (3 part)</p>
+            <p>⏸ Có 1 lần nghỉ 15 phút sau Reading (có thể skip)</p>
             <p>🚫 Khi bắt đầu rồi thì không thể quay lại phần trước</p>
-            <p>📊 Cuối bài AI sẽ chấm tất cả</p>
+            <p>📊 Cuối bài AI sẽ chấm cả 4 kỹ năng</p>
           </CardContent>
         </Card>
         <div className="flex gap-3">
@@ -126,12 +135,11 @@ export function MockRunner({ targetBand, listening, readings, writing, speaking 
         timeLimit={20 * 60}
         onDone={(ans) => {
           setListeningAns(ans);
-          setStage("break1");
+          setStage("reading");
         }}
       />
     );
   }
-  if (stage === "break1") return <BreakTimer seconds={15 * 60} onDone={() => setStage("reading")} />;
 
   if (stage === "reading") {
     return (
@@ -140,27 +148,26 @@ export function MockRunner({ targetBand, listening, readings, writing, speaking 
         timeLimit={60 * 60}
         onDone={(ans) => {
           setReadingAns(ans);
-          setStage("break2");
+          setStage("break");
         }}
       />
     );
   }
-  if (stage === "break2") return <BreakTimer seconds={15 * 60} onDone={() => setStage("writing")} />;
+  if (stage === "break") return <BreakTimer seconds={15 * 60} onDone={() => setStage("writing")} />;
 
   if (stage === "writing") {
     return (
       <MockWriting
-        prompt={writing.prompt}
-        minWords={writing.minWords}
-        timeLimit={40 * 60}
-        onDone={(essay) => {
-          setWritingEssay(essay);
-          setStage("break3");
+        task1={writing.task1}
+        task2={writing.task2}
+        timeLimit={60 * 60}
+        onDone={(essays) => {
+          setWritingEssays(essays);
+          setStage("speaking");
         }}
       />
     );
   }
-  if (stage === "break3") return <BreakTimer seconds={15 * 60} onDone={() => setStage("speaking")} />;
 
   if (stage === "speaking") {
     return (
