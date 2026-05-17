@@ -124,13 +124,13 @@ Return ONLY valid JSON matching this exact shape:
   "usefulStructures": [
     { "structure": "<cấu trúc câu tiếng Anh>", "example": "<câu ví dụ tiếng Anh>", "note": "<giải thích ngắn — tiếng Việt>" }
   ],
-  "openingSentences": ["<2-3 câu mở đoạn hay, tiếng Anh, phù hợp đề bài này>"],
-  "closingSentences": ["<2-3 câu kết đoạn hay, tiếng Anh, phù hợp đề bài này>"],
+  "openingSentences": ["<3-4 câu MỞ BÀI mẫu HOÀN CHỈNH bằng tiếng Anh cho ĐÚNG đề bài này — gồm câu paraphrase đề và câu thesis; mỗi phần tử là một câu/cụm tiếng Anh dùng được ngay>"],
+  "closingSentences": ["<3-4 câu KẾT BÀI mẫu bằng tiếng Anh cho đúng đề bài này — dùng được ngay>"],
   "improvedVersion": "<bài viết mẫu hoàn chỉnh band 7.0-7.5 cho đúng đề bài này>",
   "summary": "<nhận xét tổng quan ngắn — tiếng Việt>"
 }
 
-Provide 4-8 annotations, 5-7 linkingPhrases, 4-6 usefulStructures. If the essay is empty give empty annotation/structure arrays but STILL provide linkingPhrases, openingSentences, closingSentences and improvedVersion as study material.`;
+Provide 4-8 annotations, 5-7 linkingPhrases, 4-6 usefulStructures, and ALWAYS 3-4 English example sentences in each of openingSentences and closingSentences. If the essay is empty give empty annotation/structure arrays but STILL provide linkingPhrases, openingSentences, closingSentences and improvedVersion as study material.`;
 
 const SPEAKING_SYS = `You are a certified IELTS Speaking examiner. Score the candidate's spoken response using official band descriptors.
 The transcript comes from a speech-recognition system; words it heard with LOW confidence are listed separately as likely mispronunciations — use them for the Pronunciation score.

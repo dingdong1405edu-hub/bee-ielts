@@ -21,7 +21,6 @@ export function WritingPlayer({
   imageUrl,
   diagramSvg,
   minWords,
-  timeLimit,
 }: {
   taskId: string;
   taskType: 1 | 2;
@@ -29,19 +28,19 @@ export function WritingPlayer({
   imageUrl: string | null;
   diagramSvg?: string | null;
   minWords: number;
-  timeLimit: number;
 }) {
   const router = useRouter();
   const startedAtRef = useRef<number>(Date.now());
   const [essay, setEssay] = useState("");
-  const [remaining, setRemaining] = useState(timeLimit);
+  // Practise — đếm xuôi thời gian đã làm, không giới hạn thời gian.
+  const [elapsed, setElapsed] = useState(0);
   const [grading, setGrading] = useState(false);
   const [result, setResult] = useState<WritingResult | null>(null);
   const wc = wordCount(essay);
 
   useEffect(() => {
     if (result) return;
-    const t = setInterval(() => setRemaining((r) => Math.max(0, r - 1)), 1000);
+    const t = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => clearInterval(t);
   }, [result]);
 
@@ -128,8 +127,8 @@ export function WritingPlayer({
             Task {taskType}
           </h1>
         </div>
-        <Badge variant={remaining < 120 ? "destructive" : "outline"} className="text-base px-3 py-1">
-          <Clock className="h-4 w-4 mr-1" /> {formatDuration(remaining)}
+        <Badge variant="outline" className="text-base px-3 py-1">
+          <Clock className="h-4 w-4 mr-1" /> Đã làm {formatDuration(elapsed)}
         </Badge>
       </div>
 
@@ -159,7 +158,7 @@ export function WritingPlayer({
               value={essay}
               onChange={(e) => setEssay(e.target.value)}
               placeholder="Bắt đầu viết..."
-              className="min-h-[400px] font-serif text-base"
+              className="min-h-[400px] text-base"
               disabled={grading}
             />
             <Button onClick={submit} disabled={grading || essay.trim().length === 0} className="w-full" size="lg">

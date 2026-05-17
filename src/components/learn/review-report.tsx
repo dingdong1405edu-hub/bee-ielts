@@ -248,7 +248,7 @@ function WritingBody({ data }: { data: WritingReviewData }) {
 
       <div className="avoid-break">
         <h3 className="text-base font-extrabold border-b pb-1 mb-2">Bài của bạn</h3>
-        <p className="whitespace-pre-wrap text-sm font-serif">{data.essay}</p>
+        <p className="whitespace-pre-wrap text-sm">{(data.essay ?? "").normalize("NFC")}</p>
       </div>
 
       {data.result.annotations && data.result.annotations.length > 0 && (
@@ -268,7 +268,7 @@ function WritingBody({ data }: { data: WritingReviewData }) {
       {data.result.improvedVersion && (
         <div className="space-y-2 page-break avoid-break">
           <h3 className="text-base font-extrabold border-b pb-1">Bản viết tham khảo (band cao hơn)</h3>
-          <p className="whitespace-pre-wrap text-sm font-serif">{data.result.improvedVersion}</p>
+          <p className="whitespace-pre-wrap text-sm">{data.result.improvedVersion.normalize("NFC")}</p>
         </div>
       )}
     </div>
@@ -343,7 +343,7 @@ function SpeakingBody({ data }: { data: SpeakingReviewData }) {
       {data.result.improvedSample && (
         <div className="space-y-2 page-break avoid-break">
           <h3 className="text-base font-extrabold border-b pb-1">Sample trả lời tham khảo</h3>
-          <p className="whitespace-pre-wrap text-sm font-serif">{data.result.improvedSample}</p>
+          <p className="whitespace-pre-wrap text-sm">{data.result.improvedSample.normalize("NFC")}</p>
         </div>
       )}
     </div>

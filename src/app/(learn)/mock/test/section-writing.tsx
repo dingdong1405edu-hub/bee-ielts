@@ -72,7 +72,7 @@ export function MockWriting({
               value={essay}
               onChange={(e) => setEssay(e.target.value)}
               placeholder="Bắt đầu viết..."
-              className="min-h-[450px] font-serif text-base"
+              className="min-h-[450px] text-base"
             />
             <Button onClick={() => onDone(essay)} variant="brand" size="lg" className="w-full rounded-full">
               Nộp & sang Speaking →

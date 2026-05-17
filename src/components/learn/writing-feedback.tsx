@@ -149,11 +149,11 @@ export function WritingFeedback({ result, taskLabel }: { result: WritingResult; 
         (result.closingSentences && result.closingSentences.length > 0)) && (
         <Card>
           <CardContent className="p-5 space-y-3">
-            <h3 className="font-extrabold">Gợi ý câu mở đoạn & kết đoạn</h3>
+            <h3 className="font-extrabold">Câu mở bài & kết bài mẫu (tiếng Anh)</h3>
             {result.openingSentences && result.openingSentences.length > 0 && (
               <div>
                 <div className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-emerald-600 mb-1.5">
-                  <ArrowRightToLine className="h-3.5 w-3.5" /> Mở đoạn
+                  <ArrowRightToLine className="h-3.5 w-3.5" /> Mở bài (Introduction)
                 </div>
                 <ul className="space-y-1.5">
                   {result.openingSentences.map((s, i) => (
@@ -167,7 +167,7 @@ export function WritingFeedback({ result, taskLabel }: { result: WritingResult; 
             {result.closingSentences && result.closingSentences.length > 0 && (
               <div>
                 <div className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-rose-600 mb-1.5">
-                  <ArrowLeftToLine className="h-3.5 w-3.5" /> Kết đoạn
+                  <ArrowLeftToLine className="h-3.5 w-3.5" /> Kết bài (Conclusion)
                 </div>
                 <ul className="space-y-1.5">
                   {result.closingSentences.map((s, i) => (
@@ -199,8 +199,8 @@ function ModelEssay({ text }: { text: string }) {
           <ChevronDown className={cn("h-5 w-5 transition-transform", open && "rotate-180")} />
         </button>
         {open && (
-          <div className="mt-3 rounded-lg border bg-muted/30 p-4 text-sm leading-relaxed whitespace-pre-wrap font-serif">
-            {text}
+          <div className="mt-3 rounded-lg border bg-muted/30 p-4 text-sm leading-relaxed whitespace-pre-wrap">
+            {text.normalize("NFC")}
           </div>
         )}
       </CardContent>

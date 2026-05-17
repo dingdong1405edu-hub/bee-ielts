@@ -210,7 +210,7 @@ export function WritingSession({ task1, task2 }: Props) {
               value={currentEssay}
               onChange={(e) => setCurrentEssay(e.target.value)}
               placeholder="Bắt đầu viết..."
-              className="min-h-[400px] font-serif text-base"
+              className="min-h-[400px] text-base"
             />
             <Button
               onClick={isTask1 ? handleTask1Done : handleTask2Done}

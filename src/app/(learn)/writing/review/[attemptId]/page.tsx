@@ -61,7 +61,7 @@ export default async function WritingReviewPage({ params }: { params: { attemptI
         <CardContent className="p-5 space-y-2">
           <h3 className="font-bold">Bài viết của bạn</h3>
           {essay ? (
-            <p className="whitespace-pre-wrap text-sm font-serif leading-relaxed">{essay}</p>
+            <p className="whitespace-pre-wrap text-sm leading-relaxed">{essay.normalize("NFC")}</p>
           ) : (
             <p className="text-sm text-muted-foreground italic">Bạn không nộp bài viết nào.</p>
           )}
