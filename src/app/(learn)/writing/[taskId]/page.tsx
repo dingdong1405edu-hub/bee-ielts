@@ -13,7 +13,6 @@ export default async function WritingTaskPage({ params }: { params: { taskId: st
       imageUrl={task.imageUrl}
       diagramSvg={task.diagramSvg}
       minWords={task.minWords}
-      timeLimit={task.timeLimit}
     />
   );
 }

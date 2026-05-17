@@ -49,14 +49,14 @@ export default async function WritingIntroPage() {
     <div className="space-y-6">
       <SkillIntro
         title="Writing"
-        subtitle="2 task · 60 phút · AI chấm 4 tiêu chí IELTS"
+        subtitle="2 task · không giới hạn thời gian · AI chấm 4 tiêu chí IELTS"
         icon={PenLine}
         grad="from-rose-500 to-pink-500"
         startHref="/writing/start"
         bullets={[
-          { icon: BarChart3, text: "Task 1 (20 phút, ≥150 từ): mô tả biểu đồ / số liệu" },
-          { icon: FileText, text: "Task 2 (40 phút, ≥250 từ): essay về một chủ đề" },
-          { icon: Clock, text: "Autosave draft. Hết giờ Task 1 tự chuyển Task 2." },
+          { icon: BarChart3, text: "Task 1 (≥150 từ): mô tả biểu đồ / số liệu" },
+          { icon: FileText, text: "Task 2 (≥250 từ): essay về một chủ đề" },
+          { icon: Clock, text: "Autosave draft. Không bấm giờ — chỉ đếm thời gian bạn đã làm." },
           { icon: Trophy, text: "AI chấm cả 2 task — overall = Task1 × 1/3 + Task2 × 2/3" },
         ]}
       />

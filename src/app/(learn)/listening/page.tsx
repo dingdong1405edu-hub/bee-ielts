@@ -13,7 +13,7 @@ export default function ListeningIntroPage() {
       startHref="/listening/start"
       bullets={[
         { icon: Volume2, text: "Audio có nút điều chỉnh tốc độ 0.75x – 2x" },
-        { icon: Clock, text: "Timer riêng cho mỗi bài, hết giờ tự nộp" },
+        { icon: Clock, text: "Không bấm giờ — chỉ đếm thời gian bạn đã làm" },
         { icon: Brain, text: "Đề chọn ngẫu nhiên, có cả transcript để review sau khi nộp" },
         { icon: Trophy, text: "Sau khi nộp, AI đưa tips để nghe tốt hơn lần sau" },
       ]}
