@@ -9,6 +9,14 @@ import { DeleteAttemptButton } from "@/components/learn/delete-attempt-button";
 
 export const dynamic = "force-dynamic";
 
+// Skills that have a per-attempt review page.
+const REVIEW_PATH: Record<string, string> = {
+  READING: "/reading/review",
+  LISTENING: "/listening/review",
+  WRITING: "/writing/review",
+  SPEAKING: "/speaking/review",
+};
+
 const SKILL_META: Record<string, { label: string; icon: typeof BookOpen; grad: string; unit: string }> = {
   READING: { label: "Reading", icon: BookOpen, grad: "from-emerald-500 to-teal-500", unit: "band" },
   LISTENING: { label: "Listening", icon: Headphones, grad: "from-amber-500 to-orange-500", unit: "band" },
@@ -83,7 +91,7 @@ export default async function ProfilePage() {
             {attempts.map((a) => {
               const meta = SKILL_META[a.skill] ?? SKILL_META.READING;
               const Icon = meta.icon;
-              const isWriting = a.skill === "WRITING";
+              const reviewHref = REVIEW_PATH[a.skill] ? `${REVIEW_PATH[a.skill]}/${a.id}` : null;
               const body = (
                 <CardContent className="p-4 flex items-center gap-3">
                   <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br ${meta.grad} text-white`}>
@@ -102,17 +110,17 @@ export default async function ProfilePage() {
                     </div>
                     <div className="text-[10px] text-muted-foreground uppercase">{meta.unit}</div>
                   </div>
-                  {isWriting && <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />}
+                  {reviewHref && <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />}
                   <DeleteAttemptButton attemptId={a.id} />
                 </CardContent>
               );
               return (
                 <Card
                   key={a.id}
-                  className={isWriting ? "hover:shadow-md hover:border-primary/40 transition-all" : ""}
+                  className={reviewHref ? "hover:shadow-md hover:border-primary/40 transition-all" : ""}
                 >
-                  {isWriting ? (
-                    <Link href={`/writing/review/${a.id}`} className="block">
+                  {reviewHref ? (
+                    <Link href={reviewHref} className="block">
                       {body}
                     </Link>
                   ) : (

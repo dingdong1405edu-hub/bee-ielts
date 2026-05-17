@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, XCircle, Loader2, Sparkles, BookOpen, Languages, Lightbulb, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -36,6 +36,8 @@ export function ReadingSolutions({
   const [activePart, setActivePart] = useState(0);
   // cache: questionId -> explanation OR "loading" OR "error"
   const [cache, setCache] = useState<Record<string, Explanation | "loading" | "error">>({});
+  // The question currently selected — its evidence is highlighted inside the passage.
+  const [activeQId, setActiveQId] = useState<string | null>(null);
 
   const current = passages[activePart];
 
@@ -65,8 +67,14 @@ export function ReadingSolutions({
     }
   };
 
+  const selectQuestion = (qId: string) => {
+    setActiveQId(qId);
+    fetchExplain(qId);
+  };
+
   // Auto-fetch all WRONG questions when switching to this part — staggered to avoid rate-limit
   useEffect(() => {
+    setActiveQId(null);
     const wrong = current.questions.filter(
       (q) => (answers[q.id] || "").trim().toLowerCase() !== q.correctAnswer.toLowerCase(),
     );
@@ -79,44 +87,52 @@ export function ReadingSolutions({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePart]);
 
+  const activeExplanation =
+    activeQId && typeof cache[activeQId] === "object" ? (cache[activeQId] as Explanation) : undefined;
+
   return (
     <div className="space-y-4">
       {/* Part tabs */}
-      <div className="flex flex-wrap gap-2 border-b pb-3">
-        {passages.map((p, i) => {
-          const wrongCount = p.questions.filter(
-            (q) => (answers[q.id] || "").trim().toLowerCase() !== q.correctAnswer.toLowerCase(),
-          ).length;
-          return (
-            <button
-              key={p.id}
-              onClick={() => setActivePart(i)}
-              className={cn(
-                "rounded-xl px-3 py-1.5 text-sm font-bold border-2 transition-colors inline-flex items-center gap-1.5",
-                activePart === i ? "border-primary bg-accent/30 text-primary" : "border-border hover:border-primary/30",
-              )}
-            >
-              <span>Part {i + 1}</span>
-              {wrongCount > 0 && (
-                <span className="grid h-5 min-w-5 px-1 place-items-center rounded-full bg-destructive text-white text-[10px] font-extrabold">
-                  {wrongCount}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      {passages.length > 1 && (
+        <div className="flex flex-wrap gap-2 border-b pb-3">
+          {passages.map((p, i) => {
+            const wrongCount = p.questions.filter(
+              (q) => (answers[q.id] || "").trim().toLowerCase() !== q.correctAnswer.toLowerCase(),
+            ).length;
+            return (
+              <button
+                key={p.id}
+                onClick={() => setActivePart(i)}
+                className={cn(
+                  "rounded-xl px-3 py-1.5 text-sm font-bold border-2 transition-colors inline-flex items-center gap-1.5",
+                  activePart === i ? "border-primary bg-accent/30 text-primary" : "border-border hover:border-primary/30",
+                )}
+              >
+                <span>Part {i + 1}</span>
+                {wrongCount > 0 && (
+                  <span className="grid h-5 min-w-5 px-1 place-items-center rounded-full bg-destructive text-white text-[10px] font-extrabold">
+                    {wrongCount}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
-      {/* Passage card */}
+      {/* Passage card — highlights the selected question's evidence */}
       <Card>
         <CardContent className="p-5">
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-1">
             <BookOpen className="h-5 w-5 text-primary" />
             <h3 className="font-extrabold">{current.title}</h3>
           </div>
-          <div className="text-[14px] leading-relaxed whitespace-pre-wrap text-foreground max-h-72 overflow-y-auto rounded-lg border bg-muted/20 p-3">
-            {current.passage}
-          </div>
+          <p className="text-xs text-muted-foreground mb-3">
+            {activeExplanation
+              ? "Đoạn chứa đáp án được tô vàng, key words in đậm."
+              : "Bấm một câu hỏi bên dưới để xem đoạn chứa đáp án trong đề."}
+          </p>
+          <PassageView passage={current.passage} highlight={activeExplanation} />
         </CardContent>
       </Card>
 
@@ -134,12 +150,70 @@ export function ReadingSolutions({
               ua={ua}
               ok={ok}
               explanation={ex}
-              onFetch={() => fetchExplain(q.id)}
+              active={activeQId === q.id}
+              onSelect={() => selectQuestion(q.id)}
             />
           );
         })}
       </div>
     </div>
+  );
+}
+
+/** Render the passage; when a question is selected, highlight its quote and bold key words. */
+function PassageView({ passage, highlight }: { passage: string; highlight?: Explanation }) {
+  const markRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (highlight) markRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [highlight]);
+
+  const box =
+    "text-[14px] leading-relaxed whitespace-pre-wrap text-foreground max-h-80 overflow-y-auto rounded-lg border bg-muted/20 p-3";
+
+  const quote = highlight?.quote?.trim();
+  const idx = quote ? passage.toLowerCase().indexOf(quote.toLowerCase()) : -1;
+
+  if (!quote || idx === -1) {
+    return <div className={box}>{passage}</div>;
+  }
+
+  const before = passage.slice(0, idx);
+  const matched = passage.slice(idx, idx + quote.length);
+  const after = passage.slice(idx + quote.length);
+  return (
+    <div className={box}>
+      {before}
+      <mark ref={markRef} className="rounded bg-yellow-300/80 dark:bg-yellow-500/40 px-0.5">
+        <BoldKeywords text={matched} keywords={highlight?.keywords ?? []} />
+      </mark>
+      {after}
+    </div>
+  );
+}
+
+/** Wrap each keyword occurrence inside `text` in a bold/underlined span. Case-insensitive. */
+function BoldKeywords({ text, keywords }: { text: string; keywords: string[] }) {
+  const escaped = keywords
+    .map((k) => k.trim())
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length)
+    .map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  if (!escaped.length) return <>{text}</>;
+  const re = new RegExp(`(${escaped.join("|")})`, "gi");
+  const parts = text.split(re);
+  return (
+    <>
+      {parts.map((p, i) =>
+        i % 2 === 1 ? (
+          <strong key={i} className="font-extrabold underline decoration-2 decoration-amber-500">
+            {p}
+          </strong>
+        ) : (
+          <span key={i}>{p}</span>
+        ),
+      )}
+    </>
   );
 }
 
@@ -149,25 +223,28 @@ function QuestionRow({
   ua,
   ok,
   explanation,
-  onFetch,
+  active,
+  onSelect,
 }: {
   num: number;
   q: SolutionPassage["questions"][number];
   ua: string;
   ok: boolean;
   explanation: Explanation | "loading" | "error" | undefined;
-  onFetch: () => void;
+  active: boolean;
+  onSelect: () => void;
 }) {
-  // For wrong answers, the explanation auto-loads. The card is also clickable to retry.
-  const clickable = !ok && (!explanation || explanation === "error");
   return (
     <Card
       className={cn(
-        "border-2",
-        ok ? "border-success/40" : "border-destructive/40",
-        clickable && "cursor-pointer hover:bg-destructive/5 transition-colors",
+        "border-2 cursor-pointer transition-colors",
+        active
+          ? "border-primary ring-2 ring-primary/30"
+          : ok
+            ? "border-success/40 hover:border-success"
+            : "border-destructive/40 hover:border-destructive",
       )}
-      onClick={clickable ? onFetch : undefined}
+      onClick={onSelect}
     >
       <CardContent className="p-4 space-y-3">
         <div className="flex items-start gap-2">
@@ -192,25 +269,9 @@ function QuestionRow({
         </div>
 
         <div className="ml-8">
-          {/* Correct answers: only show button, manual fetch */}
-          {ok && !explanation && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="rounded-full text-xs"
-              onClick={(e) => {
-                e.stopPropagation();
-                onFetch();
-              }}
-            >
-              <Sparkles className="h-3.5 w-3.5 mr-1" />
-              Xem lời giải chi tiết
-            </Button>
-          )}
-          {/* Wrong answers: auto-loaded; if not yet started show hint */}
-          {!ok && !explanation && (
+          {!explanation && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Sparkles className="h-3.5 w-3.5" /> Click để xem lý do sai...
+              <Sparkles className="h-3.5 w-3.5" /> Bấm để xem lời giải & đoạn chứa đáp án trong đề
             </div>
           )}
           {explanation === "loading" && (
@@ -227,7 +288,7 @@ function QuestionRow({
                 className="text-xs h-7"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onFetch();
+                  onSelect();
                 }}
               >
                 Thử lại
@@ -285,7 +346,6 @@ function ExplanationPanel({ data, userIsWrong }: { data: Explanation; userIsWron
 /** Render the quote with each keyword substring wrapped in <mark>. Case-insensitive. */
 function HighlightedQuote({ text, keywords }: { text: string; keywords: string[] }) {
   if (!keywords.length) return <span>{text}</span>;
-  // Build a regex that matches any keyword, case-insensitive, longest-first to avoid partial overshadowing
   const escaped = keywords
     .map((k) => k.trim())
     .filter(Boolean)

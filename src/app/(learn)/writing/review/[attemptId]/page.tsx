@@ -20,7 +20,11 @@ export default async function WritingReviewPage({ params }: { params: { attemptI
   const taskId = attempt.refId.replace(/^mock-/, "");
   const task = await prisma.writingTask.findUnique({ where: { id: taskId } });
 
-  const essay = ((attempt.rawAnswer as { essay?: string })?.essay ?? "").trim();
+  // Practise writing stores { essay }; a mock exam stores { essay1, essay2 }.
+  const raw = (attempt.rawAnswer ?? {}) as { essay?: string; essay1?: string; essay2?: string };
+  const essay = (
+    raw.essay ?? [raw.essay1, raw.essay2].filter(Boolean).join("\n\n— — — — —\n\n")
+  ).trim();
   const result = (attempt.feedback as WritingResult | null) ?? null;
   const wordCount = essay ? essay.split(/\s+/).filter(Boolean).length : 0;
 
