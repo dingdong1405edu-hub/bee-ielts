@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Mic, Square, Loader2, Volume2, ArrowRight, Trophy, Play, Clock,
-  Sparkles, MessageSquareQuote, ArrowRightToLine, ArrowLeftToLine, Wand2,
+  Sparkles, MessageSquareQuote, ArrowRightToLine, Wand2,
 } from "lucide-react";
 import { formatDuration, cn } from "@/lib/utils";
 import { TipsCard } from "@/components/learn/tips-card";
@@ -24,6 +24,11 @@ interface QResult {
 interface Phrase {
   phrase: string;
   use: string;
+}
+interface QTip {
+  question: string;
+  opener: string;
+  advice: string;
 }
 interface Correction {
   original: string;
@@ -46,8 +51,7 @@ interface SpeakingResult {
   observations: string[];
   corrections?: Correction[];
   pronunciationFixes?: PronFix[];
-  openingPhrases?: string[];
-  closingPhrases?: string[];
+  questionTips?: QTip[];
   usefulPhrases?: Phrase[];
   improvedSample?: string;
   summary: string;
@@ -64,9 +68,9 @@ const empty = (): QResult => ({ transcript: "", words: [] });
 export function SpeakingPlayer({
   setId,
   topic,
-  part1Questions,
+  part1Questions: rawPart1,
   part2CueCard,
-  part3Questions,
+  part3Questions: rawPart3,
 }: {
   setId: string;
   topic: string;
@@ -74,6 +78,9 @@ export function SpeakingPlayer({
   part2CueCard: { topic: string; points: string[] };
   part3Questions: string[];
 }) {
+  // Practise format: 4 questions in Part 1, 1 cue card in Part 2, 1 question in Part 3.
+  const part1Questions = rawPart1.slice(0, 4);
+  const part3Questions = rawPart3.slice(0, 1);
   const router = useRouter();
   const startedAtRef = useRef<number>(Date.now());
   const [voice, setVoice] = useTtsVoice();
@@ -131,7 +138,8 @@ export function SpeakingPlayer({
     } else if (phase === "part3") {
       const q = part3Questions[qIdx];
       if (q) playTTS(q);
-    } else if (phase === "part2-prep" || phase === "part2-speak") {
+    } else if (phase === "part2-prep") {
+      // Read the cue card only during preparation — not again when speaking starts.
       playTTS(part2CueCard.topic);
     }
     return () => {
@@ -263,6 +271,13 @@ export function SpeakingPlayer({
       ),
     ).filter(Boolean);
 
+    // Every prompt the candidate answered — so the grader can give a tip per question.
+    const allQuestions = [
+      ...part1Questions,
+      `Part 2 cue card: ${part2CueCard.topic} — You should say: ${part2CueCard.points.join("; ")}`,
+      ...part3Questions,
+    ];
+
     try {
       const res = await fetch("/api/grade/speaking", {
         method: "POST",
@@ -271,7 +286,7 @@ export function SpeakingPlayer({
           setId,
           part: 1,
           topic,
-          questions: ["Combined Part 1, 2, 3"],
+          questions: allQuestions,
           transcript: combined,
           lowConfidenceWords,
           durationSec,
@@ -452,53 +467,70 @@ export function SpeakingPlayer({
           </Card>
         )}
 
-        {/* Per-task suggestions */}
-        {((result.openingPhrases?.length ?? 0) > 0 ||
-          (result.closingPhrases?.length ?? 0) > 0 ||
-          (result.usefulPhrases?.length ?? 0) > 0) && (
+        {/* Per-question tips — opening sentence + how to develop the answer (English) */}
+        {result.questionTips && result.questionTips.length > 0 && (
           <Card>
             <CardContent className="p-5 space-y-3">
               <h3 className="font-extrabold flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-amber-500" /> Gợi ý cho chủ đề này
+                <Sparkles className="h-5 w-5 text-amber-500" /> Tips for each question
               </h3>
-              {result.openingPhrases && result.openingPhrases.length > 0 && (
-                <PhraseBlock
-                  icon={ArrowRightToLine}
-                  label="Cách mở câu"
-                  color="text-emerald-600"
-                  items={result.openingPhrases}
-                  onSpeak={playTTS}
-                />
-              )}
-              {result.closingPhrases && result.closingPhrases.length > 0 && (
-                <PhraseBlock
-                  icon={ArrowLeftToLine}
-                  label="Cách kết câu"
-                  color="text-rose-600"
-                  items={result.closingPhrases}
-                  onSpeak={playTTS}
-                />
-              )}
-              {result.usefulPhrases && result.usefulPhrases.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-violet-600 mb-1.5">
-                    <MessageSquareQuote className="h-3.5 w-3.5" /> Cụm từ / idiom hay
-                  </div>
-                  <div className="space-y-1.5">
-                    {result.usefulPhrases.map((p, i) => (
-                      <div key={i} className="rounded-lg border bg-violet-50 dark:bg-violet-950/30 p-2.5">
-                        <button
-                          onClick={() => playTTS(p.phrase)}
-                          className="text-sm font-bold text-violet-700 dark:text-violet-300 inline-flex items-center gap-1 hover:underline"
-                        >
-                          <Volume2 className="h-3.5 w-3.5" /> {p.phrase}
-                        </button>
-                        <div className="text-xs text-muted-foreground mt-0.5">{p.use}</div>
+              <p className="text-xs text-muted-foreground -mt-1">
+                Câu mở đầu gợi ý và cách triển khai cho từng câu hỏi. Nhấn loa để nghe.
+              </p>
+              <div className="space-y-2.5">
+                {result.questionTips.map((t, i) => (
+                  <div key={i} className="rounded-lg border p-3 space-y-2">
+                    <div className="flex items-start gap-2">
+                      <button
+                        onClick={() => playTTS(t.question)}
+                        disabled={ttsBusy}
+                        className="text-primary shrink-0 mt-0.5"
+                        aria-label="Nghe câu hỏi"
+                      >
+                        <Volume2 className="h-4 w-4" />
+                      </button>
+                      <p className="text-sm font-bold">{t.question}</p>
+                    </div>
+                    <div className="rounded-md bg-emerald-50 dark:bg-emerald-950/30 p-2.5">
+                      <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-emerald-600 mb-1">
+                        <ArrowRightToLine className="h-3.5 w-3.5" /> Opening sentence
                       </div>
-                    ))}
+                      <button
+                        onClick={() => playTTS(t.opener)}
+                        disabled={ttsBusy}
+                        className="text-sm italic text-emerald-800 dark:text-emerald-200 hover:underline text-left inline-flex items-start gap-1.5"
+                      >
+                        <Volume2 className="h-3.5 w-3.5 mt-0.5 shrink-0" /> &ldquo;{t.opener}&rdquo;
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{t.advice}</p>
                   </div>
-                </div>
-              )}
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Useful phrases & idioms for this topic */}
+        {result.usefulPhrases && result.usefulPhrases.length > 0 && (
+          <Card>
+            <CardContent className="p-5 space-y-3">
+              <h3 className="font-extrabold flex items-center gap-2">
+                <MessageSquareQuote className="h-5 w-5 text-violet-500" /> Useful phrases &amp; idioms
+              </h3>
+              <div className="space-y-1.5">
+                {result.usefulPhrases.map((p, i) => (
+                  <div key={i} className="rounded-lg border bg-violet-50 dark:bg-violet-950/30 p-2.5">
+                    <button
+                      onClick={() => playTTS(p.phrase)}
+                      className="text-sm font-bold text-violet-700 dark:text-violet-300 inline-flex items-center gap-1 hover:underline"
+                    >
+                      <Volume2 className="h-3.5 w-3.5" /> {p.phrase}
+                    </button>
+                    <div className="text-xs text-muted-foreground mt-0.5">{p.use}</div>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         )}
@@ -714,38 +746,6 @@ function TranscriptView({ result, onSpeak }: { result: QResult; onSpeak: (t: str
         );
       })}
     </p>
-  );
-}
-
-function PhraseBlock({
-  icon: Icon,
-  label,
-  color,
-  items,
-  onSpeak,
-}: {
-  icon: React.ElementType;
-  label: string;
-  color: string;
-  items: string[];
-  onSpeak: (t: string) => void;
-}) {
-  return (
-    <div>
-      <div className={cn("flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider mb-1.5", color)}>
-        <Icon className="h-3.5 w-3.5" /> {label}
-      </div>
-      <ul className="space-y-1.5">
-        {items.map((s, i) => (
-          <li key={i} className="rounded-lg border p-2.5 text-sm flex items-start gap-2">
-            <button onClick={() => onSpeak(s)} className="text-primary shrink-0 mt-0.5" aria-label="Nghe">
-              <Volume2 className="h-4 w-4" />
-            </button>
-            <span className="italic">"{s}"</span>
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }
 

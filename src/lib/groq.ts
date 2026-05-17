@@ -153,14 +153,16 @@ Return ONLY valid JSON:
   "pronunciationFixes": [
     { "word": "<một từ candidate phát âm chưa chuẩn>", "ipa": "/<phiên âm IPA chuẩn của từ>/", "tip": "<mẹo đọc đúng — tiếng Việt>" }
   ],
-  "openingPhrases": ["<2-3 cách MỞ câu trả lời hay, tiếng Anh, hợp với chủ đề này>"],
-  "closingPhrases": ["<2-3 cách KẾT câu trả lời hay, tiếng Anh, hợp chủ đề>"],
-  "usefulPhrases": [{ "phrase": "<cụm/idiom tiếng Anh hữu ích cho chủ đề này>", "use": "<dùng khi nào — tiếng Việt>" }],
+  "questionTips": [
+    { "question": "<copy the exact question / Part 2 cue card prompt>", "opener": "<a strong, natural English sentence the candidate could use to OPEN the answer to THIS question>", "advice": "<2-3 sentences IN ENGLISH of concrete advice for THIS specific question: ideas worth mentioning, vocabulary or grammar structures to use, and how to extend the answer>" }
+  ],
+  "usefulPhrases": [{ "phrase": "<useful English phrase or idiom for this topic>", "use": "<when/how to use it — IN ENGLISH>" }],
   "improvedSample": "<một câu trả lời mẫu band 7.5 cho chủ đề này>",
   "summary": "<nhận xét tổng quan ngắn — tiếng Việt>"
 }
 
-Provide 4-6 observations and 4-6 usefulPhrases. For "corrections": find the real grammar/word-choice/collocation mistakes in the transcript and SHOW THE FIXED VERSION (do not merely point them out) — give 3-6 items, or [] if the transcript is genuinely error-free. For "pronunciationFixes": give an item with correct IPA for EACH word in the low-confidence list (and any other clearly mispronounced word) — these are words the candidate said unclearly. The opening/closing/useful phrases must be tailored to THIS topic, not generic.`;
+Provide 4-6 observations. For "corrections": find the real grammar/word-choice/collocation mistakes in the transcript and SHOW THE FIXED VERSION (do not merely point them out) — give 3-6 items, or [] if the transcript is genuinely error-free. For "pronunciationFixes": give an item with correct IPA for EACH word in the low-confidence list (and any other clearly mispronounced word) — these are words the candidate said unclearly.
+"questionTips": provide EXACTLY ONE entry for EVERY question listed in the prompt — each Part 1 question, the Part 2 cue card, and each Part 3 question — in the SAME ORDER they appear. The "question", "opener" and "advice" fields MUST all be written in ENGLISH. Provide 4-6 usefulPhrases tailored to THIS topic, not generic.`;
 
 const TIPS_SYS = `You are a friendly IELTS coach giving practical actionable tips. Tone: warm, Gen-Z friendly. Write in Vietnamese.
 Return ONLY valid JSON:

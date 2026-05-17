@@ -20,6 +20,7 @@ type SpeakingFeedback = {
   observations?: string[];
   corrections?: { original: string; corrected: string; explanation: string }[];
   pronunciationFixes?: { word: string; ipa: string; tip: string }[];
+  questionTips?: { question: string; opener: string; advice: string }[];
 };
 
 export default async function SpeakingReviewPage({ params }: { params: { attemptId: string } }) {
@@ -150,6 +151,26 @@ export default async function SpeakingReviewPage({ params }: { params: { attempt
                 <p className="text-sm text-destructive line-through">{c.original}</p>
                 <p className="text-sm font-semibold text-success">✅ {c.corrected}</p>
                 <p className="text-xs text-muted-foreground">{c.explanation}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {fb.questionTips && fb.questionTips.length > 0 && (
+        <Card>
+          <CardContent className="p-5 space-y-2">
+            <h3 className="font-extrabold mb-1">Gợi ý cho từng câu hỏi</h3>
+            {fb.questionTips.map((t, i) => (
+              <div key={i} className="rounded-lg border p-3 space-y-1.5">
+                <p className="text-sm font-bold">{t.question}</p>
+                <div className="rounded-md bg-success/10 p-2">
+                  <div className="text-[11px] font-extrabold uppercase tracking-wider text-success mb-0.5">
+                    Opening sentence
+                  </div>
+                  <p className="text-sm italic text-success">“{t.opener}”</p>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">{t.advice}</p>
               </div>
             ))}
           </CardContent>
