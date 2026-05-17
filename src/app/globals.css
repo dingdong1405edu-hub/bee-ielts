@@ -121,6 +121,51 @@
     opacity: 0.35;
   }
 
+  /* Ambient decorative background for learner pages */
+  .learn-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -10;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .learn-bg::after {
+    /* faint dot grid, faded out towards the bottom */
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(hsl(var(--foreground) / 0.06) 1px, transparent 1px);
+    background-size: 26px 26px;
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 75%);
+    mask-image: linear-gradient(to bottom, #000 0%, transparent 75%);
+  }
+  .learn-orb {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(100px);
+    opacity: 0.4;
+  }
+  .dark .learn-orb {
+    opacity: 0.28;
+  }
+  .learn-orb-float {
+    animation: learn-float 18s ease-in-out infinite;
+  }
+  @keyframes learn-float {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    50% {
+      transform: translate3d(0, -32px, 0) scale(1.1);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .learn-orb-float {
+      animation: none;
+    }
+  }
+
   /* Scroll reveal — initial state */
   .reveal {
     opacity: 0;

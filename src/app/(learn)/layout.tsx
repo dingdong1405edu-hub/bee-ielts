@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { Sidebar, MobileMenu } from "@/components/learn/sidebar";
 import { StatsBar } from "@/components/learn/stats-bar";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { LearnBackground } from "@/components/learn/learn-background";
 
 export default async function LearnLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -18,6 +19,7 @@ export default async function LearnLayout({ children }: { children: React.ReactN
 
   return (
     <div className="flex min-h-screen">
+      <LearnBackground />
       <Sidebar isAdmin={isAdmin} />
       <div className="flex-1 flex flex-col min-w-0">
         <header className="sticky top-0 z-30 flex items-center justify-between gap-3 bg-background/80 backdrop-blur-md px-4 py-3 md:px-8 md:py-4">
