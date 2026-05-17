@@ -1,0 +1,255 @@
+"use client";
+
+import { useState, useCallback } from "react";
+import { Check, X, Eye, RotateCw, Trophy } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+import type { StudyCard } from "./types";
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function shuffle<T>(arr: T[]): T[] {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+function postProgress(cardId: string, mastered: boolean): void {
+  fetch("/api/words/progress", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ cardId, mastered }),
+  }).catch(() => {
+    // fire-and-forget — ignore errors
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
+export function LearnMode({
+  cards,
+  deckId: _deckId,
+}: {
+  cards: StudyCard[];
+  deckId: string;
+}) {
+  const total = cards.length;
+
+  const [queue, setQueue] = useState<StudyCard[]>(() => shuffle(cards));
+  const [mastered, setMastered] = useState(0);
+  const [revealed, setRevealed] = useState(false);
+  const [done, setDone] = useState(false);
+
+  // -------------------------------------------------------------------------
+  // Handlers
+  // -------------------------------------------------------------------------
+
+  const handleReveal = useCallback(() => {
+    setRevealed(true);
+  }, []);
+
+  const handleMastered = useCallback(() => {
+    if (queue.length === 0) return;
+    const [current, ...rest] = queue;
+    postProgress(current.id, true);
+    const newMastered = mastered + 1;
+    if (rest.length === 0) {
+      setMastered(newMastered);
+      setDone(true);
+    } else {
+      setQueue(rest);
+      setMastered(newMastered);
+      setRevealed(false);
+    }
+  }, [queue, mastered]);
+
+  const handleNotMastered = useCallback(() => {
+    if (queue.length === 0) return;
+    const [current, ...rest] = queue;
+    setQueue([...rest, current]);
+    setRevealed(false);
+  }, [queue]);
+
+  const handleRestart = useCallback(() => {
+    setQueue(shuffle(cards));
+    setMastered(0);
+    setRevealed(false);
+    setDone(false);
+  }, [cards]);
+
+  // -------------------------------------------------------------------------
+  // Empty state
+  // -------------------------------------------------------------------------
+
+  if (total === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-20 text-center">
+        <Trophy className="h-12 w-12 text-muted-foreground" />
+        <p className="text-lg font-semibold text-muted-foreground">
+          Bộ thẻ này chưa có từ vựng nào.
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Hãy thêm thẻ để bắt đầu luyện tập!
+        </p>
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Completion screen
+  // -------------------------------------------------------------------------
+
+  if (done) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-6 py-16 text-center">
+        <div className="flex h-24 w-24 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+          <Trophy className="h-12 w-12 text-green-600 dark:text-green-400" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-3xl font-extrabold tracking-tight">Hoàn thành!</h2>
+          <p className="text-muted-foreground">
+            Bạn đã học thuộc{" "}
+            <span className="font-bold text-green-600">{mastered}</span> /{" "}
+            <span className="font-bold">{total}</span> từ trong vòng này.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Luyện tập thêm để ghi nhớ lâu hơn nhé!
+          </p>
+        </div>
+        <Button
+          size="lg"
+          className="mt-2 gap-2"
+          onClick={handleRestart}
+        >
+          <RotateCw className="h-4 w-4" />
+          Học lại từ đầu
+        </Button>
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // Main study UI
+  // -------------------------------------------------------------------------
+
+  const current = queue[0];
+  const progressPct = total > 0 ? Math.round((mastered / total) * 100) : 0;
+
+  return (
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
+      {/* Progress bar */}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <span>
+            Đã thuộc{" "}
+            <span className="font-semibold text-foreground">{mastered}</span> /{" "}
+            {total}
+          </span>
+          <span className="font-semibold">{progressPct}%</span>
+        </div>
+        <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-green-500 transition-all duration-500"
+            style={{ width: `${progressPct}%` }}
+          />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Còn lại trong hàng đợi:{" "}
+          <span className="font-semibold">{queue.length}</span>
+        </p>
+      </div>
+
+      {/* Flashcard */}
+      <Card className="rounded-3xl shadow-md">
+        <CardContent className="flex min-h-[280px] flex-col items-center justify-center gap-6 p-8 text-center">
+          {/* Term */}
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Từ / Thuật ngữ
+            </p>
+            <h2 className="text-4xl font-extrabold tracking-tight">
+              {current.term}
+            </h2>
+          </div>
+
+          {/* Reveal button or definition */}
+          {!revealed ? (
+            <Button
+              variant="outline"
+              size="lg"
+              className="gap-2"
+              onClick={handleReveal}
+            >
+              <Eye className="h-4 w-4" />
+              Hiện nghĩa
+            </Button>
+          ) : (
+            <div className="w-full space-y-3 rounded-2xl border border-border bg-muted/40 p-5 text-left">
+              <div>
+                <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  Định nghĩa
+                </p>
+                <p className="text-lg font-semibold leading-snug">
+                  {current.definition}
+                </p>
+              </div>
+              {current.example && (
+                <div>
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    Ví dụ
+                  </p>
+                  <p className="italic text-muted-foreground">
+                    {current.example}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Action buttons — only visible after reveal */}
+      <div
+        className={cn(
+          "grid grid-cols-2 gap-4 transition-all duration-300",
+          revealed
+            ? "pointer-events-auto opacity-100"
+            : "pointer-events-none opacity-0",
+        )}
+      >
+        <Button
+          size="xl"
+          className={cn(
+            "gap-2 rounded-2xl text-white",
+            "bg-amber-500 hover:bg-amber-600 active:bg-amber-700",
+          )}
+          onClick={handleNotMastered}
+          aria-label="Chưa thuộc"
+        >
+          <X className="h-5 w-5" />
+          Chưa thuộc
+        </Button>
+        <Button
+          size="xl"
+          className={cn(
+            "gap-2 rounded-2xl text-white",
+            "bg-green-600 hover:bg-green-700 active:bg-green-800",
+          )}
+          onClick={handleMastered}
+          aria-label="Đã thuộc"
+        >
+          <Check className="h-5 w-5" />
+          Đã thuộc ✓
+        </Button>
+      </div>
+    </div>
+  );
+}

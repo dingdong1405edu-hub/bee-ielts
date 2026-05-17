@@ -6,13 +6,15 @@ import { Sidebar, MobileMenu } from "@/components/learn/sidebar";
 import { StatsBar } from "@/components/learn/stats-bar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LearnBackground } from "@/components/learn/learn-background";
+import { AddWordButton } from "@/components/words/add-word-button";
+import { PopQuiz } from "@/components/words/pop-quiz";
 
 export default async function LearnLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { xp: true, hearts: true, streakDays: true, name: true, role: true, avatarUrl: true, email: true },
+    select: { xp: true, hearts: true, streakDays: true, name: true, role: true, avatarUrl: true, email: true, popQuizOn: true },
   });
   const isAdmin = user?.role === "ADMIN";
   const initials = (user?.name || user?.email || "U").slice(0, 2).toUpperCase();
@@ -49,6 +51,8 @@ export default async function LearnLayout({ children }: { children: React.ReactN
         </header>
         <main className="flex-1 p-4 md:p-8">{children}</main>
       </div>
+      <AddWordButton />
+      <PopQuiz enabled={user?.popQuizOn ?? false} />
     </div>
   );
 }

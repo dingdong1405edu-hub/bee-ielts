@@ -55,6 +55,7 @@ model User {
   lastActiveAt DateTime?
   targetBand   Float     @default(6.0)
   examDate     DateTime?
+  popQuizOn    Boolean   @default(false)
   streakRestoresUsed Int  @default(0)
   streakRestoreMonth String?
   avatarUrl    String?   @db.Text
@@ -70,6 +71,32 @@ model User {
   postLikes       PostLike[]
   postComments    PostComment[]
   readingComments ReadingComment[]
+  wordDecks       WordDeck[]
+}
+
+// User-created Quizlet-style vocabulary decks.
+model WordDeck {
+  id        String     @id @default(cuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  cards     WordCard[]
+  createdAt DateTime   @default(now())
+
+  @@index([userId])
+}
+
+model WordCard {
+  id         String   @id @default(cuid())
+  deckId     String
+  deck       WordDeck @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  term       String
+  definition String   @db.Text
+  example    String?  @db.Text
+  mastered   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([deckId])
 }
 
 model Post {

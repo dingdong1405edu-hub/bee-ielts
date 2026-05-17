@@ -296,6 +296,26 @@ Return JSON only.`;
   };
 }
 
+/** Generate a Vietnamese meaning + an English example sentence for a word. */
+export async function defineWordGroq(
+  term: string,
+): Promise<{ definition: string; example: string }> {
+  const text = await groqChat(
+    [
+      {
+        role: "system",
+        content: `You help Vietnamese learners study English vocabulary.
+For the given English word or phrase, return ONLY valid JSON:
+{"definition":"<nghĩa tiếng Việt ngắn gọn, rõ ràng — có thể kèm loại từ>","example":"<one natural English example sentence using the word>"}`,
+      },
+      { role: "user", content: `Word/phrase: ${term}` },
+    ],
+    { jsonMode: true, temperature: 0.3, maxTokens: 300 },
+  );
+  const p = extractJSON(text) as { definition?: string; example?: string };
+  return { definition: p.definition ?? "", example: p.example ?? "" };
+}
+
 export interface TipsInput {
   skill: "READING" | "LISTENING" | "WRITING" | "SPEAKING" | "VOCAB" | "GRAMMAR";
   score?: number;
