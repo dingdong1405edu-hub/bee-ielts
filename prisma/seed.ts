@@ -4,6 +4,10 @@ import { VOCAB_UNITS } from "./data/vocab";
 import { GRAMMAR_UNITS } from "./data/grammar";
 import { READING_TESTS } from "./data/reading";
 import { READING_TESTS_V2 } from "./data/reading-v2";
+import { READING_V3_A } from "./data/reading-v3a";
+import { READING_V3_B } from "./data/reading-v3b";
+import { READING_V3_C } from "./data/reading-v3c";
+import { READING_V3_D } from "./data/reading-v3d";
 import { LISTENING_TESTS } from "./data/listening";
 import { WRITING_TASKS, SPEAKING_SETS } from "./data/writing-speaking";
 
@@ -93,7 +97,13 @@ async function main() {
   // leftover legacy un-slotted seed tests are removed once by title.
   await prisma.readingTest.deleteMany({ where: { slot: { not: null } } });
   await prisma.readingTest.deleteMany({ where: { title: { in: READING_TESTS.map((r) => r.title) } } });
-  const allReadings = [...READING_TESTS_V2];
+  const allReadings = [
+    ...READING_TESTS_V2,
+    ...READING_V3_A,
+    ...READING_V3_B,
+    ...READING_V3_C,
+    ...READING_V3_D,
+  ];
   for (const r of allReadings) {
     await prisma.readingTest.create({
       data: {
