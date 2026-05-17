@@ -37,12 +37,13 @@ interface Author {
   name: string;
   avatarUrl: string | null;
 }
-interface FeedComment {
+export interface FeedComment {
   id: string;
   content: string;
   createdAt: string;
   author: Author;
   isMine: boolean;
+  replies: FeedComment[];
 }
 export interface FeedPost {
   id: string;
@@ -53,6 +54,9 @@ export interface FeedPost {
   isMine: boolean;
   likeCount: number;
   likedByMe: boolean;
+  /** Total comments including nested replies. */
+  commentCount: number;
+  /** Top-level comments; nested replies live in each comment's `replies`. */
   comments: FeedComment[];
 }
 
@@ -271,21 +275,6 @@ function PostCard({ post }: { post: FeedPost }) {
     }
   };
 
-  const deleteComment = async (id: string) => {
-    if (!confirm("Xoá bình luận này?")) return;
-    try {
-      const res = await fetch("/api/community/comment", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
-      });
-      if (!res.ok) throw new Error();
-      router.refresh();
-    } catch {
-      toast.error("Xoá thất bại");
-    }
-  };
-
   return (
     <Card>
       <CardContent className="p-4">
@@ -335,7 +324,7 @@ function PostCard({ post }: { post: FeedPost }) {
                 className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-primary"
               >
                 <MessageCircle className="h-4 w-4" />
-                {post.comments.length > 0 && post.comments.length}
+                {post.commentCount > 0 && post.commentCount}
               </button>
             </div>
 
@@ -343,25 +332,7 @@ function PostCard({ post }: { post: FeedPost }) {
             {showComments && (
               <div className="mt-3 space-y-3 border-t pt-3">
                 {post.comments.map((c) => (
-                  <div key={c.id} className="flex items-start gap-2">
-                    <Avatar author={c.author} size={28} />
-                    <div className="min-w-0 flex-1 rounded-2xl bg-muted/50 px-3 py-2">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold">{c.author.name}</span>
-                        <span className="text-[10px] text-muted-foreground">· {timeAgo(c.createdAt)}</span>
-                        {c.isMine && (
-                          <button
-                            onClick={() => deleteComment(c.id)}
-                            className="ml-auto text-muted-foreground hover:text-destructive"
-                            aria-label="Xoá bình luận"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        )}
-                      </div>
-                      <p className="text-sm whitespace-pre-wrap break-words">{c.content}</p>
-                    </div>
-                  </div>
+                  <CommentNode key={c.id} comment={c} postId={post.id} />
                 ))}
                 <div className="flex items-center gap-2">
                   <input
@@ -393,5 +364,116 @@ function PostCard({ post }: { post: FeedPost }) {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+/** A single comment with its nested replies. Renders recursively. */
+function CommentNode({ comment, postId }: { comment: FeedComment; postId: string }) {
+  const router = useRouter();
+  const [replying, setReplying] = useState(false);
+  const [replyDraft, setReplyDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submitReply = async () => {
+    if (!replyDraft.trim() || busy) return;
+    setBusy(true);
+    try {
+      const res = await fetch("/api/community/comment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId, content: replyDraft.trim(), parentId: comment.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Lỗi");
+      setReplyDraft("");
+      setReplying(false);
+      router.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Trả lời thất bại");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deleteComment = async () => {
+    if (!confirm("Xoá bình luận này?")) return;
+    try {
+      const res = await fetch("/api/community/comment", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: comment.id }),
+      });
+      if (!res.ok) throw new Error();
+      router.refresh();
+    } catch {
+      toast.error("Xoá thất bại");
+    }
+  };
+
+  return (
+    <div className="flex items-start gap-2">
+      <Avatar author={comment.author} size={28} />
+      <div className="min-w-0 flex-1">
+        <div className="rounded-2xl bg-muted/50 px-3 py-2">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-bold">{comment.author.name}</span>
+            <span className="text-[10px] text-muted-foreground">· {timeAgo(comment.createdAt)}</span>
+            {comment.isMine && (
+              <button
+                onClick={deleteComment}
+                className="ml-auto text-muted-foreground hover:text-destructive"
+                aria-label="Xoá bình luận"
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+          <p className="text-sm whitespace-pre-wrap break-words">{comment.content}</p>
+        </div>
+
+        <button
+          onClick={() => setReplying((v) => !v)}
+          className="mt-1 ml-3 text-[11px] font-bold text-muted-foreground hover:text-primary"
+        >
+          Trả lời
+        </button>
+
+        {replying && (
+          <div className="mt-2 flex items-center gap-2">
+            <input
+              value={replyDraft}
+              onChange={(e) => setReplyDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  submitReply();
+                }
+              }}
+              autoFocus
+              maxLength={500}
+              placeholder={`Trả lời ${comment.author.name}...`}
+              className="flex-1 rounded-full border-2 bg-background px-3 py-1.5 text-sm"
+            />
+            <Button
+              onClick={submitReply}
+              disabled={busy || !replyDraft.trim()}
+              size="sm"
+              variant="brand"
+              className="rounded-full shrink-0"
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            </Button>
+          </div>
+        )}
+
+        {comment.replies.length > 0 && (
+          <div className="mt-2 space-y-3 border-l-2 border-muted pl-3">
+            {comment.replies.map((r) => (
+              <CommentNode key={r.id} comment={r} postId={postId} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

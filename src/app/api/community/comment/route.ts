@@ -7,6 +7,7 @@ import { moderateText, MODERATION_MESSAGE } from "@/lib/moderation";
 const createSchema = z.object({
   postId: z.string().min(1),
   content: z.string().trim().min(1).max(500),
+  parentId: z.string().min(1).optional(),
 });
 const deleteSchema = z.object({ id: z.string().min(1) });
 
@@ -23,8 +24,24 @@ export async function POST(req: Request) {
   const post = await prisma.post.findUnique({ where: { id: parsed.data.postId }, select: { id: true } });
   if (!post) return NextResponse.json({ error: "Bài viết không tồn tại" }, { status: 404 });
 
+  // A reply must point at a comment that belongs to the same post.
+  if (parsed.data.parentId) {
+    const parent = await prisma.postComment.findUnique({
+      where: { id: parsed.data.parentId },
+      select: { postId: true },
+    });
+    if (!parent || parent.postId !== parsed.data.postId) {
+      return NextResponse.json({ error: "Bình luận gốc không tồn tại" }, { status: 404 });
+    }
+  }
+
   await prisma.postComment.create({
-    data: { postId: parsed.data.postId, userId: session.user.id, content: parsed.data.content },
+    data: {
+      postId: parsed.data.postId,
+      userId: session.user.id,
+      content: parsed.data.content,
+      parentId: parsed.data.parentId ?? null,
+    },
   });
   return NextResponse.json({ ok: true });
 }
