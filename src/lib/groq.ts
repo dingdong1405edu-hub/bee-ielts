@@ -147,6 +147,12 @@ Return ONLY valid JSON:
     "pronunciation": { "band": 6, "feedback": "<tiếng Việt — nhận xét phát âm, nhắc tới các từ phát âm chưa rõ>", "note": "Đánh giá từ transcript + độ tin cậy nhận dạng giọng nói." }
   },
   "observations": ["<nhận xét cụ thể — tiếng Việt>"],
+  "corrections": [
+    { "original": "<câu/cụm SAI trích nguyên văn từ transcript>", "corrected": "<bản đã SỬA LẠI cho đúng — tiếng Anh>", "explanation": "<sai ở đâu & vì sao — tiếng Việt>" }
+  ],
+  "pronunciationFixes": [
+    { "word": "<một từ candidate phát âm chưa chuẩn>", "ipa": "/<phiên âm IPA chuẩn của từ>/", "tip": "<mẹo đọc đúng — tiếng Việt>" }
+  ],
   "openingPhrases": ["<2-3 cách MỞ câu trả lời hay, tiếng Anh, hợp với chủ đề này>"],
   "closingPhrases": ["<2-3 cách KẾT câu trả lời hay, tiếng Anh, hợp chủ đề>"],
   "usefulPhrases": [{ "phrase": "<cụm/idiom tiếng Anh hữu ích cho chủ đề này>", "use": "<dùng khi nào — tiếng Việt>" }],
@@ -154,7 +160,7 @@ Return ONLY valid JSON:
   "summary": "<nhận xét tổng quan ngắn — tiếng Việt>"
 }
 
-Provide 4-6 observations and 4-6 usefulPhrases. The opening/closing/useful phrases must be tailored to THIS topic, not generic.`;
+Provide 4-6 observations and 4-6 usefulPhrases. For "corrections": find the real grammar/word-choice/collocation mistakes in the transcript and SHOW THE FIXED VERSION (do not merely point them out) — give 3-6 items, or [] if the transcript is genuinely error-free. For "pronunciationFixes": give an item with correct IPA for EACH word in the low-confidence list (and any other clearly mispronounced word) — these are words the candidate said unclearly. The opening/closing/useful phrases must be tailored to THIS topic, not generic.`;
 
 const TIPS_SYS = `You are a friendly IELTS coach giving practical actionable tips. Tone: warm, Gen-Z friendly. Write in Vietnamese.
 Return ONLY valid JSON:

@@ -18,6 +18,8 @@ type SpeakingFeedback = {
     pronunciation?: Crit;
   };
   observations?: string[];
+  corrections?: { original: string; corrected: string; explanation: string }[];
+  pronunciationFixes?: { word: string; ipa: string; tip: string }[];
 };
 
 export default async function SpeakingReviewPage({ params }: { params: { attemptId: string } }) {
@@ -116,6 +118,40 @@ export default async function SpeakingReviewPage({ params }: { params: { attempt
                 </li>
               ))}
             </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      {fb.pronunciationFixes && fb.pronunciationFixes.length > 0 && (
+        <Card>
+          <CardContent className="p-5 space-y-2">
+            <h3 className="font-extrabold mb-1">Sửa phát âm</h3>
+            <div className="grid sm:grid-cols-2 gap-2">
+              {fb.pronunciationFixes.map((p, i) => (
+                <div key={i} className="rounded-lg border p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold">{p.word}</span>
+                    <span className="text-sm font-mono text-primary">{p.ipa}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">{p.tip}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {fb.corrections && fb.corrections.length > 0 && (
+        <Card>
+          <CardContent className="p-5 space-y-2">
+            <h3 className="font-extrabold mb-1">Lỗi & cách sửa</h3>
+            {fb.corrections.map((c, i) => (
+              <div key={i} className="rounded-lg border p-3 space-y-1">
+                <p className="text-sm text-destructive line-through">{c.original}</p>
+                <p className="text-sm font-semibold text-success">✅ {c.corrected}</p>
+                <p className="text-xs text-muted-foreground">{c.explanation}</p>
+              </div>
+            ))}
           </CardContent>
         </Card>
       )}

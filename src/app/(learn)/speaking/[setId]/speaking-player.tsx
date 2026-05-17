@@ -7,10 +7,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Mic, Square, Loader2, Volume2, ArrowRight, Trophy, Play, Clock,
-  Sparkles, MessageSquareQuote, ArrowRightToLine, ArrowLeftToLine,
+  Sparkles, MessageSquareQuote, ArrowRightToLine, ArrowLeftToLine, Wand2,
 } from "lucide-react";
 import { formatDuration, cn } from "@/lib/utils";
 import { TipsCard } from "@/components/learn/tips-card";
+import { VoicePicker, useTtsVoice } from "@/components/learn/voice-picker";
 
 interface DGWord {
   word: string;
@@ -24,6 +25,16 @@ interface Phrase {
   phrase: string;
   use: string;
 }
+interface Correction {
+  original: string;
+  corrected: string;
+  explanation: string;
+}
+interface PronFix {
+  word: string;
+  ipa: string;
+  tip: string;
+}
 interface SpeakingResult {
   overallBand: number;
   criteria: {
@@ -33,6 +44,8 @@ interface SpeakingResult {
     pronunciation: { band: number; feedback: string; note?: string };
   };
   observations: string[];
+  corrections?: Correction[];
+  pronunciationFixes?: PronFix[];
   openingPhrases?: string[];
   closingPhrases?: string[];
   usefulPhrases?: Phrase[];
@@ -63,6 +76,7 @@ export function SpeakingPlayer({
 }) {
   const router = useRouter();
   const startedAtRef = useRef<number>(Date.now());
+  const [voice, setVoice] = useTtsVoice();
 
   const [phase, setPhase] = useState<Phase>("intro");
   const [qIdx, setQIdx] = useState(0);
@@ -90,7 +104,7 @@ export function SpeakingPlayer({
       const res = await fetch("/api/speaking/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, voice }),
       });
       if (!res.ok) throw new Error();
       const blob = await res.blob();
@@ -278,6 +292,9 @@ export function SpeakingPlayer({
             <p>📋 Part 1 ({part1Questions.length} câu) → Part 2 (1 phút chuẩn bị) → Part 3 ({part3Questions.length} câu)</p>
           </CardContent>
         </Card>
+        <div className="flex justify-center">
+          <VoicePicker voice={voice} onChange={setVoice} />
+        </div>
         <Button
           variant="brand"
           size="xl"
@@ -361,6 +378,62 @@ export function SpeakingPlayer({
             ))}
           </CardContent>
         </Card>
+
+        {/* Pronunciation fixes — IPA + tips for unclear words */}
+        {result.pronunciationFixes && result.pronunciationFixes.length > 0 && (
+          <Card>
+            <CardContent className="p-5 space-y-3">
+              <h3 className="font-extrabold flex items-center gap-2">
+                <Volume2 className="h-5 w-5 text-rose-500" /> Sửa phát âm
+              </h3>
+              <p className="text-xs text-muted-foreground -mt-1">
+                Phiên âm IPA + cách đọc đúng cho các từ bạn phát âm chưa rõ. Nhấn loa để nghe.
+              </p>
+              <div className="grid sm:grid-cols-2 gap-2">
+                {result.pronunciationFixes.map((p, i) => (
+                  <div key={i} className="rounded-lg border p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <button
+                        onClick={() => playTTS(p.word)}
+                        disabled={ttsBusy}
+                        className="font-bold inline-flex items-center gap-1.5 hover:text-primary"
+                      >
+                        <Volume2 className="h-4 w-4" /> {p.word}
+                      </button>
+                      <span className="text-sm font-mono text-primary">{p.ipa}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">{p.tip}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Corrections — the fixed version of the candidate's mistakes */}
+        {result.corrections && result.corrections.length > 0 && (
+          <Card>
+            <CardContent className="p-5 space-y-3">
+              <h3 className="font-extrabold flex items-center gap-2">
+                <Wand2 className="h-5 w-5 text-emerald-500" /> Lỗi & cách sửa
+              </h3>
+              <div className="space-y-2">
+                {result.corrections.map((c, i) => (
+                  <div key={i} className="rounded-lg border p-3 space-y-1">
+                    <p className="text-sm text-destructive line-through">{c.original}</p>
+                    <p className="text-sm font-semibold text-success flex items-start gap-1.5">
+                      <span className="shrink-0">✅</span>
+                      <button onClick={() => playTTS(c.corrected)} className="text-left hover:underline">
+                        {c.corrected}
+                      </button>
+                    </p>
+                    <p className="text-xs text-muted-foreground">{c.explanation}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Per-task suggestions */}
         {((result.openingPhrases?.length ?? 0) > 0 ||
@@ -470,11 +543,14 @@ export function SpeakingPlayer({
             <div className="font-extrabold">{phaseLabel}</div>
           </div>
         </div>
-        {phase === "part2-prep" && (
-          <Badge variant="outline" className="bg-white/15 border-white/30 text-white text-base px-3 py-1">
-            <Clock className="h-4 w-4 mr-1" /> {formatDuration(prepLeft)}
-          </Badge>
-        )}
+        <div className="flex items-center gap-2">
+          {phase === "part2-prep" && (
+            <Badge variant="outline" className="bg-white/15 border-white/30 text-white text-base px-3 py-1">
+              <Clock className="h-4 w-4 mr-1" /> {formatDuration(prepLeft)}
+            </Badge>
+          )}
+          <VoicePicker voice={voice} onChange={setVoice} />
+        </div>
       </div>
 
       {/* Part 2 prep */}

@@ -3,9 +3,10 @@
  * text-to-speech (Aura voices). The API key stays server-side.
  */
 
+import { DEFAULT_VOICE } from "./tts-voices";
+
 const DG_LISTEN = "https://api.deepgram.com/v1/listen";
 const DG_SPEAK = "https://api.deepgram.com/v1/speak";
-const TTS_MODEL = "aura-asteria-en";
 const STT_MODEL = "nova-2";
 
 function key(): string {
@@ -53,10 +54,10 @@ export async function deepgramTranscribe(audio: ArrayBuffer, contentType: string
   };
 }
 
-/** Synthesize speech for `text`. Returns MP3 audio bytes. */
-export async function deepgramSpeak(text: string): Promise<ArrayBuffer> {
+/** Synthesize speech for `text` with the chosen Aura voice. Returns MP3 bytes. */
+export async function deepgramSpeak(text: string, voice: string = DEFAULT_VOICE): Promise<ArrayBuffer> {
   const clean = text.slice(0, 1800);
-  const url = `${DG_SPEAK}?model=${TTS_MODEL}&encoding=mp3`;
+  const url = `${DG_SPEAK}?model=${encodeURIComponent(voice)}&encoding=mp3`;
   const res = await fetch(url, {
     method: "POST",
     headers: { Authorization: `Token ${key()}`, "Content-Type": "application/json" },

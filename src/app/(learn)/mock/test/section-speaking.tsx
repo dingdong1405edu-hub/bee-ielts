@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Mic, MicOff, Volume2, Clock } from "lucide-react";
 import { formatDuration } from "@/lib/utils";
-import { speakWithPauses, stopSpeaking, isTTSSupported } from "@/lib/tts";
+import { VoicePicker, useTtsVoice } from "@/components/learn/voice-picker";
 
 const INTRO_TEXT =
   "Welcome to the speaking portion of the IELTS exam. My name is Adrian. I will be your examiner for this part of the test, and I will give you instructions for each of the three parts. Firstly, I will record this for marking purposes.";
@@ -39,14 +39,46 @@ export function MockSpeaking({ topic, part1Questions, part2CueCard, part3Questio
   const recRef = useRef<unknown>(null);
   const [part2Remaining, setPart2Remaining] = useState(PART2_PREP_SEC);
   const part2TimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [voice, setVoice] = useTtsVoice();
+  const voiceRef = useRef(voice);
+  voiceRef.current = voice;
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  const stopSpeak = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    setSpeaking(false);
+  };
+
+  // Read a prompt aloud with the chosen Deepgram voice. Resolves when audio ends.
   const speak = async (text: string) => {
-    if (!isTTSSupported()) return;
     setSpeaking(true);
     try {
-      await speakWithPauses(text, { rate: 0.92 });
-    } catch (e) {
-      console.error(e);
+      const res = await fetch("/api/speaking/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, voice: voiceRef.current }),
+      });
+      if (!res.ok) throw new Error("tts");
+      const url = URL.createObjectURL(await res.blob());
+      if (audioRef.current) audioRef.current.pause();
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      await new Promise<void>((resolve) => {
+        audio.onended = () => {
+          URL.revokeObjectURL(url);
+          resolve();
+        };
+        audio.onerror = () => {
+          URL.revokeObjectURL(url);
+          resolve();
+        };
+        audio.play().catch(() => resolve());
+      });
+    } catch {
+      /* ignore TTS errors — keep the exam flowing */
     } finally {
       setSpeaking(false);
     }
@@ -106,7 +138,7 @@ export function MockSpeaking({ topic, part1Questions, part2CueCard, part3Questio
       setPhase("part1");
       setQuestionIdx(0);
     })();
-    return () => stopSpeaking();
+    return () => stopSpeak();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
@@ -118,7 +150,7 @@ export function MockSpeaking({ topic, part1Questions, part2CueCard, part3Questio
     (async () => {
       await speak(`Question ${questionIdx + 1}. ${q}`);
     })();
-    return () => stopSpeaking();
+    return () => stopSpeak();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, questionIdx]);
 
@@ -175,7 +207,7 @@ export function MockSpeaking({ topic, part1Questions, part2CueCard, part3Questio
     (async () => {
       await speak(`Question ${questionIdx + 1}. ${q}`);
     })();
-    return () => stopSpeaking();
+    return () => stopSpeak();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, questionIdx]);
 
@@ -184,7 +216,7 @@ export function MockSpeaking({ topic, part1Questions, part2CueCard, part3Questio
     if (questionIdx + 1 < part1Questions.length) {
       setQuestionIdx(questionIdx + 1);
     } else {
-      stopSpeaking();
+      stopSpeak();
       (async () => {
         await speak("Thank you. Now let's move to part 2. I will give you a topic, and you have one minute to prepare. Then you will speak for one to two minutes.");
         await speak(`The topic is: ${part2CueCard.topic}`);
@@ -198,7 +230,7 @@ export function MockSpeaking({ topic, part1Questions, part2CueCard, part3Questio
     if (questionIdx + 1 < part3Questions.length) {
       setQuestionIdx(questionIdx + 1);
     } else {
-      stopSpeaking();
+      stopSpeak();
       (async () => {
         await speak("Thank you. That is the end of the speaking test.");
         setPhase("review");
@@ -216,9 +248,12 @@ export function MockSpeaking({ topic, part1Questions, part2CueCard, part3Questio
             <div className="font-extrabold">Speaking</div>
           </div>
         </div>
-        <Badge variant="outline" className="bg-white/15 border-white/30 text-white text-base px-3 py-1">
-          {phase === "part1" ? "Part 1" : phase === "part2-prep" ? "Part 2 (prep)" : phase === "part2-speak" ? "Part 2" : phase === "part3" ? "Part 3" : phase === "intro" ? "Intro" : "Review"}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <VoicePicker voice={voice} onChange={setVoice} />
+          <Badge variant="outline" className="bg-white/15 border-white/30 text-white text-base px-3 py-1">
+            {phase === "part1" ? "Part 1" : phase === "part2-prep" ? "Part 2 (prep)" : phase === "part2-speak" ? "Part 2" : phase === "part3" ? "Part 3" : phase === "intro" ? "Intro" : "Review"}
+          </Badge>
+        </div>
       </div>
 
       {phase === "intro" && (
