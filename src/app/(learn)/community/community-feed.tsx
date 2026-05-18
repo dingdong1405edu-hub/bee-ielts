@@ -2,9 +2,9 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Heart, MessageCircle, Trash2, Loader2, Send, ShieldCheck, ImagePlus, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Heart, MessageCircle, Repeat2, Send, Loader2, ImagePlus, X, MoreHorizontal,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /** Resize an image file to fit within maxW×maxH and return a JPEG data URL. */
@@ -60,22 +60,23 @@ export interface FeedPost {
   comments: FeedComment[];
 }
 
+/** Short "time ago" label, Threads-style ("5 giờ", "3 ngày"). */
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const m = Math.floor(diff / 60000);
   if (m < 1) return "vừa xong";
-  if (m < 60) return `${m} phút trước`;
+  if (m < 60) return `${m} phút`;
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h} giờ trước`;
+  if (h < 24) return `${h} giờ`;
   const d = Math.floor(h / 24);
-  if (d < 7) return `${d} ngày trước`;
+  if (d < 7) return `${d} ngày`;
   return new Date(iso).toLocaleDateString("vi-VN");
 }
 
-function Avatar({ author, size = 40 }: { author: Author; size?: number }) {
+function Avatar({ author, size = 36 }: { author: Author; size?: number }) {
   return (
     <div
-      className="shrink-0 overflow-hidden rounded-full bg-muted grid place-items-center"
+      className="shrink-0 overflow-hidden rounded-full bg-zinc-200 grid place-items-center ring-1 ring-zinc-200"
       style={{ width: size, height: size }}
     >
       {author.avatarUrl ? (
@@ -90,7 +91,13 @@ function Avatar({ author, size = 40 }: { author: Author; size?: number }) {
   );
 }
 
-export function CommunityFeed({ posts }: { posts: FeedPost[] }) {
+export function CommunityFeed({
+  posts,
+  currentUser,
+}: {
+  posts: FeedPost[];
+  currentUser: Author;
+}) {
   const router = useRouter();
   const [draft, setDraft] = useState("");
   const [image, setImage] = useState<string | null>(null);
@@ -133,22 +140,23 @@ export function CommunityFeed({ posts }: { posts: FeedPost[] }) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="rounded-2xl border border-zinc-200 bg-white">
       {/* Composer */}
-      <Card>
-        <CardContent className="p-4">
+      <div className="flex items-start gap-3 px-4 py-4 border-b border-zinc-200">
+        <Avatar author={currentUser} />
+        <div className="min-w-0 flex-1">
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             maxLength={1000}
-            rows={3}
-            placeholder="Bạn đang nghĩ gì? Chia sẻ tiến độ học, đặt câu hỏi..."
-            className="w-full resize-none rounded-lg border-2 bg-background px-3 py-2 text-sm"
+            rows={2}
+            placeholder="Có gì mới?"
+            className="w-full resize-none bg-transparent text-[15px] text-zinc-900 placeholder:text-zinc-400 outline-none"
           />
           {image && (
-            <div className="relative mt-2 w-fit">
+            <div className="relative mt-1 w-fit">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={image} alt="preview" className="max-h-56 rounded-lg border" />
+              <img src={image} alt="preview" className="max-h-56 rounded-xl border border-zinc-200" />
               <button
                 onClick={() => setImage(null)}
                 className="absolute -right-2 -top-2 grid h-7 w-7 place-items-center rounded-full bg-zinc-900 text-white shadow"
@@ -169,44 +177,70 @@ export function CommunityFeed({ posts }: { posts: FeedPost[] }) {
               e.target.value = "";
             }}
           />
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <button
-                onClick={() => fileInput.current?.click()}
-                className="flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-bold text-muted-foreground hover:border-primary hover:text-primary transition-colors"
-              >
-                <ImagePlus className="h-3.5 w-3.5" /> Ảnh
-              </button>
-              <span className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground">
-                <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-                Lọc từ thô tục & duyệt ảnh AI
-              </span>
-            </div>
-            <Button
+          <div className="mt-2 flex items-center justify-between">
+            <button
+              onClick={() => fileInput.current?.click()}
+              className="grid h-9 w-9 place-items-center rounded-full text-zinc-500 hover:bg-zinc-100"
+              aria-label="Thêm ảnh"
+            >
+              <ImagePlus className="h-5 w-5" />
+            </button>
+            <button
               onClick={submitPost}
               disabled={posting || (!draft.trim() && !image)}
-              variant="brand"
-              size="sm"
-              className="rounded-full shrink-0"
+              className="flex items-center gap-1.5 rounded-full bg-zinc-900 px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-40"
             >
-              {posting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              {posting && <Loader2 className="h-4 w-4 animate-spin" />}
               Đăng
-            </Button>
+            </button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Feed */}
       {posts.length === 0 ? (
-        <Card>
-          <CardContent className="p-10 text-center text-sm text-muted-foreground">
-            Chưa có bài viết nào. Hãy là người đầu tiên chia sẻ! 🐝
-          </CardContent>
-        </Card>
+        <div className="px-4 py-16 text-center text-sm text-zinc-400">
+          Chưa có bài viết nào. Hãy là người đầu tiên chia sẻ! 🐝
+        </div>
       ) : (
         posts.map((p) => <PostCard key={p.id} post={p} />)
       )}
     </div>
+  );
+}
+
+/** One action button in the post action row (heart / comment / repost / share). */
+function ActionButton({
+  icon: Icon,
+  count,
+  active,
+  filled,
+  activeClass,
+  onClick,
+  label,
+}: {
+  icon: React.ElementType;
+  count?: number;
+  active?: boolean;
+  filled?: boolean;
+  activeClass?: string;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={label}
+      className={cn(
+        "flex items-center gap-1 rounded-full px-2 py-1.5 transition-colors hover:bg-zinc-100",
+        active ? activeClass : "text-zinc-700",
+      )}
+    >
+      <Icon className={cn("h-[19px] w-[19px]", filled && "fill-current")} />
+      {count !== undefined && count > 0 && (
+        <span className="text-[13px] text-zinc-500">{count}</span>
+      )}
+    </button>
   );
 }
 
@@ -219,7 +253,6 @@ function PostCard({ post }: { post: FeedPost }) {
   const [busy, setBusy] = useState(false);
 
   const toggleLike = async () => {
-    // optimistic
     setLiked((v) => !v);
     setLikeCount((c) => c + (liked ? -1 : 1));
     try {
@@ -230,7 +263,6 @@ function PostCard({ post }: { post: FeedPost }) {
       });
       if (!res.ok) throw new Error();
     } catch {
-      // revert
       setLiked((v) => !v);
       setLikeCount((c) => c + (liked ? 1 : -1));
       toast.error("Không thực hiện được");
@@ -275,95 +307,106 @@ function PostCard({ post }: { post: FeedPost }) {
     }
   };
 
+  const sharePost = async () => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/community`);
+      toast.success("Đã sao chép liên kết cộng đồng");
+    } catch {
+      toast.error("Không sao chép được");
+    }
+  };
+
   return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex items-start gap-3">
-          <Avatar author={post.author} />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-sm truncate">{post.author.name}</span>
-              <span className="text-xs text-muted-foreground">· {timeAgo(post.createdAt)}</span>
-              {post.isMine && (
-                <button
-                  onClick={deletePost}
-                  disabled={busy}
-                  className="ml-auto text-muted-foreground hover:text-destructive"
-                  aria-label="Xoá bài"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-            {post.content && (
-              <p className="mt-1 text-sm whitespace-pre-wrap break-words">{post.content}</p>
-            )}
-            {post.imageUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={post.imageUrl}
-                alt="post"
-                className="mt-2 max-h-[420px] w-auto rounded-xl border"
-              />
-            )}
-
-            {/* actions */}
-            <div className="mt-3 flex items-center gap-4">
-              <button
-                onClick={toggleLike}
-                className={cn(
-                  "flex items-center gap-1.5 text-sm font-semibold transition-colors",
-                  liked ? "text-rose-500" : "text-muted-foreground hover:text-rose-500",
-                )}
-              >
-                <Heart className={cn("h-4 w-4", liked && "fill-rose-500")} />
-                {likeCount > 0 && likeCount}
-              </button>
-              <button
-                onClick={() => setShowComments((v) => !v)}
-                className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-primary"
-              >
-                <MessageCircle className="h-4 w-4" />
-                {post.commentCount > 0 && post.commentCount}
-              </button>
-            </div>
-
-            {/* comments */}
-            {showComments && (
-              <div className="mt-3 space-y-3 border-t pt-3">
-                {post.comments.map((c) => (
-                  <CommentNode key={c.id} comment={c} postId={post.id} />
-                ))}
-                <div className="flex items-center gap-2">
-                  <input
-                    value={commentDraft}
-                    onChange={(e) => setCommentDraft(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        submitComment();
-                      }
-                    }}
-                    maxLength={500}
-                    placeholder="Viết bình luận..."
-                    className="flex-1 rounded-full border-2 bg-background px-3 py-1.5 text-sm"
-                  />
-                  <Button
-                    onClick={submitComment}
-                    disabled={busy || !commentDraft.trim()}
-                    size="sm"
-                    variant="brand"
-                    className="rounded-full shrink-0"
-                  >
-                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
+    <article className="flex gap-3 px-4 py-4 border-b border-zinc-200 last:border-b-0">
+      <Avatar author={post.author} />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          <span className="font-semibold text-[15px] text-zinc-900 truncate">{post.author.name}</span>
+          <span className="text-[15px] text-zinc-400">{timeAgo(post.createdAt)}</span>
+          {post.isMine && (
+            <button
+              onClick={deletePost}
+              disabled={busy}
+              className="ml-auto grid h-7 w-7 place-items-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+              aria-label="Tuỳ chọn bài viết"
+            >
+              <MoreHorizontal className="h-5 w-5" />
+            </button>
+          )}
         </div>
-      </CardContent>
-    </Card>
+
+        {post.content && (
+          <p className="mt-0.5 text-[15px] leading-normal text-zinc-900 whitespace-pre-wrap break-words">
+            {post.content}
+          </p>
+        )}
+        {post.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={post.imageUrl}
+            alt="post"
+            className="mt-2 max-h-[430px] w-auto rounded-xl border border-zinc-200"
+          />
+        )}
+
+        {/* action row */}
+        <div className="mt-1.5 flex items-center gap-1 -ml-2">
+          <ActionButton
+            icon={Heart}
+            count={likeCount}
+            active={liked}
+            filled={liked}
+            activeClass="text-rose-500"
+            onClick={toggleLike}
+            label="Thích"
+          />
+          <ActionButton
+            icon={MessageCircle}
+            count={post.commentCount}
+            onClick={() => setShowComments((v) => !v)}
+            label="Bình luận"
+          />
+          <ActionButton
+            icon={Repeat2}
+            onClick={() => toast.info("Tính năng chia sẻ lại đang được phát triển 🐝")}
+            label="Chia sẻ lại"
+          />
+          <ActionButton icon={Send} onClick={sharePost} label="Chia sẻ" />
+        </div>
+
+        {/* comments */}
+        {showComments && (
+          <div className="mt-3 space-y-3 border-t border-zinc-200 pt-3">
+            {post.comments.map((c) => (
+              <CommentNode key={c.id} comment={c} postId={post.id} />
+            ))}
+            <div className="flex items-center gap-2">
+              <input
+                value={commentDraft}
+                onChange={(e) => setCommentDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    submitComment();
+                  }
+                }}
+                maxLength={500}
+                placeholder="Viết bình luận..."
+                className="flex-1 rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-400 outline-none focus:border-zinc-500"
+              />
+              <button
+                onClick={submitComment}
+                disabled={busy || !commentDraft.trim()}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-zinc-900 text-white disabled:opacity-40"
+                aria-label="Gửi bình luận"
+              >
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </article>
   );
 }
 
@@ -414,26 +457,26 @@ function CommentNode({ comment, postId }: { comment: FeedComment; postId: string
     <div className="flex items-start gap-2">
       <Avatar author={comment.author} size={28} />
       <div className="min-w-0 flex-1">
-        <div className="rounded-2xl bg-muted/50 px-3 py-2">
+        <div className="rounded-2xl bg-zinc-100 px-3 py-2">
           <div className="flex items-center gap-1.5">
-            <span className="text-xs font-bold">{comment.author.name}</span>
-            <span className="text-[10px] text-muted-foreground">· {timeAgo(comment.createdAt)}</span>
+            <span className="text-xs font-bold text-zinc-900">{comment.author.name}</span>
+            <span className="text-[10px] text-zinc-400">· {timeAgo(comment.createdAt)}</span>
             {comment.isMine && (
               <button
                 onClick={deleteComment}
-                className="ml-auto text-muted-foreground hover:text-destructive"
+                className="ml-auto text-zinc-400 hover:text-rose-500"
                 aria-label="Xoá bình luận"
               >
-                <Trash2 className="h-3 w-3" />
+                <X className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
-          <p className="text-sm whitespace-pre-wrap break-words">{comment.content}</p>
+          <p className="text-sm text-zinc-900 whitespace-pre-wrap break-words">{comment.content}</p>
         </div>
 
         <button
           onClick={() => setReplying((v) => !v)}
-          className="mt-1 ml-3 text-[11px] font-bold text-muted-foreground hover:text-primary"
+          className="mt-1 ml-3 text-[11px] font-bold text-zinc-500 hover:text-zinc-900"
         >
           Trả lời
         </button>
@@ -452,22 +495,21 @@ function CommentNode({ comment, postId }: { comment: FeedComment; postId: string
               autoFocus
               maxLength={500}
               placeholder={`Trả lời ${comment.author.name}...`}
-              className="flex-1 rounded-full border-2 bg-background px-3 py-1.5 text-sm"
+              className="flex-1 rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-400 outline-none focus:border-zinc-500"
             />
-            <Button
+            <button
               onClick={submitReply}
               disabled={busy || !replyDraft.trim()}
-              size="sm"
-              variant="brand"
-              className="rounded-full shrink-0"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-zinc-900 text-white disabled:opacity-40"
+              aria-label="Gửi trả lời"
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            </Button>
+            </button>
           </div>
         )}
 
         {comment.replies.length > 0 && (
-          <div className="mt-2 space-y-3 border-l-2 border-muted pl-3">
+          <div className="mt-2 space-y-3 border-l-2 border-zinc-200 pl-3">
             {comment.replies.map((r) => (
               <CommentNode key={r.id} comment={r} postId={postId} />
             ))}

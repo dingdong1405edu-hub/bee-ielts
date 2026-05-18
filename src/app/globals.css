@@ -76,6 +76,7 @@
   }
   html {
     -webkit-text-size-adjust: 100%;
+    @apply bg-background;
   }
   body {
     @apply bg-background text-foreground antialiased;

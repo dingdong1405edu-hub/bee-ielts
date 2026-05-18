@@ -10,6 +10,15 @@ export default async function CommunityPage() {
   if (!session?.user?.id) redirect("/login");
   const me = session.user.id;
 
+  const meUser = await prisma.user.findUnique({
+    where: { id: me },
+    select: { name: true, email: true, avatarUrl: true },
+  });
+  const currentUser = {
+    name: meUser?.name ?? meUser?.email?.split("@")[0] ?? "Bạn",
+    avatarUrl: meUser?.avatarUrl ?? null,
+  };
+
   const posts = await prisma.post.findMany({
     orderBy: { createdAt: "desc" },
     take: 60,
@@ -65,17 +74,27 @@ export default async function CommunityPage() {
   });
 
   return (
-    <div className="max-w-2xl mx-auto">
-      {/* Solid black backdrop for the community page — covers the ambient orbs. */}
-      <div aria-hidden className="fixed inset-0 bg-black" style={{ zIndex: -9 }} />
-      <div className="mb-4">
-        <h1 className="text-2xl font-extrabold tracking-tight">Cộng đồng 🐝</h1>
-        <p className="text-sm text-muted-foreground">
-          Nơi học viên trao đổi, hỏi đáp và động viên nhau. Hãy giữ lời lẽ lịch sự —
-          nội dung thô tục sẽ bị chặn tự động.
-        </p>
+    <div className="-m-4 min-h-screen bg-white text-zinc-900 md:-m-8">
+      <div className="mx-auto flex max-w-[1000px] gap-6 px-4">
+        <main className="mx-auto w-full max-w-[600px]">
+          <h1 className="py-4 text-center text-[15px] font-bold text-zinc-900">Trang chủ</h1>
+          <CommunityFeed posts={feed} currentUser={currentUser} />
+        </main>
+        <aside className="hidden w-[290px] shrink-0 py-4 lg:block">
+          <div className="sticky top-20 space-y-3">
+            <div className="rounded-2xl border border-zinc-200 bg-white p-5 text-center shadow-sm">
+              <h2 className="text-base font-bold text-zinc-900">Cộng đồng Bee IELTS 🐝</h2>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-zinc-500">
+                Xem mọi người đang học gì, hỏi đáp và động viên nhau trên hành trình
+                chinh phục IELTS.
+              </p>
+            </div>
+            <div className="px-3 text-[12px] leading-relaxed text-zinc-400">
+              © 2026 Bee IELTS · Điều khoản · Quyền riêng tư · Cookie · Báo cáo sự cố
+            </div>
+          </div>
+        </aside>
       </div>
-      <CommunityFeed posts={feed} />
     </div>
   );
 }
