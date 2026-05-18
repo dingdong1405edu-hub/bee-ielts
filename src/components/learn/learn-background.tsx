@@ -1,12 +1,15 @@
+import { Honeycomb } from "@/components/honeycomb";
+
 /**
  * Ambient decorative background shared by every learner page.
  * Sits behind all content (`.learn-bg` is fixed, z-index -10) so the large
  * empty areas of the UI feel alive — soft colour orbs spread across the whole
- * viewport, a gentle gradient wash and a faint dot grid (see globals.css).
+ * viewport, a gentle gradient wash and a faint honeycomb texture.
  */
 export function LearnBackground() {
   return (
     <div aria-hidden className="learn-bg">
+      <Honeycomb className="absolute inset-0 h-full w-full text-foreground/[0.06]" />
       {/* top */}
       <div
         className="learn-orb learn-orb-float h-[34rem] w-[34rem] bg-violet-500"

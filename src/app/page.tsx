@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Sparkles, BookOpen, Headphones, PenLine, Mic, Trophy, ArrowRight, Zap, Flame } from "lucide-react";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { LandingBackground } from "@/components/landing-background";
 
 const features = [
   { icon: Sparkles, title: "Từ vựng", desc: "Học từ kiểu Duolingo, XP & streak giữ lửa.", grad: "from-violet-500 to-fuchsia-500" },
@@ -16,27 +17,7 @@ const features = [
 export default function LandingPage() {
   return (
     <main className="relative min-h-screen overflow-hidden">
-      {/* Ambient background — vivid gradient wash + floating colour blobs spread down the page */}
-      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(50rem 34rem at 10% -6%, hsl(265 95% 64% / 0.34), transparent 68%)," +
-              "radial-gradient(46rem 34rem at 98% 8%, hsl(322 95% 64% / 0.30), transparent 68%)," +
-              "radial-gradient(44rem 34rem at 2% 50%, hsl(196 95% 56% / 0.24), transparent 68%)," +
-              "radial-gradient(48rem 36rem at 100% 64%, hsl(28 96% 58% / 0.22), transparent 68%)," +
-              "radial-gradient(50rem 40rem at 52% 116%, hsl(150 82% 50% / 0.24), transparent 70%)",
-          }}
-        />
-        <div className="absolute -top-28 -left-24 h-80 w-80 rounded-full bg-violet-400 blob animate-blob" />
-        <div className="absolute top-[12%] -right-20 h-[22rem] w-[22rem] rounded-full bg-fuchsia-400 blob animate-blob" style={{ animationDelay: "2s" }} />
-        <div className="absolute top-[34%] -left-28 h-80 w-80 rounded-full bg-sky-400 blob animate-blob" style={{ animationDelay: "4s" }} />
-        <div className="absolute top-[40%] left-[42%] h-72 w-72 rounded-full bg-indigo-400 blob animate-blob" style={{ animationDelay: "7s" }} />
-        <div className="absolute top-[56%] -right-24 h-[22rem] w-[22rem] rounded-full bg-amber-300 blob animate-blob" style={{ animationDelay: "6s" }} />
-        <div className="absolute top-[74%] left-1/4 h-80 w-80 rounded-full bg-emerald-400 blob animate-blob" style={{ animationDelay: "3s" }} />
-        <div className="absolute -bottom-28 right-1/5 h-80 w-80 rounded-full bg-rose-400 blob animate-blob" style={{ animationDelay: "5s" }} />
-      </div>
+      <LandingBackground />
 
       <header className="container flex items-center justify-between py-5">
         <Link href="/" className="flex items-center gap-2">
