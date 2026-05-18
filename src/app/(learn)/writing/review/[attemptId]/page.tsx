@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Calendar } from "lucide-react";
 import { WritingFeedback, type WritingResult } from "@/components/learn/writing-feedback";
+import { AnnotatedEssay } from "@/components/learn/annotated-essay";
 import { TaskDiagram } from "@/components/learn/task-diagram";
 
 export const dynamic = "force-dynamic";
@@ -65,7 +66,18 @@ export default async function WritingReviewPage({ params }: { params: { attemptI
         <CardContent className="p-5 space-y-2">
           <h3 className="font-bold">Bài viết của bạn</h3>
           {essay ? (
-            <p className="whitespace-pre-wrap text-sm leading-relaxed">{essay.normalize("NFC")}</p>
+            <>
+              {result?.annotations && result.annotations.length > 0 && (
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Các cụm <span className="font-bold underline decoration-2">in đậm gạch chân</span> là chỗ
+                  viết sai — di chuột vào để xem lỗi &amp; cách sửa.{" "}
+                  <span className="font-semibold text-rose-600 dark:text-rose-400">Ngữ pháp</span> ·{" "}
+                  <span className="font-semibold text-violet-600 dark:text-violet-400">Từ vựng</span> ·{" "}
+                  <span className="font-semibold text-amber-600 dark:text-amber-400">Mạch ý</span>
+                </p>
+              )}
+              <AnnotatedEssay essay={essay} annotations={result?.annotations ?? []} />
+            </>
           ) : (
             <p className="text-sm text-muted-foreground italic">Bạn không nộp bài viết nào.</p>
           )}

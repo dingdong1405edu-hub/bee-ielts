@@ -48,6 +48,39 @@ export const GRAMMAR_UNITS: GrammarUnitData[] = [
           { type: "fill", prompt: "He bought ___ umbrella.", answer: "an" },
         ],
       },
+      {
+        title: "Plural nouns",
+        order: 4,
+        content: "Most nouns add **-s**. Nouns ending in -s/-sh/-ch/-x add **-es**. Some are irregular.\n\none book → two **books**; one box → two **boxes**; one child → two **children**.",
+        exercises: [
+          { type: "fill", prompt: "I have three ___ (book).", answer: "books" },
+          { type: "fill", prompt: "There are two ___ (box) on the table.", answer: "boxes" },
+          { type: "fill", prompt: "She has five ___ (child).", answer: "children" },
+          { type: "fill", prompt: "We took many ___ (bus) today.", answer: "buses" },
+        ],
+      },
+      {
+        title: "Possessive adjectives",
+        order: 5,
+        content: "Use **my, your, his, her, its, our, their** before a noun to show who owns something.\n\nThis is **my** bag. That is **her** car.",
+        exercises: [
+          { type: "fill", prompt: "I love ___ family. (I)", answer: "my" },
+          { type: "fill", prompt: "He is washing ___ car. (he)", answer: "his" },
+          { type: "fill", prompt: "They painted ___ house. (they)", answer: "their" },
+          { type: "fill", prompt: "She lost ___ keys. (she)", answer: "her" },
+        ],
+      },
+      {
+        title: "There is / There are",
+        order: 6,
+        content: "Use **there is** for one thing (singular) and **there are** for more than one (plural).\n\n**There is** a cat in the garden. **There are** five books on the shelf.",
+        exercises: [
+          { type: "fill", prompt: "___ a pen on the desk.", answer: "There is" },
+          { type: "fill", prompt: "___ three windows in this room.", answer: "There are" },
+          { type: "fill", prompt: "___ some milk in the fridge.", answer: "There is" },
+          { type: "fill", prompt: "___ many people at the party.", answer: "There are" },
+        ],
+      },
     ],
   },
   {
@@ -89,6 +122,37 @@ export const GRAMMAR_UNITS: GrammarUnitData[] = [
           { type: "fill", prompt: "It's the ___ (bad) day ever.", answer: "worst" },
         ],
       },
+      {
+        title: "Adverbs of frequency",
+        order: 4,
+        content: "**always, usually, often, sometimes, rarely, never** say how often. They go BEFORE the main verb but AFTER 'be'.\n\nI **always** drink coffee. She is **never** late.",
+        exercises: [
+          { type: "fill", prompt: "He ___ goes to bed before midnight. (100% of the time)", answer: "always" },
+          { type: "fill", prompt: "I ___ eat fast food. (0% — not at all)", answer: "never" },
+          { type: "fill", prompt: "We ___ visit our grandparents on Sundays. (most of the time)", answer: "usually" },
+        ],
+      },
+      {
+        title: "some / any / much / many",
+        order: 5,
+        content: "**some** = positive sentences. **any** = negatives & questions.\n**much** = uncountable nouns; **many** = countable nouns.\n\nThere is **some** water. Is there **any** sugar? I don't have **much** time. How **many** books?",
+        exercises: [
+          { type: "fill", prompt: "Do you have ___ money?", answer: "any" },
+          { type: "fill", prompt: "There are ___ apples in the basket.", answer: "some" },
+          { type: "fill", prompt: "How ___ students are in the class?", answer: "many" },
+          { type: "fill", prompt: "I don't drink ___ coffee.", answer: "much" },
+        ],
+      },
+      {
+        title: "Past Continuous",
+        order: 6,
+        content: "Use for an action in progress at a past moment. Form: was/were + V-ing.\n\nAt 8pm I **was watching** TV. They **were studying** when I called.",
+        exercises: [
+          { type: "fill", prompt: "I ___ (sleep) when the phone rang.", answer: "was sleeping" },
+          { type: "fill", prompt: "They ___ (play) football at 5pm yesterday.", answer: "were playing" },
+          { type: "fill", prompt: "She ___ (cook) dinner when I arrived.", answer: "was cooking" },
+        ],
+      },
     ],
   },
   {
@@ -125,6 +189,37 @@ export const GRAMMAR_UNITS: GrammarUnitData[] = [
           { type: "fill", prompt: "You ___ see a doctor. (advice)", answer: "should" },
           { type: "fill", prompt: "Children ___ go to school. (obligation)", answer: "must" },
           { type: "fill", prompt: "I ___ speak three languages. (ability)", answer: "can" },
+        ],
+      },
+      {
+        title: "Gerunds & Infinitives",
+        order: 4,
+        content: "Some verbs are followed by **-ing** (enjoy, avoid, finish), others by **to + V** (want, decide, hope).\n\nI enjoy **swimming**. She wants **to leave**.",
+        exercises: [
+          { type: "fill", prompt: "I enjoy ___ (read) before bed.", answer: "reading" },
+          { type: "fill", prompt: "They decided ___ (move) to Hue.", answer: "to move" },
+          { type: "fill", prompt: "He avoids ___ (eat) too much sugar.", answer: "eating" },
+          { type: "fill", prompt: "We hope ___ (see) you soon.", answer: "to see" },
+        ],
+      },
+      {
+        title: "used to",
+        order: 5,
+        content: "**used to + V** describes past habits or states that are no longer true.\n\nI **used to** play piano. She **used to** live in Da Lat.",
+        exercises: [
+          { type: "fill", prompt: "I ___ (smoke), but I quit last year.", answer: "used to smoke" },
+          { type: "fill", prompt: "There ___ (be) a cinema here.", answer: "used to be" },
+          { type: "fill", prompt: "We ___ (walk) to school every day.", answer: "used to walk" },
+        ],
+      },
+      {
+        title: "Defining relative clauses",
+        order: 6,
+        content: "Use **who** (people), **which** (things), **that** (both) to give essential information about a noun.\n\nThe man **who** called you is my uncle. The book **which** I bought is great.",
+        exercises: [
+          { type: "fill", prompt: "The woman ___ lives next door is a nurse. (person)", answer: "who" },
+          { type: "fill", prompt: "This is the phone ___ I told you about. (thing)", answer: "which" },
+          { type: "fill", prompt: "The team ___ wins will get a prize. (people or things)", answer: "that" },
         ],
       },
     ],
@@ -165,6 +260,36 @@ export const GRAMMAR_UNITS: GrammarUnitData[] = [
           { type: "fill", prompt: "They said they ___ (come) tomorrow. (direct: 'We will come')", answer: "would come" },
         ],
       },
+      {
+        title: "Third Conditional (Type 3)",
+        order: 4,
+        content: "Type 3 talks about an unreal, imaginary PAST. Form: If + Past Perfect, would have + past participle.\n\nIf I **had studied**, I **would have passed** the exam.",
+        exercises: [
+          { type: "fill", prompt: "If she ___ (leave) earlier, she would have caught the train.", answer: "had left" },
+          { type: "fill", prompt: "If we had known, we ___ (help) you.", answer: "would have helped" },
+          { type: "fill", prompt: "He would have called if he ___ (have) your number.", answer: "had had" },
+        ],
+      },
+      {
+        title: "Wish / If only",
+        order: 5,
+        content: "**wish + Past** = regret about the present. **wish + Past Perfect** = regret about the past.\n\nI **wish I had** more time. I **wish I had studied** harder.",
+        exercises: [
+          { type: "fill", prompt: "I wish I ___ (be) taller.", answer: "were" },
+          { type: "fill", prompt: "She wishes she ___ (not/say) that yesterday.", answer: "had not said" },
+          { type: "fill", prompt: "If only I ___ (know) the answer now!", answer: "knew" },
+        ],
+      },
+      {
+        title: "The Causative (have something done)",
+        order: 6,
+        content: "Use **have/get + object + past participle** when someone else does the action for you.\n\nI **had my hair cut**. She **got her car repaired**.",
+        exercises: [
+          { type: "fill", prompt: "I need to have my house ___ (paint).", answer: "painted" },
+          { type: "fill", prompt: "She had her photo ___ (take) by a pro.", answer: "taken" },
+          { type: "fill", prompt: "We got the document ___ (translate).", answer: "translated" },
+        ],
+      },
     ],
   },
   {
@@ -199,6 +324,36 @@ export const GRAMMAR_UNITS: GrammarUnitData[] = [
           { type: "fill", prompt: "___ surprised me most was his calm.", answer: "What" },
         ],
       },
+      {
+        title: "Participle clauses",
+        order: 4,
+        content: "Shorten a clause using a participle. **-ing** = active meaning; **-ed** = passive meaning.\n\n**Feeling** tired, she went to bed. **Built** in 1900, the house is old.",
+        exercises: [
+          { type: "fill", prompt: "___ (not/know) what to say, he stayed silent.", answer: "Not knowing" },
+          { type: "fill", prompt: "___ (write) in haste, the letter had errors. (passive)", answer: "Written" },
+          { type: "fill", prompt: "___ (live) abroad for years, she speaks four languages.", answer: "Having lived" },
+        ],
+      },
+      {
+        title: "Concession (although / despite)",
+        order: 5,
+        content: "**although / even though + clause**. **despite / in spite of + noun or -ing**.\n\n**Although** it rained, we went out. **Despite** the rain, we went out.",
+        exercises: [
+          { type: "fill", prompt: "___ being tired, she finished the work. (preposition + -ing)", answer: "Despite" },
+          { type: "fill", prompt: "___ he was rich, he felt unhappy. (conjunction + clause)", answer: "Although" },
+          { type: "fill", prompt: "They arrived on time in ___ of the heavy traffic.", answer: "spite" },
+        ],
+      },
+      {
+        title: "Emphasis with auxiliary 'do'",
+        order: 6,
+        content: "Add **do / does / did** before the main verb to emphasise it.\n\nI **do** like your idea. She **did** finish on time.",
+        exercises: [
+          { type: "fill", prompt: "I ___ believe you — I'm not lying! (present emphasis)", answer: "do" },
+          { type: "fill", prompt: "He ___ apologise, eventually. (past emphasis)", answer: "did" },
+          { type: "fill", prompt: "She ___ enjoy the trip very much. (present, 3rd person)", answer: "does" },
+        ],
+      },
     ],
   },
   {
@@ -231,6 +386,35 @@ export const GRAMMAR_UNITS: GrammarUnitData[] = [
         exercises: [
           { type: "fill", prompt: "The project failed. ___, lessons were learned. (still, despite that)", answer: "Nonetheless" },
           { type: "fill", prompt: "Rents rose sharply. ___, many families left the city. (as a result)", answer: "Consequently" },
+        ],
+      },
+      {
+        title: "Fronting & marked word order",
+        order: 4,
+        content: "Move a phrase to the front for emphasis or cohesion. With **so/such** at the front, invert the verb.\n\n**So** loud **was** the music that we left.\n**Such** was his talent that everyone admired him.",
+        exercises: [
+          { type: "fill", prompt: "So quiet ___ (be) the room that we heard a pin drop.", answer: "was" },
+          { type: "fill", prompt: "Such ___ (be) his charm that nobody could refuse.", answer: "was" },
+        ],
+      },
+      {
+        title: "Ellipsis & substitution",
+        order: 5,
+        content: "Avoid repetition by omitting words or using **one / so / do**.\n\n'Do you like tea?' — 'I think **so**.'\nShe can swim and **so can** he.",
+        exercises: [
+          { type: "fill", prompt: "'Is it raining?' — 'I'm afraid ___.'", answer: "so" },
+          { type: "fill", prompt: "I haven't seen it, and neither ___ she. (auxiliary)", answer: "has" },
+          { type: "fill", prompt: "He likes coffee and so ___ I. (auxiliary)", answer: "do" },
+        ],
+      },
+      {
+        title: "Hedging & cautious language",
+        order: 6,
+        content: "Academic writing uses cautious language: **tend to, appear to, it seems that, may, arguably**.\n\nThis **tends to** suggest... It **appears** that...",
+        exercises: [
+          { type: "fill", prompt: "The results ___ to indicate a clear trend. (tend/appear)", answer: "tend" },
+          { type: "fill", prompt: "It ___ that the policy was effective. (it ___ that...)", answer: "seems" },
+          { type: "fill", prompt: "This finding ___ arguably be questioned. (modal of possibility)", answer: "may" },
         ],
       },
     ],
