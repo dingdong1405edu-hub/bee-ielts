@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { AnnotatedEssay } from "@/components/learn/annotated-essay";
 import {
   AlertTriangle,
   Link2,
@@ -42,9 +43,37 @@ const CATEGORY_COLOR: Record<string, string> = {
   task: "bg-sky-500",
 };
 
-export function WritingFeedback({ result, taskLabel }: { result: WritingResult; taskLabel: string }) {
+export function WritingFeedback({
+  result,
+  taskLabel,
+  essay,
+}: {
+  result: WritingResult;
+  taskLabel: string;
+  /** When provided, the essay is shown with mistakes highlighted inline. */
+  essay?: string;
+}) {
   return (
     <div className="space-y-3">
+      {/* The candidate's essay with mistakes highlighted inline */}
+      {essay && (
+        <Card>
+          <CardContent className="p-5 space-y-2">
+            <h3 className="font-extrabold">Bài viết của bạn</h3>
+            {result.annotations && result.annotations.length > 0 && (
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Các cụm <span className="font-bold underline decoration-2">in đậm gạch chân</span> là chỗ
+                viết sai — di chuột vào để xem lỗi &amp; cách sửa.{" "}
+                <span className="font-semibold text-rose-600 dark:text-rose-400">Ngữ pháp / cấu trúc</span> ·{" "}
+                <span className="font-semibold text-violet-600 dark:text-violet-400">Từ vựng</span> ·{" "}
+                <span className="font-semibold text-amber-600 dark:text-amber-400">Mạch ý</span>
+              </p>
+            )}
+            <AnnotatedEssay essay={essay} annotations={result.annotations ?? []} />
+          </CardContent>
+        </Card>
+      )}
+
       {/* Criteria breakdown */}
       {result.criteria && (
         <Card>

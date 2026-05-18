@@ -94,7 +94,7 @@ export function WritingPlayer({
           </CardContent>
         </Card>
 
-        <WritingFeedback result={result} taskLabel={`Task ${taskType}`} />
+        <WritingFeedback result={result} taskLabel={`Task ${taskType}`} essay={essay} />
 
         <TipsCard skill="WRITING" score={result.overallBand} context={`Writing Task ${taskType} essay`} />
 
