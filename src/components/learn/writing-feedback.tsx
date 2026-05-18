@@ -218,14 +218,18 @@ export function WritingFeedback({
 }
 
 function ModelEssay({ text }: { text: string }) {
-  const [open, setOpen] = useState(false);
+  // Open by default so the sample essay is visible right after submitting.
+  const [open, setOpen] = useState(true);
   return (
-    <Card>
+    <Card className="border-2 border-primary/20">
       <CardContent className="p-5">
         <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-2 w-full">
           <FileText className="h-5 w-5 text-primary" />
-          <h3 className="font-extrabold flex-1 text-left">Bài viết mẫu (band 7.0–7.5)</h3>
-          <ChevronDown className={cn("h-5 w-5 transition-transform", open && "rotate-180")} />
+          <div className="flex-1 text-left">
+            <h3 className="font-extrabold">Bài viết mẫu (band 7.0–7.5)</h3>
+            <p className="text-xs text-muted-foreground">Tham khảo cách viết tốt hơn cho đúng đề bài này</p>
+          </div>
+          <ChevronDown className={cn("h-5 w-5 transition-transform shrink-0", open && "rotate-180")} />
         </button>
         {open && (
           <div className="mt-3 rounded-lg border bg-muted/30 p-4 text-sm leading-relaxed whitespace-pre-wrap">
