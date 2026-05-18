@@ -16,10 +16,24 @@ const features = [
 export default function LandingPage() {
   return (
     <main className="relative min-h-screen overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 -z-10">
+      {/* Ambient background — gradient wash + floating colour blobs spread down the page */}
+      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(48rem 32rem at 12% -4%, hsl(265 92% 64% / 0.20), transparent 70%)," +
+              "radial-gradient(42rem 32rem at 96% 12%, hsl(320 92% 66% / 0.18), transparent 70%)," +
+              "radial-gradient(44rem 34rem at 4% 56%, hsl(196 92% 58% / 0.14), transparent 70%)," +
+              "radial-gradient(46rem 36rem at 54% 112%, hsl(150 78% 54% / 0.13), transparent 70%)",
+          }}
+        />
         <div className="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-violet-300 blob animate-blob" />
-        <div className="absolute top-40 -right-20 h-80 w-80 rounded-full bg-pink-300 blob animate-blob" style={{ animationDelay: "2s" }} />
-        <div className="absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-amber-200 blob animate-blob" style={{ animationDelay: "4s" }} />
+        <div className="absolute top-[14%] -right-20 h-80 w-80 rounded-full bg-pink-300 blob animate-blob" style={{ animationDelay: "2s" }} />
+        <div className="absolute top-[40%] -left-28 h-72 w-72 rounded-full bg-sky-300 blob animate-blob" style={{ animationDelay: "4s" }} />
+        <div className="absolute top-[58%] -right-24 h-80 w-80 rounded-full bg-amber-200 blob animate-blob" style={{ animationDelay: "6s" }} />
+        <div className="absolute top-[74%] left-1/3 h-72 w-72 rounded-full bg-emerald-300 blob animate-blob" style={{ animationDelay: "3s" }} />
+        <div className="absolute -bottom-24 right-1/4 h-72 w-72 rounded-full bg-fuchsia-300 blob animate-blob" style={{ animationDelay: "5s" }} />
       </div>
 
       <header className="container flex items-center justify-between py-5">
@@ -56,7 +70,8 @@ export default function LandingPage() {
           </ScrollReveal>
           <ScrollReveal delay={200}>
             <p className="mt-7 text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto text-balance">
-              Từ vựng gamified + 4 kỹ năng IELTS có AI chấm — tất cả trong 1 app, miễn phí, dùng được trên điện thoại.
+              Luyện đủ 4 kỹ năng IELTS với AI chấm điểm tức thì. Học vui như chơi game,
+              tiến bộ mỗi ngày — hoàn toàn miễn phí.
             </p>
           </ScrollReveal>
           <ScrollReveal delay={300}>
@@ -74,7 +89,7 @@ export default function LandingPage() {
           <ScrollReveal delay={400}>
             <div className="mt-8 flex items-center justify-center gap-6 text-sm text-muted-foreground">
               <div className="flex items-center gap-1.5">
-                <Flame className="h-4 w-4 text-orange-500" /> 6 kỹ năng
+                <Flame className="h-4 w-4 text-orange-500" /> 4 kỹ năng
               </div>
               <div className="flex items-center gap-1.5">
                 <Sparkles className="h-4 w-4 text-violet-500" /> AI grading
@@ -108,6 +123,36 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* About — the Bee IELTS story */}
+      <section className="container pb-24">
+        <ScrollReveal>
+          <div className="mx-auto max-w-3xl rounded-3xl border bg-card/70 backdrop-blur p-8 md:p-12 text-center">
+            <span className="inline-flex items-center gap-1.5 rounded-full border bg-background/60 px-3 py-1 text-xs font-semibold">
+              🐝 Câu chuyện của chúng mình
+            </span>
+            <h2 className="mt-5 text-2xl md:text-3xl font-extrabold tracking-tight">
+              Bee IELTS — <span className="gradient-brand-text">since 2022</span>
+            </h2>
+            <p className="mt-4 text-muted-foreground leading-relaxed">
+              Bee IELTS được phát triển và hoàn thiện bởi{" "}
+              <strong className="text-foreground">DingDong Company</strong>, với mong muốn
+              giúp người Việt chinh phục IELTS một cách nhẹ nhàng, vui vẻ và bền bỉ.
+            </p>
+            <p className="mt-3 text-muted-foreground leading-relaxed">
+              Cái tên <strong className="text-foreground">&ldquo;Bee&rdquo;</strong> lấy cảm hứng từ
+              những chú ong chăm chỉ — mỗi ngày góp nhặt một chút, kiên trì và đều đặn, để rồi
+              cùng nhau tạo nên mật ngọt. Chúng mình tin việc học tiếng Anh cũng vậy: chỉ cần
+              mỗi ngày một chút, bạn sẽ tiến xa hơn mình tưởng. 🍯
+            </p>
+            <div className="mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm font-semibold text-muted-foreground">
+              <span>🗓️ Thành lập 2022</span>
+              <span>🏢 DingDong Company</span>
+              <span>💛 Học vì cộng đồng</span>
+            </div>
+          </div>
+        </ScrollReveal>
+      </section>
+
       <section className="container pb-24">
         <ScrollReveal>
           <div className="rounded-3xl gradient-brand p-10 md:p-16 text-white text-center relative overflow-hidden">
@@ -131,7 +176,7 @@ export default function LandingPage() {
       </section>
 
       <footer className="container border-t py-8 text-center text-sm text-muted-foreground">
-        © {new Date().getFullYear()} Bee IELTS · Made with 💜 for English learners
+        © {new Date().getFullYear()} Bee IELTS · DingDong Company · Made with 💜 for English learners
       </footer>
     </main>
   );
