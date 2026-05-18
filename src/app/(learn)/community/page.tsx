@@ -66,6 +66,8 @@ export default async function CommunityPage() {
 
   return (
     <div className="max-w-2xl mx-auto">
+      {/* Solid black backdrop for the community page — covers the ambient orbs. */}
+      <div aria-hidden className="fixed inset-0 bg-black" style={{ zIndex: -9 }} />
       <div className="mb-4">
         <h1 className="text-2xl font-extrabold tracking-tight">Cộng đồng 🐝</h1>
         <p className="text-sm text-muted-foreground">

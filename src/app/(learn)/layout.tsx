@@ -24,7 +24,7 @@ export default async function LearnLayout({ children }: { children: React.ReactN
       <LearnBackground />
       <Sidebar isAdmin={isAdmin} />
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-border/60 bg-background/80 backdrop-blur-md px-4 py-3 md:px-8 md:py-4">
+        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 backdrop-blur-md px-4 py-3 md:px-8 md:py-4">
           <div className="flex items-center gap-2 md:hidden">
             <MobileMenu isAdmin={isAdmin} />
             <div className="grid h-9 w-9 place-items-center rounded-xl gradient-brand text-white font-bold text-sm">🐝</div>
