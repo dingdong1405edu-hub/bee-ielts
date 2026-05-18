@@ -16,24 +16,26 @@ const features = [
 export default function LandingPage() {
   return (
     <main className="relative min-h-screen overflow-hidden">
-      {/* Ambient background — gradient wash + floating colour blobs spread down the page */}
+      {/* Ambient background — vivid gradient wash + floating colour blobs spread down the page */}
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <div
           className="absolute inset-0"
           style={{
             background:
-              "radial-gradient(48rem 32rem at 12% -4%, hsl(265 92% 64% / 0.20), transparent 70%)," +
-              "radial-gradient(42rem 32rem at 96% 12%, hsl(320 92% 66% / 0.18), transparent 70%)," +
-              "radial-gradient(44rem 34rem at 4% 56%, hsl(196 92% 58% / 0.14), transparent 70%)," +
-              "radial-gradient(46rem 36rem at 54% 112%, hsl(150 78% 54% / 0.13), transparent 70%)",
+              "radial-gradient(50rem 34rem at 10% -6%, hsl(265 95% 64% / 0.34), transparent 68%)," +
+              "radial-gradient(46rem 34rem at 98% 8%, hsl(322 95% 64% / 0.30), transparent 68%)," +
+              "radial-gradient(44rem 34rem at 2% 50%, hsl(196 95% 56% / 0.24), transparent 68%)," +
+              "radial-gradient(48rem 36rem at 100% 64%, hsl(28 96% 58% / 0.22), transparent 68%)," +
+              "radial-gradient(50rem 40rem at 52% 116%, hsl(150 82% 50% / 0.24), transparent 70%)",
           }}
         />
-        <div className="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-violet-300 blob animate-blob" />
-        <div className="absolute top-[14%] -right-20 h-80 w-80 rounded-full bg-pink-300 blob animate-blob" style={{ animationDelay: "2s" }} />
-        <div className="absolute top-[40%] -left-28 h-72 w-72 rounded-full bg-sky-300 blob animate-blob" style={{ animationDelay: "4s" }} />
-        <div className="absolute top-[58%] -right-24 h-80 w-80 rounded-full bg-amber-200 blob animate-blob" style={{ animationDelay: "6s" }} />
-        <div className="absolute top-[74%] left-1/3 h-72 w-72 rounded-full bg-emerald-300 blob animate-blob" style={{ animationDelay: "3s" }} />
-        <div className="absolute -bottom-24 right-1/4 h-72 w-72 rounded-full bg-fuchsia-300 blob animate-blob" style={{ animationDelay: "5s" }} />
+        <div className="absolute -top-28 -left-24 h-80 w-80 rounded-full bg-violet-400 blob animate-blob" />
+        <div className="absolute top-[12%] -right-20 h-[22rem] w-[22rem] rounded-full bg-fuchsia-400 blob animate-blob" style={{ animationDelay: "2s" }} />
+        <div className="absolute top-[34%] -left-28 h-80 w-80 rounded-full bg-sky-400 blob animate-blob" style={{ animationDelay: "4s" }} />
+        <div className="absolute top-[40%] left-[42%] h-72 w-72 rounded-full bg-indigo-400 blob animate-blob" style={{ animationDelay: "7s" }} />
+        <div className="absolute top-[56%] -right-24 h-[22rem] w-[22rem] rounded-full bg-amber-300 blob animate-blob" style={{ animationDelay: "6s" }} />
+        <div className="absolute top-[74%] left-1/4 h-80 w-80 rounded-full bg-emerald-400 blob animate-blob" style={{ animationDelay: "3s" }} />
+        <div className="absolute -bottom-28 right-1/5 h-80 w-80 rounded-full bg-rose-400 blob animate-blob" style={{ animationDelay: "5s" }} />
       </div>
 
       <header className="container flex items-center justify-between py-5">
