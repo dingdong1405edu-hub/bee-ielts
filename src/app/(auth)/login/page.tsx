@@ -99,6 +99,26 @@ function LoginForm() {
             <code className="text-[11px]">demo@bee-ielts.com</code> · <code className="text-[11px]">demo1234</code>
           </div>
         </ScrollReveal>
+
+        <ScrollReveal delay={450}>
+          <div className="mt-5 text-center text-xs text-muted-foreground leading-relaxed">
+            <p className="font-semibold text-foreground">📞 Thông tin liên hệ</p>
+            <p className="mt-1">
+              Vui lòng liên hệ:{" "}
+              <a href="tel:0378315088" className="font-semibold text-foreground hover:text-primary">
+                0378315088
+              </a>
+              {" · "}
+              <a
+                href="mailto:nguyenminhsantafe@gmail.com"
+                className="font-semibold text-foreground hover:text-primary"
+              >
+                nguyenminhsantafe@gmail.com
+              </a>
+            </p>
+            <p className="mt-1">Phát triển bởi DingDong &amp; nnm</p>
+          </div>
+        </ScrollReveal>
       </div>
     </div>
   );

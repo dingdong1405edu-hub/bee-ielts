@@ -114,7 +114,7 @@ export default function LandingPage() {
               🐝 Câu chuyện của chúng mình
             </span>
             <h2 className="mt-5 text-2xl md:text-3xl font-extrabold tracking-tight">
-              Bee IELTS — <span className="gradient-brand-text">since 2022</span>
+              Câu chuyện của <span className="gradient-brand-text">Bee IELTS</span>
             </h2>
             <p className="mt-4 text-muted-foreground leading-relaxed">
               Bee IELTS được phát triển và hoàn thiện bởi{" "}
@@ -127,10 +127,24 @@ export default function LandingPage() {
               cùng nhau tạo nên mật ngọt. Chúng mình tin việc học tiếng Anh cũng vậy: chỉ cần
               mỗi ngày một chút, bạn sẽ tiến xa hơn mình tưởng. 🍯
             </p>
-            <div className="mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm font-semibold text-muted-foreground">
-              <span>🗓️ Thành lập 2022</span>
-              <span>🏢 DingDong Company</span>
-              <span>💛 Học vì cộng đồng</span>
+            <div className="mt-6 rounded-2xl border bg-background/60 p-4 text-sm">
+              <p className="font-extrabold text-foreground">📞 Thông tin liên hệ</p>
+              <p className="mt-1 text-muted-foreground">
+                Vui lòng liên hệ:{" "}
+                <a href="tel:0378315088" className="font-semibold text-foreground hover:text-primary">
+                  0378315088
+                </a>
+                {" · "}
+                <a
+                  href="mailto:nguyenminhsantafe@gmail.com"
+                  className="font-semibold text-foreground hover:text-primary"
+                >
+                  nguyenminhsantafe@gmail.com
+                </a>
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Phát triển bởi <strong className="text-foreground">DingDong</strong> &amp; nnm
+              </p>
             </div>
           </div>
         </ScrollReveal>
