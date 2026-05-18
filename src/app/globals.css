@@ -79,7 +79,9 @@
     @apply bg-background;
   }
   body {
-    @apply bg-background text-foreground antialiased;
+    /* Background lives on <html> only — a transparent body lets fixed
+       decorative background layers (z-index -10) show through. */
+    @apply text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
   }
   ::selection {
