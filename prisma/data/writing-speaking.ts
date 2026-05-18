@@ -639,4 +639,292 @@ export const SPEAKING_SETS: SpeakingSetData[] = [
       "Should schools require students to wear uniforms?",
     ],
   },
+  {
+    topic: "Family",
+    part1Questions: [
+      "Do you have a large family or a small family?",
+      "Who are you closest to in your family?",
+      "How much time do you spend with your family?",
+      "Are family relationships important to you?",
+    ],
+    part2CueCard: {
+      topic: "Describe a family member you admire",
+      points: [
+        "Who the person is",
+        "What they are like",
+        "What you do together",
+        "Why you admire them",
+      ],
+    },
+    part3Questions: [
+      "How have families changed in your country in recent decades?",
+      "Is it better to grow up in a large family or a small one?",
+      "Who should be responsible for caring for elderly relatives?",
+      "How do family values pass from one generation to the next?",
+    ],
+  },
+  {
+    topic: "Hobbies & free time",
+    part1Questions: [
+      "What do you usually do in your free time?",
+      "Do you have any hobbies you have kept for a long time?",
+      "Do you prefer relaxing alone or with other people?",
+      "Has the way you spend free time changed recently?",
+    ],
+    part2CueCard: {
+      topic: "Describe a hobby you would like to take up",
+      points: [
+        "What the hobby is",
+        "How you would get started",
+        "What equipment or skills you would need",
+        "Why it appeals to you",
+      ],
+    },
+    part3Questions: [
+      "Why is it important for people to have hobbies?",
+      "Do people today have more or less free time than in the past?",
+      "Should schools give students more time for leisure activities?",
+      "How do hobbies change as people get older?",
+    ],
+  },
+  {
+    topic: "Weather & seasons",
+    part1Questions: [
+      "What kind of weather do you like best?",
+      "What is the weather usually like in your hometown?",
+      "Does the weather affect your mood?",
+      "Which season is your favourite?",
+    ],
+    part2CueCard: {
+      topic: "Describe a day when the weather was perfect for you",
+      points: [
+        "When and where it was",
+        "What the weather was like",
+        "What you did that day",
+        "Why you remember it",
+      ],
+    },
+    part3Questions: [
+      "How does weather affect people's daily routines?",
+      "Why are weather patterns becoming less predictable?",
+      "Do you think people in cold countries and hot countries behave differently?",
+      "How might changing climate affect the way people live?",
+    ],
+  },
+  {
+    topic: "Animals & pets",
+    part1Questions: [
+      "Do you have a pet, or did you have one as a child?",
+      "What is your favourite animal?",
+      "Are pets popular in your country?",
+      "Do you think children should look after a pet?",
+    ],
+    part2CueCard: {
+      topic: "Describe an animal you find interesting",
+      points: [
+        "What animal it is",
+        "Where it can be found",
+        "What you know about it",
+        "Why you find it interesting",
+      ],
+    },
+    part3Questions: [
+      "Why do people enjoy keeping pets?",
+      "Should wild animals be kept in zoos?",
+      "How can people help protect endangered species?",
+      "What responsibilities come with owning a pet?",
+    ],
+  },
+  {
+    topic: "Shopping",
+    part1Questions: [
+      "Do you enjoy shopping?",
+      "Do you prefer shopping online or in stores?",
+      "How often do you go shopping?",
+      "Do you usually plan your purchases in advance?",
+    ],
+    part2CueCard: {
+      topic: "Describe something you bought that you were very happy with",
+      points: [
+        "What you bought",
+        "Where and when you bought it",
+        "Why you decided to buy it",
+        "Why you were so happy with it",
+      ],
+    },
+    part3Questions: [
+      "How has online shopping changed people's habits?",
+      "Why do some people enjoy shopping while others dislike it?",
+      "Are advertisements helpful or misleading for shoppers?",
+      "Will physical shops still exist in the future?",
+    ],
+  },
+  {
+    topic: "Health & well-being",
+    part1Questions: [
+      "What do you do to stay healthy?",
+      "Do you think you have a healthy lifestyle?",
+      "How important is sleep to you?",
+      "Has your idea of being healthy changed over time?",
+    ],
+    part2CueCard: {
+      topic: "Describe a healthy habit you have or would like to have",
+      points: [
+        "What the habit is",
+        "How you started or would start it",
+        "How it affects your daily life",
+        "Why it is important to you",
+      ],
+    },
+    part3Questions: [
+      "Why do many people find it hard to stay healthy?",
+      "Should governments do more to promote public health?",
+      "How does modern life affect people's mental well-being?",
+      "Is it the individual's or the government's job to keep people healthy?",
+    ],
+  },
+  {
+    topic: "Art & creativity",
+    part1Questions: [
+      "Do you enjoy any kind of art?",
+      "Did you do art activities when you were a child?",
+      "Do you think you are a creative person?",
+      "Have you ever visited an art gallery or museum?",
+    ],
+    part2CueCard: {
+      topic: "Describe a work of art you find beautiful",
+      points: [
+        "What it is",
+        "Where you saw it",
+        "What it looks like",
+        "Why you find it beautiful",
+      ],
+    },
+    part3Questions: [
+      "Why is art important in society?",
+      "Should art be a compulsory subject at school?",
+      "Can creativity be taught, or is it something you are born with?",
+      "How has technology changed the way art is made and shared?",
+    ],
+  },
+  {
+    topic: "Festivals & celebrations",
+    part1Questions: [
+      "What is the most important festival in your country?",
+      "How do you usually celebrate it?",
+      "Do you enjoy attending celebrations?",
+      "Have festivals changed since you were a child?",
+    ],
+    part2CueCard: {
+      topic: "Describe a celebration or festival you enjoyed",
+      points: [
+        "What the occasion was",
+        "Who you celebrated with",
+        "What you did",
+        "Why you enjoyed it",
+      ],
+    },
+    part3Questions: [
+      "Why are traditional festivals important for a society?",
+      "How are celebrations today different from those in the past?",
+      "Do you think some festivals have become too commercial?",
+      "Should countries adopt festivals from other cultures?",
+    ],
+  },
+  {
+    topic: "Money & spending",
+    part1Questions: [
+      "Do you prefer to save money or spend it?",
+      "Did you receive pocket money when you were young?",
+      "Do you keep track of what you spend?",
+      "Do you think it is important to budget?",
+    ],
+    part2CueCard: {
+      topic: "Describe a time you saved money for something special",
+      points: [
+        "What you were saving for",
+        "How long it took",
+        "How you managed to save",
+        "How you felt when you got it",
+      ],
+    },
+    part3Questions: [
+      "Should children be taught how to manage money at school?",
+      "Why do some people find it hard to save money?",
+      "Does having more money make people happier?",
+      "How have spending habits changed in your country?",
+    ],
+  },
+  {
+    topic: "The internet & social media",
+    part1Questions: [
+      "How often do you use social media?",
+      "Which social media app do you use most?",
+      "Do you post things online yourself?",
+      "How do you feel after spending time on social media?",
+    ],
+    part2CueCard: {
+      topic: "Describe a useful website or app you often use",
+      points: [
+        "What it is",
+        "How you found out about it",
+        "What you use it for",
+        "Why you find it useful",
+      ],
+    },
+    part3Questions: [
+      "How has social media changed the way people communicate?",
+      "What are the dangers of spending too much time online?",
+      "Should there be more rules to control what is posted online?",
+      "Do you think social media brings people together or pushes them apart?",
+    ],
+  },
+  {
+    topic: "Nature & the outdoors",
+    part1Questions: [
+      "Do you like spending time outdoors?",
+      "Is there much green space where you live?",
+      "Did you spend time in nature as a child?",
+      "How do you feel after being outside in nature?",
+    ],
+    part2CueCard: {
+      topic: "Describe a beautiful natural place you have visited",
+      points: [
+        "Where it is",
+        "When you went there",
+        "What you saw and did",
+        "Why it was special",
+      ],
+    },
+    part3Questions: [
+      "Why is it important for people to spend time in nature?",
+      "How can cities give people better access to green spaces?",
+      "Are people losing their connection with the natural world?",
+      "What can be done to protect natural areas for the future?",
+    ],
+  },
+  {
+    topic: "Languages & communication",
+    part1Questions: [
+      "How many languages can you speak?",
+      "Why are you learning English?",
+      "Do you find learning a language difficult?",
+      "Do you prefer speaking or writing in another language?",
+    ],
+    part2CueCard: {
+      topic: "Describe a language you would like to learn",
+      points: [
+        "Which language it is",
+        "Why you want to learn it",
+        "How you would learn it",
+        "How it might be useful to you",
+      ],
+    },
+    part3Questions: [
+      "Why do some people learn languages more easily than others?",
+      "What is the best age to start learning a foreign language?",
+      "Will technology one day remove the need to learn languages?",
+      "What is lost when a language disappears?",
+    ],
+  },
 ];
