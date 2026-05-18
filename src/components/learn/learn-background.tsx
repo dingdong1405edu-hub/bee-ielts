@@ -1,9 +1,15 @@
+"use client";
+import { usePathname } from "next/navigation";
+import { AmbientBackground } from "@/components/ambient-background";
+
 /**
- * Ambient background shared by every learner page.
- * Minimal and modern: a single soft brand glow plus a faint line grid that
- * fades out softly (see `.learn-bg` in globals.css). Fixed, behind all
- * content (z-index -10).
+ * Ambient background for learner pages. The Community and Profile pages keep
+ * a plain background, so the effect is skipped there.
  */
 export function LearnBackground() {
-  return <div aria-hidden className="learn-bg" />;
+  const pathname = usePathname();
+  if (pathname.startsWith("/community") || pathname.startsWith("/profile")) {
+    return null;
+  }
+  return <AmbientBackground />;
 }

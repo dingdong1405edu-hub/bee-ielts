@@ -116,43 +116,81 @@
   .glow {
     box-shadow: 0 0 0 1px hsl(var(--primary) / 0.1), 0 8px 30px -8px hsl(var(--primary) / 0.3);
   }
-  .blob {
-    filter: blur(75px);
-    opacity: 0.62;
-  }
-  .dark .blob {
-    opacity: 0.42;
-  }
-
-  /* Minimal, modern ambient background for learner pages:
-     one soft brand glow + a faint line grid that fades out. */
-  .learn-bg {
+  /* === Ambient background: faint line grid + animated light glows ===
+     Used on the landing page and learner pages (not Community / Profile). */
+  .ambient-bg {
     position: fixed;
     inset: 0;
     z-index: -10;
     overflow: hidden;
     pointer-events: none;
   }
-  .learn-bg::before {
-    /* soft brand glow from the top, with a faint echo bottom-right */
-    content: "";
-    position: absolute;
-    inset: 0;
-    background:
-      radial-gradient(46rem 30rem at 50% -7rem, hsl(var(--primary) / 0.16), transparent 72%),
-      radial-gradient(38rem 26rem at 96% 102%, hsl(var(--primary) / 0.08), transparent 72%);
-  }
-  .learn-bg::after {
+  .ambient-grid {
     /* fine line grid, masked so it fades softly outward */
-    content: "";
     position: absolute;
     inset: 0;
     background-image:
       linear-gradient(hsl(var(--foreground) / 0.05) 1px, transparent 1px),
       linear-gradient(90deg, hsl(var(--foreground) / 0.05) 1px, transparent 1px);
     background-size: 64px 64px;
-    -webkit-mask-image: radial-gradient(circle at 50% 22%, #000 0%, transparent 82%);
-    mask-image: radial-gradient(circle at 50% 22%, #000 0%, transparent 82%);
+    -webkit-mask-image: radial-gradient(circle at 50% 24%, #000 0%, transparent 82%);
+    mask-image: radial-gradient(circle at 50% 24%, #000 0%, transparent 82%);
+  }
+  .ambient-glow {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(90px);
+    will-change: transform, opacity;
+  }
+  .ambient-glow-1 {
+    width: 44rem;
+    height: 30rem;
+    top: -13rem;
+    left: 50%;
+    margin-left: -22rem;
+    background: hsl(var(--primary) / 0.42);
+    animation: ambient-breathe 9s ease-in-out infinite;
+  }
+  .ambient-glow-2 {
+    width: 34rem;
+    height: 30rem;
+    right: -8rem;
+    bottom: -11rem;
+    background: hsl(var(--brand-2) / 0.32);
+    animation: ambient-drift 24s ease-in-out infinite;
+  }
+  .ambient-glow-3 {
+    width: 30rem;
+    height: 26rem;
+    top: 34%;
+    left: -10rem;
+    background: hsl(var(--brand-3) / 0.2);
+    animation: ambient-drift 30s ease-in-out infinite reverse;
+  }
+  @keyframes ambient-breathe {
+    0%,
+    100% {
+      opacity: 0.55;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.12);
+    }
+  }
+  @keyframes ambient-drift {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0);
+    }
+    50% {
+      transform: translate3d(-3.5rem, -2.5rem, 0);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ambient-glow {
+      animation: none !important;
+    }
   }
 
   /* Scroll reveal — initial state */
