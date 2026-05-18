@@ -29,42 +29,46 @@ function isActive(pathname: string, href: string) {
 
 export function Sidebar({ isAdmin }: { isAdmin?: boolean }) {
   const pathname = usePathname();
+  // On the Community page the feed is white — make the sidebar white too so
+  // the left panel blends with the page instead of staying dark.
+  const community = pathname === "/community" || pathname.startsWith("/community/");
+
+  const linkClass = (active: boolean) =>
+    cn(
+      "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all",
+      active
+        ? community
+          ? "bg-zinc-100 text-zinc-900 shadow-sm border border-zinc-200"
+          : "bg-card text-foreground shadow-sm border"
+        : community
+          ? "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+          : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
+    );
+
   return (
-    <aside className="hidden md:flex md:w-64 md:flex-col md:p-4 md:h-screen md:sticky md:top-0">
+    <aside
+      className={cn(
+        "hidden md:flex md:w-64 md:flex-col md:p-4 md:h-screen md:sticky md:top-0",
+        community && "bg-white border-r border-zinc-200",
+      )}
+    >
       <Link href="/dashboard" className="flex items-center gap-2 px-3 py-3 mb-3">
         <div className="grid h-10 w-10 place-items-center rounded-2xl gradient-brand text-white font-bold shadow-md shadow-primary/20">🐝</div>
-        <span className="font-extrabold tracking-tight">Bee IELTS</span>
+        <span className={cn("font-extrabold tracking-tight", community && "text-zinc-900")}>Bee IELTS</span>
       </Link>
       <nav className="flex-1 space-y-1">
         {nav.map((item) => {
           const Icon = item.icon;
           const active = isActive(pathname, item.href);
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all",
-                active
-                  ? "bg-card text-foreground shadow-sm border"
-                  : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
-              )}
-            >
+            <Link key={item.href} href={item.href} className={linkClass(active)}>
               <Icon className={cn("h-5 w-5", active && "text-primary")} />
               {item.label}
             </Link>
           );
         })}
         {isAdmin && (
-          <Link
-            href="/admin"
-            className={cn(
-              "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all",
-              pathname.startsWith("/admin")
-                ? "bg-card text-foreground shadow-sm border"
-                : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
-            )}
-          >
+          <Link href="/admin" className={linkClass(pathname.startsWith("/admin"))}>
             <Shield className="h-5 w-5" />
             Admin
           </Link>
@@ -72,7 +76,12 @@ export function Sidebar({ isAdmin }: { isAdmin?: boolean }) {
       </nav>
       <button
         onClick={() => signOut({ callbackUrl: "/" })}
-        className="mt-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-muted-foreground hover:bg-card/60 hover:text-foreground"
+        className={cn(
+          "mt-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold",
+          community
+            ? "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+            : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
+        )}
       >
         <LogOut className="h-5 w-5" />
         Đăng xuất
