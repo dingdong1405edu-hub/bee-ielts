@@ -130,24 +130,34 @@
     overflow: hidden;
     pointer-events: none;
   }
-  .learn-bg::after {
-    /* faint dot grid, faded out towards the bottom */
+  .learn-bg::before {
+    /* soft gradient wash that fills the page so it never feels empty */
     content: "";
     position: absolute;
     inset: 0;
-    background-image: radial-gradient(hsl(var(--foreground) / 0.06) 1px, transparent 1px);
-    background-size: 26px 26px;
-    -webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 75%);
-    mask-image: linear-gradient(to bottom, #000 0%, transparent 75%);
+    background:
+      radial-gradient(60rem 42rem at 18% 0%, hsl(265 90% 62% / 0.12), transparent 70%),
+      radial-gradient(52rem 40rem at 92% 26%, hsl(196 92% 56% / 0.1), transparent 70%),
+      radial-gradient(56rem 46rem at 50% 104%, hsl(150 80% 52% / 0.09), transparent 70%);
+  }
+  .learn-bg::after {
+    /* faint dot grid covering the whole viewport, gentle fade at the edges */
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(hsl(var(--foreground) / 0.07) 1px, transparent 1px);
+    background-size: 24px 24px;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 9%, #000 93%, transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0%, #000 9%, #000 93%, transparent 100%);
   }
   .learn-orb {
     position: absolute;
     border-radius: 9999px;
     filter: blur(100px);
-    opacity: 0.4;
+    opacity: 0.42;
   }
   .dark .learn-orb {
-    opacity: 0.28;
+    opacity: 0.3;
   }
   .learn-orb-float {
     animation: learn-float 18s ease-in-out infinite;
