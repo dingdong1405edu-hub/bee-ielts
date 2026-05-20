@@ -2,7 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { GraduationCap } from "lucide-react";
+import { GraduationCap, Plus } from "lucide-react";
 
 export default async function AdminListeningPage() {
   const tests = await prisma.listeningTest.findMany({
@@ -18,9 +18,14 @@ export default async function AdminListeningPage() {
           <h1 className="text-2xl md:text-3xl font-bold">Listening — Luyện tập</h1>
           <p className="text-sm text-muted-foreground">Kho đề cho trang Listening practice hằng ngày.</p>
         </div>
-        <Button asChild variant="outline">
-          <Link href="/admin/listening/mock"><GraduationCap className="h-4 w-4" /> Đề thi thử</Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline">
+            <Link href="/admin/listening/mock"><GraduationCap className="h-4 w-4" /> Đề thi thử</Link>
+          </Button>
+          <Button asChild>
+            <Link href="/admin/listening/new"><Plus className="h-4 w-4" /> Thêm bài luyện tập</Link>
+          </Button>
+        </div>
       </div>
 
       {tests.length === 0 ? (
