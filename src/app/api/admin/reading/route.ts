@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 const schema = z.object({
   title: z.string().min(1),
   passage: z.string().min(50),
+  bank: z.enum(["PRACTICE", "MOCK"]).default("PRACTICE"),
   questions: z
     .array(
       z.object({
@@ -24,13 +25,14 @@ export async function POST(req: Request) {
   if (!session?.user || session.user.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const parsed = schema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
-  const { title, passage, questions } = parsed.data;
+  const { title, passage, bank, questions } = parsed.data;
 
   // level + timeLimit dùng giá trị mặc định của schema (B1, 1200s) — admin không cần nhập.
   const test = await prisma.readingTest.create({
     data: {
       title,
       passage,
+      bank,
       questions: {
         create: questions.map((q, i) => ({
           type: q.type,

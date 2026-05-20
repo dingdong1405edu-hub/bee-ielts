@@ -31,8 +31,9 @@ export default async function MockTestPage() {
 
   const [readingTests, listeningTests, writingT1, writingT2, speakingSets, recent] =
     await Promise.all([
-      prisma.readingTest.findMany({ include: { questions: { orderBy: { order: "asc" } } } }),
-      prisma.listeningTest.findMany({ include: { questions: { orderBy: { order: "asc" } } } }),
+      // Reading & Listening dùng kho MOCK riêng; Writing & Speaking dùng chung kho practice.
+      prisma.readingTest.findMany({ where: { bank: "MOCK" }, include: { questions: { orderBy: { order: "asc" } } } }),
+      prisma.listeningTest.findMany({ where: { bank: "MOCK" }, include: { questions: { orderBy: { order: "asc" } } } }),
       prisma.writingTask.findMany({ where: { taskType: 1 } }),
       prisma.writingTask.findMany({ where: { taskType: 2 } }),
       prisma.speakingSet.findMany(),

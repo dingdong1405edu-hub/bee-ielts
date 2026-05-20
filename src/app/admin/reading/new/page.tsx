@@ -1,13 +1,14 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Trash2, Plus, Loader2 } from "lucide-react";
+import { Trash2, Plus, Loader2, GraduationCap, BookOpen } from "lucide-react";
 
 type QType = "MCQ" | "MATCHING_HEADINGS" | "FILL_BLANK" | "TRUE_FALSE_NOT_GIVEN";
 
@@ -38,6 +39,9 @@ const blankQ = (type: QType): Q => ({
 
 export default function NewReadingTestPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialBank: "PRACTICE" | "MOCK" = searchParams.get("bank") === "mock" ? "MOCK" : "PRACTICE";
+  const [bank, setBank] = useState<"PRACTICE" | "MOCK">(initialBank);
   const [loading, setLoading] = useState(false);
   const [title, setTitle] = useState("");
   const [passage, setPassage] = useState("");
@@ -85,12 +89,12 @@ export default function NewReadingTestPage() {
       const res = await fetch("/api/admin/reading", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title.trim(), passage: passage.trim(), questions: payload }),
+        body: JSON.stringify({ title: title.trim(), passage: passage.trim(), bank, questions: payload }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Lỗi");
-      toast.success("Đã tạo bài Reading");
-      router.push("/admin/reading");
+      toast.success(bank === "MOCK" ? "Đã thêm vào kho đề thi thử" : "Đã thêm vào kho luyện tập");
+      router.push(`/admin/reading?bank=${bank === "MOCK" ? "mock" : "practice"}`);
       router.refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Lưu thất bại");
@@ -101,11 +105,46 @@ export default function NewReadingTestPage() {
 
   return (
     <div className="max-w-3xl space-y-4">
-      <h1 className="text-2xl font-bold">Thêm bài Reading</h1>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h1 className="text-2xl font-bold">Thêm bài Reading</h1>
+        <Badge variant="outline" className="text-sm">
+          {bank === "MOCK" ? <GraduationCap className="h-3.5 w-3.5" /> : <BookOpen className="h-3.5 w-3.5" />}
+          Kho: {bank === "MOCK" ? "Đề thi thử" : "Luyện tập"}
+        </Badge>
+      </div>
 
       <Card>
         <CardHeader><CardTitle>Thông tin</CardTitle></CardHeader>
         <CardContent className="space-y-3">
+          <div>
+            <Label>Kho đề</Label>
+            <div className="grid grid-cols-2 gap-2 mt-1">
+              {(["PRACTICE", "MOCK"] as const).map((b) => {
+                const active = bank === b;
+                const Icon = b === "MOCK" ? GraduationCap : BookOpen;
+                return (
+                  <button
+                    key={b}
+                    type="button"
+                    onClick={() => setBank(b)}
+                    className={`flex items-center gap-2 rounded-xl border-2 p-3 text-left transition-colors ${
+                      active ? "border-primary bg-primary/5" : "border-input hover:border-primary/40"
+                    }`}
+                  >
+                    <Icon className={`h-5 w-5 ${active ? "text-primary" : "text-muted-foreground"}`} />
+                    <div>
+                      <div className="text-sm font-bold">
+                        {b === "MOCK" ? "Đề thi thử" : "Luyện tập"}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {b === "MOCK" ? "Chỉ hiện trong Mock Test" : "Hiện trong trang Reading practice"}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <div>
             <Label>Tiêu đề</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="VD: The History of Tea" />
