@@ -18,6 +18,7 @@ interface Passage {
   title: string;
   level: string;
   passage: string;
+  imageUrl?: string | null;
   questions: ShellQ[];
 }
 
@@ -72,6 +73,7 @@ export function ReadingSession({ passages, targetBand = 6.0 }: { passages: Passa
       title: p.title,
       level: p.level,
       passage: p.passage,
+      imageUrl: p.imageUrl,
       questions: p.questions,
     }));
     const label = passages.length > 1 ? `${passages.length} Passages` : "Practise";

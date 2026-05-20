@@ -8,7 +8,7 @@ export function MockReading({
   timeLimit,
   onDone,
 }: {
-  passages: { id: string; title: string; level: string; passage: string; questions: Q[] }[];
+  passages: { id: string; title: string; level: string; passage: string; imageUrl?: string | null; questions: Q[] }[];
   timeLimit: number;
   onDone: (answers: Record<string, string>) => void;
 }) {
@@ -17,6 +17,7 @@ export function MockReading({
     title: p.title,
     level: p.level,
     passage: p.passage,
+    imageUrl: p.imageUrl,
     questions: p.questions,
   }));
   return (

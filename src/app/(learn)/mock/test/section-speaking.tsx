@@ -24,13 +24,14 @@ type Phase =
 
 interface Props {
   topic: string;
+  imageUrl?: string | null;
   part1Questions: string[];
   part2CueCard: { topic: string; points: string[] };
   part3Questions: string[];
   onDone: (transcripts: { 1: string; 2: string; 3: string }) => void;
 }
 
-export function MockSpeaking({ topic, part1Questions, part2CueCard, part3Questions, onDone }: Props) {
+export function MockSpeaking({ topic, imageUrl, part1Questions, part2CueCard, part3Questions, onDone }: Props) {
   const [phase, setPhase] = useState<Phase>("intro");
   const [questionIdx, setQuestionIdx] = useState(0);
   const [speaking, setSpeaking] = useState(false);
@@ -317,6 +318,10 @@ export function MockSpeaking({ topic, part1Questions, part2CueCard, part3Questio
             <Card className="bg-amber-50 border-amber-200">
               <CardContent className="p-4 space-y-2">
                 <div className="font-bold">{part2CueCard.topic}</div>
+                {imageUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={imageUrl} alt="" className="w-full max-h-56 rounded-lg border bg-background object-contain" />
+                )}
                 <div className="text-sm">You should say:</div>
                 <ul className="list-disc pl-5 text-sm space-y-1">
                   {part2CueCard.points.map((p, i) => <li key={i}>{p}</li>)}

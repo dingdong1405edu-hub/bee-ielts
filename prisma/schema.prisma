@@ -215,6 +215,7 @@ model ReadingTest {
   title     String
   level     CEFRLevel        @default(B1)
   passage   String           @db.Text
+  imageUrl  String?          @db.Text
   timeLimit Int              @default(1200)
   slot      String?
   bank      TestBank         @default(PRACTICE)
@@ -241,6 +242,7 @@ model ListeningTest {
   id         String     @id @default(cuid())
   title      String
   audioUrl   String
+  imageUrl   String?    @db.Text
   transcript String?    @db.Text
   timeLimit  Int        @default(1200)
   bank       TestBank   @default(PRACTICE)
@@ -278,6 +280,7 @@ model WritingTask {
 model SpeakingSet {
   id             String   @id @default(cuid())
   topic          String
+  imageUrl       String?  @db.Text
   part1Questions Json
   part2CueCard   Json
   part3Questions Json

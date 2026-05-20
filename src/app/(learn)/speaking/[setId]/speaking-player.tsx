@@ -68,12 +68,14 @@ const empty = (): QResult => ({ transcript: "", words: [] });
 export function SpeakingPlayer({
   setId,
   topic,
+  imageUrl,
   part1Questions: rawPart1,
   part2CueCard,
   part3Questions: rawPart3,
 }: {
   setId: string;
   topic: string;
+  imageUrl?: string | null;
   part1Questions: string[];
   part2CueCard: { topic: string; points: string[] };
   part3Questions: string[];
@@ -370,6 +372,10 @@ export function SpeakingPlayer({
           </h1>
           <p className="text-muted-foreground">Topic: {topic}</p>
         </div>
+        {imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={imageUrl} alt="" className="w-full max-h-72 rounded-2xl border bg-muted/30 object-contain" />
+        )}
         <Card>
           <CardContent className="p-6 text-sm space-y-2">
             <p>🔊 Đề bài <strong>tự động được đọc to</strong> bằng Deepgram khi bắt đầu mỗi câu — nhấn nút loa để nghe lại.</p>
@@ -720,6 +726,10 @@ export function SpeakingPlayer({
                     <Volume2 className="h-4 w-4" />
                   </Button>
                 </div>
+                {imageUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={imageUrl} alt="" className="w-full max-h-56 rounded-lg border bg-background object-contain" />
+                )}
                 <div className="text-sm">You should say:</div>
                 <ul className="list-disc pl-5 text-sm space-y-1">
                   {part2CueCard.points.map((p, i) => (

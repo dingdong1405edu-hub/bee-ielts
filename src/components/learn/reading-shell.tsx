@@ -37,6 +37,7 @@ export interface ShellPart {
   title: string;
   level?: string;
   passage: string;
+  imageUrl?: string | null;
   questions: ShellQ[];
 }
 
@@ -187,6 +188,10 @@ export function ReadingShell({ testTitle, parts, timeLimit, onSubmit, submitting
             <h2 className="text-center text-xl md:text-2xl font-extrabold tracking-tight mb-4">
               {currentPart.title}
             </h2>
+            {currentPart.imageUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={currentPart.imageUrl} alt="" className="w-full mb-4 max-h-72 rounded-lg border bg-muted/30 object-contain" />
+            )}
             <HighlightablePassage
               passage={currentPart.passage}
               highlights={highlightsByPart[currentPart.id] ?? []}
@@ -598,6 +603,10 @@ function MobileToggle({
         {view === "passage" ? (
           <>
             <h2 className="text-center text-xl font-extrabold tracking-tight mb-3">{currentPart.title}</h2>
+            {currentPart.imageUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={currentPart.imageUrl} alt="" className="w-full mb-3 max-h-60 rounded-lg border bg-muted/30 object-contain" />
+            )}
             <HighlightablePassage
               passage={currentPart.passage}
               highlights={highlights}

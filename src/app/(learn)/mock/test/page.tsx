@@ -89,6 +89,7 @@ export default async function MockTestPage() {
         id: listening.id,
         title: listening.title,
         audioUrl: listening.audioUrl,
+        imageUrl: listening.imageUrl,
         transcript: listening.transcript,
         questions: listening.questions.map((q) => ({
           id: q.id,
@@ -103,6 +104,7 @@ export default async function MockTestPage() {
         title: reading.title,
         level: reading.level,
         passage: reading.passage,
+        imageUrl: reading.imageUrl,
         questions: reading.questions.map((q) => ({
           id: q.id,
           type: q.type,
@@ -127,6 +129,7 @@ export default async function MockTestPage() {
       speaking={{
         id: speaking.id,
         topic: speaking.topic,
+        imageUrl: speaking.imageUrl,
         part1Questions: speaking.part1Questions as string[],
         part2CueCard: speaking.part2CueCard as { topic: string; points: string[] },
         part3Questions: speaking.part3Questions as string[],

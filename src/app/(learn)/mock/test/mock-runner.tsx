@@ -31,8 +31,8 @@ type Q = {
 
 interface Props {
   targetBand: number;
-  listening: { id: string; title: string; audioUrl: string; transcript: string | null; questions: Q[] };
-  readings: { id: string; title: string; level: string; passage: string; questions: Q[] }[];
+  listening: { id: string; title: string; audioUrl: string; imageUrl?: string | null; transcript: string | null; questions: Q[] };
+  readings: { id: string; title: string; level: string; passage: string; imageUrl?: string | null; questions: Q[] }[];
   writing: {
     task1: { id: string; prompt: string; minWords: number; diagramSvg: string | null };
     task2: { id: string; prompt: string; minWords: number };
@@ -40,6 +40,7 @@ interface Props {
   speaking: {
     id: string;
     topic: string;
+    imageUrl?: string | null;
     part1Questions: string[];
     part2CueCard: { topic: string; points: string[] };
     part3Questions: string[];
@@ -130,6 +131,7 @@ export function MockRunner({ targetBand, listening, readings, writing, speaking 
       <MockListening
         title={listening.title}
         audioUrl={listening.audioUrl}
+        imageUrl={listening.imageUrl}
         transcript={listening.transcript}
         questions={listening.questions}
         timeLimit={20 * 60}
@@ -173,6 +175,7 @@ export function MockRunner({ targetBand, listening, readings, writing, speaking 
     return (
       <MockSpeaking
         topic={speaking.topic}
+        imageUrl={speaking.imageUrl}
         part1Questions={speaking.part1Questions}
         part2CueCard={speaking.part2CueCard}
         part3Questions={speaking.part3Questions}

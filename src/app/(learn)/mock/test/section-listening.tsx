@@ -19,6 +19,7 @@ type Q = {
 export function MockListening({
   title,
   audioUrl,
+  imageUrl,
   transcript,
   questions,
   timeLimit,
@@ -26,6 +27,7 @@ export function MockListening({
 }: {
   title: string;
   audioUrl: string;
+  imageUrl?: string | null;
   transcript: string | null;
   questions: Q[];
   timeLimit: number;
@@ -100,6 +102,10 @@ export function MockListening({
       <Card>
         <CardContent className="p-5 space-y-3">
           <div className="font-semibold">{title}</div>
+          {imageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={imageUrl} alt="" className="w-full max-h-72 rounded-lg border bg-muted/30 object-contain" />
+          )}
           {hasRealAudio ? (
             <audio
               ref={audioRef}

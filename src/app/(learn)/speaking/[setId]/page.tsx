@@ -9,6 +9,7 @@ export default async function SpeakingSetPage({ params }: { params: { setId: str
     <SpeakingPlayer
       setId={set.id}
       topic={set.topic}
+      imageUrl={set.imageUrl}
       part1Questions={set.part1Questions as string[]}
       part2CueCard={set.part2CueCard as { topic: string; points: string[] }}
       part3Questions={set.part3Questions as string[]}

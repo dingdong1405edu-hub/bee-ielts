@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trash2, Plus, Loader2, GraduationCap, BookOpen } from "lucide-react";
+import { ImageUrlField } from "./image-url-field";
 
 type Bank = "PRACTICE" | "MOCK";
 type QType = "MCQ" | "MATCHING_HEADINGS" | "FILL_BLANK" | "TRUE_FALSE_NOT_GIVEN";
@@ -46,6 +47,7 @@ export function ReadingTestForm({ bank }: { bank: Bank }) {
   const [loading, setLoading] = useState(false);
   const [title, setTitle] = useState("");
   const [passage, setPassage] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
   const [questions, setQuestions] = useState<Q[]>([blankQ("MCQ")]);
 
   const patchQ = (qi: number, patch: Partial<Q>) =>
@@ -90,7 +92,13 @@ export function ReadingTestForm({ bank }: { bank: Bank }) {
       const res = await fetch("/api/admin/reading", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title.trim(), passage: passage.trim(), bank, questions: payload }),
+        body: JSON.stringify({
+          title: title.trim(),
+          passage: passage.trim(),
+          imageUrl: imageUrl.trim() || null,
+          bank,
+          questions: payload,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Lỗi");
@@ -127,6 +135,7 @@ export function ReadingTestForm({ bank }: { bank: Bank }) {
             <Label>Đoạn văn (passage)</Label>
             <Textarea value={passage} onChange={(e) => setPassage(e.target.value)} className="min-h-[220px]" placeholder="Dán nội dung bài đọc..." />
           </div>
+          <ImageUrlField value={imageUrl} onChange={setImageUrl} hint="Ảnh minh hoạ (tuỳ chọn) — hiển thị phía trên đoạn văn cho người học" />
         </CardContent>
       </Card>
 

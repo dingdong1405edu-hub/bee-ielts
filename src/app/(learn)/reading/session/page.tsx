@@ -35,6 +35,7 @@ export default async function ReadingSessionPage({ searchParams }: { searchParam
         title: t.title,
         level: t.level,
         passage: t.passage,
+        imageUrl: t.imageUrl,
         questions: t.questions.map((q) => ({
           id: q.id,
           type: q.type,

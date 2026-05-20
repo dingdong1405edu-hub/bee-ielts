@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trash2, Plus, Loader2, GraduationCap, Headphones } from "lucide-react";
+import { ImageUrlField } from "./image-url-field";
 
 type Bank = "PRACTICE" | "MOCK";
 type QType = "MCQ" | "FILL_BLANK" | "TRUE_FALSE_NOT_GIVEN" | "SHORT_ANSWER";
@@ -44,6 +45,7 @@ export function ListeningTestForm({ bank }: { bank: Bank }) {
   const [loading, setLoading] = useState(false);
   const [title, setTitle] = useState("");
   const [audioUrl, setAudioUrl] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
   const [transcript, setTranscript] = useState("");
   const [questions, setQuestions] = useState<Q[]>([blankQ("MCQ")]);
 
@@ -84,6 +86,7 @@ export function ListeningTestForm({ bank }: { bank: Bank }) {
         body: JSON.stringify({
           title: title.trim(),
           audioUrl: audioUrl.trim(),
+          imageUrl: imageUrl.trim() || null,
           transcript: transcript.trim() || undefined,
           bank,
           questions: payload,
@@ -140,6 +143,7 @@ export function ListeningTestForm({ bank }: { bank: Bank }) {
               placeholder="Nội dung lời thoại — hiển thị sau khi nộp bài"
             />
           </div>
+          <ImageUrlField value={imageUrl} onChange={setImageUrl} hint="Ảnh minh hoạ (tuỳ chọn) — hiển thị bên audio player" />
         </CardContent>
       </Card>
 

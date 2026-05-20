@@ -25,11 +25,13 @@ export function ReadingPlayer({
   testId,
   title,
   passage,
+  imageUrl,
   questions,
 }: {
   testId: string;
   title: string;
   passage: string;
+  imageUrl?: string | null;
   questions: Q[];
 }) {
   const router = useRouter();
@@ -98,6 +100,10 @@ export function ReadingPlayer({
         <Card className="lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-6rem)] overflow-y-auto">
           <CardContent className="p-6 prose prose-sm max-w-none">
             <h3 className="font-semibold text-lg mb-3">Passage</h3>
+            {imageUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={imageUrl} alt="" className="not-prose mb-4 w-full rounded-lg border bg-muted/30 object-contain max-h-80" />
+            )}
             <div className="whitespace-pre-wrap text-sm leading-relaxed">{passage}</div>
           </CardContent>
         </Card>
