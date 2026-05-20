@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  Mic, Square, Loader2, Volume2, ArrowRight, Trophy, Play, Clock,
+  Mic, Square, Loader2, Volume2, ArrowRight, Trophy, Play, Timer,
   Sparkles, MessageSquareQuote, ArrowRightToLine, Wand2, Check,
 } from "lucide-react";
 import { formatDuration, cn } from "@/lib/utils";
@@ -60,7 +60,6 @@ interface SpeakingResult {
 type Phase = "intro" | "part1" | "part2-prep" | "part2-speak" | "part3" | "grading" | "done";
 type PartNum = 1 | 2 | 3;
 
-const PART2_PREP = 60;
 // Words below this recogniser confidence are treated as mispronounced / unclear.
 const LOW_CONF = 0.7;
 
@@ -90,7 +89,9 @@ export function SpeakingPlayer({
   const [selectedParts, setSelectedParts] = useState<Record<PartNum, boolean>>({ 1: true, 2: true, 3: true });
   const orderedParts: PartNum[] = ([1, 2, 3] as PartNum[]).filter((p) => selectedParts[p]);
   const [qIdx, setQIdx] = useState(0);
-  const [prepLeft, setPrepLeft] = useState(PART2_PREP);
+  // Self-paced stopwatches: count UP — user controls when to move on / when to stop speaking.
+  const [prepElapsed, setPrepElapsed] = useState(0);
+  const [recElapsed, setRecElapsed] = useState(0);
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [ttsBusy, setTtsBusy] = useState(false);
@@ -106,6 +107,20 @@ export function SpeakingPlayer({
   const chunksRef = useRef<Blob[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const prepTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const recTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Prep stopwatch: counts up while in part2-prep (no auto-flip).
+  useEffect(() => {
+    if (phase !== "part2-prep") {
+      if (prepTimerRef.current) clearInterval(prepTimerRef.current);
+      return;
+    }
+    setPrepElapsed(0);
+    prepTimerRef.current = setInterval(() => setPrepElapsed((t) => t + 1), 1000);
+    return () => {
+      if (prepTimerRef.current) clearInterval(prepTimerRef.current);
+    };
+  }, [phase]);
 
   // ---- Deepgram TTS: play any text ----
   const playTTS = async (text: string) => {
@@ -168,6 +183,9 @@ export function SpeakingPlayer({
       mr.start();
       recorderRef.current = mr;
       setRecording(true);
+      setRecElapsed(0);
+      if (recTimerRef.current) clearInterval(recTimerRef.current);
+      recTimerRef.current = setInterval(() => setRecElapsed((t) => t + 1), 1000);
     } catch {
       toast.error("Không truy cập được micro. Hãy cấp quyền micro.");
     }
@@ -179,6 +197,10 @@ export function SpeakingPlayer({
     }
     recorderRef.current = null;
     setRecording(false);
+    if (recTimerRef.current) {
+      clearInterval(recTimerRef.current);
+      recTimerRef.current = null;
+    }
   };
 
   const transcribe = async (blob: Blob) => {
@@ -217,19 +239,9 @@ export function SpeakingPlayer({
 
   // ---- navigation ----
   const goPart2Prep = () => {
+    // Self-paced: just enter prep phase. The stopwatch effect in useEffect handles the timer,
+    // and the user manually clicks "Sẵn sàng nói" when ready.
     setPhase("part2-prep");
-    setPrepLeft(PART2_PREP);
-    if (prepTimerRef.current) clearInterval(prepTimerRef.current);
-    prepTimerRef.current = setInterval(() => {
-      setPrepLeft((t) => {
-        if (t <= 1) {
-          if (prepTimerRef.current) clearInterval(prepTimerRef.current);
-          setPhase("part2-speak");
-          return 0;
-        }
-        return t - 1;
-      });
-    }, 1000);
   };
 
   const isLastStep = () => {
@@ -341,7 +353,7 @@ export function SpeakingPlayer({
   if (phase === "intro") {
     const partOptions: { num: PartNum; title: string; desc: string }[] = [
       { num: 1, title: "Part 1", desc: `Câu hỏi cá nhân · ${part1Questions.length} câu` },
-      { num: 2, title: "Part 2", desc: "Cue card · 1' chuẩn bị + 2' nói" },
+      { num: 2, title: "Part 2", desc: "Cue card · tự bấm thời gian nói" },
       { num: 3, title: "Part 3", desc: `Thảo luận sâu · ${part3Questions.length} câu` },
     ];
     const togglePart = (p: PartNum) =>
@@ -679,8 +691,13 @@ export function SpeakingPlayer({
         </div>
         <div className="flex items-center gap-2">
           {phase === "part2-prep" && (
-            <Badge variant="outline" className="bg-white/15 border-white/30 text-white text-base px-3 py-1">
-              <Clock className="h-4 w-4 mr-1" /> {formatDuration(prepLeft)}
+            <Badge variant="outline" className="bg-white/15 border-white/30 text-white text-base px-3 py-1 tabular-nums">
+              <Timer className="h-4 w-4 mr-1" /> {formatDuration(prepElapsed)}
+            </Badge>
+          )}
+          {recording && (
+            <Badge variant="outline" className="bg-red-500/90 border-red-300 text-white text-base px-3 py-1 tabular-nums animate-pulse">
+              <Mic className="h-4 w-4 mr-1" /> {formatDuration(recElapsed)}
             </Badge>
           )}
           <VoicePicker voice={voice} onChange={setVoice} />
@@ -692,8 +709,8 @@ export function SpeakingPlayer({
         <Card>
           <CardContent className="p-6 space-y-4">
             <div className="text-center">
-              <div className="text-5xl font-extrabold tabular-nums">{formatDuration(prepLeft)}</div>
-              <div className="text-sm text-muted-foreground mt-1">Thời gian chuẩn bị</div>
+              <div className="text-5xl font-extrabold tabular-nums">{formatDuration(prepElapsed)}</div>
+              <div className="text-sm text-muted-foreground mt-1">Thời gian chuẩn bị (tự bấm khi sẵn sàng)</div>
             </div>
             <Card className="bg-amber-50 border-amber-200 dark:bg-amber-950/30">
               <CardContent className="p-4 space-y-2">
@@ -711,8 +728,8 @@ export function SpeakingPlayer({
                 </ul>
               </CardContent>
             </Card>
-            <Button onClick={() => setPhase("part2-speak")} variant="outline" size="lg" className="w-full rounded-full">
-              Bỏ qua chuẩn bị — nói luôn
+            <Button onClick={() => setPhase("part2-speak")} variant="brand" size="lg" className="w-full rounded-full">
+              <Play className="h-5 w-5" /> Sẵn sàng — bắt đầu nói
             </Button>
           </CardContent>
         </Card>
@@ -754,6 +771,19 @@ export function SpeakingPlayer({
               </div>
             </div>
 
+            {/* Stopwatch: shown while recording, OR previous take's duration before re-record. */}
+            {(recording || (!recording && recElapsed > 0 && currentResult.transcript)) && (
+              <div className="rounded-2xl border bg-muted/30 p-4 flex items-center justify-center gap-3">
+                <Timer className={cn("h-5 w-5", recording ? "text-red-600" : "text-muted-foreground")} />
+                <span className={cn("text-4xl font-extrabold tabular-nums", recording && "text-red-600")}>
+                  {formatDuration(recElapsed)}
+                </span>
+                <span className="text-xs text-muted-foreground self-end mb-1.5">
+                  {recording ? "đang nói…" : "lần ghi trước"}
+                </span>
+              </div>
+            )}
+
             {/* record */}
             <div className="flex items-center gap-2">
               {!recording ? (
@@ -764,17 +794,17 @@ export function SpeakingPlayer({
                   size="lg"
                   className="rounded-full flex-1"
                 >
-                  <Mic className="h-5 w-5" /> {currentResult.transcript ? "Ghi âm lại" : "Bắt đầu ghi âm"}
+                  <Mic className="h-5 w-5" /> {currentResult.transcript ? "Ghi âm lại" : "Bấm để nói"}
                 </Button>
               ) : (
                 <Button onClick={stopRecording} size="lg" className="rounded-full flex-1 bg-red-600 hover:bg-red-700 text-white">
-                  <Square className="h-5 w-5 fill-white" /> Dừng ghi âm
+                  <Square className="h-5 w-5 fill-white" /> Dừng — đã nói xong
                 </Button>
               )}
             </div>
             {recording && (
               <div className="flex items-center gap-2 text-sm text-red-600">
-                <span className="h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse" /> Đang ghi âm — nói tiếng Anh...
+                <span className="h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse" /> Đang ghi âm — bấm "Dừng" khi xong
               </div>
             )}
             {transcribing && (
