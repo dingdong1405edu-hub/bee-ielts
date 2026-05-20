@@ -9,7 +9,6 @@ const nav = [
   { href: "/admin/reading", label: "Reading", icon: BookOpen },
   { href: "/admin/reading/mock", label: "Reading — Thi thử", icon: GraduationCap },
   { href: "/admin/listening", label: "Listening", icon: Headphones },
-  { href: "/admin/listening/mock", label: "Listening — Thi thử", icon: GraduationCap },
   { href: "/admin/writing", label: "Writing", icon: PenLine },
   { href: "/admin/speaking", label: "Speaking", icon: Mic },
   { href: "/admin/vocab", label: "Vocabulary", icon: Sparkles },
