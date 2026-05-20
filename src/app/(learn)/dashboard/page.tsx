@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { computeDisplayStreak, getStreakRestoreState } from "@/lib/streak";
 import { StatsRow } from "@/components/learn/stats-row";
 import { ExamCountdown } from "@/components/learn/exam-countdown";
+import { StudySchedule } from "@/components/learn/study-schedule";
 
 const modules = [
   { href: "/vocab", label: "Vocabulary", desc: "Vocabulary", icon: Sparkles, grad: "from-violet-500 to-fuchsia-500" },
@@ -72,6 +73,8 @@ export default async function DashboardPage() {
       />
 
       <ExamCountdown examDate={user.examDate ? user.examDate.toISOString().slice(0, 10) : null} />
+
+      <StudySchedule examDate={user.examDate ? user.examDate.toISOString().slice(0, 10) : null} />
 
       <Link href="/mock" className="block group">
         <div className="relative overflow-hidden rounded-3xl gradient-brand p-6 md:p-8 text-white shadow-xl shadow-primary/20 transition-all hover:shadow-2xl hover:shadow-primary/30 hover:-translate-y-0.5">

@@ -30,6 +30,11 @@ enum Skill {
   GRAMMAR
 }
 
+enum TestBank {
+  PRACTICE
+  MOCK
+}
+
 enum QuestionType {
   MCQ
   FILL_BLANK
@@ -44,25 +49,25 @@ enum QuestionType {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  name         String?
-  passwordHash String?
-  role         Role      @default(LEARNER)
-  xp           Int       @default(0)
-  hearts       Int       @default(5)
-  streakDays   Int       @default(0)
-  lastActiveAt DateTime?
-  targetBand   Float     @default(6.0)
-  examDate     DateTime?
-  popQuizOn    Boolean   @default(false)
-  streakRestoresUsed Int  @default(0)
+  id                 String    @id @default(cuid())
+  email              String    @unique
+  name               String?
+  passwordHash       String?
+  role               Role      @default(LEARNER)
+  xp                 Int       @default(0)
+  hearts             Int       @default(5)
+  streakDays         Int       @default(0)
+  lastActiveAt       DateTime?
+  targetBand         Float     @default(6.0)
+  examDate           DateTime?
+  popQuizOn          Boolean   @default(false)
+  streakRestoresUsed Int       @default(0)
   streakRestoreMonth String?
-  avatarUrl    String?   @db.Text
-  coverUrl     String?   @db.Text
-  bio          String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  avatarUrl          String?   @db.Text
+  coverUrl           String?   @db.Text
+  bio                String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   vocabProgress   VocabProgress[]
   grammarProgress GrammarProgress[]
@@ -72,6 +77,7 @@ model User {
   postComments    PostComment[]
   readingComments ReadingComment[]
   wordDecks       WordDeck[]
+  studyPlan       StudyPlanEntry[]
 }
 
 // User-created Quizlet-style vocabulary decks.
@@ -211,9 +217,12 @@ model ReadingTest {
   passage   String           @db.Text
   timeLimit Int              @default(1200)
   slot      String?
+  bank      TestBank         @default(PRACTICE)
   questions Question[]
   comments  ReadingComment[]
   createdAt DateTime         @default(now())
+
+  @@index([bank])
 }
 
 model ReadingComment {
@@ -234,8 +243,11 @@ model ListeningTest {
   audioUrl   String
   transcript String?    @db.Text
   timeLimit  Int        @default(1200)
+  bank       TestBank   @default(PRACTICE)
   questions  Question[]
   createdAt  DateTime   @default(now())
+
+  @@index([bank])
 }
 
 model Question {
@@ -270,6 +282,22 @@ model SpeakingSet {
   part2CueCard   Json
   part3Questions Json
   createdAt      DateTime @default(now())
+}
+
+/// User-created study plan entries: notes, milestones, skill practice days.
+model StudyPlanEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime @db.Date
+  title     String
+  skill     Skill?
+  note      String?  @db.Text
+  done      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, date])
 }
 
 model Attempt {
