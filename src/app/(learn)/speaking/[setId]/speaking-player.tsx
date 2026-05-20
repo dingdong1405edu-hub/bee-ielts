@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Mic, Square, Loader2, Volume2, ArrowRight, Trophy, Play, Clock,
-  Sparkles, MessageSquareQuote, ArrowRightToLine, Wand2,
+  Sparkles, MessageSquareQuote, ArrowRightToLine, Wand2, Check,
 } from "lucide-react";
 import { formatDuration, cn } from "@/lib/utils";
 import { TipsCard } from "@/components/learn/tips-card";
@@ -58,6 +58,7 @@ interface SpeakingResult {
 }
 
 type Phase = "intro" | "part1" | "part2-prep" | "part2-speak" | "part3" | "grading" | "done";
+type PartNum = 1 | 2 | 3;
 
 const PART2_PREP = 60;
 // Words below this recogniser confidence are treated as mispronounced / unclear.
@@ -86,6 +87,8 @@ export function SpeakingPlayer({
   const [voice, setVoice] = useTtsVoice();
 
   const [phase, setPhase] = useState<Phase>("intro");
+  const [selectedParts, setSelectedParts] = useState<Record<PartNum, boolean>>({ 1: true, 2: true, 3: true });
+  const orderedParts: PartNum[] = ([1, 2, 3] as PartNum[]).filter((p) => selectedParts[p]);
   const [qIdx, setQIdx] = useState(0);
   const [prepLeft, setPrepLeft] = useState(PART2_PREP);
   const [recording, setRecording] = useState(false);
@@ -229,20 +232,40 @@ export function SpeakingPlayer({
     }, 1000);
   };
 
+  const isLastStep = () => {
+    const currentPart: PartNum | null =
+      phase === "part1" ? 1 : phase === "part2-speak" ? 2 : phase === "part3" ? 3 : null;
+    if (currentPart == null) return false;
+    const isLastPart = orderedParts.indexOf(currentPart) === orderedParts.length - 1;
+    if (!isLastPart) return false;
+    if (currentPart === 1) return qIdx + 1 >= part1Questions.length;
+    if (currentPart === 3) return qIdx + 1 >= part3Questions.length;
+    return true; // part 2 has a single utterance
+  };
+
+  const advanceAfterPart = (finished: PartNum) => {
+    const idx = orderedParts.indexOf(finished);
+    const next = orderedParts[idx + 1];
+    if (next == null) {
+      submitAndGrade();
+      return;
+    }
+    setQIdx(0);
+    if (next === 1) setPhase("part1");
+    else if (next === 2) goPart2Prep();
+    else setPhase("part3");
+  };
+
   const nextQuestion = () => {
     stopRecording();
     if (phase === "part1") {
       if (qIdx + 1 < part1Questions.length) setQIdx((i) => i + 1);
-      else {
-        setQIdx(0);
-        goPart2Prep();
-      }
+      else advanceAfterPart(1);
     } else if (phase === "part2-speak") {
-      setQIdx(0);
-      setPhase("part3");
+      advanceAfterPart(2);
     } else if (phase === "part3") {
       if (qIdx + 1 < part3Questions.length) setQIdx((i) => i + 1);
-      else submitAndGrade();
+      else advanceAfterPart(3);
     }
   };
 
@@ -252,17 +275,35 @@ export function SpeakingPlayer({
     setPhase("grading");
     const durationSec = Math.floor((Date.now() - startedAtRef.current) / 1000);
 
-    const combined = `[Part 1]\n${part1Questions
-      .map((q, i) => `Q${i + 1}: ${q}\nA: ${ans[1][i]?.transcript || "(no answer)"}`)
-      .join("\n")}\n\n[Part 2]\nCue: ${part2CueCard.topic}\nA: ${ans[2].transcript || "(no answer)"}\n\n[Part 3]\n${part3Questions
-      .map((q, i) => `Q${i + 1}: ${q}\nA: ${ans[3][i]?.transcript || "(no answer)"}`)
-      .join("\n")}`;
+    const sections: string[] = [];
+    const allQuestions: string[] = [];
+    const allWords: DGWord[] = [];
 
-    const allWords: DGWord[] = [
-      ...ans[1].flatMap((r) => r.words),
-      ...ans[2].words,
-      ...ans[3].flatMap((r) => r.words),
-    ];
+    if (selectedParts[1]) {
+      sections.push(
+        `[Part 1]\n${part1Questions
+          .map((q, i) => `Q${i + 1}: ${q}\nA: ${ans[1][i]?.transcript || "(no answer)"}`)
+          .join("\n")}`,
+      );
+      allQuestions.push(...part1Questions);
+      allWords.push(...ans[1].flatMap((r) => r.words));
+    }
+    if (selectedParts[2]) {
+      sections.push(`[Part 2]\nCue: ${part2CueCard.topic}\nA: ${ans[2].transcript || "(no answer)"}`);
+      allQuestions.push(`Part 2 cue card: ${part2CueCard.topic} — You should say: ${part2CueCard.points.join("; ")}`);
+      allWords.push(...ans[2].words);
+    }
+    if (selectedParts[3]) {
+      sections.push(
+        `[Part 3]\n${part3Questions
+          .map((q, i) => `Q${i + 1}: ${q}\nA: ${ans[3][i]?.transcript || "(no answer)"}`)
+          .join("\n")}`,
+      );
+      allQuestions.push(...part3Questions);
+      allWords.push(...ans[3].flatMap((r) => r.words));
+    }
+    const combined = sections.join("\n\n");
+
     const lowConfidenceWords = Array.from(
       new Set(
         allWords
@@ -270,13 +311,6 @@ export function SpeakingPlayer({
           .map((w) => w.word.toLowerCase().replace(/[^a-z']/g, "")),
       ),
     ).filter(Boolean);
-
-    // Every prompt the candidate answered — so the grader can give a tip per question.
-    const allQuestions = [
-      ...part1Questions,
-      `Part 2 cue card: ${part2CueCard.topic} — You should say: ${part2CueCard.points.join("; ")}`,
-      ...part3Questions,
-    ];
 
     try {
       const res = await fetch("/api/grade/speaking", {
@@ -305,6 +339,14 @@ export function SpeakingPlayer({
 
   // ============================== INTRO ==============================
   if (phase === "intro") {
+    const partOptions: { num: PartNum; title: string; desc: string }[] = [
+      { num: 1, title: "Part 1", desc: `Câu hỏi cá nhân · ${part1Questions.length} câu` },
+      { num: 2, title: "Part 2", desc: "Cue card · 1' chuẩn bị + 2' nói" },
+      { num: 3, title: "Part 3", desc: `Thảo luận sâu · ${part3Questions.length} câu` },
+    ];
+    const togglePart = (p: PartNum) =>
+      setSelectedParts((prev) => ({ ...prev, [p]: !prev[p] }));
+    const noneSelected = orderedParts.length === 0;
     return (
       <div className="max-w-xl mx-auto py-6 space-y-6">
         <div className="text-center space-y-3">
@@ -321,9 +363,46 @@ export function SpeakingPlayer({
             <p>🔊 Đề bài <strong>tự động được đọc to</strong> bằng Deepgram khi bắt đầu mỗi câu — nhấn nút loa để nghe lại.</p>
             <p>🎤 Cấp quyền <strong>micro</strong>: ghi âm câu trả lời, AI nhận dạng giọng nói.</p>
             <p>📝 Bài nói hiện dưới dạng văn bản — từ phát âm chưa rõ được <strong>in đậm gạch chân</strong>, nhấn để nghe phát âm đúng.</p>
-            <p>📋 Part 1 ({part1Questions.length} câu) → Part 2 (1 phút chuẩn bị) → Part 3 ({part3Questions.length} câu)</p>
           </CardContent>
         </Card>
+
+        <div className="space-y-2">
+          <div className="text-sm font-bold">Chọn phần muốn luyện</div>
+          <p className="text-xs text-muted-foreground">Có thể chọn 1, 2 hoặc cả 3 part. AI sẽ chấm dựa trên những phần bạn làm.</p>
+          <div className="grid sm:grid-cols-3 gap-2">
+            {partOptions.map((p) => {
+              const active = selectedParts[p.num];
+              return (
+                <button
+                  key={p.num}
+                  type="button"
+                  onClick={() => togglePart(p.num)}
+                  aria-pressed={active}
+                  className={cn(
+                    "relative rounded-2xl border-2 p-3 text-left transition-all",
+                    active
+                      ? "border-primary bg-primary/5 shadow-sm"
+                      : "border-input hover:border-primary/40 bg-card",
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-extrabold">{p.title}</span>
+                    <span
+                      className={cn(
+                        "grid h-5 w-5 place-items-center rounded-md border-2",
+                        active ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/40",
+                      )}
+                    >
+                      {active && <Check className="h-3 w-3" />}
+                    </span>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">{p.desc}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="flex justify-center">
           <VoicePicker voice={voice} onChange={setVoice} />
         </div>
@@ -331,13 +410,19 @@ export function SpeakingPlayer({
           variant="brand"
           size="xl"
           className="w-full rounded-full"
+          disabled={noneSelected}
           onClick={() => {
+            if (noneSelected) return;
             startedAtRef.current = Date.now();
-            setPhase("part1");
             setQIdx(0);
+            const first = orderedParts[0];
+            if (first === 1) setPhase("part1");
+            else if (first === 2) goPart2Prep();
+            else setPhase("part3");
           }}
         >
-          <Play className="h-5 w-5" /> Bắt đầu làm bài
+          <Play className="h-5 w-5" />{" "}
+          {noneSelected ? "Chọn ít nhất 1 part" : `Bắt đầu — ${orderedParts.map((p) => `Part ${p}`).join(" → ")}`}
         </Button>
       </div>
     );
@@ -399,9 +484,9 @@ export function SpeakingPlayer({
               Từ <span className="font-bold underline">in đậm gạch chân</span> là phát âm chưa rõ — nhấn để nghe cách đọc đúng.
             </p>
             {[
-              ...part1Questions.map((q, i) => ({ q: `Part 1 · Câu ${i + 1}`, r: ans[1][i] })),
-              { q: `Part 2 · ${part2CueCard.topic}`, r: ans[2] },
-              ...part3Questions.map((q, i) => ({ q: `Part 3 · Câu ${i + 1}`, r: ans[3][i] })),
+              ...(selectedParts[1] ? part1Questions.map((q, i) => ({ q: `Part 1 · Câu ${i + 1}`, r: ans[1][i] })) : []),
+              ...(selectedParts[2] ? [{ q: `Part 2 · ${part2CueCard.topic}`, r: ans[2] }] : []),
+              ...(selectedParts[3] ? part3Questions.map((q, i) => ({ q: `Part 3 · Câu ${i + 1}`, r: ans[3][i] })) : []),
             ].map((item, i) => (
               <div key={i} className="rounded-lg border p-3">
                 <div className="text-xs font-bold text-muted-foreground mb-1">{item.q}</div>
@@ -707,7 +792,7 @@ export function SpeakingPlayer({
             )}
 
             <Button onClick={nextQuestion} variant="outline" size="lg" className="w-full rounded-full" disabled={recording || transcribing}>
-              {phase === "part3" && qIdx + 1 >= part3Questions.length ? "Nộp bài & chấm" : "Câu tiếp theo"}
+              {isLastStep() ? "Nộp bài & chấm" : "Câu tiếp theo"}
               <ArrowRight className="h-4 w-4" />
             </Button>
           </CardContent>
