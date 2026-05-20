@@ -1,40 +1,32 @@
+import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BankTabs, resolveBankParam } from "@/components/admin/bank-tabs";
+import { Button } from "@/components/ui/button";
+import { GraduationCap } from "lucide-react";
 
-export default async function AdminListeningPage({
-  searchParams,
-}: {
-  searchParams: { bank?: string };
-}) {
-  const bank = resolveBankParam(searchParams.bank);
-  const [tests, practiceCount, mockCount] = await Promise.all([
-    prisma.listeningTest.findMany({
-      where: { bank },
-      orderBy: { createdAt: "desc" },
-      include: { _count: { select: { questions: true } } },
-    }),
-    prisma.listeningTest.count({ where: { bank: "PRACTICE" } }),
-    prisma.listeningTest.count({ where: { bank: "MOCK" } }),
-  ]);
+export default async function AdminListeningPage() {
+  const tests = await prisma.listeningTest.findMany({
+    where: { bank: "PRACTICE" },
+    orderBy: { createdAt: "desc" },
+    include: { _count: { select: { questions: true } } },
+  });
 
   return (
     <div className="max-w-4xl space-y-6">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold">Listening Tests</h1>
-        <p className="text-sm text-muted-foreground">
-          {bank === "MOCK"
-            ? "Kho đề thi thử Listening — chỉ hiển thị trong Mock Test."
-            : "Kho đề luyện tập Listening — dùng cho trang luyện tập hằng ngày."}
-        </p>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold">Listening — Luyện tập</h1>
+          <p className="text-sm text-muted-foreground">Kho đề cho trang Listening practice hằng ngày.</p>
+        </div>
+        <Button asChild variant="outline">
+          <Link href="/admin/listening/mock"><GraduationCap className="h-4 w-4" /> Đề thi thử</Link>
+        </Button>
       </div>
-
-      <BankTabs current={bank} practiceCount={practiceCount} mockCount={mockCount} base="/admin/listening" />
 
       {tests.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center text-muted-foreground">
-            Chưa có bài nào trong kho {bank === "MOCK" ? "thi thử" : "luyện tập"}.
+            Chưa có bài luyện tập nào.
           </CardContent>
         </Card>
       ) : (

@@ -3,11 +3,11 @@ import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, GraduationCap } from "lucide-react";
+import { Plus, Pencil, BookOpen, GraduationCap } from "lucide-react";
 
-export default async function AdminReadingPage() {
+export default async function AdminReadingMockPage() {
   const tests = await prisma.readingTest.findMany({
-    where: { bank: "PRACTICE" },
+    where: { bank: "MOCK" },
     orderBy: { createdAt: "desc" },
     include: { _count: { select: { questions: true } } },
   });
@@ -16,23 +16,28 @@ export default async function AdminReadingPage() {
     <div className="space-y-6 max-w-5xl">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Reading — Luyện tập</h1>
-          <p className="text-muted-foreground">Kho đề cho trang Reading practice hằng ngày.</p>
+          <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
+            <GraduationCap className="h-7 w-7 text-primary" /> Reading — Đề thi thử
+          </h1>
+          <p className="text-muted-foreground">Kho đề riêng chỉ dùng trong Mock Test (Thi thử IELTS Full).</p>
         </div>
         <div className="flex gap-2">
           <Button asChild variant="outline">
-            <Link href="/admin/reading/mock"><GraduationCap className="h-4 w-4" /> Đề thi thử</Link>
+            <Link href="/admin/reading"><BookOpen className="h-4 w-4" /> Đề luyện tập</Link>
           </Button>
           <Button asChild>
-            <Link href="/admin/reading/new"><Plus className="h-4 w-4" /> Thêm bài luyện tập</Link>
+            <Link href="/admin/reading/mock/new"><Plus className="h-4 w-4" /> Thêm đề thi thử</Link>
           </Button>
         </div>
       </div>
 
       {tests.length === 0 ? (
         <Card>
-          <CardContent className="p-8 text-center text-muted-foreground">
-            Chưa có bài luyện tập nào.
+          <CardContent className="p-8 text-center text-muted-foreground space-y-2">
+            <p>Chưa có đề thi thử nào.</p>
+            <p className="text-xs">
+              Mock Test cần ít nhất 4 đề Reading (mỗi slot A/B/C/D 1 đề) để tạo bộ đề hoàn chỉnh.
+            </p>
           </CardContent>
         </Card>
       ) : (
@@ -46,6 +51,7 @@ export default async function AdminReadingPage() {
                       {t.title}
                       <Badge variant="outline">{t.level}</Badge>
                       <Badge variant="secondary">{t._count.questions} questions</Badge>
+                      {t.slot && <Badge variant="outline">slot {t.slot}</Badge>}
                     </CardTitle>
                   </div>
                   <Button asChild variant="outline" size="sm">

@@ -2,12 +2,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { isOwner } from "@/lib/admin";
-import { Shield, BookOpen, PenLine, Mic, Sparkles, BookOpenText, Headphones, Users, KeyRound, ExternalLink } from "lucide-react";
+import { Shield, BookOpen, PenLine, Mic, Sparkles, BookOpenText, Headphones, Users, KeyRound, ExternalLink, GraduationCap } from "lucide-react";
 
 const nav = [
   { href: "/admin", label: "Tổng quan", icon: Shield },
   { href: "/admin/reading", label: "Reading", icon: BookOpen },
+  { href: "/admin/reading/mock", label: "Reading — Thi thử", icon: GraduationCap },
   { href: "/admin/listening", label: "Listening", icon: Headphones },
+  { href: "/admin/listening/mock", label: "Listening — Thi thử", icon: GraduationCap },
   { href: "/admin/writing", label: "Writing", icon: PenLine },
   { href: "/admin/speaking", label: "Speaking", icon: Mic },
   { href: "/admin/vocab", label: "Vocabulary", icon: Sparkles },
