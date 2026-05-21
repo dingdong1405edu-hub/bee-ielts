@@ -254,7 +254,7 @@ export function StudySchedule({
             className="rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white"
             onClick={() => setShowGenerator((s) => !s)}
           >
-            <Wand2 className="h-3.5 w-3.5" /> Tạo lộ trình
+            <Wand2 className="h-3.5 w-3.5" /> AI tạo lộ trình
           </Button>
         </div>
       </div>
@@ -392,11 +392,11 @@ function RoadmapGenerator({
       <div className="flex items-start gap-2">
         <Sparkles className="h-5 w-5 text-primary shrink-0 mt-0.5" />
         <div className="text-sm">
-          <span className="font-bold">Tạo lộ trình học tự động.</span>{" "}
+          <span className="font-bold">AI tạo lộ trình học cho bạn.</span>{" "}
           <span className="text-muted-foreground">
-            Mục tiêu band <b className="text-foreground">{targetBand.toFixed(1)}</b>
-            {examLabel ? <> · ngày thi <b className="text-foreground">{examLabel}</b></> : <> · chưa đặt ngày thi (sẽ tạo lộ trình 8 tuần)</>}
-            . Gợi ý <b className="text-foreground">{recommended} buổi/tuần</b>. Chọn các ngày bạn rảnh học:
+            AI dựa trên mục tiêu band <b className="text-foreground">{targetBand.toFixed(1)}</b>
+            {examLabel ? <> · ngày thi <b className="text-foreground">{examLabel}</b></> : <> · chưa đặt ngày thi (lộ trình 8 tuần)</>}
+            {" "}và kết quả luyện tập gần đây để ưu tiên kỹ năng yếu. Gợi ý <b className="text-foreground">{recommended} buổi/tuần</b>. Chọn các ngày bạn rảnh học:
           </span>
         </div>
       </div>
@@ -423,14 +423,14 @@ function RoadmapGenerator({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Lộ trình tự xoay vòng các kỹ năng, kèm gợi ý phương pháp cho từng buổi. 2 tuần cuối trước ngày thi sẽ
-        chuyển sang thi thử. Lộ trình tự động cũ sẽ được thay mới — các task bạn tự thêm vẫn được giữ nguyên.
+        AI sẽ thiết kế lộ trình kèm gợi ý phương pháp cho từng buổi. 2 tuần cuối trước ngày thi chuyển sang thi
+        thử. Lộ trình tự động cũ sẽ được thay mới — các task bạn tự thêm vẫn được giữ nguyên.
       </p>
 
       <div className="flex items-center gap-2">
         <Button size="sm" className="rounded-xl" onClick={run} disabled={generating}>
           {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
-          Tạo lộ trình ({picked.length} buổi/tuần)
+          {generating ? "AI đang tạo lộ trình…" : `AI tạo lộ trình (${picked.length} buổi/tuần)`}
         </Button>
         <Button size="sm" variant="ghost" className="rounded-xl" onClick={onClose} disabled={generating}>
           Huỷ

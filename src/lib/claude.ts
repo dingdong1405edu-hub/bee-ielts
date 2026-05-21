@@ -53,6 +53,77 @@ type SpeakingResult = {
   summary: string;
 };`;
 
+const STUDY_PLAN_SYSTEM = `You are an experienced IELTS coach building a personalised weekly study roadmap for a Vietnamese learner.
+
+You receive: the learner's target band, weeks until exam, how many days per week they can study, and their recent performance per skill (if any).
+
+Design ONE representative week of study — exactly one session per available day. Prioritise the learner's WEAKEST skills (lowest recent band, or skills never practised). Across the week, still touch all four IELTS skills plus vocabulary/grammar. Each session focuses on ONE main skill.
+
+Write everything in Vietnamese. Every "note" must be a CONCRETE, actionable study-method tip — never generic encouragement.
+
+Return ONLY valid JSON matching this exact TypeScript type — no markdown, no commentary:
+
+type StudyPlan = {
+  overview: string;          // 1-2 sentences, personalised + motivating, Vietnamese
+  weeklyTemplate: {
+    skill: "READING" | "LISTENING" | "WRITING" | "SPEAKING" | "VOCAB" | "GRAMMAR";
+    title: string;           // short Vietnamese task title
+    note: string;            // one concrete method tip, Vietnamese
+  }[];
+  examPrepAdvice: string;    // Vietnamese advice for the final 2 weeks (mock-test phase)
+};
+
+weeklyTemplate MUST contain exactly the requested number of entries.`;
+
+export interface StudyPlanInput {
+  targetBand: number;
+  weeksUntilExam: number;
+  hasExamDate: boolean;
+  daysPerWeek: number;
+  skillScores: { skill: string; avgBand: number; attempts: number }[];
+}
+
+export interface StudyPlanResult {
+  overview: string;
+  weeklyTemplate: { skill: string; title: string; note: string }[];
+  examPrepAdvice: string;
+}
+
+/** Ask Claude for a personalised weekly study template tailored to the learner. */
+export async function generateStudyPlan(input: StudyPlanInput): Promise<StudyPlanResult> {
+  const perf =
+    input.skillScores.length > 0
+      ? input.skillScores
+          .map((s) => `- ${s.skill}: band trung bình ${s.avgBand.toFixed(1)} (${s.attempts} lần luyện)`)
+          .join("\n")
+      : "Chưa có dữ liệu luyện tập — coi như người mới, cân bằng mọi kỹ năng.";
+
+  const userMessage = `Thông tin người học:
+- Mục tiêu: band ${input.targetBand.toFixed(1)}
+- ${input.hasExamDate ? `Còn ${input.weeksUntilExam} tuần đến ngày thi` : `Chưa đặt ngày thi — lập kế hoạch ${input.weeksUntilExam} tuần`}
+- Học ${input.daysPerWeek} buổi/tuần
+
+Kết quả luyện tập gần đây:
+${perf}
+
+Hãy thiết kế weeklyTemplate gồm đúng ${input.daysPerWeek} buổi và trả về JSON.`;
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 2000,
+    temperature: 0.6,
+    system: STUDY_PLAN_SYSTEM,
+    messages: [{ role: "user", content: userMessage }],
+  });
+
+  const text = response.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("");
+
+  return extractJSON(text) as StudyPlanResult;
+}
+
 export interface WritingGradeInput {
   taskType: 1 | 2;
   prompt: string;
