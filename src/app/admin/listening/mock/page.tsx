@@ -2,11 +2,12 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, Plus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Headphones, GraduationCap } from "lucide-react";
 
-export default async function AdminListeningPage() {
+export default async function AdminListeningMockPage() {
   const tests = await prisma.listeningTest.findMany({
-    where: { bank: "PRACTICE" },
+    where: { bank: "MOCK" },
     orderBy: { createdAt: "desc" },
     include: { _count: { select: { questions: true } } },
   });
@@ -15,15 +16,17 @@ export default async function AdminListeningPage() {
     <div className="max-w-4xl space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Listening — Luyện tập</h1>
-          <p className="text-sm text-muted-foreground">Kho đề cho trang Listening practice hằng ngày.</p>
+          <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
+            <GraduationCap className="h-7 w-7 text-primary" /> Listening — Đề thi thử
+          </h1>
+          <p className="text-muted-foreground">Kho đề riêng chỉ dùng trong Mock Test (Thi thử IELTS Full).</p>
         </div>
         <div className="flex gap-2">
           <Button asChild variant="outline">
-            <Link href="/admin/listening/mock"><GraduationCap className="h-4 w-4" /> Đề thi thử</Link>
+            <Link href="/admin/listening"><Headphones className="h-4 w-4" /> Đề luyện tập</Link>
           </Button>
           <Button asChild>
-            <Link href="/admin/listening/new"><Plus className="h-4 w-4" /> Thêm bài luyện tập</Link>
+            <Link href="/admin/listening/mock/new"><Plus className="h-4 w-4" /> Thêm đề thi thử</Link>
           </Button>
         </div>
       </div>
@@ -31,7 +34,7 @@ export default async function AdminListeningPage() {
       {tests.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center text-muted-foreground">
-            Chưa có bài luyện tập nào.
+            Chưa có đề thi thử Listening nào.
           </CardContent>
         </Card>
       ) : (
@@ -39,10 +42,11 @@ export default async function AdminListeningPage() {
           {tests.map((t) => (
             <Card key={t.id}>
               <CardHeader>
-                <CardTitle className="text-base">{t.title}</CardTitle>
-                <p className="text-xs text-muted-foreground">
-                  {t._count.questions} questions • {t.audioUrl}
-                </p>
+                <CardTitle className="text-base flex items-center gap-2 flex-wrap">
+                  {t.title}
+                  <Badge variant="secondary">{t._count.questions} questions</Badge>
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">{t.audioUrl}</p>
               </CardHeader>
             </Card>
           ))}

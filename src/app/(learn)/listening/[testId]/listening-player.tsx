@@ -24,12 +24,14 @@ export function ListeningPlayer({
   testId,
   title,
   audioUrl,
+  imageUrl,
   transcript,
   questions,
 }: {
   testId: string;
   title: string;
   audioUrl: string;
+  imageUrl?: string | null;
   transcript: string | null;
   questions: Q[];
 }) {
@@ -81,6 +83,11 @@ export function ListeningPlayer({
       </div>
 
       <AudioPlayer audioUrl={audioUrl} transcript={transcript} />
+
+      {imageUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={imageUrl} alt="" className="w-full max-h-80 rounded-2xl border bg-muted/30 object-contain" />
+      )}
 
 
       <div className="space-y-3">
