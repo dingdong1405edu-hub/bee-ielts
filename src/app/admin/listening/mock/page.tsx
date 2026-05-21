@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Headphones, GraduationCap } from "lucide-react";
+import { Plus, Headphones, GraduationCap, Pencil } from "lucide-react";
 
 export default async function AdminListeningMockPage() {
   const tests = await prisma.listeningTest.findMany({
@@ -42,11 +42,18 @@ export default async function AdminListeningMockPage() {
           {tests.map((t) => (
             <Card key={t.id}>
               <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2 flex-wrap">
-                  {t.title}
-                  <Badge variant="secondary">{t._count.questions} questions</Badge>
-                </CardTitle>
-                <p className="text-xs text-muted-foreground">{t.audioUrl}</p>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <CardTitle className="text-base flex items-center gap-2 flex-wrap">
+                      {t.title}
+                      <Badge variant="secondary">{t._count.questions} questions</Badge>
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground">{t.audioUrl}</p>
+                  </div>
+                  <Button asChild variant="outline" size="sm">
+                    <Link href={`/admin/listening/${t.id}`}><Pencil className="h-3.5 w-3.5" /> Sửa</Link>
+                  </Button>
+                </div>
               </CardHeader>
             </Card>
           ))}

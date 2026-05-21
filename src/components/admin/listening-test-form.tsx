@@ -37,17 +37,47 @@ const blankQ = (type: QType): Q => ({
   explanation: "",
 });
 
-/** Listening-test creation form. `bank` is locked from the wrapping route. */
-export function ListeningTestForm({ bank }: { bank: Bank }) {
+/** DB-shaped listening test passed in when editing an existing record. */
+export type ListeningInitial = {
+  id: string;
+  title: string;
+  audioUrl: string;
+  imageUrl: string | null;
+  transcript: string | null;
+  questions: { type: string; prompt: string; options: string[] | null; correctAnswer: string; explanation: string | null }[];
+};
+
+function coerceType(t: string): QType {
+  if (t === "MCQ" || t === "FILL_BLANK" || t === "TRUE_FALSE_NOT_GIVEN" || t === "SHORT_ANSWER") return t;
+  if (t.startsWith("TRUE_FALSE")) return "TRUE_FALSE_NOT_GIVEN";
+  if (t === "MATCHING" || t.startsWith("MATCHING")) return "MCQ";
+  return "FILL_BLANK";
+}
+
+function toFormQuestions(initial?: ListeningInitial): Q[] {
+  if (!initial || initial.questions.length === 0) return [blankQ("MCQ")];
+  return initial.questions.map((q) => {
+    const type = coerceType(q.type);
+    const explanation = q.explanation ?? "";
+    if (type === "MCQ") {
+      return { type, prompt: q.prompt, options: q.options && q.options.length ? q.options : ["", ""], correctAnswer: q.correctAnswer, explanation };
+    }
+    return { type, prompt: q.prompt, options: [], correctAnswer: q.correctAnswer, explanation };
+  });
+}
+
+/** Listening-test create/edit form. Pass `initial` to edit an existing record. */
+export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: ListeningInitial }) {
   const router = useRouter();
+  const isEdit = !!initial;
   const isMock = bank === "MOCK";
   const listHref = isMock ? "/admin/listening/mock" : "/admin/listening";
   const [loading, setLoading] = useState(false);
-  const [title, setTitle] = useState("");
-  const [audioUrl, setAudioUrl] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
-  const [transcript, setTranscript] = useState("");
-  const [questions, setQuestions] = useState<Q[]>([blankQ("MCQ")]);
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [audioUrl, setAudioUrl] = useState(initial?.audioUrl ?? "");
+  const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
+  const [transcript, setTranscript] = useState(initial?.transcript ?? "");
+  const [questions, setQuestions] = useState<Q[]>(() => toFormQuestions(initial));
 
   const patchQ = (qi: number, patch: Partial<Q>) =>
     setQuestions((qs) => qs.map((q, i) => (i === qi ? { ...q, ...patch } : q)));
@@ -80,8 +110,8 @@ export function ListeningTestForm({ bank }: { bank: Bank }) {
 
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/listening", {
-        method: "POST",
+      const res = await fetch(isEdit ? `/api/admin/listening/${initial!.id}` : "/api/admin/listening", {
+        method: isEdit ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: title.trim(),
@@ -94,7 +124,7 @@ export function ListeningTestForm({ bank }: { bank: Bank }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Lỗi");
-      toast.success(isMock ? "Đã thêm vào kho đề thi thử" : "Đã thêm vào kho luyện tập");
+      toast.success(isEdit ? "Đã lưu thay đổi" : isMock ? "Đã thêm vào kho đề thi thử" : "Đã thêm vào kho luyện tập");
       router.push(listHref);
       router.refresh();
     } catch (e) {
@@ -108,7 +138,7 @@ export function ListeningTestForm({ bank }: { bank: Bank }) {
     <div className="max-w-3xl space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="text-2xl font-bold">
-          Thêm bài Listening {isMock ? "— Thi thử" : "— Luyện tập"}
+          {isEdit ? "Sửa bài Listening" : "Thêm bài Listening"} {isMock ? "— Thi thử" : "— Luyện tập"}
         </h1>
         <Badge variant="outline" className="text-sm">
           {isMock ? <GraduationCap className="h-3.5 w-3.5" /> : <Headphones className="h-3.5 w-3.5" />}
@@ -241,7 +271,7 @@ export function ListeningTestForm({ bank }: { bank: Bank }) {
         <Button variant="outline" onClick={() => router.push(listHref)}>Huỷ</Button>
         <Button onClick={submit} disabled={loading}>
           {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-          Lưu
+          {isEdit ? "Lưu thay đổi" : "Lưu"}
         </Button>
       </div>
     </div>

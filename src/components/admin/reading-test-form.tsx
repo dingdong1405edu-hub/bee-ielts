@@ -39,16 +39,51 @@ const blankQ = (type: QType): Q => ({
   explanation: "",
 });
 
-/** Reading-test creation form. `bank` is locked from the wrapping route. */
-export function ReadingTestForm({ bank }: { bank: Bank }) {
+/** DB-shaped reading test passed in when editing an existing record. */
+export type ReadingInitial = {
+  id: string;
+  title: string;
+  passage: string;
+  imageUrl: string | null;
+  questions: { type: string; prompt: string; options: string[] | null; correctAnswer: string; explanation: string | null }[];
+};
+
+function coerceType(t: string): QType {
+  if (t === "MCQ" || t === "MATCHING_HEADINGS" || t === "FILL_BLANK" || t === "TRUE_FALSE_NOT_GIVEN") return t;
+  if (t.startsWith("MATCHING")) return "MATCHING_HEADINGS";
+  if (t.startsWith("TRUE_FALSE")) return "TRUE_FALSE_NOT_GIVEN";
+  return "FILL_BLANK";
+}
+
+/** Convert DB questions into the form's editable shape (reverses the save-time encoding). */
+function toFormQuestions(initial?: ReadingInitial): Q[] {
+  if (!initial || initial.questions.length === 0) return [blankQ("MCQ")];
+  return initial.questions.map((q) => {
+    const type = coerceType(q.type);
+    const explanation = q.explanation ?? "";
+    if (type === "MATCHING_HEADINGS") {
+      const headings = (q.options ?? []).map((o) => o.replace(/^[ivxlc]+\.\s*/i, ""));
+      const idx = ROMAN.indexOf(q.correctAnswer);
+      return { type, prompt: q.prompt, options: headings.length ? headings : ["", ""], correctAnswer: idx >= 0 ? String(idx) : "", explanation };
+    }
+    if (type === "MCQ") {
+      return { type, prompt: q.prompt, options: q.options && q.options.length ? q.options : ["", ""], correctAnswer: q.correctAnswer, explanation };
+    }
+    return { type, prompt: q.prompt, options: [], correctAnswer: q.correctAnswer, explanation };
+  });
+}
+
+/** Reading-test create/edit form. Pass `initial` to edit an existing record. */
+export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: ReadingInitial }) {
   const router = useRouter();
+  const isEdit = !!initial;
   const isMock = bank === "MOCK";
   const listHref = isMock ? "/admin/reading/mock" : "/admin/reading";
   const [loading, setLoading] = useState(false);
-  const [title, setTitle] = useState("");
-  const [passage, setPassage] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
-  const [questions, setQuestions] = useState<Q[]>([blankQ("MCQ")]);
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [passage, setPassage] = useState(initial?.passage ?? "");
+  const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
+  const [questions, setQuestions] = useState<Q[]>(() => toFormQuestions(initial));
 
   const patchQ = (qi: number, patch: Partial<Q>) =>
     setQuestions((qs) => qs.map((q, i) => (i === qi ? { ...q, ...patch } : q)));
@@ -89,8 +124,8 @@ export function ReadingTestForm({ bank }: { bank: Bank }) {
 
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/reading", {
-        method: "POST",
+      const res = await fetch(isEdit ? `/api/admin/reading/${initial!.id}` : "/api/admin/reading", {
+        method: isEdit ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: title.trim(),
@@ -102,7 +137,7 @@ export function ReadingTestForm({ bank }: { bank: Bank }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Lỗi");
-      toast.success(isMock ? "Đã thêm vào kho đề thi thử" : "Đã thêm vào kho luyện tập");
+      toast.success(isEdit ? "Đã lưu thay đổi" : isMock ? "Đã thêm vào kho đề thi thử" : "Đã thêm vào kho luyện tập");
       router.push(listHref);
       router.refresh();
     } catch (e) {
@@ -116,7 +151,7 @@ export function ReadingTestForm({ bank }: { bank: Bank }) {
     <div className="max-w-3xl space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="text-2xl font-bold">
-          Thêm bài Reading {isMock ? "— Thi thử" : "— Luyện tập"}
+          {isEdit ? "Sửa bài Reading" : "Thêm bài Reading"} {isMock ? "— Thi thử" : "— Luyện tập"}
         </h1>
         <Badge variant="outline" className="text-sm">
           {isMock ? <GraduationCap className="h-3.5 w-3.5" /> : <BookOpen className="h-3.5 w-3.5" />}
@@ -237,7 +272,7 @@ export function ReadingTestForm({ bank }: { bank: Bank }) {
         <Button variant="outline" onClick={() => router.push(listHref)}>Huỷ</Button>
         <Button onClick={submit} disabled={loading}>
           {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-          Lưu
+          {isEdit ? "Lưu thay đổi" : "Lưu"}
         </Button>
       </div>
     </div>

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Pencil } from "lucide-react";
 
 export default async function AdminSpeakingPage() {
   const sets = await prisma.speakingSet.findMany({ orderBy: { createdAt: "desc" } });
@@ -28,7 +28,12 @@ export default async function AdminSpeakingPage() {
           {sets.map((s) => (
             <Card key={s.id}>
               <CardHeader>
-                <CardTitle className="text-base">{s.topic}</CardTitle>
+                <div className="flex items-center justify-between gap-3">
+                  <CardTitle className="text-base flex-1 min-w-0">{s.topic}</CardTitle>
+                  <Button asChild variant="outline" size="sm">
+                    <Link href={`/admin/speaking/${s.id}`}><Pencil className="h-3.5 w-3.5" /> Sửa</Link>
+                  </Button>
+                </div>
               </CardHeader>
             </Card>
           ))}
