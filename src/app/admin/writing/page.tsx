@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil } from "lucide-react";
+import { DeleteTestButton } from "@/components/admin/delete-test-button";
 
 export default async function AdminWritingPage() {
   const tasks = await prisma.writingTask.findMany({ orderBy: [{ taskType: "asc" }, { createdAt: "desc" }] });
@@ -32,9 +33,16 @@ export default async function AdminWritingPage() {
                     </div>
                     <CardTitle className="text-base">{t.prompt.split("\n")[0].slice(0, 200)}</CardTitle>
                   </div>
-                  <Button asChild variant="outline" size="sm">
-                    <Link href={`/admin/writing/${t.id}`}><Pencil className="h-3.5 w-3.5" /></Link>
-                  </Button>
+                  <div className="flex shrink-0 gap-2">
+                    <Button asChild variant="outline" size="sm">
+                      <Link href={`/admin/writing/${t.id}`}><Pencil className="h-3.5 w-3.5" /> Sửa</Link>
+                    </Button>
+                    <DeleteTestButton
+                      endpoint={`/api/admin/writing/${t.id}`}
+                      name={t.prompt.split("\n")[0].slice(0, 60)}
+                      kind="Writing task"
+                    />
+                  </div>
                 </div>
               </CardHeader>
             </Card>

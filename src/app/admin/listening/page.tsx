@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { GraduationCap, Plus, Pencil } from "lucide-react";
+import { DeleteTestButton } from "@/components/admin/delete-test-button";
 
 export default async function AdminListeningPage() {
   const tests = await prisma.listeningTest.findMany({
@@ -46,9 +47,12 @@ export default async function AdminListeningPage() {
                       {t._count.questions} questions • {t.audioUrl}
                     </p>
                   </div>
-                  <Button asChild variant="outline" size="sm">
-                    <Link href={`/admin/listening/${t.id}`}><Pencil className="h-3.5 w-3.5" /> Sửa</Link>
-                  </Button>
+                  <div className="flex shrink-0 gap-2">
+                    <Button asChild variant="outline" size="sm">
+                      <Link href={`/admin/listening/${t.id}`}><Pencil className="h-3.5 w-3.5" /> Sửa</Link>
+                    </Button>
+                    <DeleteTestButton endpoint={`/api/admin/listening/${t.id}`} name={t.title} kind="bài nghe" />
+                  </div>
                 </div>
               </CardHeader>
             </Card>

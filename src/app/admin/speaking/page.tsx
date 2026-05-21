@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Pencil } from "lucide-react";
+import { DeleteTestButton } from "@/components/admin/delete-test-button";
 
 export default async function AdminSpeakingPage() {
   const sets = await prisma.speakingSet.findMany({ orderBy: { createdAt: "desc" } });
@@ -30,9 +31,12 @@ export default async function AdminSpeakingPage() {
               <CardHeader>
                 <div className="flex items-center justify-between gap-3">
                   <CardTitle className="text-base flex-1 min-w-0">{s.topic}</CardTitle>
-                  <Button asChild variant="outline" size="sm">
-                    <Link href={`/admin/speaking/${s.id}`}><Pencil className="h-3.5 w-3.5" /> Sửa</Link>
-                  </Button>
+                  <div className="flex shrink-0 gap-2">
+                    <Button asChild variant="outline" size="sm">
+                      <Link href={`/admin/speaking/${s.id}`}><Pencil className="h-3.5 w-3.5" /> Sửa</Link>
+                    </Button>
+                    <DeleteTestButton endpoint={`/api/admin/speaking/${s.id}`} name={s.topic} kind="Speaking set" />
+                  </div>
                 </div>
               </CardHeader>
             </Card>

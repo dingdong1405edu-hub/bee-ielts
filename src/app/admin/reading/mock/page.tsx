@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Pencil, BookOpen, GraduationCap } from "lucide-react";
+import { DeleteTestButton } from "@/components/admin/delete-test-button";
 
 export default async function AdminReadingMockPage() {
   const tests = await prisma.readingTest.findMany({
@@ -54,11 +55,14 @@ export default async function AdminReadingMockPage() {
                       {t.slot && <Badge variant="outline">slot {t.slot}</Badge>}
                     </CardTitle>
                   </div>
-                  <Button asChild variant="outline" size="sm">
-                    <Link href={`/admin/reading/${t.id}`}>
-                      <Pencil className="h-3.5 w-3.5" /> Sửa
-                    </Link>
-                  </Button>
+                  <div className="flex shrink-0 gap-2">
+                    <Button asChild variant="outline" size="sm">
+                      <Link href={`/admin/reading/${t.id}`}>
+                        <Pencil className="h-3.5 w-3.5" /> Sửa
+                      </Link>
+                    </Button>
+                    <DeleteTestButton endpoint={`/api/admin/reading/${t.id}`} name={t.title} kind="đề thi thử" />
+                  </div>
                 </div>
               </CardHeader>
             </Card>
