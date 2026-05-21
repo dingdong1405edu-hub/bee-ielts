@@ -7,9 +7,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Mic, Square, Loader2, Volume2, ArrowRight, Trophy, Play, Timer,
-  Sparkles, MessageSquareQuote, ArrowRightToLine, Wand2, Check,
+  Sparkles, MessageSquareQuote, ArrowRightToLine, Wand2, Check, ClipboardList,
 } from "lucide-react";
-import { formatDuration, cn } from "@/lib/utils";
+import { formatDuration, cn, personalize } from "@/lib/utils";
 import { TipsCard } from "@/components/learn/tips-card";
 import { VoicePicker, useTtsVoice } from "@/components/learn/voice-picker";
 
@@ -69,6 +69,7 @@ export function SpeakingPlayer({
   setId,
   topic,
   imageUrl,
+  userName,
   part1Questions: rawPart1,
   part2CueCard,
   part3Questions: rawPart3,
@@ -76,6 +77,7 @@ export function SpeakingPlayer({
   setId: string;
   topic: string;
   imageUrl?: string | null;
+  userName?: string | null;
   part1Questions: string[];
   part2CueCard: { topic: string; points: string[] };
   part3Questions: string[];
@@ -474,7 +476,7 @@ export function SpeakingPlayer({
           <CardContent className="p-8 text-center">
             <div className="text-sm text-muted-foreground">Speaking Band</div>
             <div className="text-6xl font-extrabold gradient-brand-text mt-2">{result.overallBand.toFixed(1)}</div>
-            <p className="text-sm text-muted-foreground mt-3 max-w-md mx-auto">{result.summary}</p>
+            <p className="text-sm text-muted-foreground mt-3 max-w-md mx-auto">{personalize(result.summary, userName)}</p>
           </CardContent>
         </Card>
 
@@ -486,7 +488,7 @@ export function SpeakingPlayer({
                   <span className="text-sm font-medium">{labelOf(k)}</span>
                   <span className="text-lg font-bold text-primary">{v.band.toFixed(1)}</span>
                 </div>
-                <p className="text-xs text-muted-foreground">{v.feedback}</p>
+                <p className="text-xs text-muted-foreground">{personalize(v.feedback, userName)}</p>
               </CardContent>
             </Card>
           ))}
@@ -639,14 +641,19 @@ export function SpeakingPlayer({
         )}
 
         {result.observations.length > 0 && (
-          <Card>
+          <Card className="border-2 border-primary/30 bg-primary/[0.03]">
             <CardContent className="p-5">
-              <h3 className="font-bold mb-2">Nhận xét chi tiết</h3>
-              <ul className="space-y-1.5 text-sm">
+              <h3 className="text-xl font-extrabold tracking-tight mb-3 flex items-center gap-2">
+                <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/30">
+                  <ClipboardList className="h-5 w-5" />
+                </span>
+                Nhận xét chi tiết
+              </h3>
+              <ul className="space-y-2 text-sm">
                 {result.observations.map((o, i) => (
-                  <li key={i} className="flex gap-2">
-                    <span className="text-primary">•</span>
-                    <span>{o}</span>
+                  <li key={i} className="flex gap-2 leading-relaxed">
+                    <span className="text-primary font-bold shrink-0">•</span>
+                    <span>{personalize(o, userName)}</span>
                   </li>
                 ))}
               </ul>

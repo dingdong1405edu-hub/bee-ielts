@@ -2,9 +2,10 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { personalize } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, Calendar } from "lucide-react";
+import { ArrowLeft, Calendar, ClipboardList } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -27,8 +28,12 @@ export default async function SpeakingReviewPage({ params }: { params: { attempt
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const attempt = await prisma.attempt.findUnique({ where: { id: params.attemptId } });
+  const [attempt, user] = await Promise.all([
+    prisma.attempt.findUnique({ where: { id: params.attemptId } }),
+    prisma.user.findUnique({ where: { id: session.user.id }, select: { name: true } }),
+  ]);
   if (!attempt || attempt.userId !== session.user.id || attempt.skill !== "SPEAKING") notFound();
+  const userName = user?.name ?? null;
 
   const raw = (attempt.rawAnswer ?? {}) as Record<string, unknown>;
   // Practise = { part, transcript }; mock = { "1", "2", "3" }.
@@ -79,7 +84,7 @@ export default async function SpeakingReviewPage({ params }: { params: { attempt
         <Card>
           <CardContent className="p-5">
             <h3 className="font-extrabold mb-1">Nhận xét tổng quan</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">{fb.summary}</p>
+            <p className="text-sm text-muted-foreground leading-relaxed">{personalize(fb.summary, userName)}</p>
           </CardContent>
         </Card>
       )}
@@ -98,7 +103,7 @@ export default async function SpeakingReviewPage({ params }: { params: { attempt
                     </span>
                   </div>
                   {c.feedback && (
-                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{c.feedback}</p>
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{personalize(c.feedback, userName)}</p>
                   )}
                 </div>
               ) : null,
@@ -108,14 +113,19 @@ export default async function SpeakingReviewPage({ params }: { params: { attempt
       )}
 
       {fb.observations && fb.observations.length > 0 && (
-        <Card>
+        <Card className="border-2 border-primary/30 bg-primary/[0.03]">
           <CardContent className="p-5">
-            <h3 className="font-extrabold mb-2">Nhận xét chi tiết</h3>
-            <ul className="space-y-1.5 text-sm text-muted-foreground">
+            <h3 className="text-xl font-extrabold tracking-tight mb-3 flex items-center gap-2">
+              <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/30">
+                <ClipboardList className="h-5 w-5" />
+              </span>
+              Nhận xét chi tiết
+            </h3>
+            <ul className="space-y-2 text-sm">
               {fb.observations.map((o, i) => (
-                <li key={i} className="flex gap-2">
-                  <span className="text-primary">•</span>
-                  <span>{o}</span>
+                <li key={i} className="flex gap-2 leading-relaxed">
+                  <span className="text-primary font-bold shrink-0">•</span>
+                  <span>{personalize(o, userName)}</span>
                 </li>
               ))}
             </ul>
