@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PenLine, Clock, BarChart3, FileText, Trophy, History, ChevronRight } from "lucide-react";
 import { SkillIntro } from "@/components/learn/skill-intro";
 import { TestPicker } from "@/components/learn/test-picker";
+import { attemptCounts } from "@/lib/attempt-counts";
 import { Card, CardContent } from "@/components/ui/card";
 import { DeleteAttemptButton } from "@/components/learn/delete-attempt-button";
 import { auth } from "@/auth";
@@ -12,10 +13,13 @@ export const dynamic = "force-dynamic";
 export default async function WritingIntroPage() {
   const session = await auth();
 
-  const tasks = await prisma.writingTask.findMany({
-    orderBy: [{ taskType: "asc" }, { createdAt: "desc" }],
-    select: { id: true, taskType: true, prompt: true, minWords: true },
-  });
+  const [tasks, counts] = await Promise.all([
+    prisma.writingTask.findMany({
+      orderBy: [{ taskType: "asc" }, { createdAt: "desc" }],
+      select: { id: true, taskType: true, prompt: true, minWords: true, imageUrl: true },
+    }),
+    attemptCounts("WRITING"),
+  ]);
 
   // Past writing attempts — newest first
   let history: {
@@ -72,12 +76,19 @@ export default async function WritingIntroPage() {
 
       <TestPicker
         grad="from-rose-500 to-pink-500"
+        icon={PenLine}
         emptyText="Chưa có đề Writing nào."
         items={tasks.map((t) => ({
           id: t.id,
           href: `/writing/${t.id}`,
           title: t.prompt.split("\n")[0].slice(0, 110),
-          tags: [`Task ${t.taskType}`, `≥ ${t.minWords} từ`],
+          imageUrl: t.imageUrl,
+          attemptCount: counts.get(t.id) ?? 0,
+          pill: { label: `Task ${t.taskType}`, color: t.taskType === 1 ? "amber" : "violet" },
+          details: [
+            t.taskType === 1 ? "Mô tả biểu đồ / số liệu" : "Essay nghị luận",
+            `≥ ${t.minWords} từ`,
+          ],
           done: doneIds.has(t.id),
         }))}
       />

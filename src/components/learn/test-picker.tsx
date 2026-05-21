@@ -1,71 +1,134 @@
 import Link from "next/link";
-import { CheckCircle2, ChevronRight, ListChecks } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { CheckCircle2, ListChecks, Users, type LucideIcon } from "lucide-react";
+
+export type PillColor = "amber" | "violet" | "indigo" | "emerald" | "sky" | "rose";
 
 export type PickerItem = {
   id: string;
   href: string;
   title: string;
-  tags?: string[];
+  imageUrl?: string | null;
+  attemptCount?: number;
+  pill?: { label: string; color: PillColor };
+  details?: string[];
   done?: boolean;
 };
 
-/** "Pick your own test" list — the manual alternative to the random/AI picker. */
+const PILL_BG: Record<PillColor, string> = {
+  amber: "bg-amber-500",
+  violet: "bg-violet-500",
+  indigo: "bg-indigo-600",
+  emerald: "bg-emerald-600",
+  sky: "bg-sky-600",
+  rose: "bg-rose-500",
+};
+
+// Rotating colors for the per-card detail lines (question types etc).
+const DETAIL_COLORS = [
+  "text-emerald-600 dark:text-emerald-400",
+  "text-indigo-600 dark:text-indigo-400",
+  "text-rose-600 dark:text-rose-400",
+  "text-amber-600 dark:text-amber-400",
+  "text-cyan-600 dark:text-cyan-400",
+  "text-violet-600 dark:text-violet-400",
+];
+
+/** IELTS question-type → human label, matching common test-bank wording. */
+export function questionTypeLabel(type: string): string {
+  const map: Record<string, string> = {
+    MCQ: "Multiple Choice",
+    FILL_BLANK: "Gap Filling",
+    TRUE_FALSE: "True - False",
+    TRUE_FALSE_NOT_GIVEN: "True - False - Not Given",
+    MATCHING: "Matching",
+    MATCHING_HEADINGS: "Matching Headings",
+    MATCHING_INFO: "Matching Information",
+    MATCHING_FEATURES: "Matching Features",
+    MATCHING_SENTENCE_ENDINGS: "Matching Sentence Endings",
+    SHORT_ANSWER: "Short Answer",
+  };
+  return map[type] ?? type;
+}
+
+/** "Pick your own test" card grid — the manual alternative to the random/AI picker. */
 export function TestPicker({
   items,
   grad,
+  icon: Icon,
   emptyText = "Chưa có đề nào.",
 }: {
   items: PickerItem[];
   grad: string;
+  icon: LucideIcon;
   emptyText?: string;
 }) {
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-6xl mx-auto w-full">
       <div className="flex items-center gap-2 mb-1">
         <ListChecks className="h-5 w-5 text-primary" />
         <h2 className="text-lg font-extrabold">Hoặc tự chọn đề</h2>
       </div>
-      <p className="text-xs text-muted-foreground mb-3">Nhấn vào đề bạn muốn làm.</p>
+      <p className="text-xs text-muted-foreground mb-4">Nhấn vào đề bạn muốn làm.</p>
+
       {items.length === 0 ? (
-        <Card>
-          <CardContent className="p-6 text-center text-sm text-muted-foreground">{emptyText}</CardContent>
-        </Card>
+        <div className="rounded-2xl border bg-card p-8 text-center text-sm text-muted-foreground">
+          {emptyText}
+        </div>
       ) : (
-        <div className="space-y-2">
-          {items.map((it, i) => (
-            <Card key={it.id} className="hover:shadow-md hover:border-primary/40 transition-all">
-              <CardContent className="p-0">
-                <Link href={it.href} className="flex items-center gap-3 p-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {items.map((it) => (
+            <Link
+              key={it.id}
+              href={it.href}
+              className="group block overflow-hidden rounded-2xl border bg-card transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg"
+            >
+              <div className="relative aspect-[16/10]">
+                {it.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={it.imageUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <div className={`grid h-full w-full place-items-center bg-gradient-to-br ${grad}`}>
+                    <Icon className="h-10 w-10 text-white/80" />
+                  </div>
+                )}
+
+                {it.attemptCount != null && (
+                  <div className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[11px] font-bold text-white backdrop-blur-sm">
+                    <Users className="h-3 w-3" />
+                    {it.attemptCount.toLocaleString("vi-VN")} lượt làm bài
+                  </div>
+                )}
+
+                {it.done && (
+                  <div className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-success px-2 py-1 text-[10px] font-bold text-success-foreground">
+                    <CheckCircle2 className="h-3 w-3" /> Đã làm
+                  </div>
+                )}
+
+                {it.pill && (
                   <div
-                    className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br ${grad} text-white font-extrabold text-sm`}
+                    className={`absolute bottom-2 left-2 rounded-md px-2.5 py-1 text-xs font-bold text-white ${PILL_BG[it.pill.color]}`}
                   >
-                    {i + 1}
+                    {it.pill.label}
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-semibold truncate">{it.title}</div>
-                    {it.tags && it.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mt-1">
-                        {it.tags.map((t) => (
-                          <span
-                            key={t}
-                            className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground"
-                          >
-                            {t}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {it.done && (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-success shrink-0">
-                      <CheckCircle2 className="h-3.5 w-3.5" /> Đã làm
-                    </span>
-                  )}
-                  <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
-                </Link>
-              </CardContent>
-            </Card>
+                )}
+              </div>
+
+              <div className="p-3">
+                <h3 className="text-sm font-bold leading-snug line-clamp-2 group-hover:text-primary">
+                  {it.title}
+                </h3>
+                {it.details && it.details.length > 0 && (
+                  <ul className="mt-2 space-y-0.5">
+                    {it.details.map((d, i) => (
+                      <li key={d} className={`text-xs font-semibold ${DETAIL_COLORS[i % DETAIL_COLORS.length]}`}>
+                        • {d}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </Link>
           ))}
         </div>
       )}

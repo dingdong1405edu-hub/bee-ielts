@@ -1,19 +1,33 @@
 import { BookOpen, Clock, FileText, Brain, Trophy } from "lucide-react";
+import { CEFRLevel } from "@prisma/client";
 import { SkillIntro } from "@/components/learn/skill-intro";
-import { TestPicker } from "@/components/learn/test-picker";
+import { TestPicker, questionTypeLabel, type PillColor } from "@/components/learn/test-picker";
+import { attemptCounts } from "@/lib/attempt-counts";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
+const LEVEL_COLOR: Record<CEFRLevel, PillColor> = {
+  A1: "emerald",
+  A2: "emerald",
+  B1: "sky",
+  B2: "indigo",
+  C1: "violet",
+  C2: "rose",
+};
+
 export default async function ReadingIntroPage() {
   const session = await auth();
 
-  const tests = await prisma.readingTest.findMany({
-    where: { bank: "PRACTICE" },
-    orderBy: { createdAt: "desc" },
-    include: { _count: { select: { questions: true } } },
-  });
+  const [tests, counts] = await Promise.all([
+    prisma.readingTest.findMany({
+      where: { bank: "PRACTICE" },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, title: true, level: true, imageUrl: true, questions: { select: { type: true } } },
+    }),
+    attemptCounts("READING"),
+  ]);
 
   let doneIds = new Set<string>();
   if (session?.user?.id) {
@@ -43,12 +57,16 @@ export default async function ReadingIntroPage() {
 
       <TestPicker
         grad="from-emerald-500 to-teal-500"
+        icon={BookOpen}
         emptyText="Chưa có bài đọc nào trong kho luyện tập."
         items={tests.map((t) => ({
           id: t.id,
           href: `/reading/session?ids=${t.id}`,
           title: t.title,
-          tags: [t.level, `${t._count.questions} câu hỏi`],
+          imageUrl: t.imageUrl,
+          attemptCount: counts.get(t.id) ?? 0,
+          pill: { label: t.level, color: LEVEL_COLOR[t.level] },
+          details: [...new Set(t.questions.map((q) => q.type))].map(questionTypeLabel),
           done: doneIds.has(t.id),
         }))}
       />

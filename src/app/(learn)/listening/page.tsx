@@ -1,6 +1,7 @@
 import { Headphones, Clock, Volume2, Brain, Trophy } from "lucide-react";
 import { SkillIntro } from "@/components/learn/skill-intro";
-import { TestPicker } from "@/components/learn/test-picker";
+import { TestPicker, questionTypeLabel } from "@/components/learn/test-picker";
+import { attemptCounts } from "@/lib/attempt-counts";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 
@@ -9,11 +10,14 @@ export const dynamic = "force-dynamic";
 export default async function ListeningIntroPage() {
   const session = await auth();
 
-  const tests = await prisma.listeningTest.findMany({
-    where: { bank: "PRACTICE" },
-    orderBy: { createdAt: "desc" },
-    include: { _count: { select: { questions: true } } },
-  });
+  const [tests, counts] = await Promise.all([
+    prisma.listeningTest.findMany({
+      where: { bank: "PRACTICE" },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, title: true, imageUrl: true, questions: { select: { type: true } } },
+    }),
+    attemptCounts("LISTENING"),
+  ]);
 
   let doneIds = new Set<string>();
   if (session?.user?.id) {
@@ -43,12 +47,15 @@ export default async function ListeningIntroPage() {
 
       <TestPicker
         grad="from-amber-500 to-orange-500"
+        icon={Headphones}
         emptyText="Chưa có bài nghe nào trong kho luyện tập."
         items={tests.map((t) => ({
           id: t.id,
           href: `/listening/${t.id}`,
           title: t.title,
-          tags: [`${t._count.questions} câu hỏi`],
+          imageUrl: t.imageUrl,
+          attemptCount: counts.get(t.id) ?? 0,
+          details: [...new Set(t.questions.map((q) => q.type))].map(questionTypeLabel),
           done: doneIds.has(t.id),
         }))}
       />
