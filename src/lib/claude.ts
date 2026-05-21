@@ -124,6 +124,100 @@ Hãy thiết kế weeklyTemplate gồm đúng ${input.daysPerWeek} buổi và tr
   return extractJSON(text) as StudyPlanResult;
 }
 
+const READING_BUILDER_SYSTEM = `You are an IELTS Reading test builder. You receive the raw content of an IELTS Reading exam — pasted text, or scanned/photographed page images — containing a reading passage together with its question section.
+
+Your job:
+1. Identify the reading passage and its TITLE. Preserve the full passage text faithfully; keep paragraph labels (A, B, C…) on their own lines if the passage uses them. Fix only obvious OCR/scan typos.
+2. Identify EVERY question and detect its type. Supported types:
+   - "MATCHING_HEADINGS" — match each paragraph to a heading from a List of Headings.
+   - "MCQ" — multiple choice with answer options.
+   - "TRUE_FALSE_NOT_GIVEN" — decide if a statement is True, False or Not Given.
+   - "FILL_BLANK" — sentence / summary completion with a gap.
+   A single exam may mix several types — analyse each question independently.
+3. SOLVE every question yourself by reading the passage carefully. The source usually leaves answers blank; you must determine the correct answer with high confidence.
+4. Write a short Vietnamese explanation for each question saying why the answer is correct.
+
+Formatting rules per type:
+- MATCHING_HEADINGS: emit ONE question per paragraph. "prompt" = the paragraph label, e.g. "Paragraph A". "options" = the COMPLETE List of Headings, each entry formatted exactly as "i. heading text", "ii. heading text" … with lowercase roman numerals. Every MATCHING_HEADINGS question MUST carry the SAME full "options" list. "correctAnswer" = the lowercase roman numeral of the chosen heading, e.g. "v".
+- MCQ: "options" = the answer choices as plain text (no "A."/"B." prefix). "correctAnswer" = the exact text of the correct option, copied verbatim from "options".
+- TRUE_FALSE_NOT_GIVEN: "prompt" = the statement. "options" = ["True","False","Not Given"]. "correctAnswer" = exactly "True", "False" or "Not Given".
+- FILL_BLANK: "prompt" = the sentence with the gap written as "___" (three underscores). "correctAnswer" = the word/phrase that fills the gap, copied from the passage.
+
+Return ONLY valid JSON — no markdown, no commentary — matching this exact TypeScript type:
+
+type ReadingTest = {
+  title: string;
+  passage: string;
+  questions: {
+    type: "MCQ" | "MATCHING_HEADINGS" | "FILL_BLANK" | "TRUE_FALSE_NOT_GIVEN";
+    prompt: string;
+    options?: string[];
+    correctAnswer: string;
+    explanation: string;
+  }[];
+};`;
+
+export interface ReadingImageInput {
+  mediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+  data: string; // base64, without the data: prefix
+}
+
+export interface GeneratedReadingQuestion {
+  type: "MCQ" | "MATCHING_HEADINGS" | "FILL_BLANK" | "TRUE_FALSE_NOT_GIVEN";
+  prompt: string;
+  options?: string[];
+  correctAnswer: string;
+  explanation?: string;
+}
+
+export interface GeneratedReadingTest {
+  title: string;
+  passage: string;
+  questions: GeneratedReadingQuestion[];
+}
+
+/**
+ * Build a complete, already-solved IELTS reading test from a pasted exam
+ * and/or scanned page images. Claude detects every question's type and
+ * works out the correct answers itself.
+ */
+export async function generateReadingTest(input: {
+  rawText?: string;
+  images?: ReadingImageInput[];
+}): Promise<GeneratedReadingTest> {
+  const content: Array<Anthropic.TextBlockParam | Anthropic.ImageBlockParam> = [];
+
+  for (const img of input.images ?? []) {
+    content.push({
+      type: "image",
+      source: { type: "base64", media_type: img.mediaType, data: img.data },
+    });
+  }
+
+  const intro = input.rawText?.trim()
+    ? `Pasted IELTS Reading exam content:\n\n${input.rawText.trim()}`
+    : "The IELTS Reading exam is in the attached page image(s).";
+  content.push({
+    type: "text",
+    text: `${intro}\n\nBuild the complete reading test now and return ONLY the JSON.`,
+  });
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 8000,
+    temperature: 0.2,
+    system: READING_BUILDER_SYSTEM,
+    messages: [{ role: "user", content }],
+  });
+
+  const text = response.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("");
+
+  return extractJSON(text) as GeneratedReadingTest;
+}
+
 export interface WritingGradeInput {
   taskType: 1 | 2;
   prompt: string;
