@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trash2, Plus, Loader2, GraduationCap, BookOpen } from "lucide-react";
 import { ImageUrlField } from "./image-url-field";
+import { DeleteTestButton } from "./delete-test-button";
 
 type Bank = "PRACTICE" | "MOCK";
 type QType = "MCQ" | "MATCHING_HEADINGS" | "FILL_BLANK" | "TRUE_FALSE_NOT_GIVEN";
@@ -280,6 +281,18 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
           {loading && <Loader2 className="h-4 w-4 animate-spin" />}
           {isEdit ? "Lưu thay đổi" : "Lưu"}
         </Button>
+        {isEdit && (
+          <div className="ml-auto">
+            <DeleteTestButton
+              endpoint={`/api/admin/reading/${initial!.id}`}
+              name={initial!.title}
+              kind="bài Reading"
+              redirectTo={listHref}
+              size="default"
+              label="Xoá bài này"
+            />
+          </div>
+        )}
       </div>
     </div>
   );

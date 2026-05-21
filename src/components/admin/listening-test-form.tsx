@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trash2, Plus, Loader2, GraduationCap, Headphones } from "lucide-react";
 import { ImageUrlField } from "./image-url-field";
+import { DeleteTestButton } from "./delete-test-button";
 
 type Bank = "PRACTICE" | "MOCK";
 type QType = "MCQ" | "FILL_BLANK" | "TRUE_FALSE_NOT_GIVEN" | "SHORT_ANSWER";
@@ -279,6 +280,18 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
           {loading && <Loader2 className="h-4 w-4 animate-spin" />}
           {isEdit ? "Lưu thay đổi" : "Lưu"}
         </Button>
+        {isEdit && (
+          <div className="ml-auto">
+            <DeleteTestButton
+              endpoint={`/api/admin/listening/${initial!.id}`}
+              name={initial!.title}
+              kind="bài Listening"
+              redirectTo={listHref}
+              size="default"
+              label="Xoá bài này"
+            />
+          </div>
+        )}
       </div>
     </div>
   );

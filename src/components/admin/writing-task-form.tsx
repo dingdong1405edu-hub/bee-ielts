@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { ImageUrlField } from "./image-url-field";
+import { DeleteTestButton } from "./delete-test-button";
 
 /** DB-shaped writing task passed in when editing an existing record. */
 export type WritingInitial = {
@@ -104,6 +105,18 @@ export function WritingTaskForm({ initial }: { initial?: WritingInitial }) {
           {loading && <Loader2 className="h-4 w-4 animate-spin" />}
           {isEdit ? "Lưu thay đổi" : "Lưu"}
         </Button>
+        {isEdit && (
+          <div className="ml-auto">
+            <DeleteTestButton
+              endpoint={`/api/admin/writing/${initial!.id}`}
+              name={initial!.prompt.split("\n")[0].slice(0, 60)}
+              kind="Writing task"
+              redirectTo="/admin/writing"
+              size="default"
+              label="Xoá bài này"
+            />
+          </div>
+        )}
       </div>
     </div>
   );
