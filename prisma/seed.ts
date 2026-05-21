@@ -13,10 +13,18 @@ import { WRITING_TASKS, SPEAKING_SETS } from "./data/writing-speaking";
 
 const prisma = new PrismaClient();
 
+/**
+ * Idempotent seed.
+ *
+ * This runs on every Railway deploy, so it MUST NOT overwrite content the
+ * admin has created or deleted. Each content block below only runs when its
+ * table is still empty (a fresh database). On a populated database every
+ * block is skipped, so admin edits and deletions are permanent.
+ */
 async function main() {
   console.log("Seeding database...");
 
-  // Users
+  // Users — always upsert. Harmless to repeat; never deletes anything.
   const adminPass = await bcrypt.hash("admin123", 10);
   const admin = await prisma.user.upsert({
     where: { email: "admin@bee-ielts.com" },
@@ -43,142 +51,146 @@ async function main() {
     },
   });
 
-  // Vocab
-  for (const unit of VOCAB_UNITS) {
-    const u = await prisma.vocabUnit.upsert({
-      where: { level_order: { level: unit.level, order: unit.order } },
-      update: { title: unit.title },
-      create: {
-        title: unit.title,
-        level: unit.level,
-        order: unit.order,
-        iconKey: unit.iconKey ?? null,
-      },
-    });
-    await prisma.vocabLesson.deleteMany({ where: { unitId: u.id } });
-    for (const l of unit.lessons) {
-      await prisma.vocabLesson.create({
+  // Vocab — only on a fresh DB.
+  if ((await prisma.vocabUnit.count()) === 0) {
+    for (const unit of VOCAB_UNITS) {
+      const u = await prisma.vocabUnit.create({
         data: {
-          unitId: u.id,
-          title: l.title,
-          order: l.order,
-          exercises: l.exercises,
+          title: unit.title,
+          level: unit.level,
+          order: unit.order,
+          iconKey: unit.iconKey ?? null,
+        },
+      });
+      for (const l of unit.lessons) {
+        await prisma.vocabLesson.create({
+          data: { unitId: u.id, title: l.title, order: l.order, exercises: l.exercises },
+        });
+      }
+    }
+    console.log("Vocab: seeded.");
+  } else {
+    console.log("Vocab: skipped (đã có dữ liệu).");
+  }
+
+  // Grammar — only on a fresh DB.
+  if ((await prisma.grammarUnit.count()) === 0) {
+    for (const unit of GRAMMAR_UNITS) {
+      const u = await prisma.grammarUnit.create({
+        data: { title: unit.title, level: unit.level, order: unit.order },
+      });
+      for (const l of unit.lessons) {
+        await prisma.grammarLesson.create({
+          data: { unitId: u.id, title: l.title, order: l.order, content: l.content, exercises: l.exercises },
+        });
+      }
+    }
+    console.log("Grammar: seeded.");
+  } else {
+    console.log("Grammar: skipped (đã có dữ liệu).");
+  }
+
+  // Reading — only on a fresh DB.
+  if ((await prisma.readingTest.count()) === 0) {
+    const allReadings = [
+      ...READING_TESTS_V2,
+      ...READING_V3_A,
+      ...READING_V3_B,
+      ...READING_V3_C,
+      ...READING_V3_D,
+    ];
+    for (const r of allReadings) {
+      await prisma.readingTest.create({
+        data: {
+          title: r.title,
+          level: r.level,
+          timeLimit: r.timeLimit,
+          passage: r.passage,
+          slot: r.slot ?? null,
+          questions: {
+            create: r.questions.map((q, i) => ({
+              type: q.type,
+              prompt: q.prompt,
+              options: q.options ?? undefined,
+              correctAnswer: q.correctAnswer,
+              explanation: q.explanation ?? null,
+              order: i + 1,
+            })),
+          },
         },
       });
     }
+    console.log("Reading: seeded.");
+  } else {
+    console.log("Reading: skipped (đã có dữ liệu).");
   }
 
-  // Grammar
-  await prisma.grammarLesson.deleteMany({});
-  await prisma.grammarUnit.deleteMany({});
-  for (const unit of GRAMMAR_UNITS) {
-    const u = await prisma.grammarUnit.create({
-      data: {
-        title: unit.title,
-        level: unit.level,
-        order: unit.order,
-      },
-    });
-    for (const l of unit.lessons) {
-      await prisma.grammarLesson.create({
+  // Listening — only on a fresh DB.
+  if ((await prisma.listeningTest.count()) === 0) {
+    for (const l of LISTENING_TESTS) {
+      await prisma.listeningTest.create({
         data: {
-          unitId: u.id,
           title: l.title,
-          order: l.order,
-          content: l.content,
-          exercises: l.exercises,
+          audioUrl: l.audioUrl,
+          transcript: l.transcript,
+          timeLimit: l.timeLimit,
+          questions: {
+            create: l.questions.map((q, i) => ({
+              type: q.type,
+              prompt: q.prompt,
+              options: q.options ?? undefined,
+              correctAnswer: q.correctAnswer,
+              order: i + 1,
+            })),
+          },
         },
       });
     }
+    console.log("Listening: seeded.");
+  } else {
+    console.log("Listening: skipped (đã có dữ liệu).");
   }
 
-  // Reading: reseed the slot-tagged practice bank (slot A–D) only.
-  // Admin-created reading tests (slot = null) are preserved across deploys;
-  // leftover legacy un-slotted seed tests are removed once by title.
-  await prisma.readingTest.deleteMany({ where: { slot: { not: null } } });
-  await prisma.readingTest.deleteMany({ where: { title: { in: READING_TESTS.map((r) => r.title) } } });
-  const allReadings = [
-    ...READING_TESTS_V2,
-    ...READING_V3_A,
-    ...READING_V3_B,
-    ...READING_V3_C,
-    ...READING_V3_D,
-  ];
-  for (const r of allReadings) {
-    await prisma.readingTest.create({
-      data: {
-        title: r.title,
-        level: r.level,
-        timeLimit: r.timeLimit,
-        passage: r.passage,
-        slot: r.slot ?? null,
-        questions: {
-          create: r.questions.map((q, i) => ({
-            type: q.type,
-            prompt: q.prompt,
-            options: q.options ?? undefined,
-            correctAnswer: q.correctAnswer,
-            explanation: q.explanation ?? null,
-            order: i + 1,
-          })),
+  // Writing — only on a fresh DB.
+  if ((await prisma.writingTask.count()) === 0) {
+    for (const t of WRITING_TASKS) {
+      await prisma.writingTask.create({
+        data: {
+          taskType: t.taskType,
+          prompt: t.prompt,
+          imageUrl: t.imageUrl ?? null,
+          diagramSvg: t.diagramSvg ?? null,
+          minWords: t.minWords,
+          timeLimit: t.timeLimit,
         },
-      },
-    });
+      });
+    }
+    console.log("Writing: seeded.");
+  } else {
+    console.log("Writing: skipped (đã có dữ liệu).");
   }
 
-  // Listening
-  await prisma.question.deleteMany({ where: { listeningId: { not: null } } });
-  await prisma.listeningTest.deleteMany({});
-  for (const l of LISTENING_TESTS) {
-    await prisma.listeningTest.create({
-      data: {
-        title: l.title,
-        audioUrl: l.audioUrl,
-        transcript: l.transcript,
-        timeLimit: l.timeLimit,
-        questions: {
-          create: l.questions.map((q, i) => ({
-            type: q.type,
-            prompt: q.prompt,
-            options: q.options ?? undefined,
-            correctAnswer: q.correctAnswer,
-            order: i + 1,
-          })),
+  // Speaking — only on a fresh DB.
+  if ((await prisma.speakingSet.count()) === 0) {
+    for (const s of SPEAKING_SETS) {
+      await prisma.speakingSet.create({
+        data: {
+          topic: s.topic,
+          part1Questions: s.part1Questions,
+          part2CueCard: s.part2CueCard,
+          part3Questions: s.part3Questions,
         },
-      },
-    });
-  }
-
-  // Writing
-  await prisma.writingTask.deleteMany({});
-  for (const t of WRITING_TASKS) {
-    await prisma.writingTask.create({
-      data: {
-        taskType: t.taskType,
-        prompt: t.prompt,
-        imageUrl: t.imageUrl ?? null,
-        diagramSvg: t.diagramSvg ?? null,
-        minWords: t.minWords,
-        timeLimit: t.timeLimit,
-      },
-    });
-  }
-
-  // Speaking
-  await prisma.speakingSet.deleteMany({});
-  for (const s of SPEAKING_SETS) {
-    await prisma.speakingSet.create({
-      data: {
-        topic: s.topic,
-        part1Questions: s.part1Questions,
-        part2CueCard: s.part2CueCard,
-        part3Questions: s.part3Questions,
-      },
-    });
+      });
+    }
+    console.log("Speaking: seeded.");
+  } else {
+    console.log("Speaking: skipped (đã có dữ liệu).");
   }
 
   console.log(`Seed done. Admin: ${admin.email}`);
-  console.log(`Stats: vocab=${VOCAB_UNITS.length} units, grammar=${GRAMMAR_UNITS.length} units, reading=${READING_TESTS.length}, listening=${LISTENING_TESTS.length}, writing=${WRITING_TASKS.length}, speaking=${SPEAKING_SETS.length}`);
+  console.log(
+    `Source data: vocab=${VOCAB_UNITS.length}, grammar=${GRAMMAR_UNITS.length}, reading legacy=${READING_TESTS.length}, listening=${LISTENING_TESTS.length}, writing=${WRITING_TASKS.length}, speaking=${SPEAKING_SETS.length}`,
+  );
 }
 
 main()
