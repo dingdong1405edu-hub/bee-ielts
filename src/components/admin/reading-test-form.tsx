@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Trash2, Plus, Loader2, GraduationCap, BookOpen } from "lucide-react";
+import { Trash2, Plus, Loader2, GraduationCap, BookOpen, List } from "lucide-react";
 import { ImageUrlField } from "./image-url-field";
 import { DeleteTestButton } from "./delete-test-button";
 
@@ -19,11 +19,25 @@ type Q = {
   type: QType;
   prompt: string;
   options: string[];
+  /** For MATCHING_HEADINGS this is the index (as string) into the shared heading list. */
   correctAnswer: string;
   explanation: string;
 };
 
-const ROMAN = ["i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii"];
+/** Lowercase roman numerals for the List of Headings (i, ii, iii, …). */
+function toRoman(n: number): string {
+  const map: [number, string][] = [
+    [10, "x"], [9, "ix"], [5, "v"], [4, "iv"], [1, "i"],
+  ];
+  let out = "";
+  let num = n;
+  for (const [v, s] of map) while (num >= v) { out += s; num -= v; }
+  return out;
+}
+const ROMAN = Array.from({ length: 30 }, (_, i) => toRoman(i + 1));
+
+/** Capital letters for paragraph labels (Paragraph A, B, C, …). */
+const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
 const TYPE_LABEL: Record<QType, string> = {
   MCQ: "Trắc nghiệm (Multiple choice)",
@@ -35,7 +49,7 @@ const TYPE_LABEL: Record<QType, string> = {
 const blankQ = (type: QType): Q => ({
   type,
   prompt: "",
-  options: type === "MCQ" || type === "MATCHING_HEADINGS" ? ["", "", "", ""] : [],
+  options: type === "MCQ" ? ["", "", "", ""] : [],
   correctAnswer: "",
   explanation: "",
 });
@@ -56,22 +70,39 @@ function coerceType(t: string): QType {
   return "FILL_BLANK";
 }
 
-/** Convert DB questions into the form's editable shape (reverses the save-time encoding). */
-function toFormQuestions(initial?: ReadingInitial): Q[] {
-  if (!initial || initial.questions.length === 0) return [blankQ("MCQ")];
-  return initial.questions.map((q) => {
+/**
+ * Convert DB questions into the form's editable shape. Matching Headings
+ * questions all share one List of Headings, so it is lifted out into its
+ * own `headings` array; each paragraph keeps only the chosen heading index.
+ */
+function toFormState(initial?: ReadingInitial): { questions: Q[]; headings: string[] } {
+  if (!initial || initial.questions.length === 0) {
+    return { questions: [blankQ("MCQ")], headings: ["", "", "", ""] };
+  }
+  let headings: string[] = [];
+  const questions: Q[] = initial.questions.map((q) => {
     const type = coerceType(q.type);
     const explanation = q.explanation ?? "";
     if (type === "MATCHING_HEADINGS") {
-      const headings = (q.options ?? []).map((o) => o.replace(/^[ivxlc]+\.\s*/i, ""));
+      const hs = (q.options ?? []).map((o) => o.replace(/^[ivxlcdm]+\.\s*/i, "").trim());
+      // Keep the most complete list seen so every stored answer index resolves.
+      if (hs.length > headings.length) headings = hs;
       const idx = ROMAN.indexOf(q.correctAnswer);
-      return { type, prompt: q.prompt, options: headings.length ? headings : ["", ""], correctAnswer: idx >= 0 ? String(idx) : "", explanation };
+      return { type, prompt: q.prompt, options: [], correctAnswer: idx >= 0 ? String(idx) : "", explanation };
     }
     if (type === "MCQ") {
       return { type, prompt: q.prompt, options: q.options && q.options.length ? q.options : ["", ""], correctAnswer: q.correctAnswer, explanation };
     }
     return { type, prompt: q.prompt, options: [], correctAnswer: q.correctAnswer, explanation };
   });
+  return { questions, headings: headings.length >= 2 ? headings : ["", "", "", ""] };
+}
+
+/** Paragraph letter for the Matching Headings question at index `qi`. */
+function mhLetterAt(questions: Q[], qi: number): string {
+  let c = 0;
+  for (let i = 0; i < qi; i++) if (questions[i].type === "MATCHING_HEADINGS") c++;
+  return LETTERS[c] ?? "?";
 }
 
 /** Reading-test create/edit form. Pass `initial` to edit an existing record. */
@@ -84,15 +115,60 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
   const [title, setTitle] = useState(initial?.title ?? "");
   const [passage, setPassage] = useState(initial?.passage ?? "");
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
-  const [questions, setQuestions] = useState<Q[]>(() => toFormQuestions(initial));
+  const [questions, setQuestions] = useState<Q[]>(() => toFormState(initial).questions);
+  const [headings, setHeadings] = useState<string[]>(() => toFormState(initial).headings);
+
+  const hasMatching = questions.some((q) => q.type === "MATCHING_HEADINGS");
 
   const patchQ = (qi: number, patch: Partial<Q>) =>
     setQuestions((qs) => qs.map((q, i) => (i === qi ? { ...q, ...patch } : q)));
+
+  const setHeadingAt = (hi: number, v: string) =>
+    setHeadings((hs) => hs.map((x, j) => (j === hi ? v : x)));
+
+  /** Remove a shared heading and keep every paragraph's chosen index valid. */
+  const removeHeading = (hi: number) => {
+    setHeadings((hs) => hs.filter((_, i) => i !== hi));
+    setQuestions((qs) =>
+      qs.map((q) => {
+        if (q.type !== "MATCHING_HEADINGS" || q.correctAnswer === "") return q;
+        const idx = parseInt(q.correctAnswer, 10);
+        if (idx === hi) return { ...q, correctAnswer: "" };
+        if (idx > hi) return { ...q, correctAnswer: String(idx - 1) };
+        return q;
+      }),
+    );
+  };
+
+  const changeType = (qi: number, type: QType) => {
+    const q = questions[qi];
+    const patch: Partial<Q> = { type, correctAnswer: "" };
+    patch.options = type === "MCQ" ? (q.options.length ? q.options : blankQ("MCQ").options) : [];
+    if (type === "MATCHING_HEADINGS" && !q.prompt.trim()) {
+      patch.prompt = `Paragraph ${mhLetterAt(questions, qi)}`;
+    }
+    patchQ(qi, patch);
+  };
 
   const submit = async () => {
     if (!title.trim()) return toast.error("Nhập tiêu đề");
     if (passage.trim().length < 50) return toast.error("Đoạn văn quá ngắn (tối thiểu 50 ký tự)");
     if (questions.length === 0) return toast.error("Cần ít nhất 1 câu hỏi");
+
+    // Build the shared List of Headings once — used by every Matching Headings question.
+    const headingRemap = new Map<number, number>();
+    const finalHeadings: string[] = [];
+    if (hasMatching) {
+      headings.forEach((h, i) => {
+        const t = h.trim();
+        if (t) {
+          headingRemap.set(i, finalHeadings.length);
+          finalHeadings.push(t);
+        }
+      });
+      if (finalHeadings.length < 2) return toast.error("Danh sách Heading cần ít nhất 2 mục");
+    }
+    const numberedHeadings = finalHeadings.map((h, i) => `${ROMAN[i]}. ${h}`);
 
     const payload: { type: QType; prompt: string; options?: string[]; correctAnswer: string; explanation?: string }[] = [];
     for (let i = 0; i < questions.length; i++) {
@@ -106,13 +182,10 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
           return toast.error(`Câu ${i + 1}: chọn đáp án đúng`);
         payload.push({ type: "MCQ", prompt: q.prompt.trim(), options: opts, correctAnswer: q.correctAnswer, explanation: q.explanation.trim() || undefined });
       } else if (q.type === "MATCHING_HEADINGS") {
-        const headings = q.options.map((o) => o.trim()).filter(Boolean);
-        if (headings.length < 2) return toast.error(`Câu ${i + 1}: cần ít nhất 2 tiêu đề`);
-        const idx = parseInt(q.correctAnswer, 10);
-        if (Number.isNaN(idx) || idx < 0 || idx >= headings.length)
-          return toast.error(`Câu ${i + 1}: chọn tiêu đề đúng`);
-        const numbered = headings.map((h, hi) => `${ROMAN[hi]}. ${h}`);
-        payload.push({ type: "MATCHING_HEADINGS", prompt: q.prompt.trim(), options: numbered, correctAnswer: ROMAN[idx], explanation: q.explanation.trim() || undefined });
+        const origIdx = parseInt(q.correctAnswer, 10);
+        const newIdx = Number.isNaN(origIdx) ? undefined : headingRemap.get(origIdx);
+        if (newIdx === undefined) return toast.error(`Câu ${i + 1}: chọn heading đúng cho đoạn này`);
+        payload.push({ type: "MATCHING_HEADINGS", prompt: q.prompt.trim(), options: numberedHeadings, correctAnswer: ROMAN[newIdx], explanation: q.explanation.trim() || undefined });
       } else if (q.type === "TRUE_FALSE_NOT_GIVEN") {
         if (!["True", "False", "Not Given"].includes(q.correctAnswer))
           return toast.error(`Câu ${i + 1}: chọn đáp án đúng`);
@@ -181,6 +254,42 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
         </CardContent>
       </Card>
 
+      {hasMatching && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <List className="h-5 w-5 text-primary" /> Danh sách Heading (dùng chung)
+              </CardTitle>
+              <Button size="sm" variant="outline" onClick={() => setHeadings([...headings, ""])}>
+                <Plus className="h-4 w-4" /> Thêm heading
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Danh sách heading đánh số La Mã (i, ii, iii…). Mỗi câu Matching Headings bên dưới
+              sẽ chọn 1 heading từ danh sách này.
+            </p>
+            {headings.map((h, hi) => (
+              <div key={hi} className="flex items-center gap-2">
+                <span className="text-sm font-bold w-8 shrink-0 text-muted-foreground">{ROMAN[hi]}.</span>
+                <Input
+                  value={h}
+                  placeholder={`Nội dung heading ${hi + 1}`}
+                  onChange={(e) => setHeadingAt(hi, e.target.value)}
+                />
+                {headings.length > 2 && (
+                  <Button variant="ghost" size="sm" onClick={() => removeHeading(hi)}>
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </Button>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -191,87 +300,91 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {questions.map((q, qi) => (
-            <div key={qi} className="rounded-lg border p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold">Câu {qi + 1}</span>
-                {questions.length > 1 && (
-                  <Button variant="ghost" size="sm" onClick={() => setQuestions(questions.filter((_, i) => i !== qi))}>
-                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                  </Button>
-                )}
-              </div>
+          {questions.map((q, qi) => {
+            const mhLetter = q.type === "MATCHING_HEADINGS" ? mhLetterAt(questions, qi) : null;
+            return (
+              <div key={qi} className="rounded-lg border p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold">
+                    Câu {qi + 1}
+                    {mhLetter && <span className="text-primary"> · Đoạn {mhLetter}</span>}
+                  </span>
+                  {questions.length > 1 && (
+                    <Button variant="ghost" size="sm" onClick={() => setQuestions(questions.filter((_, i) => i !== qi))}>
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
+                  )}
+                </div>
 
-              <div>
-                <Label>Dạng câu hỏi</Label>
-                <select
-                  value={q.type}
-                  onChange={(e) => {
-                    const type = e.target.value as QType;
-                    const keepOpts = (type === "MCQ" || type === "MATCHING_HEADINGS") && q.options.length > 0;
-                    patchQ(qi, { type, options: keepOpts ? q.options : blankQ(type).options, correctAnswer: "" });
-                  }}
-                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                >
-                  {(Object.keys(TYPE_LABEL) as QType[]).map((t) => (
-                    <option key={t} value={t}>{TYPE_LABEL[t]}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <Label>{q.type === "MATCHING_HEADINGS" ? "Đoạn văn / câu cần nối tiêu đề" : "Nội dung câu hỏi"}</Label>
-                <Textarea
-                  value={q.prompt}
-                  onChange={(e) => patchQ(qi, { prompt: e.target.value })}
-                  placeholder={
-                    q.type === "FILL_BLANK"
-                      ? "Dùng ___ cho chỗ trống. VD: Tea was first drunk in ___."
-                      : q.type === "TRUE_FALSE_NOT_GIVEN"
-                        ? "Một nhận định để người học xác nhận."
-                        : q.type === "MATCHING_HEADINGS"
-                          ? "VD: Paragraph A"
-                          : "Nội dung câu hỏi..."
-                  }
-                />
-              </div>
-
-              {q.type === "MCQ" && <McqOptions q={q} qi={qi} patchQ={patchQ} />}
-              {q.type === "MATCHING_HEADINGS" && <HeadingOptions q={q} qi={qi} patchQ={patchQ} />}
-
-              {q.type === "TRUE_FALSE_NOT_GIVEN" && (
                 <div>
-                  <Label>Đáp án đúng</Label>
+                  <Label>Dạng câu hỏi</Label>
                   <select
-                    value={q.correctAnswer}
-                    onChange={(e) => patchQ(qi, { correctAnswer: e.target.value })}
+                    value={q.type}
+                    onChange={(e) => changeType(qi, e.target.value as QType)}
                     className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                   >
-                    <option value="">— Chọn —</option>
-                    <option value="True">True</option>
-                    <option value="False">False</option>
-                    <option value="Not Given">Not Given</option>
+                    {(Object.keys(TYPE_LABEL) as QType[]).map((t) => (
+                      <option key={t} value={t}>{TYPE_LABEL[t]}</option>
+                    ))}
                   </select>
                 </div>
-              )}
 
-              {q.type === "FILL_BLANK" && (
                 <div>
-                  <Label>Đáp án đúng</Label>
-                  <Input
-                    value={q.correctAnswer}
-                    onChange={(e) => patchQ(qi, { correctAnswer: e.target.value })}
-                    placeholder="Từ / cụm từ điền vào chỗ trống"
+                  <Label>{q.type === "MATCHING_HEADINGS" ? "Tên đoạn văn (hiển thị cạnh ô chọn)" : "Nội dung câu hỏi"}</Label>
+                  <Textarea
+                    value={q.prompt}
+                    onChange={(e) => patchQ(qi, { prompt: e.target.value })}
+                    placeholder={
+                      q.type === "FILL_BLANK"
+                        ? "Dùng ___ cho chỗ trống. VD: Tea was first drunk in ___."
+                        : q.type === "TRUE_FALSE_NOT_GIVEN"
+                          ? "Một nhận định để người học xác nhận."
+                          : q.type === "MATCHING_HEADINGS"
+                            ? "VD: Paragraph A"
+                            : "Nội dung câu hỏi..."
+                    }
                   />
                 </div>
-              )}
 
-              <div>
-                <Label>Giải thích (tuỳ chọn)</Label>
-                <Textarea value={q.explanation} onChange={(e) => patchQ(qi, { explanation: e.target.value })} />
+                {q.type === "MCQ" && <McqOptions q={q} qi={qi} patchQ={patchQ} />}
+                {q.type === "MATCHING_HEADINGS" && (
+                  <HeadingPicker headings={headings} value={q.correctAnswer} onChange={(v) => patchQ(qi, { correctAnswer: v })} />
+                )}
+
+                {q.type === "TRUE_FALSE_NOT_GIVEN" && (
+                  <div>
+                    <Label>Đáp án đúng</Label>
+                    <select
+                      value={q.correctAnswer}
+                      onChange={(e) => patchQ(qi, { correctAnswer: e.target.value })}
+                      className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                    >
+                      <option value="">— Chọn —</option>
+                      <option value="True">True</option>
+                      <option value="False">False</option>
+                      <option value="Not Given">Not Given</option>
+                    </select>
+                  </div>
+                )}
+
+                {q.type === "FILL_BLANK" && (
+                  <div>
+                    <Label>Đáp án đúng</Label>
+                    <Input
+                      value={q.correctAnswer}
+                      onChange={(e) => patchQ(qi, { correctAnswer: e.target.value })}
+                      placeholder="Từ / cụm từ điền vào chỗ trống"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <Label>Giải thích (tuỳ chọn)</Label>
+                  <Textarea value={q.explanation} onChange={(e) => patchQ(qi, { explanation: e.target.value })} />
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </CardContent>
       </Card>
 
@@ -337,48 +450,39 @@ function McqOptions({ q, qi, patchQ }: { q: Q; qi: number; patchQ: (qi: number, 
   );
 }
 
-function HeadingOptions({ q, qi, patchQ }: { q: Q; qi: number; patchQ: (qi: number, patch: Partial<Q>) => void }) {
+/** Dropdown for a Matching Headings paragraph — picks one heading from the shared list. */
+function HeadingPicker({
+  headings,
+  value,
+  onChange,
+}: {
+  headings: string[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const filled = headings.some((h) => h.trim());
   return (
-    <div className="space-y-2">
-      <Label>Danh sách tiêu đề</Label>
-      {q.options.map((opt, oi) => (
-        <div key={oi} className="flex items-center gap-2">
-          <input
-            type="radio"
-            name={`correct-${qi}`}
-            checked={q.correctAnswer === String(oi)}
-            onChange={() => patchQ(qi, { correctAnswer: String(oi) })}
-            className="h-4 w-4 shrink-0"
-            title="Đánh dấu tiêu đề đúng"
-          />
-          <span className="text-sm font-bold w-7 shrink-0 text-muted-foreground">{ROMAN[oi]}.</span>
-          <Input
-            placeholder={`Tiêu đề ${oi + 1}`}
-            value={opt}
-            onChange={(e) => {
-              const options = [...q.options];
-              options[oi] = e.target.value;
-              patchQ(qi, { options });
-            }}
-          />
-          {q.options.length > 2 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                const options = q.options.filter((_, i) => i !== oi);
-                patchQ(qi, { options, correctAnswer: "" });
-              }}
-            >
-              <Trash2 className="h-3.5 w-3.5 text-destructive" />
-            </Button>
-          )}
-        </div>
-      ))}
-      <Button variant="outline" size="sm" onClick={() => patchQ(qi, { options: [...q.options, ""] })}>
-        <Plus className="h-4 w-4" /> Thêm tiêu đề
-      </Button>
-      <p className="text-xs text-muted-foreground">Chọn ô tròn bên trái để đánh dấu tiêu đề đúng cho đoạn này.</p>
+    <div>
+      <Label>Heading đúng cho đoạn này</Label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+      >
+        <option value="">— Chọn heading —</option>
+        {headings.map((h, hi) =>
+          h.trim() ? (
+            <option key={hi} value={String(hi)}>
+              {ROMAN[hi]}. {h}
+            </option>
+          ) : null,
+        )}
+      </select>
+      {!filled && (
+        <p className="text-xs text-destructive mt-1">
+          Hãy nhập “Danh sách Heading” ở khung phía trên trước.
+        </p>
+      )}
     </div>
   );
 }

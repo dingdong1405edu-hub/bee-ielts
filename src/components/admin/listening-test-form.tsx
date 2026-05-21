@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trash2, Plus, Loader2, GraduationCap, Headphones } from "lucide-react";
 import { ImageUrlField } from "./image-url-field";
+import { AudioUrlField } from "./audio-url-field";
 import { DeleteTestButton } from "./delete-test-button";
 
 type Bank = "PRACTICE" | "MOCK";
@@ -85,7 +86,9 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
 
   const submit = async () => {
     if (!title.trim()) return toast.error("Nhập tiêu đề");
-    if (!audioUrl.trim()) return toast.error("Nhập URL audio (vd: /audio/test1.mp3 hoặc URL R2)");
+    if (!audioUrl.trim()) return toast.error("Thêm audio cho bài nghe (tải file lên hoặc dán URL công khai)");
+    if (/^file:\/\//i.test(audioUrl.trim()))
+      return toast.error("Link file:/// chỉ có trên máy bạn — hãy tải file âm thanh lên thay vì dán link đó");
     if (questions.length === 0) return toast.error("Cần ít nhất 1 câu hỏi");
 
     const payload: { type: QType; prompt: string; options?: string[]; correctAnswer: string; explanation?: string }[] = [];
@@ -154,17 +157,7 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
             <Label>Tiêu đề</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="VD: IELTS Listening — Section 1" />
           </div>
-          <div>
-            <Label>Audio URL</Label>
-            <Input
-              value={audioUrl}
-              onChange={(e) => setAudioUrl(e.target.value)}
-              placeholder="/audio/test1.mp3 hoặc https://..."
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Có thể upload file vào public/audio/ rồi dùng đường dẫn /audio/tên-file.mp3, hoặc URL ngoài (R2, CDN).
-            </p>
-          </div>
+          <AudioUrlField value={audioUrl} onChange={setAudioUrl} />
           <div>
             <Label>Transcript (tuỳ chọn)</Label>
             <Textarea
