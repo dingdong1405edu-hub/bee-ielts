@@ -287,7 +287,7 @@ model SpeakingSet {
   createdAt      DateTime @default(now())
 }
 
-/// User-created study plan entries: notes, milestones, skill practice days.
+/// User study plan entries: manual notes/milestones plus auto-generated roadmap tasks.
 model StudyPlanEntry {
   id        String   @id @default(cuid())
   userId    String
@@ -297,6 +297,7 @@ model StudyPlanEntry {
   skill     Skill?
   note      String?  @db.Text
   done      Boolean  @default(false)
+  auto      Boolean  @default(false) // true = part of an auto-generated roadmap
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

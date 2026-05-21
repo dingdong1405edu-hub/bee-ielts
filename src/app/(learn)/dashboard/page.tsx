@@ -74,7 +74,10 @@ export default async function DashboardPage() {
 
       <ExamCountdown examDate={user.examDate ? user.examDate.toISOString().slice(0, 10) : null} />
 
-      <StudySchedule examDate={user.examDate ? user.examDate.toISOString().slice(0, 10) : null} />
+      <StudySchedule
+        examDate={user.examDate ? user.examDate.toISOString().slice(0, 10) : null}
+        targetBand={user.targetBand}
+      />
 
       <Link href="/mock" className="block group">
         <div className="relative overflow-hidden rounded-3xl gradient-brand p-6 md:p-8 text-white shadow-xl shadow-primary/20 transition-all hover:shadow-2xl hover:shadow-primary/30 hover:-translate-y-0.5">

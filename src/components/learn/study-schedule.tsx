@@ -9,6 +9,8 @@ import {
   Trash2,
   Loader2,
   Check,
+  Wand2,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -22,7 +24,27 @@ type Entry = {
   skill: Skill | null;
   note: string | null;
   done: boolean;
+  auto?: boolean;
 };
+
+/** Recommended sessions per week for a target band (mirrors the generator API). */
+function recommendedDays(band: number): number {
+  if (band >= 8) return 6;
+  if (band >= 7) return 5;
+  if (band >= 6) return 4;
+  return 3;
+}
+
+/** Default available-weekday selection for a given session count (Mon-start indices). */
+function defaultWeekdays(count: number): number[] {
+  const presets: Record<number, number[]> = {
+    3: [0, 2, 4],
+    4: [0, 2, 4, 5],
+    5: [0, 1, 2, 3, 5],
+    6: [0, 1, 2, 3, 4, 5],
+  };
+  return presets[count] ?? [0, 2, 4, 5];
+}
 
 const SKILLS: { value: Skill; label: string; dot: string; chip: string }[] = [
   { value: "READING", label: "Reading", dot: "bg-emerald-500", chip: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
@@ -74,12 +96,20 @@ function buildMonthGrid(year: number, monthIdx: number): Date[] {
   return days;
 }
 
-export function StudySchedule({ examDate }: { examDate: string | null }) {
+export function StudySchedule({
+  examDate,
+  targetBand = 6.0,
+}: {
+  examDate: string | null;
+  targetBand?: number;
+}) {
   const today = useMemo(() => new Date(), []);
   const [cursor, setCursor] = useState({ year: today.getFullYear(), month: today.getMonth() });
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<string>(todayISO());
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [showGenerator, setShowGenerator] = useState(false);
 
   const days = useMemo(() => buildMonthGrid(cursor.year, cursor.month), [cursor]);
   const rangeFrom = useMemo(() => toISO(days[0]), [days]);
@@ -102,7 +132,7 @@ export function StudySchedule({ examDate }: { examDate: string | null }) {
     return () => {
       alive = false;
     };
-  }, [rangeFrom, rangeTo]);
+  }, [rangeFrom, rangeTo, refreshKey]);
 
   const byDate = useMemo(() => {
     const map = new Map<string, Entry[]>();
@@ -178,6 +208,22 @@ export function StudySchedule({ examDate }: { examDate: string | null }) {
     }
   };
 
+  const generatePlan = async (availableWeekdays: number[]) => {
+    const res = await fetch("/api/study-plan/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ availableWeekdays }),
+    });
+    if (!res.ok) {
+      toast.error((await res.json().catch(() => ({}))).error || "Tạo lộ trình thất bại");
+      return;
+    }
+    const data = (await res.json()) as { count: number; advice: string };
+    toast.success(`Đã tạo lộ trình ${data.count} buổi học`, { description: data.advice, duration: 8000 });
+    setShowGenerator(false);
+    setRefreshKey((k) => k + 1);
+  };
+
   return (
     <div className="rounded-3xl border bg-card overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3 p-5 md:p-6 border-b bg-gradient-to-br from-indigo-500/5 via-violet-500/5 to-fuchsia-500/5">
@@ -190,7 +236,7 @@ export function StudySchedule({ examDate }: { examDate: string | null }) {
             <div className="text-xs text-muted-foreground">Lên lịch các ngày quan trọng & kỹ năng cần luyện</div>
           </div>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-wrap">
           <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl" onClick={goPrev} aria-label="Tháng trước">
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -203,8 +249,24 @@ export function StudySchedule({ examDate }: { examDate: string | null }) {
           <Button variant="outline" size="sm" className="ml-2 rounded-xl" onClick={goToday}>
             Hôm nay
           </Button>
+          <Button
+            size="sm"
+            className="rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white"
+            onClick={() => setShowGenerator((s) => !s)}
+          >
+            <Wand2 className="h-3.5 w-3.5" /> Tạo lộ trình
+          </Button>
         </div>
       </div>
+
+      {showGenerator && (
+        <RoadmapGenerator
+          targetBand={targetBand}
+          examDate={examDate}
+          onGenerate={generatePlan}
+          onClose={() => setShowGenerator(false)}
+        />
+      )}
 
       <div className="grid grid-cols-7 border-b bg-muted/30 text-center text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
         {VN_WEEKDAYS.map((w) => (
@@ -288,6 +350,92 @@ export function StudySchedule({ examDate }: { examDate: string | null }) {
         onToggleDone={toggleDone}
         onDelete={deleteEntry}
       />
+    </div>
+  );
+}
+
+/** Panel to pick free weekdays and auto-generate a band-targeted study roadmap. */
+function RoadmapGenerator({
+  targetBand,
+  examDate,
+  onGenerate,
+  onClose,
+}: {
+  targetBand: number;
+  examDate: string | null;
+  onGenerate: (weekdays: number[]) => Promise<void>;
+  onClose: () => void;
+}) {
+  const recommended = recommendedDays(targetBand);
+  const [picked, setPicked] = useState<number[]>(() => defaultWeekdays(recommended));
+  const [generating, setGenerating] = useState(false);
+
+  const toggle = (idx: number) =>
+    setPicked((p) => (p.includes(idx) ? p.filter((x) => x !== idx) : [...p, idx].sort()));
+
+  const run = async () => {
+    if (picked.length === 0) {
+      toast.error("Chọn ít nhất 1 ngày học trong tuần");
+      return;
+    }
+    setGenerating(true);
+    await onGenerate(picked);
+    setGenerating(false);
+  };
+
+  const examLabel = examDate
+    ? new Date(`${examDate}T00:00:00`).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })
+    : null;
+
+  return (
+    <div className="border-b bg-gradient-to-br from-indigo-500/5 to-violet-500/5 p-4 md:p-5 space-y-3">
+      <div className="flex items-start gap-2">
+        <Sparkles className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+        <div className="text-sm">
+          <span className="font-bold">Tạo lộ trình học tự động.</span>{" "}
+          <span className="text-muted-foreground">
+            Mục tiêu band <b className="text-foreground">{targetBand.toFixed(1)}</b>
+            {examLabel ? <> · ngày thi <b className="text-foreground">{examLabel}</b></> : <> · chưa đặt ngày thi (sẽ tạo lộ trình 8 tuần)</>}
+            . Gợi ý <b className="text-foreground">{recommended} buổi/tuần</b>. Chọn các ngày bạn rảnh học:
+          </span>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        {VN_WEEKDAYS.map((w, idx) => {
+          const active = picked.includes(idx);
+          return (
+            <button
+              key={w}
+              type="button"
+              onClick={() => toggle(idx)}
+              className={cn(
+                "h-9 min-w-[44px] rounded-xl border-2 px-2 text-sm font-bold transition-colors",
+                active
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-input bg-background hover:border-primary/40",
+              )}
+            >
+              {w}
+            </button>
+          );
+        })}
+      </div>
+
+      <p className="text-xs text-muted-foreground">
+        Lộ trình tự xoay vòng các kỹ năng, kèm gợi ý phương pháp cho từng buổi. 2 tuần cuối trước ngày thi sẽ
+        chuyển sang thi thử. Lộ trình tự động cũ sẽ được thay mới — các task bạn tự thêm vẫn được giữ nguyên.
+      </p>
+
+      <div className="flex items-center gap-2">
+        <Button size="sm" className="rounded-xl" onClick={run} disabled={generating}>
+          {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+          Tạo lộ trình ({picked.length} buổi/tuần)
+        </Button>
+        <Button size="sm" variant="ghost" className="rounded-xl" onClick={onClose} disabled={generating}>
+          Huỷ
+        </Button>
+      </div>
     </div>
   );
 }
