@@ -173,7 +173,13 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
               placeholder="Nội dung lời thoại — hiển thị sau khi nộp bài"
             />
           </div>
-          <ImageUrlField value={imageUrl} onChange={setImageUrl} hint="Ảnh minh hoạ (tuỳ chọn) — hiển thị bên audio player" />
+          <ImageUrlField
+            value={imageUrl}
+            onChange={setImageUrl}
+            aiContext={title}
+            label="Ảnh bìa (tuỳ chọn)"
+            hint="Ảnh bìa hiển thị ở thẻ chọn đề và bên audio player. Dán URL, tải ảnh lên, hoặc để AI tạo."
+          />
         </CardContent>
       </Card>
 

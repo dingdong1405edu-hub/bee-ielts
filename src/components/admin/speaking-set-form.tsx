@@ -86,7 +86,13 @@ export function SpeakingSetForm({ initial }: { initial?: SpeakingInitial }) {
             <Label>Topic</Label>
             <Input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="VD: Hometown, Hobbies, Technology…" />
           </div>
-          <ImageUrlField value={imageUrl} onChange={setImageUrl} hint="Ảnh minh hoạ (tuỳ chọn) — hiển thị trên màn intro & Part 2" />
+          <ImageUrlField
+            value={imageUrl}
+            onChange={setImageUrl}
+            aiContext={topic}
+            label="Ảnh bìa (tuỳ chọn)"
+            hint="Ảnh bìa hiển thị ở thẻ chọn đề, màn intro & Part 2. Dán URL, tải ảnh lên, hoặc để AI tạo."
+          />
         </CardContent>
       </Card>
 

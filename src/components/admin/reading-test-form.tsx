@@ -170,7 +170,13 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
             <Label>Đoạn văn (passage)</Label>
             <Textarea value={passage} onChange={(e) => setPassage(e.target.value)} className="min-h-[220px]" placeholder="Dán nội dung bài đọc..." />
           </div>
-          <ImageUrlField value={imageUrl} onChange={setImageUrl} hint="Ảnh minh hoạ (tuỳ chọn) — hiển thị phía trên đoạn văn cho người học" />
+          <ImageUrlField
+            value={imageUrl}
+            onChange={setImageUrl}
+            aiContext={title}
+            label="Ảnh bìa (tuỳ chọn)"
+            hint="Ảnh bìa hiển thị ở thẻ chọn đề và phía trên đoạn văn. Dán URL, tải ảnh lên, hoặc để AI tạo."
+          />
         </CardContent>
       </Card>
 

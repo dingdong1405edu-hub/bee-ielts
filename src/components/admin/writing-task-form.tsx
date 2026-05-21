@@ -92,8 +92,9 @@ export function WritingTaskForm({ initial }: { initial?: WritingInitial }) {
           <ImageUrlField
             value={imageUrl}
             onChange={setImageUrl}
-            label="URL ảnh (cho Task 1 — biểu đồ/bảng)"
-            hint="Ảnh biểu đồ cho Task 1 — hiển thị cho người học khi làm bài."
+            aiContext={prompt.split("\n")[0]}
+            label="Ảnh bìa / biểu đồ (cho Task 1)"
+            hint="Ảnh biểu đồ Task 1 + ảnh bìa thẻ chọn đề. Dán URL, tải ảnh lên, hoặc để AI tạo."
           />
         </CardContent>
       </Card>
