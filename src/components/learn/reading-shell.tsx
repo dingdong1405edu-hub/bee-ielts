@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Clock, Send, GripVertical, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ReadingGroupHeader, groupStartFor } from "@/components/learn/reading-group-header";
+import { ReadingGroupHeader, computeQuestionGroups } from "@/components/learn/reading-group-header";
 import {
   HighlightablePassage,
   HighlightToolbar,
@@ -261,30 +261,47 @@ function PartQuestions({
   answers: Record<string, string>;
   onChange: (id: string, value: string) => void;
 }) {
+  const groups = computeQuestionGroups(questions);
   return (
     <div className="max-w-2xl mx-auto space-y-4 md:space-y-5">
-      {questions.map((q, i) => {
-        const num = startIndex + i;
-        const groupStart = groupStartFor(questions, i);
-        const userAns = answers[q.id] || "";
-        const isMatchingTypeWithList =
-          q.type === "MATCHING_HEADINGS" ||
-          q.type === "MATCHING_FEATURES";
+      {groups.map((g) => {
+        const groupQuestions = questions.slice(g.startIdx, g.endIdx + 1);
+        const groupStart = startIndex + g.startIdx;
+        const groupEnd = startIndex + g.endIdx;
+        const hasList = g.type === "MATCHING_HEADINGS" || g.type === "MATCHING_FEATURES";
+        // Sentence-completion run: every question has an inline blank, so the
+        // sentences flow together as one continuous paragraph (no line breaks).
+        const isInlineRun =
+          (g.type === "FILL_BLANK" || g.type === "SHORT_ANSWER") &&
+          groupQuestions.every((q) => /_{2,}|\{N\}/.test(q.prompt));
         return (
-          <div key={q.id} className="space-y-2">
-            {groupStart && (
-              <>
-                <ReadingGroupHeader
-                  type={q.type}
-                  start={startIndex + groupStart.start}
-                  end={startIndex + groupStart.end}
-                />
-                {isMatchingTypeWithList && q.options && q.options.length > 0 && (
-                  <ReferenceList type={q.type} options={q.options} />
-                )}
-              </>
+          <div key={g.startIdx} className="space-y-2">
+            <ReadingGroupHeader type={g.type} start={groupStart} end={groupEnd} />
+            {hasList && groupQuestions[0]?.options && groupQuestions[0].options.length > 0 && (
+              <ReferenceList type={g.type} options={groupQuestions[0].options} />
             )}
-            <QuestionInput q={q} num={num} value={userAns} onChange={(v) => onChange(q.id, v)} />
+            {isInlineRun ? (
+              <InlineBlankGroup
+                items={groupQuestions.map((q, j) => ({
+                  q,
+                  num: groupStart + j,
+                  value: answers[q.id] || "",
+                  onChange: (v: string) => onChange(q.id, v),
+                }))}
+              />
+            ) : (
+              <div className="space-y-4 md:space-y-5">
+                {groupQuestions.map((q, j) => (
+                  <QuestionInput
+                    key={q.id}
+                    q={q}
+                    num={groupStart + j}
+                    value={answers[q.id] || ""}
+                    onChange={(v) => onChange(q.id, v)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         );
       })}
@@ -451,7 +468,12 @@ function QuestionInput({
   );
 }
 
-function InlineBlankRow({
+/**
+ * One sentence-completion sentence rendered inline: the prompt text with a
+ * single numbered blank input. Returns spans only (no block wrapper) so
+ * several sentences can flow together inside one paragraph.
+ */
+function InlineBlankSentence({
   num,
   prompt,
   value,
@@ -462,12 +484,12 @@ function InlineBlankRow({
   value: string;
   onChange: (v: string) => void;
 }) {
-  // Split prompt by blanks. We support `___` or `{N}` as blank markers; only the first blank in each prompt
-  // is replaced (each question = one answer). Render text + inline input with the number badge.
+  // Split prompt by blanks (`___` or `{N}`). Only the first blank is replaced
+  // — each question carries exactly one answer.
   const parts = prompt.split(/(_{2,}|\{N\})/g);
   let replaced = false;
   return (
-    <div className="text-[15px] leading-relaxed">
+    <>
       {parts.map((p, i) => {
         if (!replaced && (/_{2,}/.test(p) || /\{N\}/.test(p))) {
           replaced = true;
@@ -486,7 +508,38 @@ function InlineBlankRow({
         }
         return <span key={i}>{p}</span>;
       })}
+    </>
+  );
+}
+
+/** Single inline-blank question (used inside a mixed group). */
+function InlineBlankRow(props: { num: number; prompt: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="text-[15px] leading-relaxed">
+      <InlineBlankSentence {...props} />
     </div>
+  );
+}
+
+/**
+ * A whole run of sentence-completion questions as ONE flowing paragraph —
+ * the sentences run together without line breaks between them, the way an
+ * IELTS summary-completion task reads.
+ */
+function InlineBlankGroup({
+  items,
+}: {
+  items: { q: ShellQ; num: number; value: string; onChange: (v: string) => void }[];
+}) {
+  return (
+    <p className="text-[15px] leading-[2.4]">
+      {items.map(({ q, num, value, onChange }, idx) => (
+        <span key={q.id}>
+          {idx > 0 ? " " : null}
+          <InlineBlankSentence num={num} prompt={q.prompt} value={value} onChange={onChange} />
+        </span>
+      ))}
+    </p>
   );
 }
 
