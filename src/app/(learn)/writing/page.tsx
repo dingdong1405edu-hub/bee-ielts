@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PenLine, Clock, BarChart3, FileText, Trophy, History, ChevronRight } from "lucide-react";
 import { SkillIntro } from "@/components/learn/skill-intro";
+import { TestPicker } from "@/components/learn/test-picker";
 import { Card, CardContent } from "@/components/ui/card";
 import { DeleteAttemptButton } from "@/components/learn/delete-attempt-button";
 import { auth } from "@/auth";
@@ -11,6 +12,11 @@ export const dynamic = "force-dynamic";
 export default async function WritingIntroPage() {
   const session = await auth();
 
+  const tasks = await prisma.writingTask.findMany({
+    orderBy: [{ taskType: "asc" }, { createdAt: "desc" }],
+    select: { id: true, taskType: true, prompt: true, minWords: true },
+  });
+
   // Past writing attempts — newest first
   let history: {
     id: string;
@@ -20,6 +26,7 @@ export default async function WritingIntroPage() {
     promptHead: string;
   }[] = [];
 
+  const doneIds = new Set<string>();
   if (session?.user?.id) {
     const attempts = await prisma.attempt.findMany({
       where: { userId: session.user.id, skill: "WRITING" },
@@ -28,6 +35,7 @@ export default async function WritingIntroPage() {
       select: { id: true, score: true, createdAt: true, refId: true },
     });
     const taskIds = Array.from(new Set(attempts.map((a) => a.refId.replace(/^mock-/, ""))));
+    taskIds.forEach((id) => doneIds.add(id));
     const tasks = await prisma.writingTask.findMany({
       where: { id: { in: taskIds } },
       select: { id: true, taskType: true, prompt: true },
@@ -53,12 +61,25 @@ export default async function WritingIntroPage() {
         icon={PenLine}
         grad="from-rose-500 to-pink-500"
         startHref="/writing/start"
+        ctaLabel="AI chọn đề ngẫu nhiên"
         bullets={[
           { icon: BarChart3, text: "Task 1 (≥150 từ): mô tả biểu đồ / số liệu" },
           { icon: FileText, text: "Task 2 (≥250 từ): essay về một chủ đề" },
           { icon: Clock, text: "Autosave draft. Không bấm giờ — chỉ đếm thời gian bạn đã làm." },
           { icon: Trophy, text: "AI chấm cả 2 task — overall = Task1 × 1/3 + Task2 × 2/3" },
         ]}
+      />
+
+      <TestPicker
+        grad="from-rose-500 to-pink-500"
+        emptyText="Chưa có đề Writing nào."
+        items={tasks.map((t) => ({
+          id: t.id,
+          href: `/writing/${t.id}`,
+          title: t.prompt.split("\n")[0].slice(0, 110),
+          tags: [`Task ${t.taskType}`, `≥ ${t.minWords} từ`],
+          done: doneIds.has(t.id),
+        }))}
       />
 
       {history.length > 0 && (
