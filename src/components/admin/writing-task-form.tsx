@@ -95,7 +95,7 @@ export function WritingTaskForm({ initial }: { initial?: WritingInitial }) {
             onChange={setImageUrl}
             aiContext={prompt.split("\n")[0]}
             label="Ảnh bìa / biểu đồ (cho Task 1)"
-            hint="Ảnh biểu đồ Task 1 + ảnh bìa thẻ chọn đề. Dán URL, tải ảnh lên, hoặc để AI tạo."
+            hint="Ảnh biểu đồ Task 1 + ảnh bìa thẻ chọn đề. Tải ảnh từ máy, hoặc chuột phải ảnh ngoài web → “Copy image address” rồi dán vào — link sẽ tự được nạp vào hệ thống. Hoặc để AI tạo."
           />
         </CardContent>
       </Card>

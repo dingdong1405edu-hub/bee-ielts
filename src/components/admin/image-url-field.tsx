@@ -1,7 +1,7 @@
 "use client";
-import { useRef, useState } from "react";
+import { useRef, useState, type ClipboardEvent } from "react";
 import { toast } from "sonner";
-import { ImageIcon, X, Upload, Sparkles, Loader2, Link2 } from "lucide-react";
+import { ImageIcon, X, Upload, Sparkles, Loader2, Link2, Download } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -56,12 +56,14 @@ export function ImageUrlField({
   aiContext?: string;
 }) {
   const [broken, setBroken] = useState(false);
-  const [busy, setBusy] = useState<"upload" | "ai" | null>(null);
+  const [busy, setBusy] = useState<"upload" | "ai" | "fetch" | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const url = value.trim();
   const isData = url.startsWith("data:image/");
   const looksLikeUrl = url.length > 0 && /^(https?:\/\/|\/|data:image\/)/i.test(url);
+  // A remote http(s) link the admin pasted — can be pulled into the system.
+  const isRemote = /^https?:\/\//i.test(url);
 
   const setImage = (v: string) => {
     setBroken(false);
@@ -84,6 +86,46 @@ export function ImageUrlField({
     } finally {
       setBusy(null);
       if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  /**
+   * Pull a pasted remote image link into the system: the server fetches the
+   * bytes and returns a data URL, which is then compressed and stored. This
+   * makes "Copy image address" links display reliably even when the source
+   * site blocks hot-linking.
+   */
+  const importFromUrl = async (explicit?: string) => {
+    const u = (explicit ?? value).trim();
+    if (!/^https?:\/\//i.test(u)) {
+      toast.error("Hãy dán link ảnh bắt đầu bằng http:// hoặc https://");
+      return;
+    }
+    setBusy("fetch");
+    try {
+      const res = await fetch("/api/admin/fetch-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: u }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Không tải được ảnh");
+      setImage(await compressImage(data.dataUrl));
+      toast.success("Đã nạp ảnh từ link vào hệ thống");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Không tải được ảnh từ link");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  /** Pasting a remote image link auto-imports it so it always displays. */
+  const onPasteUrl = (e: ClipboardEvent<HTMLInputElement>) => {
+    const text = e.clipboardData.getData("text").trim();
+    if (/^https?:\/\//i.test(text)) {
+      e.preventDefault();
+      onChange(text);
+      void importFromUrl(text);
     }
   };
 
@@ -135,7 +177,8 @@ export function ImageUrlField({
             <Input
               value={value}
               onChange={(e) => setImage(e.target.value)}
-              placeholder="Dán URL ảnh: https://… hoặc /images/abc.jpg"
+              onPaste={onPasteUrl}
+              placeholder="Dán link ảnh: https://… (chuột phải ảnh → Copy image address)"
               className="pl-8"
             />
           </div>
@@ -160,6 +203,19 @@ export function ImageUrlField({
           className="hidden"
           onChange={(e) => onFile(e.target.files?.[0])}
         />
+        {isRemote && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="rounded-lg"
+            disabled={busy !== null}
+            onClick={() => importFromUrl()}
+          >
+            {busy === "fetch" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            {busy === "fetch" ? "Đang nạp ảnh…" : "Nạp ảnh từ link"}
+          </Button>
+        )}
         <Button
           type="button"
           variant="outline"
@@ -199,7 +255,10 @@ export function ImageUrlField({
       )}
       {looksLikeUrl && broken && (
         <p className="text-xs text-destructive mt-1 inline-flex items-center gap-1">
-          <ImageIcon className="h-3 w-3" /> Không tải được ảnh — kiểm tra lại URL.
+          <ImageIcon className="h-3 w-3" />
+          {isRemote
+            ? "Ảnh không hiển thị trực tiếp — bấm “Nạp ảnh từ link” để tải ảnh vào hệ thống."
+            : "Không tải được ảnh — kiểm tra lại URL."}
         </p>
       )}
     </div>
