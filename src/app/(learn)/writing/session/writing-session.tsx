@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -191,8 +190,13 @@ export function WritingSession({ task1, task2 }: Props) {
             <div className="whitespace-pre-wrap text-sm">{currentTask.prompt}</div>
             {isTask1 && <TaskDiagram svg={task1.diagramSvg} />}
             {isTask1 && task1.imageUrl && !task1.diagramSvg && (
-              <div className="relative w-full aspect-video rounded-md overflow-hidden border">
-                <Image src={task1.imageUrl} alt="task" fill className="object-contain" />
+              <div className="rounded-md overflow-hidden border bg-muted/30">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={task1.imageUrl}
+                  alt="Biểu đồ đề bài"
+                  className="w-full max-h-[30rem] object-contain"
+                />
               </div>
             )}
           </CardContent>

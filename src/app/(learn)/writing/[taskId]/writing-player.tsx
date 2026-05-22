@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -139,8 +138,13 @@ export function WritingPlayer({
             <div className="whitespace-pre-wrap text-sm">{prompt}</div>
             <TaskDiagram svg={diagramSvg} />
             {imageUrl && !diagramSvg && (
-              <div className="relative w-full aspect-video rounded-md overflow-hidden border">
-                <Image src={imageUrl} alt="task" fill className="object-contain" />
+              <div className="rounded-md overflow-hidden border bg-muted/30">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={imageUrl}
+                  alt="Biểu đồ đề bài"
+                  className="w-full max-h-[30rem] object-contain"
+                />
               </div>
             )}
           </CardContent>
