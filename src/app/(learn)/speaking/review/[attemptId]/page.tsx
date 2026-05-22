@@ -6,6 +6,7 @@ import { personalize } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Calendar, ClipboardList } from "lucide-react";
+import { VocabSuggestions, type VocabItem } from "@/components/learn/writing-feedback";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,8 @@ type SpeakingFeedback = {
   corrections?: { original: string; corrected: string; explanation: string }[];
   pronunciationFixes?: { word: string; ipa: string; tip: string }[];
   questionTips?: { question: string; opener: string; advice: string }[];
+  collocations?: VocabItem[];
+  phrasalVerbs?: VocabItem[];
 };
 
 export default async function SpeakingReviewPage({ params }: { params: { attemptId: string } }) {
@@ -186,6 +189,8 @@ export default async function SpeakingReviewPage({ params }: { params: { attempt
           </CardContent>
         </Card>
       )}
+
+      <VocabSuggestions collocations={fb.collocations} phrasalVerbs={fb.phrasalVerbs} />
 
       <Card>
         <CardContent className="p-5 space-y-3">

@@ -126,13 +126,19 @@ Return ONLY valid JSON matching this exact shape:
   "usefulStructures": [
     { "structure": "<cấu trúc câu tiếng Anh>", "example": "<câu ví dụ tiếng Anh>", "note": "<giải thích ngắn — tiếng Việt>" }
   ],
+  "collocations": [
+    { "phrase": "<collocation tiếng Anh band 7+ hợp ĐÚNG chủ đề đề bài>", "meaning": "<nghĩa tiếng Việt>", "example": "<câu ví dụ tiếng Anh dùng được ngay>" }
+  ],
+  "phrasalVerbs": [
+    { "phrase": "<cụm động từ — phrasal verb — tiếng Anh hợp chủ đề>", "meaning": "<nghĩa tiếng Việt>", "example": "<câu ví dụ tiếng Anh dùng được ngay>" }
+  ],
   "openingSentences": ["<3-4 câu MỞ BÀI mẫu HOÀN CHỈNH bằng tiếng Anh cho ĐÚNG đề bài này — gồm câu paraphrase đề và câu thesis; mỗi phần tử là một câu/cụm tiếng Anh dùng được ngay>"],
   "closingSentences": ["<3-4 câu KẾT BÀI mẫu bằng tiếng Anh cho đúng đề bài này — dùng được ngay>"],
   "improvedVersion": "<bài viết mẫu hoàn chỉnh band 7.0-7.5 cho đúng đề bài này>",
   "summary": "<nhận xét tổng quan ngắn — tiếng Việt>"
 }
 
-Provide 4-8 annotations, 5-7 linkingPhrases, 4-6 usefulStructures, and ALWAYS 3-4 English example sentences in each of openingSentences and closingSentences. If the essay is empty give empty annotation/structure arrays but STILL provide linkingPhrases, openingSentences, closingSentences and improvedVersion as study material.`;
+Provide 4-8 annotations, 5-7 linkingPhrases, 4-6 usefulStructures, 5-7 collocations and 4-6 phrasalVerbs — collocations and phrasalVerbs MUST be tailored to THIS essay's topic (not generic) and pitched at band 7+ so the learner can upgrade their vocabulary. ALWAYS give 3-4 English example sentences in each of openingSentences and closingSentences. If the essay is empty give empty annotation/structure arrays but STILL provide linkingPhrases, collocations, phrasalVerbs, openingSentences, closingSentences and improvedVersion as study material.`;
 
 const SPEAKING_SYS = `You are a certified IELTS Speaking examiner. Score the candidate's spoken response using official band descriptors.
 The transcript comes from a speech-recognition system; words it heard with LOW confidence are listed separately as likely mispronunciations — use them for the Pronunciation score.
@@ -159,12 +165,15 @@ Return ONLY valid JSON:
     { "question": "<copy the exact question / Part 2 cue card prompt>", "opener": "<a strong, natural English sentence the candidate could use to OPEN the answer to THIS question>", "advice": "<2-3 sentences IN ENGLISH of concrete advice for THIS specific question: ideas worth mentioning, vocabulary or grammar structures to use, and how to extend the answer>" }
   ],
   "usefulPhrases": [{ "phrase": "<useful English phrase or idiom for this topic>", "use": "<when/how to use it — IN ENGLISH>" }],
+  "collocations": [{ "phrase": "<collocation tiếng Anh band 7+ hợp chủ đề này>", "meaning": "<nghĩa tiếng Việt>", "example": "<câu ví dụ tiếng Anh dùng được ngay>" }],
+  "phrasalVerbs": [{ "phrase": "<cụm động từ — phrasal verb — tiếng Anh hợp chủ đề này>", "meaning": "<nghĩa tiếng Việt>", "example": "<câu ví dụ tiếng Anh dùng được ngay>" }],
   "improvedSample": "<một câu trả lời mẫu band 7.5 cho chủ đề này>",
   "summary": "<nhận xét tổng quan ngắn — tiếng Việt>"
 }
 
 Provide 4-6 observations. For "corrections": find the real grammar/word-choice/collocation mistakes in the transcript and SHOW THE FIXED VERSION (do not merely point them out) — give 3-6 items, or [] if the transcript is genuinely error-free. For "pronunciationFixes": give an item with correct IPA for EACH word in the low-confidence list (and any other clearly mispronounced word) — these are words the candidate said unclearly.
-"questionTips": provide EXACTLY ONE entry for EVERY question listed in the prompt — each Part 1 question, the Part 2 cue card, and each Part 3 question — in the SAME ORDER they appear. The "question", "opener" and "advice" fields MUST all be written in ENGLISH. Provide 4-6 usefulPhrases tailored to THIS topic, not generic.`;
+"questionTips": provide EXACTLY ONE entry for EVERY question listed in the prompt — each Part 1 question, the Part 2 cue card, and each Part 3 question — in the SAME ORDER they appear. The "question", "opener" and "advice" fields MUST all be written in ENGLISH. Provide 4-6 usefulPhrases tailored to THIS topic, not generic.
+Provide 5-7 collocations and 4-6 phrasalVerbs — both MUST be tailored to THIS topic and pitched at band 7+ so the candidate can upgrade their vocabulary.`;
 
 const TIPS_SYS = `You are a friendly IELTS coach giving practical actionable tips. Tone: warm, Gen-Z friendly. Write in Vietnamese.
 Return ONLY valid JSON:

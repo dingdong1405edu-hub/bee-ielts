@@ -41,6 +41,8 @@ export async function POST(req: Request) {
       annotations: [],
       linkingPhrases: [],
       usefulStructures: [],
+      collocations: [],
+      phrasalVerbs: [],
       openingSentences: [],
       closingSentences: [],
       improvedVersion: "",

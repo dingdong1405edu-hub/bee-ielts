@@ -12,6 +12,7 @@ import {
 import { formatDuration, cn, personalize } from "@/lib/utils";
 import { TipsCard } from "@/components/learn/tips-card";
 import { VoicePicker, useTtsVoice } from "@/components/learn/voice-picker";
+import { VocabSuggestions, type VocabItem } from "@/components/learn/writing-feedback";
 
 interface DGWord {
   word: string;
@@ -53,6 +54,8 @@ interface SpeakingResult {
   pronunciationFixes?: PronFix[];
   questionTips?: QTip[];
   usefulPhrases?: Phrase[];
+  collocations?: VocabItem[];
+  phrasalVerbs?: VocabItem[];
   improvedSample?: string;
   summary: string;
 }
@@ -639,6 +642,13 @@ export function SpeakingPlayer({
             </CardContent>
           </Card>
         )}
+
+        {/* Collocations & phrasal verbs — expand vocabulary */}
+        <VocabSuggestions
+          collocations={result.collocations}
+          phrasalVerbs={result.phrasalVerbs}
+          onSpeak={playTTS}
+        />
 
         {result.observations.length > 0 && (
           <Card className="border-2 border-primary/30 bg-primary/[0.03]">

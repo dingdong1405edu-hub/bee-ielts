@@ -11,7 +11,16 @@ import {
   ArrowLeftToLine,
   FileText,
   ChevronDown,
+  BookMarked,
+  Volume2,
 } from "lucide-react";
+
+/** A vocabulary item shown in the "expand your vocabulary" suggestions. */
+export interface VocabItem {
+  phrase: string;
+  meaning: string;
+  example: string;
+}
 
 export interface WritingResult {
   overallBand: number;
@@ -24,6 +33,8 @@ export interface WritingResult {
   annotations?: { category?: string; excerpt: string; issue: string; suggestion: string }[];
   linkingPhrases?: { phrase: string; use: string }[];
   usefulStructures?: { structure: string; example: string; note: string }[];
+  collocations?: VocabItem[];
+  phrasalVerbs?: VocabItem[];
   openingSentences?: string[];
   closingSentences?: string[];
   improvedVersion?: string;
@@ -173,6 +184,9 @@ export function WritingFeedback({
         </Card>
       )}
 
+      {/* Collocations & phrasal verbs — expand vocabulary */}
+      <VocabSuggestions collocations={result.collocations} phrasalVerbs={result.phrasalVerbs} />
+
       {/* Opening & closing sentences */}
       {((result.openingSentences && result.openingSentences.length > 0) ||
         (result.closingSentences && result.closingSentences.length > 0)) && (
@@ -213,6 +227,81 @@ export function WritingFeedback({
 
       {/* Model essay */}
       {result.improvedVersion && <ModelEssay text={result.improvedVersion} />}
+    </div>
+  );
+}
+
+/**
+ * "Expand your vocabulary" card — collocations and phrasal verbs suggested
+ * by the AI for this essay's / topic's subject. Shared by Writing and
+ * Speaking feedback. Pass `onSpeak` to make each phrase tappable for TTS.
+ */
+export function VocabSuggestions({
+  collocations,
+  phrasalVerbs,
+  onSpeak,
+}: {
+  collocations?: VocabItem[];
+  phrasalVerbs?: VocabItem[];
+  onSpeak?: (text: string) => void;
+}) {
+  const hasC = !!collocations && collocations.length > 0;
+  const hasP = !!phrasalVerbs && phrasalVerbs.length > 0;
+  if (!hasC && !hasP) return null;
+  return (
+    <Card>
+      <CardContent className="p-5 space-y-3">
+        <div className="flex items-center gap-2">
+          <BookMarked className="h-5 w-5 text-emerald-500" />
+          <h3 className="font-extrabold">Mở rộng vốn từ — Collocations &amp; Phrasal verbs</h3>
+        </div>
+        {hasC && (
+          <VocabGroup label="Collocations — cụm từ thường đi cùng nhau" items={collocations!} onSpeak={onSpeak} />
+        )}
+        {hasP && (
+          <VocabGroup label="Phrasal verbs — cụm động từ" items={phrasalVerbs!} onSpeak={onSpeak} />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function VocabGroup({
+  label,
+  items,
+  onSpeak,
+}: {
+  label: string;
+  items: VocabItem[];
+  onSpeak?: (text: string) => void;
+}) {
+  return (
+    <div>
+      <div className="text-xs font-extrabold uppercase tracking-wider text-emerald-600 mb-1.5">
+        {label}
+      </div>
+      <div className="space-y-1.5">
+        {items.map((it, i) => (
+          <div key={i} className="rounded-lg border bg-emerald-50 dark:bg-emerald-950/30 p-2.5">
+            <div className="flex flex-wrap items-baseline gap-x-2">
+              {onSpeak ? (
+                <button
+                  onClick={() => onSpeak(it.phrase)}
+                  className="text-sm font-bold text-emerald-700 dark:text-emerald-300 inline-flex items-center gap-1 hover:underline"
+                >
+                  <Volume2 className="h-3.5 w-3.5" /> {it.phrase}
+                </button>
+              ) : (
+                <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300">{it.phrase}</span>
+              )}
+              <span className="text-xs text-muted-foreground">{it.meaning}</span>
+            </div>
+            {it.example && (
+              <div className="text-xs italic text-foreground/70 mt-0.5">&ldquo;{it.example}&rdquo;</div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
