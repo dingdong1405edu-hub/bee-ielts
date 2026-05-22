@@ -21,6 +21,7 @@ export default async function ListeningTestPage({ params }: { params: { testId: 
         prompt: q.prompt,
         options: (q.options as string[] | null) ?? null,
         correctAnswer: q.correctAnswer as string,
+        formGroup: q.formGroup,
       }))}
     />
   );

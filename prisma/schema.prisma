@@ -260,6 +260,9 @@ model Question {
   correctAnswer Json
   explanation   String?        @db.Text
   order         Int            @default(0)
+  // FILL_BLANK questions that share this key are one pasted form-completion
+  // passage and render together as a single flowing block.
+  formGroup     String?
   readingId     String?
   reading       ReadingTest?   @relation(fields: [readingId], references: [id], onDelete: Cascade)
   listeningId   String?

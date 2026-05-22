@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Clock, Headphones, Play, Pause } from "lucide-react";
 import { formatDuration, cn } from "@/lib/utils";
 import { speakText, stopSpeaking, isTTSSupported } from "@/lib/tts";
+import { FormBlanks, groupQuestions } from "@/components/learn/form-blanks";
 
 type Q = {
   id: string;
@@ -14,6 +15,7 @@ type Q = {
   prompt: string;
   options: string[] | null;
   correctAnswer: string;
+  formGroup?: string | null;
 };
 
 export function MockListening({
@@ -131,13 +133,32 @@ export function MockListening({
       </Card>
 
       <div className="space-y-3">
-        {questions.map((q, i) => {
+        {groupQuestions(questions).map((unit) => {
+          if (unit.kind === "form") {
+            const end = unit.startNum + unit.items.length - 1;
+            return (
+              <Card key={`form-${unit.items[0].id}`}>
+                <CardContent className="p-5 space-y-2">
+                  <div className="text-xs font-extrabold uppercase tracking-wider text-primary">
+                    Câu {unit.startNum}–{end} · Điền vào chỗ trống
+                  </div>
+                  <FormBlanks
+                    items={unit.items}
+                    startNum={unit.startNum}
+                    answers={answers}
+                    onChange={(id, v) => setAnswers((a) => ({ ...a, [id]: v }))}
+                  />
+                </CardContent>
+              </Card>
+            );
+          }
+          const q = unit.q;
           const userAns = answers[q.id] || "";
           return (
             <Card key={q.id}>
               <CardContent className="p-5 space-y-3">
                 <div className="flex items-start gap-2">
-                  <span className="font-semibold text-primary">{i + 1}.</span>
+                  <span className="font-semibold text-primary">{unit.num}.</span>
                   <p className="font-medium flex-1">{q.prompt}</p>
                 </div>
                 {q.options ? (

@@ -27,6 +27,7 @@ type Q = {
   prompt: string;
   options: string[] | null;
   correctAnswer: string;
+  formGroup?: string | null;
 };
 
 interface Props {

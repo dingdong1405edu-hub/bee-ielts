@@ -11,6 +11,7 @@ import { formatDuration, cn } from "@/lib/utils";
 import { speakText, stopSpeaking, isTTSSupported } from "@/lib/tts";
 import { TipsCard } from "@/components/learn/tips-card";
 import { ReviewReport, type ListeningReviewData } from "@/components/learn/review-report";
+import { FormBlanks, groupQuestions } from "@/components/learn/form-blanks";
 
 type Q = {
   id: string;
@@ -18,6 +19,7 @@ type Q = {
   prompt: string;
   options: string[] | null;
   correctAnswer: string;
+  formGroup?: string | null;
 };
 
 export function ListeningPlayer({
@@ -91,14 +93,35 @@ export function ListeningPlayer({
 
 
       <div className="space-y-3">
-        {questions.map((q, i) => {
+        {groupQuestions(questions).map((unit) => {
+          if (unit.kind === "form") {
+            const end = unit.startNum + unit.items.length - 1;
+            return (
+              <Card key={`form-${unit.items[0].id}`}>
+                <CardContent className="p-5 space-y-2">
+                  <div className="text-xs font-extrabold uppercase tracking-wider text-primary">
+                    Câu {unit.startNum}–{end} · Điền vào chỗ trống
+                  </div>
+                  <FormBlanks
+                    items={unit.items}
+                    startNum={unit.startNum}
+                    answers={answers}
+                    onChange={(id, v) => setAnswers((a) => ({ ...a, [id]: v }))}
+                    disabled={submitted}
+                    submitted={submitted}
+                  />
+                </CardContent>
+              </Card>
+            );
+          }
+          const q = unit.q;
           const userAns = answers[q.id] || "";
           const isCorrect = userAns.trim().toLowerCase() === q.correctAnswer.toLowerCase();
           return (
             <Card key={q.id} className={cn(submitted && (isCorrect ? "border-success" : "border-destructive"))}>
               <CardContent className="p-5 space-y-3">
                 <div className="flex items-start gap-2">
-                  <span className="font-semibold text-primary">{i + 1}.</span>
+                  <span className="font-semibold text-primary">{unit.num}.</span>
                   <p className="font-medium flex-1">{q.prompt}</p>
                   {submitted && (isCorrect ? <CheckCircle2 className="h-5 w-5 text-success" /> : <XCircle className="h-5 w-5 text-destructive" />)}
                 </div>

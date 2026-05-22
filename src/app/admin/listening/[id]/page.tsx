@@ -29,6 +29,7 @@ export default async function EditListeningPage({ params }: { params: Promise<{ 
           options: (q.options as string[] | null) ?? null,
           correctAnswer: q.correctAnswer as string,
           explanation: q.explanation,
+          formGroup: q.formGroup,
         })),
       }}
     />
