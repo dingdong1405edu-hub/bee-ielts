@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Trash2, Plus, Loader2, GraduationCap, Headphones, AlignLeft } from "lucide-react";
+import { Trash2, Plus, Loader2, GraduationCap, Headphones, AlignLeft, Table } from "lucide-react";
 import { ImageUrlField } from "./image-url-field";
 import { AudioUrlField } from "./audio-url-field";
 import { DeleteTestButton } from "./delete-test-button";
@@ -56,22 +56,38 @@ function countBlanks(text: string): number {
   return (text.match(BLANK_RE) || []).length;
 }
 
-/** Drop a trailing question-number token ("1.", "(2)", "3)") from a segment. */
-function stripTrailingNumber(seg: string): string {
-  return seg.replace(/(\(\d+\)|\d+[.)])[ \t]*$/, "");
+/** Remove the question-number token ("1.", "(2)", "3)") nearest a blank. */
+function stripQuestionNumber(seg: string): string {
+  const re = /(\(\d+\)|\d+[.)])(?=\s|$)/g;
+  let last: RegExpExecArray | null = null;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(seg))) last = m;
+  if (!last) return seg;
+  let end = last.index + last[0].length;
+  if (seg[end] === " ") end++; // also drop one following space
+  return seg.slice(0, last.index) + seg.slice(end);
+}
+
+/** Parse a pasted table into a grid — cells split on Tab or "|", rows on newline. */
+function parseTablePaste(text: string): string[][] {
+  return text
+    .split(/\r?\n/)
+    .filter((line) => line.trim().length > 0)
+    .map((line) => (line.includes("\t") ? line.split("\t") : line.split("|")).map((c) => c.trim()));
 }
 
 /**
- * Split a pasted form passage into one FILL_BLANK question per blank. Each
- * prompt is the text before its blank (question number removed) plus a `___`
- * marker; the last question also carries the trailing text.
+ * Split a pasted passage into one FILL_BLANK question per blank. Each prompt
+ * is the text before its blank (question number removed) plus a `___` marker;
+ * the last question also carries the trailing text. Used for both the flowing
+ * form layout and the `|`-delimited table layout.
  */
 function buildFormQuestions(passage: string, answers: string[], formGroup: string): Payload[] {
   const segments = passage.split(BLANK_RE);
   const blanks = segments.length - 1;
   const out: Payload[] = [];
   for (let i = 0; i < blanks; i++) {
-    let prompt = stripTrailingNumber(segments[i]) + "___";
+    let prompt = stripQuestionNumber(segments[i]) + "___";
     if (i === blanks - 1) prompt += segments[blanks];
     out.push({ type: "FILL_BLANK", prompt, correctAnswer: (answers[i] || "").trim(), formGroup });
   }
@@ -107,11 +123,20 @@ function coerceType(t: string): QType {
  * editor; form-completion questions (those with a formGroup) are stitched back
  * into a single pasted passage + answer list.
  */
-function toFormState(initial?: ListeningInitial): { questions: Q[]; formPassage: string; formAnswers: string[] } {
+type FormState = {
+  questions: Q[];
+  formPassage: string;
+  formAnswers: string[];
+  tablePassage: string;
+  tableAnswers: string[];
+};
+
+function toFormState(initial?: ListeningInitial): FormState {
   if (!initial || initial.questions.length === 0) {
-    return { questions: [blankQ("MCQ")], formPassage: "", formAnswers: [] };
+    return { questions: [blankQ("MCQ")], formPassage: "", formAnswers: [], tablePassage: "", tableAnswers: [] };
   }
-  const formQs = initial.questions.filter((q) => q.formGroup);
+  const tableQs = initial.questions.filter((q) => q.formGroup?.startsWith("tbl"));
+  const formQs = initial.questions.filter((q) => q.formGroup && !q.formGroup.startsWith("tbl"));
   const regular = initial.questions.filter((q) => !q.formGroup);
   const questions: Q[] = regular.map((q) => {
     const type = coerceType(q.type);
@@ -121,13 +146,19 @@ function toFormState(initial?: ListeningInitial): { questions: Q[]; formPassage:
     }
     return { type, prompt: q.prompt, options: [], correctAnswer: q.correctAnswer, explanation };
   });
-  const formPassage = formQs.length
-    ? formQs.map((q) => q.prompt).join("").replace(/_{2,}/g, "..........")
-    : "";
-  const formAnswers = formQs.map((q) => q.correctAnswer);
-  // A form-only test has no loose questions; a brand-new editor gets one blank.
-  const finalQuestions = questions.length > 0 ? questions : formQs.length > 0 ? [] : [blankQ("MCQ")];
-  return { questions: finalQuestions, formPassage, formAnswers };
+  // Stitch a group's segment-prompts back into the pasted text (blanks as dots).
+  const stitch = (qs: typeof regular) =>
+    qs.map((q) => q.prompt).join("").replace(/_{2,}/g, "..........");
+  const hasGrouped = formQs.length > 0 || tableQs.length > 0;
+  // A grouped-only test has no loose questions; a brand-new editor gets one blank.
+  const finalQuestions = questions.length > 0 ? questions : hasGrouped ? [] : [blankQ("MCQ")];
+  return {
+    questions: finalQuestions,
+    formPassage: formQs.length ? stitch(formQs) : "",
+    formAnswers: formQs.map((q) => q.correctAnswer),
+    tablePassage: tableQs.length ? stitch(tableQs) : "",
+    tableAnswers: tableQs.map((q) => q.correctAnswer),
+  };
 }
 
 /** Listening-test create/edit form. Pass `initial` to edit an existing record. */
@@ -145,19 +176,26 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
   const [questions, setQuestions] = useState<Q[]>(init.questions);
   const [formPassage, setFormPassage] = useState(init.formPassage);
   const [formAnswers, setFormAnswers] = useState<string[]>(init.formAnswers);
+  const [tablePassage, setTablePassage] = useState(init.tablePassage);
+  const [tableAnswers, setTableAnswers] = useState<string[]>(init.tableAnswers);
 
   const blankCount = countBlanks(formPassage);
+  const tableBlankCount = countBlanks(tablePassage);
 
   const patchQ = (qi: number, patch: Partial<Q>) =>
     setQuestions((qs) => qs.map((q, i) => (i === qi ? { ...q, ...patch } : q)));
 
-  const setFormAnswerAt = (i: number, v: string) =>
-    setFormAnswers((prev) => {
-      const next = [...prev];
-      while (next.length <= i) next.push("");
-      next[i] = v;
-      return next;
-    });
+  /** Set answer `i` in a numbered answer list, growing the array as needed. */
+  const setAnswerAt =
+    (setter: typeof setFormAnswers) => (i: number, v: string) =>
+      setter((prev) => {
+        const next = [...prev];
+        while (next.length <= i) next.push("");
+        next[i] = v;
+        return next;
+      });
+  const setFormAnswerAt = setAnswerAt(setFormAnswers);
+  const setTableAnswerAt = setAnswerAt(setTableAnswers);
 
   const submit = async () => {
     if (!title.trim()) return toast.error("Nhập tiêu đề");
@@ -199,11 +237,27 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
       formPayload = buildFormQuestions(formPassage, formAnswers, "fg" + Date.now().toString(36));
     }
 
-    if (formPayload.length + regularPayload.length === 0)
-      return toast.error("Cần ít nhất 1 câu hỏi — thêm câu hỏi hoặc dán đoạn Form completion");
+    // Table-completion block → one FILL_BLANK question per blank (formGroup "tbl…").
+    let tablePayload: Payload[] = [];
+    if (tablePassage.trim()) {
+      const tableText = parseTablePaste(tablePassage)
+        .map((row) => row.join(" | "))
+        .join("\n");
+      const n = countBlanks(tableText);
+      if (n < 1)
+        return toast.error("Bảng chưa có chỗ trống — dùng chuỗi dấu chấm cho mỗi ô cần điền");
+      for (let i = 0; i < n; i++) {
+        if (!(tableAnswers[i] || "").trim())
+          return toast.error(`Bảng: thiếu đáp án cho chỗ trống ${i + 1}`);
+      }
+      tablePayload = buildFormQuestions(tableText, tableAnswers, "tbl" + Date.now().toString(36));
+    }
 
-    // Form questions render first (they are usually Section 1).
-    const payload = [...formPayload, ...regularPayload];
+    if (formPayload.length + tablePayload.length + regularPayload.length === 0)
+      return toast.error("Cần ít nhất 1 câu hỏi — thêm câu hỏi, dán đoạn hoặc dán bảng");
+
+    // Grouped blocks render first (they are usually Section 1).
+    const payload = [...formPayload, ...tablePayload, ...regularPayload];
 
     setLoading(true);
     try {
@@ -314,6 +368,60 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
                       <Input
                         value={formAnswers[i] ?? ""}
                         onChange={(e) => setFormAnswerAt(i, e.target.value)}
+                        placeholder={`Đáp án ${i + 1}`}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Table className="h-5 w-5 text-primary" /> Bảng điền chỗ trống — dán cả bảng
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Dán một bảng (table completion). Mỗi ô cách nhau bằng Tab hoặc dấu “|”, mỗi hàng
+            một dòng. Hàng đầu là tiêu đề cột. Mỗi ô cần điền là một chuỗi dấu chấm.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div>
+            <Label>Bảng</Label>
+            <Textarea
+              value={tablePassage}
+              onChange={(e) => setTablePassage(e.target.value)}
+              className="min-h-[180px] font-mono text-[13px]"
+              placeholder={
+                "Activity | Day | Price\nCity Walking Tour | Wednesday | Free\nLocal Museum Visit | Thursday | 7. £..........\nTraditional 8. .......... Show | Friday | £25"
+              }
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Dán trực tiếp từ Word/Excel (các cột tự cách bằng Tab) hoặc gõ tay, ngăn cột bằng
+              “|”. Mỗi ô trống là một chuỗi dấu chấm; số “7.”, “8.”… sẽ tự thành ô điền.
+            </p>
+          </div>
+          {tablePassage.trim() && (
+            <div>
+              <Label>Đáp án — {tableBlankCount} chỗ trống</Label>
+              {tableBlankCount === 0 ? (
+                <p className="text-xs text-destructive mt-1">
+                  Chưa phát hiện chỗ trống nào — mỗi ô cần điền cần một chuỗi dấu chấm.
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 mt-1">
+                  {Array.from({ length: tableBlankCount }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-1.5">
+                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-600 text-white text-xs font-bold">
+                        {i + 1}
+                      </span>
+                      <Input
+                        value={tableAnswers[i] ?? ""}
+                        onChange={(e) => setTableAnswerAt(i, e.target.value)}
                         placeholder={`Đáp án ${i + 1}`}
                       />
                     </div>

@@ -11,7 +11,7 @@ import { formatDuration, cn } from "@/lib/utils";
 import { speakText, stopSpeaking, isTTSSupported } from "@/lib/tts";
 import { TipsCard } from "@/components/learn/tips-card";
 import { ReviewReport, type ListeningReviewData } from "@/components/learn/review-report";
-import { FormBlanks, groupQuestions } from "@/components/learn/form-blanks";
+import { FormBlanks, TableBlanks, groupQuestions } from "@/components/learn/form-blanks";
 
 type Q = {
   id: string;
@@ -96,13 +96,14 @@ export function ListeningPlayer({
         {groupQuestions(questions).map((unit) => {
           if (unit.kind === "form") {
             const end = unit.startNum + unit.items.length - 1;
+            const Block = unit.layout === "table" ? TableBlanks : FormBlanks;
             return (
               <Card key={`form-${unit.items[0].id}`}>
                 <CardContent className="p-5 space-y-2">
                   <div className="text-xs font-extrabold uppercase tracking-wider text-primary">
-                    Câu {unit.startNum}–{end} · Điền vào chỗ trống
+                    Câu {unit.startNum}–{end} · {unit.layout === "table" ? "Hoàn thành bảng" : "Điền vào chỗ trống"}
                   </div>
-                  <FormBlanks
+                  <Block
                     items={unit.items}
                     startNum={unit.startNum}
                     answers={answers}
