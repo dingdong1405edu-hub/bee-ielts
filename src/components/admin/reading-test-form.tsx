@@ -8,9 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Trash2, Plus, Loader2, GraduationCap, BookOpen, List } from "lucide-react";
+import { Trash2, Plus, Loader2, GraduationCap, BookOpen, List, AlignLeft } from "lucide-react";
 import { ImageUrlField } from "./image-url-field";
 import { DeleteTestButton } from "./delete-test-button";
+import { countBlanks, buildFormQuestions } from "@/lib/form-completion";
 
 type Bank = "PRACTICE" | "MOCK";
 type QType = "MCQ" | "MATCHING_HEADINGS" | "FILL_BLANK" | "TRUE_FALSE_NOT_GIVEN";
@@ -60,7 +61,14 @@ export type ReadingInitial = {
   title: string;
   passage: string;
   imageUrl: string | null;
-  questions: { type: string; prompt: string; options: string[] | null; correctAnswer: string; explanation: string | null }[];
+  questions: {
+    type: string;
+    prompt: string;
+    options: string[] | null;
+    correctAnswer: string;
+    explanation: string | null;
+    formGroup: string | null;
+  }[];
 };
 
 function coerceType(t: string): QType {
@@ -70,17 +78,27 @@ function coerceType(t: string): QType {
   return "FILL_BLANK";
 }
 
+type ReadingFormState = {
+  questions: Q[];
+  headings: string[];
+  formPassage: string;
+  formAnswers: string[];
+};
+
 /**
  * Convert DB questions into the form's editable shape. Matching Headings
- * questions all share one List of Headings, so it is lifted out into its
- * own `headings` array; each paragraph keeps only the chosen heading index.
+ * questions share one List of Headings (lifted into `headings`); pasted
+ * form-completion questions (those with a formGroup) are stitched back into
+ * a single passage + answer list; the rest stay as loose questions.
  */
-function toFormState(initial?: ReadingInitial): { questions: Q[]; headings: string[] } {
+function toFormState(initial?: ReadingInitial): ReadingFormState {
   if (!initial || initial.questions.length === 0) {
-    return { questions: [blankQ("MCQ")], headings: ["", "", "", ""] };
+    return { questions: [blankQ("MCQ")], headings: ["", "", "", ""], formPassage: "", formAnswers: [] };
   }
+  const formQs = initial.questions.filter((q) => q.formGroup);
+  const regular = initial.questions.filter((q) => !q.formGroup);
   let headings: string[] = [];
-  const questions: Q[] = initial.questions.map((q) => {
+  const questions: Q[] = regular.map((q) => {
     const type = coerceType(q.type);
     const explanation = q.explanation ?? "";
     if (type === "MATCHING_HEADINGS") {
@@ -95,7 +113,14 @@ function toFormState(initial?: ReadingInitial): { questions: Q[]; headings: stri
     }
     return { type, prompt: q.prompt, options: [], correctAnswer: q.correctAnswer, explanation };
   });
-  return { questions, headings: headings.length >= 2 ? headings : ["", "", "", ""] };
+  // A form-only test has no loose questions; a brand-new editor gets one blank.
+  const finalQuestions = questions.length > 0 ? questions : formQs.length > 0 ? [] : [blankQ("MCQ")];
+  return {
+    questions: finalQuestions,
+    headings: headings.length >= 2 ? headings : ["", "", "", ""],
+    formPassage: formQs.length ? formQs.map((q) => q.prompt).join("").replace(/_{2,}/g, "..........") : "",
+    formAnswers: formQs.map((q) => q.correctAnswer),
+  };
 }
 
 /** Paragraph letter for the Matching Headings question at index `qi`. */
@@ -115,13 +140,25 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
   const [title, setTitle] = useState(initial?.title ?? "");
   const [passage, setPassage] = useState(initial?.passage ?? "");
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
-  const [questions, setQuestions] = useState<Q[]>(() => toFormState(initial).questions);
-  const [headings, setHeadings] = useState<string[]>(() => toFormState(initial).headings);
+  const [init] = useState(() => toFormState(initial));
+  const [questions, setQuestions] = useState<Q[]>(init.questions);
+  const [headings, setHeadings] = useState<string[]>(init.headings);
+  const [formPassage, setFormPassage] = useState(init.formPassage);
+  const [formAnswers, setFormAnswers] = useState<string[]>(init.formAnswers);
 
   const hasMatching = questions.some((q) => q.type === "MATCHING_HEADINGS");
+  const blankCount = countBlanks(formPassage);
 
   const patchQ = (qi: number, patch: Partial<Q>) =>
     setQuestions((qs) => qs.map((q, i) => (i === qi ? { ...q, ...patch } : q)));
+
+  const setFormAnswerAt = (i: number, v: string) =>
+    setFormAnswers((prev) => {
+      const next = [...prev];
+      while (next.length <= i) next.push("");
+      next[i] = v;
+      return next;
+    });
 
   const setHeadingAt = (hi: number, v: string) =>
     setHeadings((hs) => hs.map((x, j) => (j === hi ? v : x)));
@@ -153,7 +190,6 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
   const submit = async () => {
     if (!title.trim()) return toast.error("Nhập tiêu đề");
     if (passage.trim().length < 50) return toast.error("Đoạn văn quá ngắn (tối thiểu 50 ký tự)");
-    if (questions.length === 0) return toast.error("Cần ít nhất 1 câu hỏi");
 
     // Build the shared List of Headings once — used by every Matching Headings question.
     const headingRemap = new Map<number, number>();
@@ -170,7 +206,7 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
     }
     const numberedHeadings = finalHeadings.map((h, i) => `${ROMAN[i]}. ${h}`);
 
-    const payload: { type: QType; prompt: string; options?: string[]; correctAnswer: string; explanation?: string }[] = [];
+    const payload: { type: QType; prompt: string; options?: string[]; correctAnswer: string; explanation?: string; formGroup?: string }[] = [];
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
       if (!q.prompt.trim()) return toast.error(`Câu ${i + 1}: thiếu nội dung câu hỏi`);
@@ -196,6 +232,21 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
       }
     }
 
+    // Pasted form-completion → one FILL_BLANK question per blank (shared formGroup).
+    let formPayload: typeof payload = [];
+    if (formPassage.trim()) {
+      if (blankCount < 1)
+        return toast.error("Đoạn điền chỗ trống chưa có chỗ trống — dùng chuỗi dấu chấm cho mỗi chỗ");
+      for (let i = 0; i < blankCount; i++) {
+        if (!(formAnswers[i] || "").trim())
+          return toast.error(`Điền chỗ trống: thiếu đáp án cho chỗ trống ${i + 1}`);
+      }
+      formPayload = buildFormQuestions(formPassage, formAnswers, "fg" + Date.now().toString(36));
+    }
+
+    if (formPayload.length + payload.length === 0)
+      return toast.error("Cần ít nhất 1 câu hỏi — thêm câu hỏi hoặc dán đoạn điền chỗ trống");
+
     setLoading(true);
     try {
       const res = await fetch(isEdit ? `/api/admin/reading/${initial!.id}` : "/api/admin/reading", {
@@ -206,7 +257,7 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
           passage: passage.trim(),
           imageUrl: imageUrl.trim() || null,
           bank,
-          questions: payload,
+          questions: [...formPayload, ...payload],
         }),
       });
       const data = await res.json();
@@ -251,6 +302,64 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
             label="Ảnh bìa (tuỳ chọn)"
             hint="Ảnh bìa hiển thị ở thẻ chọn đề và phía trên đoạn văn. Dán URL, tải ảnh lên, hoặc để AI tạo."
           />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlignLeft className="h-5 w-5 text-primary" /> Điền chỗ trống — dán cả đoạn
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Dán nguyên một đoạn điền chỗ trống (sentence / summary completion). Mỗi chỗ trống là
+            một chuỗi dấu chấm. Người học sẽ thấy đoạn liền mạch với ô điền ngay trong dòng.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div>
+            <Label>Đoạn văn điền chỗ trống</Label>
+            <Textarea
+              value={formPassage}
+              onChange={(e) => setFormPassage(e.target.value)}
+              className="min-h-[180px] font-mono text-[13px]"
+              placeholder={
+                "VD:\nModern cities increasingly rely on 1. .......... to manage traffic, while 2. .......... sensors track air quality across the urban area."
+              }
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Mỗi chỗ trống đánh dấu bằng một chuỗi dấu chấm liền nhau (vd{" "}
+              <span className="font-mono">..........</span>) hoặc gạch dưới. Số “1.”, “2.”… trước
+              chỗ trống sẽ tự được thay bằng ô điền. Để trống nếu bài không có dạng này.
+            </p>
+          </div>
+          {formPassage.trim() && (
+            <div>
+              <Label>Đáp án — {blankCount} chỗ trống</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Nhiều đáp án đúng cho một chỗ? Ngăn cách bằng dấu “/” — VD “8 / eight”.
+              </p>
+              {blankCount === 0 ? (
+                <p className="text-xs text-destructive mt-1">
+                  Chưa phát hiện chỗ trống nào — mỗi chỗ trống cần một chuỗi dấu chấm.
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 mt-1">
+                  {Array.from({ length: blankCount }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-1.5">
+                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-600 text-white text-xs font-bold">
+                        {i + 1}
+                      </span>
+                      <Input
+                        value={formAnswers[i] ?? ""}
+                        onChange={(e) => setFormAnswerAt(i, e.target.value)}
+                        placeholder={`Đáp án ${i + 1}`}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -300,6 +409,11 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {questions.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Chưa có câu hỏi lẻ. Bài này có thể chỉ dùng phần “Điền chỗ trống — dán cả đoạn” ở trên.
+            </p>
+          )}
           {questions.map((q, qi) => {
             const mhLetter = q.type === "MATCHING_HEADINGS" ? mhLetterAt(questions, qi) : null;
             return (
@@ -309,11 +423,9 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
                     Câu {qi + 1}
                     {mhLetter && <span className="text-primary"> · Đoạn {mhLetter}</span>}
                   </span>
-                  {questions.length > 1 && (
-                    <Button variant="ghost" size="sm" onClick={() => setQuestions(questions.filter((_, i) => i !== qi))}>
-                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                    </Button>
-                  )}
+                  <Button variant="ghost" size="sm" onClick={() => setQuestions(questions.filter((_, i) => i !== qi))}>
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </Button>
                 </div>
 
                 <div>

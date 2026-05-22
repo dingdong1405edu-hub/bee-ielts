@@ -42,6 +42,7 @@ export default async function ReadingSessionPage({ searchParams }: { searchParam
           prompt: q.prompt,
           options: (q.options as string[] | null) ?? null,
           correctAnswer: q.correctAnswer as string,
+          formGroup: q.formGroup,
         })),
       }))}
     />

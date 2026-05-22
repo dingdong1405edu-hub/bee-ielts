@@ -29,6 +29,7 @@ export default async function EditReadingPage({ params }: { params: Promise<{ id
           options: (q.options as string[] | null) ?? null,
           correctAnswer: q.correctAnswer as string,
           explanation: q.explanation,
+          formGroup: q.formGroup,
         })),
       }}
     />

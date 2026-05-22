@@ -112,6 +112,7 @@ export default async function MockTestPage() {
           prompt: q.prompt,
           options: (q.options as string[] | null) ?? null,
           correctAnswer: q.correctAnswer as string,
+          formGroup: q.formGroup,
         })),
       }))}
       writing={{

@@ -12,6 +12,7 @@ import { Trash2, Plus, Loader2, GraduationCap, Headphones, AlignLeft, Table } fr
 import { ImageUrlField } from "./image-url-field";
 import { AudioUrlField } from "./audio-url-field";
 import { DeleteTestButton } from "./delete-test-button";
+import { countBlanks, parseTablePaste, buildFormQuestions } from "@/lib/form-completion";
 
 type Bank = "PRACTICE" | "MOCK";
 type QType = "MCQ" | "FILL_BLANK" | "TRUE_FALSE_NOT_GIVEN" | "SHORT_ANSWER";
@@ -47,52 +48,6 @@ const blankQ = (type: QType): Q => ({
   correctAnswer: "",
   explanation: "",
 });
-
-/** A blank in a pasted form: a run of dots, underscores, or ellipsis chars. */
-const BLANK_RE = /\.{2,}|_{2,}|…+/g;
-
-/** Count blank markers in a pasted form passage. */
-function countBlanks(text: string): number {
-  return (text.match(BLANK_RE) || []).length;
-}
-
-/** Remove the question-number token ("1.", "(2)", "3)") nearest a blank. */
-function stripQuestionNumber(seg: string): string {
-  const re = /(\(\d+\)|\d+[.)])(?=\s|$)/g;
-  let last: RegExpExecArray | null = null;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(seg))) last = m;
-  if (!last) return seg;
-  let end = last.index + last[0].length;
-  if (seg[end] === " ") end++; // also drop one following space
-  return seg.slice(0, last.index) + seg.slice(end);
-}
-
-/** Parse a pasted table into a grid — cells split on Tab or "|", rows on newline. */
-function parseTablePaste(text: string): string[][] {
-  return text
-    .split(/\r?\n/)
-    .filter((line) => line.trim().length > 0)
-    .map((line) => (line.includes("\t") ? line.split("\t") : line.split("|")).map((c) => c.trim()));
-}
-
-/**
- * Split a pasted passage into one FILL_BLANK question per blank. Each prompt
- * is the text before its blank (question number removed) plus a `___` marker;
- * the last question also carries the trailing text. Used for both the flowing
- * form layout and the `|`-delimited table layout.
- */
-function buildFormQuestions(passage: string, answers: string[], formGroup: string): Payload[] {
-  const segments = passage.split(BLANK_RE);
-  const blanks = segments.length - 1;
-  const out: Payload[] = [];
-  for (let i = 0; i < blanks; i++) {
-    let prompt = stripQuestionNumber(segments[i]) + "___";
-    if (i === blanks - 1) prompt += segments[blanks];
-    out.push({ type: "FILL_BLANK", prompt, correctAnswer: (answers[i] || "").trim(), formGroup });
-  }
-  return out;
-}
 
 /** DB-shaped listening test passed in when editing an existing record. */
 export type ListeningInitial = {

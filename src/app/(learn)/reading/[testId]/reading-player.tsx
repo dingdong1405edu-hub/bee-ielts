@@ -11,6 +11,7 @@ import { formatDuration, cn, isAnswerCorrect } from "@/lib/utils";
 import { TipsCard } from "@/components/learn/tips-card";
 import { ReadingGroupHeader, groupStartFor } from "@/components/learn/reading-group-header";
 import { ReadingComments } from "@/components/learn/reading-comments";
+import { FormBlanks, groupQuestions } from "@/components/learn/form-blanks";
 
 type Q = {
   id: string;
@@ -19,6 +20,7 @@ type Q = {
   options: string[] | null;
   correctAnswer: string;
   explanation: string | null;
+  formGroup?: string | null;
 };
 
 export function ReadingPlayer({
@@ -109,7 +111,29 @@ export function ReadingPlayer({
         </Card>
 
         <div className="space-y-4">
-          {questions.map((q, i) => {
+          {groupQuestions(questions).map((unit) => {
+            if (unit.kind === "form") {
+              const end = unit.startNum + unit.items.length - 1;
+              return (
+                <div key={`fg-${unit.items[0].id}`}>
+                  <ReadingGroupHeader type="FILL_BLANK" start={unit.startNum} end={end} />
+                  <Card>
+                    <CardContent className="p-5">
+                      <FormBlanks
+                        items={unit.items}
+                        startNum={unit.startNum}
+                        answers={answers}
+                        onChange={(id, v) => setAnswers((a) => ({ ...a, [id]: v }))}
+                        disabled={submitted}
+                        submitted={submitted}
+                      />
+                    </CardContent>
+                  </Card>
+                </div>
+              );
+            }
+            const q = unit.q;
+            const i = unit.num - 1;
             const userAns = answers[q.id] || "";
             const isCorrect = isAnswerCorrect(userAns, q.correctAnswer, q.type);
             const groupStart = groupStartFor(questions, i);

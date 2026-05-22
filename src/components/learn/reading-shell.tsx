@@ -4,6 +4,7 @@ import { Clock, Send, GripVertical, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ReadingGroupHeader, computeQuestionGroups } from "@/components/learn/reading-group-header";
+import { FormBlanks } from "@/components/learn/form-blanks";
 import {
   HighlightablePassage,
   HighlightToolbar,
@@ -30,6 +31,7 @@ export interface ShellQ {
   prompt: string;
   options: string[] | null;
   correctAnswer: string;
+  formGroup?: string | null;
 }
 
 export interface ShellPart {
@@ -269,6 +271,11 @@ function PartQuestions({
         const groupStart = startIndex + g.startIdx;
         const groupEnd = startIndex + g.endIdx;
         const hasList = g.type === "MATCHING_HEADINGS" || g.type === "MATCHING_FEATURES";
+        // Pasted form-completion: every question shares one formGroup key —
+        // render the whole block as one flowing passage with inline blanks.
+        const fg = groupQuestions[0]?.formGroup;
+        const isFormGroup =
+          !!fg && groupQuestions.every((q) => q.formGroup === fg);
         // Sentence-completion run: every question has an inline blank, so the
         // sentences flow together as one continuous paragraph (no line breaks).
         const isInlineRun =
@@ -280,7 +287,14 @@ function PartQuestions({
             {hasList && groupQuestions[0]?.options && groupQuestions[0].options.length > 0 && (
               <ReferenceList type={g.type} options={groupQuestions[0].options} />
             )}
-            {isInlineRun ? (
+            {isFormGroup ? (
+              <FormBlanks
+                items={groupQuestions}
+                startNum={groupStart}
+                answers={answers}
+                onChange={onChange}
+              />
+            ) : isInlineRun ? (
               <InlineBlankGroup
                 items={groupQuestions.map((q, j) => ({
                   q,

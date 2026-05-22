@@ -16,6 +16,7 @@ const schema = z.object({
         options: z.array(z.string()).optional(),
         correctAnswer: z.string().min(1),
         explanation: z.string().optional(),
+        formGroup: z.string().optional(),
       }),
     )
     .min(1),
@@ -42,6 +43,7 @@ export async function POST(req: Request) {
           options: q.options && q.options.length > 0 ? q.options : undefined,
           correctAnswer: q.correctAnswer,
           explanation: q.explanation,
+          formGroup: q.formGroup || null,
           order: i + 1,
         })),
       },
