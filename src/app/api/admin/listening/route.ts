@@ -6,7 +6,10 @@ import { prisma } from "@/lib/db";
 const schema = z.object({
   title: z.string().min(1),
   audioUrl: z.string().min(1),
-  imageUrl: z.string().url().nullable().optional(),
+  // imageUrl / contentImageUrl may be a public URL or an uploaded data: URL,
+  // so they are validated as non-empty strings rather than strict URLs.
+  imageUrl: z.string().min(1).nullable().optional(),
+  contentImageUrl: z.string().min(1).nullable().optional(),
   transcript: z.string().optional(),
   bank: z.enum(["PRACTICE", "MOCK"]).default("PRACTICE"),
   questions: z
@@ -30,13 +33,14 @@ export async function POST(req: Request) {
   }
   const parsed = schema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
-  const { title, audioUrl, imageUrl, transcript, bank, questions } = parsed.data;
+  const { title, audioUrl, imageUrl, contentImageUrl, transcript, bank, questions } = parsed.data;
 
   const test = await prisma.listeningTest.create({
     data: {
       title,
       audioUrl,
       imageUrl: imageUrl ?? null,
+      contentImageUrl: contentImageUrl ?? null,
       transcript: transcript || null,
       bank,
       questions: {

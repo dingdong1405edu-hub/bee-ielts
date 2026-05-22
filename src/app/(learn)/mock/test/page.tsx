@@ -90,6 +90,7 @@ export default async function MockTestPage() {
         title: listening.title,
         audioUrl: listening.audioUrl,
         imageUrl: listening.imageUrl,
+        contentImageUrl: listening.contentImageUrl,
         transcript: listening.transcript,
         questions: listening.questions.map((q) => ({
           id: q.id,

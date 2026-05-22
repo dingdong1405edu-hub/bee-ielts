@@ -22,6 +22,7 @@ export function MockListening({
   title,
   audioUrl,
   imageUrl,
+  contentImageUrl,
   transcript,
   questions,
   timeLimit,
@@ -30,6 +31,7 @@ export function MockListening({
   title: string;
   audioUrl: string;
   imageUrl?: string | null;
+  contentImageUrl?: string | null;
   transcript: string | null;
   questions: Q[];
   timeLimit: number;
@@ -131,6 +133,19 @@ export function MockListening({
           )}
         </CardContent>
       </Card>
+
+      {contentImageUrl && (
+        <Card>
+          <CardContent className="p-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={contentImageUrl}
+              alt="Hình ảnh cho bài làm"
+              className="w-full max-h-[32rem] rounded-lg border bg-muted/30 object-contain"
+            />
+          </CardContent>
+        </Card>
+      )}
 
       <div className="space-y-3">
         {groupQuestions(questions).map((unit) => {

@@ -239,15 +239,16 @@ model ReadingComment {
 }
 
 model ListeningTest {
-  id         String     @id @default(cuid())
-  title      String
-  audioUrl   String
-  imageUrl   String?    @db.Text
-  transcript String?    @db.Text
-  timeLimit  Int        @default(1200)
-  bank       TestBank   @default(PRACTICE)
-  questions  Question[]
-  createdAt  DateTime   @default(now())
+  id              String     @id @default(cuid())
+  title           String
+  audioUrl        String
+  imageUrl        String?    @db.Text
+  contentImageUrl String?    @db.Text
+  transcript      String?    @db.Text
+  timeLimit       Int        @default(1200)
+  bank            TestBank   @default(PRACTICE)
+  questions       Question[]
+  createdAt       DateTime   @default(now())
 
   @@index([bank])
 }

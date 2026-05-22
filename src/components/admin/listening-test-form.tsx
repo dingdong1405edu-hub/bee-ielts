@@ -55,6 +55,7 @@ export type ListeningInitial = {
   title: string;
   audioUrl: string;
   imageUrl: string | null;
+  contentImageUrl: string | null;
   transcript: string | null;
   questions: {
     type: string;
@@ -126,6 +127,7 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
   const [title, setTitle] = useState(initial?.title ?? "");
   const [audioUrl, setAudioUrl] = useState(initial?.audioUrl ?? "");
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
+  const [contentImageUrl, setContentImageUrl] = useState(initial?.contentImageUrl ?? "");
   const [transcript, setTranscript] = useState(initial?.transcript ?? "");
   const [init] = useState(() => toFormState(initial));
   const [questions, setQuestions] = useState<Q[]>(init.questions);
@@ -223,6 +225,7 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
           title: title.trim(),
           audioUrl: audioUrl.trim(),
           imageUrl: imageUrl.trim() || null,
+          contentImageUrl: contentImageUrl.trim() || null,
           transcript: transcript.trim() || undefined,
           bank,
           questions: payload,
@@ -275,6 +278,13 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
             aiContext={title}
             label="Ảnh bìa (tuỳ chọn)"
             hint="Ảnh bìa hiển thị ở thẻ chọn đề và bên audio player. Dán URL, tải ảnh lên, hoặc để AI tạo."
+          />
+          <ImageUrlField
+            value={contentImageUrl}
+            onChange={setContentImageUrl}
+            aiContext={title}
+            label="Ảnh trong bài làm (tuỳ chọn)"
+            hint="Ảnh hiển thị ngay trong phần làm bài — dùng cho dạng bản đồ, sơ đồ, bảng biểu mà câu hỏi nhắc tới. Tải ảnh từ máy lên hoặc dán URL."
           />
         </CardContent>
       </Card>

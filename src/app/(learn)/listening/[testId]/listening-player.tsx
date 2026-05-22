@@ -27,6 +27,7 @@ export function ListeningPlayer({
   title,
   audioUrl,
   imageUrl,
+  contentImageUrl,
   transcript,
   questions,
 }: {
@@ -34,6 +35,7 @@ export function ListeningPlayer({
   title: string;
   audioUrl: string;
   imageUrl?: string | null;
+  contentImageUrl?: string | null;
   transcript: string | null;
   questions: Q[];
 }) {
@@ -91,6 +93,18 @@ export function ListeningPlayer({
         <img src={imageUrl} alt="" className="w-full max-h-80 rounded-2xl border bg-muted/30 object-contain" />
       )}
 
+      {contentImageUrl && (
+        <Card>
+          <CardContent className="p-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={contentImageUrl}
+              alt="Hình ảnh cho bài làm"
+              className="w-full max-h-[32rem] rounded-lg border bg-muted/30 object-contain"
+            />
+          </CardContent>
+        </Card>
+      )}
 
       <div className="space-y-3">
         {groupQuestions(questions).map((unit) => {

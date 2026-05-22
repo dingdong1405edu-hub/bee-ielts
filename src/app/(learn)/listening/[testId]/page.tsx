@@ -14,6 +14,7 @@ export default async function ListeningTestPage({ params }: { params: { testId: 
       title={test.title}
       audioUrl={test.audioUrl}
       imageUrl={test.imageUrl}
+      contentImageUrl={test.contentImageUrl}
       transcript={test.transcript}
       questions={test.questions.map((q) => ({
         id: q.id,
