@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Calendar, CheckCircle2, XCircle } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, isAnswerCorrect } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +25,7 @@ export default async function ListeningReviewPage({ params }: { params: { attemp
 
   const answers = (attempt.rawAnswer as Record<string, string>) ?? {};
   const correct = test.questions.filter(
-    (q) => (answers[q.id] || "").trim().toLowerCase() === (q.correctAnswer as string).toLowerCase(),
+    (q) => isAnswerCorrect(answers[q.id], q.correctAnswer as string, q.type),
   ).length;
 
   return (
@@ -57,7 +57,7 @@ export default async function ListeningReviewPage({ params }: { params: { attemp
           <h3 className="font-extrabold mb-1">Đáp án chi tiết</h3>
           {test.questions.map((q, i) => {
             const ua = answers[q.id] || "";
-            const ok = ua.trim().toLowerCase() === (q.correctAnswer as string).toLowerCase();
+            const ok = isAnswerCorrect(ua, q.correctAnswer as string, q.type);
             return (
               <div
                 key={q.id}

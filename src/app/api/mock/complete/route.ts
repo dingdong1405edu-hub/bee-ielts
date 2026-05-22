@@ -3,17 +3,24 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { gradeWritingGroq, gradeSpeakingGroq } from "@/lib/groq";
+import { isAnswerCorrect } from "@/lib/utils";
+
+const gradableQuestion = z.object({
+  id: z.string(),
+  correctAnswer: z.string(),
+  type: z.string().optional(),
+});
 
 const schema = z.object({
   listening: z.object({
     testId: z.string(),
     answers: z.record(z.string()),
-    questions: z.array(z.object({ id: z.string(), correctAnswer: z.string() })),
+    questions: z.array(gradableQuestion),
   }),
   reading: z.object({
     testIds: z.array(z.string()),
     answers: z.record(z.string()),
-    questions: z.array(z.object({ id: z.string(), correctAnswer: z.string() })),
+    questions: z.array(gradableQuestion),
   }),
   writing: z.object({
     task1Id: z.string(),
@@ -61,10 +68,10 @@ export async function POST(req: Request) {
 
   // Listening + Reading: auto-grade
   const lCorrect = listening.questions.filter(
-    (q) => (listening.answers[q.id] || "").trim().toLowerCase() === q.correctAnswer.toLowerCase(),
+    (q) => isAnswerCorrect(listening.answers[q.id], q.correctAnswer, q.type),
   ).length;
   const rCorrect = reading.questions.filter(
-    (q) => (reading.answers[q.id] || "").trim().toLowerCase() === q.correctAnswer.toLowerCase(),
+    (q) => isAnswerCorrect(reading.answers[q.id], q.correctAnswer, q.type),
   ).length;
   const lBand = scoreToBand(lCorrect, listening.questions.length);
   const rBand = scoreToBand(rCorrect, reading.questions.length);

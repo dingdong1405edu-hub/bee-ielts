@@ -373,8 +373,12 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
                     <Input
                       value={q.correctAnswer}
                       onChange={(e) => patchQ(qi, { correctAnswer: e.target.value })}
-                      placeholder="Từ / cụm từ điền vào chỗ trống"
+                      placeholder="VD: 8 / eight"
                     />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Có nhiều đáp án đúng? Ngăn cách bằng dấu “/” — VD “8 / eight”, học viên gõ
+                      cái nào cũng được điểm.
+                    </p>
                   </div>
                 )}
 

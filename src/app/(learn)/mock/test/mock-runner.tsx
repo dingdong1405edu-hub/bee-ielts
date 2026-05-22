@@ -70,12 +70,12 @@ export function MockRunner({ targetBand, listening, readings, writing, speaking 
           listening: {
             testId: listening.id,
             answers: listeningAns,
-            questions: listening.questions.map((q) => ({ id: q.id, correctAnswer: q.correctAnswer })),
+            questions: listening.questions.map((q) => ({ id: q.id, correctAnswer: q.correctAnswer, type: q.type })),
           },
           reading: {
             testIds: readings.map((r) => r.id),
             answers: readingAns,
-            questions: readings.flatMap((r) => r.questions.map((q) => ({ id: q.id, correctAnswer: q.correctAnswer }))),
+            questions: readings.flatMap((r) => r.questions.map((q) => ({ id: q.id, correctAnswer: q.correctAnswer, type: q.type }))),
           },
           writing: {
             task1Id: writing.task1.id,

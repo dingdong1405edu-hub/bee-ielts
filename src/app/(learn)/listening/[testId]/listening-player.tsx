@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Clock, CheckCircle2, XCircle, Play, Pause, Gauge } from "lucide-react";
-import { formatDuration, cn } from "@/lib/utils";
+import { formatDuration, cn, isAnswerCorrect } from "@/lib/utils";
 import { speakText, stopSpeaking, isTTSSupported } from "@/lib/tts";
 import { TipsCard } from "@/components/learn/tips-card";
 import { ReviewReport, type ListeningReviewData } from "@/components/learn/review-report";
@@ -54,7 +54,7 @@ export function ListeningPlayer({
   const submit = async () => {
     setSubmitted(true);
     const correctCount = questions.filter(
-      (q) => (answers[q.id] || "").trim().toLowerCase() === q.correctAnswer.toLowerCase(),
+      (q) => isAnswerCorrect(answers[q.id], q.correctAnswer, q.type),
     ).length;
     const band = (correctCount / questions.length) * 9;
     try {
@@ -117,7 +117,7 @@ export function ListeningPlayer({
           }
           const q = unit.q;
           const userAns = answers[q.id] || "";
-          const isCorrect = userAns.trim().toLowerCase() === q.correctAnswer.toLowerCase();
+          const isCorrect = isAnswerCorrect(userAns, q.correctAnswer, q.type);
           return (
             <Card key={q.id} className={cn(submitted && (isCorrect ? "border-success" : "border-destructive"))}>
               <CardContent className="p-5 space-y-3">
@@ -197,8 +197,8 @@ export function ListeningPlayer({
         <>
           <TipsCard
             skill="LISTENING"
-            score={(questions.filter((q) => (answers[q.id] || "").trim().toLowerCase() === q.correctAnswer.toLowerCase()).length / questions.length) * 9}
-            context={`User got ${questions.filter((q) => (answers[q.id] || "").trim().toLowerCase() === q.correctAnswer.toLowerCase()).length}/${questions.length} questions correct on a listening test.`}
+            score={(questions.filter((q) => isAnswerCorrect(answers[q.id], q.correctAnswer, q.type)).length / questions.length) * 9}
+            context={`User got ${questions.filter((q) => isAnswerCorrect(answers[q.id], q.correctAnswer, q.type)).length}/${questions.length} questions correct on a listening test.`}
           />
           <ReviewReport
             data={{
@@ -211,9 +211,9 @@ export function ListeningPlayer({
                 userAnswer: answers[q.id] || "",
                 correctAnswer: q.correctAnswer,
               })),
-              totalCorrect: questions.filter((q) => (answers[q.id] || "").trim().toLowerCase() === q.correctAnswer.toLowerCase()).length,
+              totalCorrect: questions.filter((q) => isAnswerCorrect(answers[q.id], q.correctAnswer, q.type)).length,
               totalQuestions: questions.length,
-              band: (questions.filter((q) => (answers[q.id] || "").trim().toLowerCase() === q.correctAnswer.toLowerCase()).length / questions.length) * 9,
+              band: (questions.filter((q) => isAnswerCorrect(answers[q.id], q.correctAnswer, q.type)).length / questions.length) * 9,
             } satisfies ListeningReviewData}
           />
         </>

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, XCircle, Loader2, Sparkles, BookOpen, Languages, Lightbulb, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { cn, isAnswerCorrect } from "@/lib/utils";
 
 export interface SolutionPassage {
   id: string;
@@ -76,7 +76,7 @@ export function ReadingSolutions({
   useEffect(() => {
     setActiveQId(null);
     const wrong = current.questions.filter(
-      (q) => (answers[q.id] || "").trim().toLowerCase() !== q.correctAnswer.toLowerCase(),
+      (q) => !isAnswerCorrect(answers[q.id], q.correctAnswer, q.type),
     );
     let delay = 0;
     for (const q of wrong) {
@@ -97,7 +97,7 @@ export function ReadingSolutions({
         <div className="flex flex-wrap gap-2 border-b pb-3">
           {passages.map((p, i) => {
             const wrongCount = p.questions.filter(
-              (q) => (answers[q.id] || "").trim().toLowerCase() !== q.correctAnswer.toLowerCase(),
+              (q) => !isAnswerCorrect(answers[q.id], q.correctAnswer, q.type),
             ).length;
             return (
               <button
@@ -140,7 +140,7 @@ export function ReadingSolutions({
       <div className="space-y-3">
         {current.questions.map((q, i) => {
           const ua = answers[q.id] || "";
-          const ok = ua.trim().toLowerCase() === q.correctAnswer.toLowerCase();
+          const ok = isAnswerCorrect(ua, q.correctAnswer, q.type);
           const ex = cache[q.id];
           return (
             <QuestionRow

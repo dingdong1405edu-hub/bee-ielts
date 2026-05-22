@@ -16,6 +16,33 @@ export function wordCount(text: string) {
 }
 
 /**
+ * Grade a learner's answer (case-insensitive, trimmed).
+ *
+ * For text answers (fill-in-the-blank / short answer) the answer key may list
+ * alternatives separated by "/", e.g. "8 / eight" — the whole key OR any
+ * single alternative counts as correct. MCQ / matching / true-false answers
+ * are a fixed choice and are always matched exactly.
+ */
+export function isAnswerCorrect(
+  userAnswer: string | null | undefined,
+  correctAnswer: string | null | undefined,
+  type?: string | null,
+): boolean {
+  const norm = (s: string) => s.trim().toLowerCase();
+  const user = norm(userAnswer ?? "");
+  if (!user) return false;
+  const key = correctAnswer ?? "";
+  const exactOnly =
+    type === "MCQ" ||
+    type === "TRUE_FALSE" ||
+    type === "TRUE_FALSE_NOT_GIVEN" ||
+    (type ? type.startsWith("MATCHING") : false);
+  if (exactOnly) return user === norm(key);
+  // Accept the whole key or any "/"-separated alternative.
+  return [norm(key), ...key.split("/").map(norm)].filter(Boolean).includes(user);
+}
+
+/**
  * Replace IELTS-examiner pronouns like "Ứng viên" with the learner's actual
  * name (or "Bạn"/"bạn" if no name) so AI feedback feels addressed to them.
  */

@@ -354,6 +354,9 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
           {formPassage.trim() && (
             <div>
               <Label>Đáp án — {blankCount} chỗ trống</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Nhiều đáp án đúng cho một chỗ? Ngăn cách bằng dấu “/” — VD “8 / eight”.
+              </p>
               {blankCount === 0 ? (
                 <p className="text-xs text-destructive mt-1">
                   Chưa phát hiện chỗ trống nào — mỗi chỗ trống cần một chuỗi dấu chấm.
@@ -408,6 +411,9 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
           {tablePassage.trim() && (
             <div>
               <Label>Đáp án — {tableBlankCount} chỗ trống</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Nhiều đáp án đúng cho một ô? Ngăn cách bằng dấu “/” — VD “8 / eight”.
+              </p>
               {tableBlankCount === 0 ? (
                 <p className="text-xs text-destructive mt-1">
                   Chưa phát hiện chỗ trống nào — mỗi ô cần điền cần một chuỗi dấu chấm.
@@ -513,8 +519,11 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
                   <Input
                     value={q.correctAnswer}
                     onChange={(e) => patchQ(qi, { correctAnswer: e.target.value })}
-                    placeholder="Từ / cụm từ"
+                    placeholder="VD: 8 / eight"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Nhiều đáp án đúng? Ngăn cách bằng dấu “/” — VD “8 / eight”.
+                  </p>
                 </div>
               )}
 

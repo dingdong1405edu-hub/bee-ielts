@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle2, XCircle, Trophy, Sparkles } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, isAnswerCorrect } from "@/lib/utils";
 import { TipsCard } from "@/components/learn/tips-card";
 import { ReviewReport, type ReadingReviewData } from "@/components/learn/review-report";
 import { ReadingShell, type ShellPart, type ShellQ } from "@/components/learn/reading-shell";
@@ -43,7 +43,7 @@ export function ReadingSession({ passages, targetBand = 6.0 }: { passages: Passa
 
     for (const p of passages) {
       const c = p.questions.filter(
-        (q) => (finalAnswers[q.id] || "").trim().toLowerCase() === q.correctAnswer.toLowerCase(),
+        (q) => isAnswerCorrect(finalAnswers[q.id], q.correctAnswer, q.type),
       ).length;
       totalCorrect += c;
       totalQuestions += p.questions.length;
@@ -91,7 +91,7 @@ export function ReadingSession({ passages, targetBand = 6.0 }: { passages: Passa
   const totalCorrect = passages.reduce(
     (sum, p) =>
       sum +
-      p.questions.filter((q) => (answers[q.id] || "").trim().toLowerCase() === q.correctAnswer.toLowerCase()).length,
+      p.questions.filter((q) => isAnswerCorrect(answers[q.id], q.correctAnswer, q.type)).length,
     0,
   );
   const totalQuestions = passages.reduce((sum, p) => sum + p.questions.length, 0);
@@ -122,7 +122,7 @@ export function ReadingSession({ passages, targetBand = 6.0 }: { passages: Passa
       <div className="space-y-2">
         {passages.map((p, i) => {
           const c = p.questions.filter(
-            (q) => (answers[q.id] || "").trim().toLowerCase() === q.correctAnswer.toLowerCase(),
+            (q) => isAnswerCorrect(answers[q.id], q.correctAnswer, q.type),
           ).length;
           return (
             <Card key={p.id} className="cursor-pointer hover:shadow-md" onClick={() => setActiveTab(i)}>
@@ -148,7 +148,7 @@ export function ReadingSession({ passages, targetBand = 6.0 }: { passages: Passa
           <div className="space-y-2">
             {current.questions.map((q, i) => {
               const ua = answers[q.id] || "";
-              const ok = ua.trim().toLowerCase() === q.correctAnswer.toLowerCase();
+              const ok = isAnswerCorrect(ua, q.correctAnswer, q.type);
               return (
                 <div key={q.id} className={cn("rounded-lg border p-3 text-sm", ok ? "border-success bg-success/5" : "border-destructive bg-destructive/5")}>
                   <div className="flex items-start gap-2">

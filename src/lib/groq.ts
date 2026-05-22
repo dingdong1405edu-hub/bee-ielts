@@ -1,3 +1,5 @@
+import { isAnswerCorrect } from "@/lib/utils";
+
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const DEFAULT_MODEL = "llama-3.3-70b-versatile";
 const VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
@@ -275,7 +277,7 @@ export interface ReadingExplainResult {
 export async function explainReadingGroq(input: ReadingExplainInput): Promise<ReadingExplainResult> {
   const isWrong =
     input.userAnswer !== undefined &&
-    input.userAnswer.trim().toLowerCase() !== input.correctAnswer.trim().toLowerCase();
+    !isAnswerCorrect(input.userAnswer, input.correctAnswer, input.questionType);
   const userMessage = `PASSAGE:
 ${input.passage}
 

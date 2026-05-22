@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Clock, CheckCircle2, XCircle } from "lucide-react";
-import { formatDuration, cn } from "@/lib/utils";
+import { formatDuration, cn, isAnswerCorrect } from "@/lib/utils";
 import { TipsCard } from "@/components/learn/tips-card";
 import { ReadingGroupHeader, groupStartFor } from "@/components/learn/reading-group-header";
 import { ReadingComments } from "@/components/learn/reading-comments";
@@ -53,7 +53,7 @@ export function ReadingPlayer({
     setSubmitted(true);
     setSubmitting(true);
     const correctCount = questions.filter(
-      (q) => (answers[q.id] || "").trim().toLowerCase() === q.correctAnswer.toLowerCase(),
+      (q) => isAnswerCorrect(answers[q.id], q.correctAnswer, q.type),
     ).length;
     const score = (correctCount / questions.length) * 9;
     try {
@@ -72,7 +72,7 @@ export function ReadingPlayer({
   };
 
   const correctCount = submitted
-    ? questions.filter((q) => (answers[q.id] || "").trim().toLowerCase() === q.correctAnswer.toLowerCase()).length
+    ? questions.filter((q) => isAnswerCorrect(answers[q.id], q.correctAnswer, q.type)).length
     : 0;
 
   return (
@@ -111,7 +111,7 @@ export function ReadingPlayer({
         <div className="space-y-4">
           {questions.map((q, i) => {
             const userAns = answers[q.id] || "";
-            const isCorrect = userAns.trim().toLowerCase() === q.correctAnswer.toLowerCase();
+            const isCorrect = isAnswerCorrect(userAns, q.correctAnswer, q.type);
             const groupStart = groupStartFor(questions, i);
             return (
               <div key={q.id}>

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowLeft, Calendar } from "lucide-react";
 import { ReadingSolutions } from "@/components/learn/reading-solutions";
+import { isAnswerCorrect } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +29,7 @@ export default async function ReadingReviewPage({ params }: { params: { attemptI
   const answers = (attempt.rawAnswer as Record<string, string>) ?? {};
   const allQuestions = ordered.flatMap((t) => t.questions);
   const correct = allQuestions.filter(
-    (q) => (answers[q.id] || "").trim().toLowerCase() === (q.correctAnswer as string).toLowerCase(),
+    (q) => isAnswerCorrect(answers[q.id], q.correctAnswer as string, q.type),
   ).length;
 
   return (

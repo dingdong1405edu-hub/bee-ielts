@@ -1,6 +1,7 @@
 "use client";
 import { Download, Printer, CheckCircle2, XCircle, Sparkles, Lightbulb, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { isAnswerCorrect } from "@/lib/utils";
 
 export interface ReadingReviewData {
   kind: "READING";
@@ -161,7 +162,7 @@ function ReadingBody({ data }: { data: ReadingReviewData }) {
           <h3 className="text-base font-extrabold border-b pb-1">Passage {pi + 1}: {p.title}{p.level ? ` (${p.level})` : ""}</h3>
           <div className="space-y-2">
             {p.questions.map((q, qi) => {
-              const ok = (q.userAnswer || "").trim().toLowerCase() === q.correctAnswer.toLowerCase();
+              const ok = isAnswerCorrect(q.userAnswer, q.correctAnswer, q.type);
               return (
                 <QABlock
                   key={qi}
@@ -193,7 +194,7 @@ function ListeningBody({ data }: { data: ListeningReviewData }) {
       <h3 className="text-base font-extrabold border-b pb-1">Câu hỏi & đáp án</h3>
       <div className="space-y-2">
         {data.questions.map((q, qi) => {
-          const ok = (q.userAnswer || "").trim().toLowerCase() === q.correctAnswer.toLowerCase();
+          const ok = isAnswerCorrect(q.userAnswer, q.correctAnswer, q.type);
           return (
             <QABlock
               key={qi}

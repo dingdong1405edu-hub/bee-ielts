@@ -1,5 +1,5 @@
 "use client";
-import { cn } from "@/lib/utils";
+import { cn, isAnswerCorrect } from "@/lib/utils";
 
 /** Minimum shape a question needs to be rendered inside a form/table block. */
 export interface FormQuestion {
@@ -57,7 +57,7 @@ function BlankInput({
   disabled?: boolean;
   submitted?: boolean;
 }) {
-  const correct = value.trim().toLowerCase() === correctAnswer.trim().toLowerCase();
+  const correct = isAnswerCorrect(value, correctAnswer, "FILL_BLANK");
   return (
     <span className="inline-flex items-center gap-1 align-middle mx-0.5">
       <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-600 text-white text-[11px] font-bold shrink-0">
