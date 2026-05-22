@@ -16,6 +16,19 @@ export function wordCount(text: string) {
 }
 
 /**
+ * Short human label for an audio source. An uploaded file is stored as a
+ * multi-MB `data:` URL — never render that raw in a list, it blows up the
+ * layout. A public URL is shown as-is so the admin can recognise it.
+ */
+export function audioSourceLabel(url: string | null | undefined): string {
+  const u = (url ?? "").trim();
+  if (!u) return "Chưa có audio";
+  if (u.startsWith("data:")) return "🎵 Audio đã tải lên";
+  if (u.startsWith("file:")) return "⚠️ Link file nội bộ — người học không nghe được";
+  return u;
+}
+
+/**
  * Grade a learner's answer (case-insensitive, trimmed).
  *
  * For text answers (fill-in-the-blank / short answer) the answer key may list
