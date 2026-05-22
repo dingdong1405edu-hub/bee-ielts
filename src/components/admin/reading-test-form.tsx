@@ -14,7 +14,7 @@ import { DeleteTestButton } from "./delete-test-button";
 import { countBlanks, buildFormQuestions } from "@/lib/form-completion";
 
 type Bank = "PRACTICE" | "MOCK";
-type QType = "MCQ" | "MATCHING_HEADINGS" | "FILL_BLANK" | "TRUE_FALSE_NOT_GIVEN";
+type QType = "MCQ" | "MATCHING_HEADINGS" | "FILL_BLANK" | "TRUE_FALSE_NOT_GIVEN" | "MULTI_SELECT";
 
 type Q = {
   type: QType;
@@ -41,7 +41,8 @@ const ROMAN = Array.from({ length: 30 }, (_, i) => toRoman(i + 1));
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
 const TYPE_LABEL: Record<QType, string> = {
-  MCQ: "Trắc nghiệm (Multiple choice)",
+  MCQ: "Trắc nghiệm 1 đáp án (Multiple choice)",
+  MULTI_SELECT: "Chọn nhiều đáp án (Choose TWO letters A–E)",
   MATCHING_HEADINGS: "Nối tiêu đề (Matching Headings)",
   FILL_BLANK: "Điền vào chỗ trống (Completion)",
   TRUE_FALSE_NOT_GIVEN: "Xác nhận thông tin (True / False / Not Given)",
@@ -50,7 +51,7 @@ const TYPE_LABEL: Record<QType, string> = {
 const blankQ = (type: QType): Q => ({
   type,
   prompt: "",
-  options: type === "MCQ" ? ["", "", "", ""] : [],
+  options: type === "MCQ" ? ["", "", "", ""] : type === "MULTI_SELECT" ? ["", "", "", "", ""] : [],
   correctAnswer: "",
   explanation: "",
 });
@@ -95,12 +96,22 @@ function toFormState(initial?: ReadingInitial): ReadingFormState {
   if (!initial || initial.questions.length === 0) {
     return { questions: [blankQ("MCQ")], headings: ["", "", "", ""], formPassage: "", formAnswers: [] };
   }
-  const formQs = initial.questions.filter((q) => q.formGroup);
-  const regular = initial.questions.filter((q) => !q.formGroup);
+  // Form-completion paste questions use an "fg"/"tbl" formGroup; multi-select
+  // questions use an "ms" formGroup but stay inline as ordinary loose questions.
+  const formQs = initial.questions.filter((q) => q.formGroup && !q.formGroup.startsWith("ms"));
+  const regular = initial.questions.filter((q) => !q.formGroup || q.formGroup.startsWith("ms"));
   let headings: string[] = [];
   const questions: Q[] = regular.map((q) => {
-    const type = coerceType(q.type);
     const explanation = q.explanation ?? "";
+    if (q.formGroup?.startsWith("ms")) {
+      // Multi-select: stored correctAnswer is the correct option texts; the
+      // editor works with their indices into the options list.
+      const opts = q.options ?? [];
+      const correctTexts = q.correctAnswer.split("\n").map((s) => s.trim()).filter(Boolean);
+      const idxs = correctTexts.map((t) => opts.indexOf(t)).filter((n) => n >= 0);
+      return { type: "MULTI_SELECT", prompt: q.prompt, options: opts, correctAnswer: idxs.join("\n"), explanation };
+    }
+    const type = coerceType(q.type);
     if (type === "MATCHING_HEADINGS") {
       const hs = (q.options ?? []).map((o) => o.replace(/^[ivxlcdm]+\.\s*/i, "").trim());
       // Keep the most complete list seen so every stored answer index resolves.
@@ -180,7 +191,12 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
   const changeType = (qi: number, type: QType) => {
     const q = questions[qi];
     const patch: Partial<Q> = { type, correctAnswer: "" };
-    patch.options = type === "MCQ" ? (q.options.length ? q.options : blankQ("MCQ").options) : [];
+    patch.options =
+      type === "MCQ"
+        ? (q.options.length ? q.options : blankQ("MCQ").options)
+        : type === "MULTI_SELECT"
+          ? (q.options.length ? q.options : blankQ("MULTI_SELECT").options)
+          : [];
     if (type === "MATCHING_HEADINGS" && !q.prompt.trim()) {
       patch.prompt = `Paragraph ${mhLetterAt(questions, qi)}`;
     }
@@ -226,6 +242,27 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
         if (!["True", "False", "Not Given"].includes(q.correctAnswer))
           return toast.error(`Câu ${i + 1}: chọn đáp án đúng`);
         payload.push({ type: "TRUE_FALSE_NOT_GIVEN", prompt: q.prompt.trim(), options: ["True", "False", "Not Given"], correctAnswer: q.correctAnswer, explanation: q.explanation.trim() || undefined });
+      } else if (q.type === "MULTI_SELECT") {
+        // Choose TWO/THREE letters — stored as one question; the picked option
+        // texts are joined by newline so a plain exact-match grades it.
+        const finalOpts = q.options.map((o) => o.trim()).filter(Boolean);
+        if (finalOpts.length < 3) return toast.error(`Câu ${i + 1}: cần ít nhất 3 lựa chọn`);
+        const idxs = [
+          ...new Set(q.correctAnswer.split("\n").map((s) => parseInt(s, 10)).filter((n) => !Number.isNaN(n))),
+        ];
+        const corrects = idxs
+          .map((idx) => (q.options[idx] ?? "").trim())
+          .filter((t) => t.length > 0 && finalOpts.includes(t));
+        if (corrects.length < 2) return toast.error(`Câu ${i + 1}: đánh dấu ít nhất 2 đáp án đúng`);
+        const sorted = [...new Set(corrects)].sort((a, b) => finalOpts.indexOf(a) - finalOpts.indexOf(b));
+        payload.push({
+          type: "MCQ",
+          prompt: q.prompt.trim(),
+          options: finalOpts,
+          correctAnswer: sorted.join("\n"),
+          explanation: q.explanation.trim() || undefined,
+          formGroup: "ms-" + Date.now().toString(36) + i,
+        });
       } else {
         if (!q.correctAnswer.trim()) return toast.error(`Câu ${i + 1}: nhập đáp án đúng`);
         payload.push({ type: "FILL_BLANK", prompt: q.prompt.trim(), correctAnswer: q.correctAnswer.trim(), explanation: q.explanation.trim() || undefined });
@@ -453,12 +490,15 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
                           ? "Một nhận định để người học xác nhận."
                           : q.type === "MATCHING_HEADINGS"
                             ? "VD: Paragraph A"
-                            : "Nội dung câu hỏi..."
+                            : q.type === "MULTI_SELECT"
+                              ? "VD: Which TWO of the following statements are true?"
+                              : "Nội dung câu hỏi..."
                     }
                   />
                 </div>
 
                 {q.type === "MCQ" && <McqOptions q={q} qi={qi} patchQ={patchQ} />}
+                {q.type === "MULTI_SELECT" && <MultiCorrectOptions q={q} qi={qi} patchQ={patchQ} />}
                 {q.type === "MATCHING_HEADINGS" && (
                   <HeadingPicker headings={headings} value={q.correctAnswer} onChange={(v) => patchQ(qi, { correctAnswer: v })} />
                 )}
@@ -562,6 +602,81 @@ function McqOptions({ q, qi, patchQ }: { q: Q; qi: number; patchQ: (qi: number, 
         <Plus className="h-4 w-4" /> Thêm lựa chọn
       </Button>
       <p className="text-xs text-muted-foreground">Chọn ô tròn bên trái để đánh dấu đáp án đúng.</p>
+    </div>
+  );
+}
+
+/**
+ * Option editor for a "Choose TWO letters" question: every option has a
+ * checkbox to mark it correct. The correct answers are stored on the form's
+ * `correctAnswer` as newline-joined option indices.
+ */
+function MultiCorrectOptions({
+  q,
+  qi,
+  patchQ,
+}: {
+  q: Q;
+  qi: number;
+  patchQ: (qi: number, patch: Partial<Q>) => void;
+}) {
+  const correctIdx = new Set(
+    q.correctAnswer.split("\n").map((s) => parseInt(s, 10)).filter((n) => !Number.isNaN(n)),
+  );
+  const saveCorrect = (s: Set<number>) =>
+    patchQ(qi, { correctAnswer: [...s].sort((a, b) => a - b).join("\n") });
+
+  const toggle = (oi: number) => {
+    const s = new Set(correctIdx);
+    if (s.has(oi)) s.delete(oi);
+    else s.add(oi);
+    saveCorrect(s);
+  };
+
+  const removeOption = (oi: number) => {
+    const options = q.options.filter((_, i) => i !== oi);
+    const next = new Set([...correctIdx].filter((i) => i !== oi).map((i) => (i > oi ? i - 1 : i)));
+    patchQ(qi, { options, correctAnswer: [...next].sort((a, b) => a - b).join("\n") });
+  };
+
+  return (
+    <div className="space-y-2">
+      <Label>Các lựa chọn — tích ô vuông để đánh dấu các đáp án ĐÚNG</Label>
+      {q.options.map((opt, oi) => (
+        <div key={oi} className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={correctIdx.has(oi)}
+            onChange={() => toggle(oi)}
+            className="h-4 w-4 shrink-0"
+            title="Đánh dấu đáp án đúng"
+          />
+          <span className="w-5 shrink-0 text-sm font-bold text-muted-foreground">
+            {String.fromCharCode(65 + oi)}.
+          </span>
+          <Input
+            placeholder={`Lựa chọn ${String.fromCharCode(65 + oi)}`}
+            value={opt}
+            onChange={(e) => {
+              const options = [...q.options];
+              options[oi] = e.target.value;
+              patchQ(qi, { options });
+            }}
+          />
+          {q.options.length > 3 && (
+            <Button variant="ghost" size="sm" onClick={() => removeOption(oi)}>
+              <Trash2 className="h-3.5 w-3.5 text-destructive" />
+            </Button>
+          )}
+        </div>
+      ))}
+      <Button variant="outline" size="sm" onClick={() => patchQ(qi, { options: [...q.options, ""] })}>
+        <Plus className="h-4 w-4" /> Thêm lựa chọn
+      </Button>
+      <p className="text-xs text-muted-foreground">
+        Đã đánh dấu <strong>{correctIdx.size}</strong> đáp án đúng — học viên phải chọn đúng{" "}
+        {correctIdx.size || "?"} đáp án. IELTS thường là “Choose TWO” với 5 lựa chọn A–E.
+      </p>
     </div>
   );
 }

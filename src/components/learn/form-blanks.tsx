@@ -10,13 +10,15 @@ export interface FormQuestion {
 
 export type QuestionUnit<T> =
   | { kind: "form"; items: T[]; startNum: number; layout: "text" | "table" }
+  | { kind: "multi"; q: T; num: number }
   | { kind: "single"; q: T; num: number };
 
 /**
  * Split a flat question list into render units. A run of consecutive
  * questions sharing the same non-empty `formGroup` becomes one "form" unit;
  * a formGroup starting with "tbl" is laid out as a table, otherwise as a
- * flowing passage. Every other question is "single".
+ * flowing passage. A formGroup starting with "ms" is a single "choose
+ * TWO/THREE" multi-select question. Every other question is "single".
  */
 export function groupQuestions<T extends { formGroup?: string | null }>(
   questions: T[],
@@ -25,7 +27,10 @@ export function groupQuestions<T extends { formGroup?: string | null }>(
   let i = 0;
   while (i < questions.length) {
     const fg = questions[i].formGroup;
-    if (fg) {
+    if (fg && fg.startsWith("ms")) {
+      units.push({ kind: "multi", q: questions[i], num: i + 1 });
+      i++;
+    } else if (fg) {
       const items: T[] = [];
       const startNum = i + 1;
       while (i < questions.length && questions[i].formGroup === fg) {
@@ -39,6 +44,109 @@ export function groupQuestions<T extends { formGroup?: string | null }>(
     }
   }
   return units;
+}
+
+/** Minimum shape a "choose TWO/THREE" multi-select question needs. */
+export interface MultiSelectQ {
+  id: string;
+  prompt: string;
+  options: string[] | null;
+  /** Correct option texts joined by newlines — its count = how many to pick. */
+  correctAnswer: string;
+}
+
+/**
+ * A "choose TWO letters A–E" question: one prompt, a list of options, and the
+ * learner ticks exactly N boxes (N = number of correct answers). The picked
+ * options are stored as a newline-joined, options-order string, so a plain
+ * exact-match grades the whole item all-or-nothing.
+ */
+export function MultiSelectQuestion({
+  q,
+  num,
+  value,
+  onChange,
+  disabled,
+  submitted,
+}: {
+  q: MultiSelectQ;
+  num: number;
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+  submitted?: boolean;
+}) {
+  const options = q.options ?? [];
+  const correct = q.correctAnswer.split("\n").map((s) => s.trim()).filter(Boolean);
+  const choose = correct.length || 2;
+  const selected = value.split("\n").map((s) => s.trim()).filter(Boolean);
+
+  const toggle = (opt: string) => {
+    if (disabled) return;
+    let next: string[];
+    if (selected.includes(opt)) {
+      next = selected.filter((o) => o !== opt);
+    } else {
+      if (selected.length >= choose) return; // already picked enough
+      next = [...selected, opt];
+    }
+    next.sort((a, b) => options.indexOf(a) - options.indexOf(b));
+    onChange(next.join("\n"));
+  };
+
+  const correctLetters = correct
+    .map((c) => {
+      const idx = options.indexOf(c);
+      return idx >= 0 ? String.fromCharCode(65 + idx) : c;
+    })
+    .join(", ");
+
+  return (
+    <div className="space-y-2.5">
+      <p className="font-medium">
+        <span className="mr-1 font-semibold text-primary">{num}.</span>
+        {q.prompt}
+      </p>
+      <p className="text-xs font-extrabold uppercase tracking-wider text-primary">
+        Chọn {choose} đáp án ({selected.length}/{choose} đã chọn)
+      </p>
+      <div className="space-y-2">
+        {options.map((opt, i) => {
+          const isSel = selected.includes(opt);
+          const isCorrect = correct.includes(opt);
+          return (
+            <label
+              key={i}
+              className={cn(
+                "flex items-start gap-2 rounded-lg border p-2.5 transition-colors",
+                disabled ? "cursor-default" : "cursor-pointer hover:bg-accent",
+                isSel && !submitted && "border-primary bg-accent",
+                submitted && isCorrect && "border-success bg-success/10",
+                submitted && isSel && !isCorrect && "border-destructive bg-destructive/10",
+              )}
+            >
+              <input
+                type="checkbox"
+                checked={isSel}
+                disabled={disabled || (!isSel && selected.length >= choose)}
+                onChange={() => toggle(opt)}
+                className="mt-0.5 h-4 w-4 shrink-0"
+              />
+              <span className="text-sm">
+                <span className="mr-1 font-bold">{String.fromCharCode(65 + i)}.</span>
+                {opt}
+              </span>
+            </label>
+          );
+        })}
+      </div>
+      {submitted && (
+        <p className="text-sm text-muted-foreground">
+          Đáp án đúng: <strong className="text-success">{correctLetters}</strong>
+        </p>
+      )}
+    </div>
+  );
 }
 
 /** An inline numbered answer input, shared by the flowing and table layouts. */

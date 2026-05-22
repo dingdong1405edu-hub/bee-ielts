@@ -11,7 +11,7 @@ import { formatDuration, cn, isAnswerCorrect } from "@/lib/utils";
 import { TipsCard } from "@/components/learn/tips-card";
 import { ReadingGroupHeader, groupStartFor } from "@/components/learn/reading-group-header";
 import { ReadingComments } from "@/components/learn/reading-comments";
-import { FormBlanks, groupQuestions } from "@/components/learn/form-blanks";
+import { FormBlanks, MultiSelectQuestion, groupQuestions } from "@/components/learn/form-blanks";
 
 type Q = {
   id: string;
@@ -130,6 +130,24 @@ export function ReadingPlayer({
                     </CardContent>
                   </Card>
                 </div>
+              );
+            }
+            if (unit.kind === "multi") {
+              const q = unit.q;
+              const isCorrect = isAnswerCorrect(answers[q.id], q.correctAnswer, q.type);
+              return (
+                <Card key={q.id} className={cn(submitted && (isCorrect ? "border-success" : "border-destructive"))}>
+                  <CardContent className="p-5">
+                    <MultiSelectQuestion
+                      q={q}
+                      num={unit.num}
+                      value={answers[q.id] || ""}
+                      onChange={(v) => setAnswers((a) => ({ ...a, [q.id]: v }))}
+                      disabled={submitted}
+                      submitted={submitted}
+                    />
+                  </CardContent>
+                </Card>
               );
             }
             const q = unit.q;

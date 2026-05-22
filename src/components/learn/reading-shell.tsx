@@ -4,7 +4,7 @@ import { Clock, Send, GripVertical, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ReadingGroupHeader, computeQuestionGroups } from "@/components/learn/reading-group-header";
-import { FormBlanks } from "@/components/learn/form-blanks";
+import { FormBlanks, MultiSelectQuestion } from "@/components/learn/form-blanks";
 import {
   HighlightablePassage,
   HighlightToolbar,
@@ -275,7 +275,7 @@ function PartQuestions({
         // render the whole block as one flowing passage with inline blanks.
         const fg = groupQuestions[0]?.formGroup;
         const isFormGroup =
-          !!fg && groupQuestions.every((q) => q.formGroup === fg);
+          !!fg && !fg.startsWith("ms") && groupQuestions.every((q) => q.formGroup === fg);
         // Sentence-completion run: every question has an inline blank, so the
         // sentences flow together as one continuous paragraph (no line breaks).
         const isInlineRun =
@@ -305,15 +305,25 @@ function PartQuestions({
               />
             ) : (
               <div className="space-y-4 md:space-y-5">
-                {groupQuestions.map((q, j) => (
-                  <QuestionInput
-                    key={q.id}
-                    q={q}
-                    num={groupStart + j}
-                    value={answers[q.id] || ""}
-                    onChange={(v) => onChange(q.id, v)}
-                  />
-                ))}
+                {groupQuestions.map((q, j) =>
+                  q.formGroup?.startsWith("ms") ? (
+                    <MultiSelectQuestion
+                      key={q.id}
+                      q={q}
+                      num={groupStart + j}
+                      value={answers[q.id] || ""}
+                      onChange={(v) => onChange(q.id, v)}
+                    />
+                  ) : (
+                    <QuestionInput
+                      key={q.id}
+                      q={q}
+                      num={groupStart + j}
+                      value={answers[q.id] || ""}
+                      onChange={(v) => onChange(q.id, v)}
+                    />
+                  ),
+                )}
               </div>
             )}
           </div>
