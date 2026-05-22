@@ -7,6 +7,8 @@ import { ReadingGroupHeader, computeQuestionGroups } from "@/components/learn/re
 import { FormBlanks, MultiSelectQuestion } from "@/components/learn/form-blanks";
 import {
   HighlightablePassage,
+  HighlightableText,
+  HighlightProvider,
   HighlightToolbar,
   type Highlight,
   type HighlightTool,
@@ -62,7 +64,9 @@ export function ReadingShell({ testTitle, parts, timeLimit, onSubmit, submitting
   const containerRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
   const [tool, setTool] = useState<HighlightTool>("none");
-  const [highlightsByPart, setHighlightsByPart] = useState<Record<string, Highlight[]>>({});
+  // Keyed highlight ranges: the passage uses the part id; question prompts and
+  // options use "q:<id>" / "o:<id>:<i>" keys (see HighlightProvider).
+  const [highlights, setHighlights] = useState<Record<string, Highlight[]>>({});
 
   // global timer — đếm xuôi (practise) hoặc đếm ngược + tự nộp khi hết giờ (thi thử)
   useEffect(() => {
@@ -115,7 +119,7 @@ export function ReadingShell({ testTitle, parts, timeLimit, onSubmit, submitting
     setAnswers((a) => ({ ...a, [qId]: value }));
 
   const setPartHighlights = (partId: string, next: Highlight[]) =>
-    setHighlightsByPart((h) => ({ ...h, [partId]: next }));
+    setHighlights((h) => ({ ...h, [partId]: next }));
 
   const currentPart = parts[activePart];
   const totalAnswered = (p: ShellPart) =>
@@ -129,6 +133,7 @@ export function ReadingShell({ testTitle, parts, timeLimit, onSubmit, submitting
   const startIdxOfPart = partOffsets[activePart];
 
   return (
+    <HighlightProvider tool={tool} highlights={highlights} onChange={setHighlights}>
     <div className="fixed inset-0 z-50 flex flex-col bg-background no-print-bg">
       {/* TOP BAR */}
       <header className="flex items-center justify-between gap-2 border-b bg-card px-3 py-2 md:gap-3 md:px-6 md:py-2.5">
@@ -196,7 +201,7 @@ export function ReadingShell({ testTitle, parts, timeLimit, onSubmit, submitting
             )}
             <HighlightablePassage
               passage={currentPart.passage}
-              highlights={highlightsByPart[currentPart.id] ?? []}
+              highlights={highlights[currentPart.id] ?? []}
               tool={tool}
               onChangeHighlights={(next) => setPartHighlights(currentPart.id, next)}
             />
@@ -210,7 +215,7 @@ export function ReadingShell({ testTitle, parts, timeLimit, onSubmit, submitting
           setAnswer={setAnswer}
           startIndex={startIdxOfPart}
           tool={tool}
-          highlights={highlightsByPart[currentPart.id] ?? []}
+          highlights={highlights[currentPart.id] ?? []}
           setHighlights={(next) => setPartHighlights(currentPart.id, next)}
         />
 
@@ -249,6 +254,7 @@ export function ReadingShell({ testTitle, parts, timeLimit, onSubmit, submitting
         answers={answers}
       />
     </div>
+    </HighlightProvider>
   );
 }
 
@@ -383,7 +389,9 @@ function QuestionInput({
             <option key={i} value={values[i]}>{values[i]}</option>
           ))}
         </select>
-        <span className="flex-1 text-[15px] leading-relaxed pt-1">{q.prompt}</span>
+        <span className="flex-1 text-[15px] leading-relaxed pt-1">
+          <HighlightableText textKey={`q:${q.id}`} text={q.prompt} />
+        </span>
       </div>
     );
   }
@@ -402,7 +410,9 @@ function QuestionInput({
           <option value="False">FALSE</option>
           <option value="Not Given">NOT GIVEN</option>
         </select>
-        <span className="flex-1 text-[15px] leading-relaxed pt-1">{q.prompt}</span>
+        <span className="flex-1 text-[15px] leading-relaxed pt-1">
+          <HighlightableText textKey={`q:${q.id}`} text={q.prompt} />
+        </span>
       </div>
     );
   }
@@ -420,7 +430,9 @@ function QuestionInput({
           <option value="True">TRUE</option>
           <option value="False">FALSE</option>
         </select>
-        <span className="flex-1 text-[15px] leading-relaxed pt-1">{q.prompt}</span>
+        <span className="flex-1 text-[15px] leading-relaxed pt-1">
+          <HighlightableText textKey={`q:${q.id}`} text={q.prompt} />
+        </span>
       </div>
     );
   }
@@ -435,7 +447,9 @@ function QuestionInput({
       <div className="flex items-start gap-3">
         <NumberPill num={num} />
         <div className="flex-1 space-y-2">
-          <p className="text-[15px] leading-relaxed">{q.prompt}</p>
+          <p className="text-[15px] leading-relaxed">
+            <HighlightableText textKey={`q:${q.id}`} text={q.prompt} />
+          </p>
           <input
             value={value}
             onChange={(e) => onChange(e.target.value)}
@@ -452,9 +466,11 @@ function QuestionInput({
       <div className="flex items-start gap-3">
         <NumberPill num={num} />
         <div className="flex-1 space-y-2">
-          <p className="text-[15px] leading-relaxed">{q.prompt}</p>
+          <p className="text-[15px] leading-relaxed">
+            <HighlightableText textKey={`q:${q.id}`} text={q.prompt} />
+          </p>
           <div className="space-y-1.5">
-            {(q.options ?? []).map((opt) => (
+            {(q.options ?? []).map((opt, oi) => (
               <label
                 key={opt}
                 className={cn(
@@ -470,7 +486,7 @@ function QuestionInput({
                   onChange={(e) => onChange(e.target.value)}
                   className="h-4 w-4"
                 />
-                <span>{opt}</span>
+                <HighlightableText textKey={`o:${q.id}:${oi}`} text={opt} />
               </label>
             ))}
           </div>

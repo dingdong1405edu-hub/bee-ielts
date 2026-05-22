@@ -1,5 +1,5 @@
 "use client";
-import { useRef } from "react";
+import { createContext, useContext, useRef, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 export type HighlightColor = "yellow" | "green" | "pink";
@@ -141,6 +141,127 @@ export function HighlightablePassage({
         ),
       )}
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ * Context-driven highlighting for the questions panel.
+ *
+ * The passage is one contiguous block, but the questions panel is a tree of
+ * prompts, options and inputs. Each highlightable text snippet (a prompt, an
+ * option) is keyed by a string and stores its own highlight ranges, so the
+ * proven offset model still applies — one snippet at a time.
+ * ------------------------------------------------------------------ */
+
+interface HighlightCtx {
+  tool: HighlightTool;
+  get: (key: string) => Highlight[];
+  set: (key: string, next: Highlight[]) => void;
+}
+
+const HighlightContext = createContext<HighlightCtx>({
+  tool: "none",
+  get: () => [],
+  set: () => {},
+});
+
+/** True character of the active tool — callers can use it to tweak behaviour. */
+export function useHighlightTool(): HighlightTool {
+  return useContext(HighlightContext).tool;
+}
+
+/** Provides the active tool + a keyed highlight store to every HighlightableText inside. */
+export function HighlightProvider({
+  tool,
+  highlights,
+  onChange,
+  children,
+}: {
+  tool: HighlightTool;
+  highlights: Record<string, Highlight[]>;
+  onChange: (next: Record<string, Highlight[]>) => void;
+  children: ReactNode;
+}) {
+  const ctx: HighlightCtx = {
+    tool,
+    get: (key) => highlights[key] ?? [],
+    set: (key, next) => onChange({ ...highlights, [key]: next }),
+  };
+  return <HighlightContext.Provider value={ctx}>{children}</HighlightContext.Provider>;
+}
+
+/**
+ * A single highlightable text snippet (a question prompt, an option…). Reads
+ * the active tool + its own highlight ranges from context. Outside a
+ * HighlightProvider it simply renders the plain text, so the same components
+ * work in screens that have no highlighter.
+ */
+export function HighlightableText({
+  textKey,
+  text,
+  className,
+}: {
+  textKey: string;
+  text: string;
+  className?: string;
+}) {
+  const ctx = useContext(HighlightContext);
+  const ref = useRef<HTMLSpanElement>(null);
+  const highlights = ctx.get(textKey);
+
+  const handleMouseUp = () => {
+    if (ctx.tool === "none") return;
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || !ref.current) return;
+    const range = sel.getRangeAt(0);
+    if (!ref.current.contains(range.commonAncestorContainer)) return;
+    const off = getOffsets(range, ref.current);
+    if (!off || off.end === off.start) return;
+
+    if (ctx.tool === "eraser") {
+      const next: Highlight[] = [];
+      for (const h of highlights) {
+        if (h.end <= off.start || h.start >= off.end) {
+          next.push(h);
+        } else {
+          if (h.start < off.start) next.push({ ...h, end: off.start });
+          if (h.end > off.end) next.push({ ...h, start: off.end });
+        }
+      }
+      ctx.set(textKey, next);
+    } else {
+      ctx.set(textKey, mergeHighlights([...highlights, { start: off.start, end: off.end, color: ctx.tool }]));
+    }
+    sel.removeAllRanges();
+  };
+
+  // Fast path: nothing to highlight and no tool — render plain text.
+  if (ctx.tool === "none" && highlights.length === 0) {
+    return <span className={className}>{text}</span>;
+  }
+
+  const segments = buildSegments(text, highlights);
+  return (
+    <span
+      ref={ref}
+      onMouseUp={handleMouseUp}
+      onTouchEnd={handleMouseUp}
+      className={cn(
+        ctx.tool !== "none" && ctx.tool !== "eraser" && "cursor-text",
+        ctx.tool === "eraser" && "cursor-cell",
+        className,
+      )}
+    >
+      {segments.map((seg, i) =>
+        seg.color ? (
+          <mark key={i} className={cn("rounded px-0.5", COLOR_CLASSES[seg.color])}>
+            {seg.text}
+          </mark>
+        ) : (
+          <span key={i}>{seg.text}</span>
+        ),
+      )}
+    </span>
   );
 }
 

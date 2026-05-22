@@ -1,5 +1,6 @@
 "use client";
 import { cn, isAnswerCorrect } from "@/lib/utils";
+import { HighlightableText } from "@/components/learn/highlightable-passage";
 
 /** Minimum shape a question needs to be rendered inside a form/table block. */
 export interface FormQuestion {
@@ -105,7 +106,7 @@ export function MultiSelectQuestion({
     <div className="space-y-2.5">
       <p className="font-medium">
         <span className="mr-1 font-semibold text-primary">{num}.</span>
-        {q.prompt}
+        <HighlightableText textKey={`q:${q.id}`} text={q.prompt} />
       </p>
       <p className="text-xs font-extrabold uppercase tracking-wider text-primary">
         Chọn {choose} đáp án ({selected.length}/{choose} đã chọn)
@@ -134,7 +135,7 @@ export function MultiSelectQuestion({
               />
               <span className="text-sm">
                 <span className="mr-1 font-bold">{String.fromCharCode(65 + i)}.</span>
-                {opt}
+                <HighlightableText textKey={`o:${q.id}:${i}`} text={opt} />
               </span>
             </label>
           );
