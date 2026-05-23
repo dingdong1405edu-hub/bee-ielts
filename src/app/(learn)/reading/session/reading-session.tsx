@@ -149,10 +149,11 @@ export function ReadingSession({ passages, targetBand = 6.0 }: { passages: Passa
             {current.questions.map((q, i) => {
               const ua = answers[q.id] || "";
               const ok = isAnswerCorrect(ua, q.correctAnswer, q.type);
+              const num = q.displayNumber ?? i + 1;
               return (
                 <div key={q.id} className={cn("rounded-lg border p-3 text-sm", ok ? "border-success bg-success/5" : "border-destructive bg-destructive/5")}>
                   <div className="flex items-start gap-2">
-                    <span className="font-bold">{i + 1}.</span>
+                    <span className="font-bold">{num}.</span>
                     <span className="flex-1">{q.prompt}</span>
                     {ok ? <CheckCircle2 className="h-4 w-4 text-success" /> : <XCircle className="h-4 w-4 text-destructive" />}
                   </div>

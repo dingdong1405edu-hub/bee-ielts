@@ -22,6 +22,7 @@ const schema = z.object({
         correctAnswer: z.string().min(1),
         explanation: z.string().optional(),
         formGroup: z.string().optional(),
+        displayNumber: z.number().int().min(1).max(999).nullable().optional(),
       }),
     )
     .min(1),
@@ -53,6 +54,7 @@ export async function POST(req: Request) {
           correctAnswer: q.correctAnswer,
           explanation: q.explanation,
           formGroup: q.formGroup || null,
+          displayNumber: q.displayNumber ?? null,
           order: i + 1,
         })),
       },

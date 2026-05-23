@@ -266,6 +266,10 @@ model Question {
   // FILL_BLANK questions that share this key are one pasted form-completion
   // passage and render together as a single flowing block.
   formGroup     String?
+  // Admin-set displayed question number — overrides auto-numbering shown to
+  // the learner (e.g. force "Câu 16" so a Part-2 test continues IELTS numbering
+  // from Part 1). Only honored in single-test practice; mock tests keep 1–N.
+  displayNumber Int?
   readingId     String?
   reading       ReadingTest?   @relation(fields: [readingId], references: [id], onDelete: Cascade)
   listeningId   String?

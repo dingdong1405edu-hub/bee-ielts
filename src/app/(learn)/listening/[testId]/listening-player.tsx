@@ -20,6 +20,7 @@ type Q = {
   options: string[] | null;
   correctAnswer: string;
   formGroup?: string | null;
+  displayNumber?: number | null;
 };
 
 export function ListeningPlayer({
@@ -132,11 +133,12 @@ export function ListeningPlayer({
           const q = unit.q;
           const userAns = answers[q.id] || "";
           const isCorrect = isAnswerCorrect(userAns, q.correctAnswer, q.type);
+          const num = q.displayNumber ?? unit.num;
           return (
             <Card key={q.id} className={cn(submitted && (isCorrect ? "border-success" : "border-destructive"))}>
               <CardContent className="p-5 space-y-3">
                 <div className="flex items-start gap-2">
-                  <span className="font-semibold text-primary">{unit.num}.</span>
+                  <span className="font-semibold text-primary">{num}.</span>
                   <p className="font-medium flex-1">{q.prompt}</p>
                   {submitted && (isCorrect ? <CheckCircle2 className="h-5 w-5 text-success" /> : <XCircle className="h-5 w-5 text-destructive" />)}
                 </div>

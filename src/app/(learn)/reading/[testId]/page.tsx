@@ -22,6 +22,7 @@ export default async function ReadingTestPage({ params }: { params: { testId: st
         correctAnswer: q.correctAnswer as string,
         explanation: q.explanation,
         formGroup: q.formGroup,
+        displayNumber: q.displayNumber,
       }))}
     />
   );

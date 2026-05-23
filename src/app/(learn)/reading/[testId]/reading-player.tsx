@@ -21,6 +21,7 @@ type Q = {
   correctAnswer: string;
   explanation: string | null;
   formGroup?: string | null;
+  displayNumber?: number | null;
 };
 
 export function ReadingPlayer({
@@ -140,7 +141,7 @@ export function ReadingPlayer({
                   <CardContent className="p-5">
                     <MultiSelectQuestion
                       q={q}
-                      num={unit.num}
+                      num={q.displayNumber ?? unit.num}
                       value={answers[q.id] || ""}
                       onChange={(v) => setAnswers((a) => ({ ...a, [q.id]: v }))}
                       disabled={submitted}
@@ -155,6 +156,7 @@ export function ReadingPlayer({
             const userAns = answers[q.id] || "";
             const isCorrect = isAnswerCorrect(userAns, q.correctAnswer, q.type);
             const groupStart = groupStartFor(questions, i);
+            const num = q.displayNumber ?? i + 1;
             return (
               <div key={q.id}>
                 {groupStart && (
@@ -163,7 +165,7 @@ export function ReadingPlayer({
               <Card className={cn(submitted && (isCorrect ? "border-success" : "border-destructive"))}>
                 <CardContent className="p-5 space-y-3">
                   <div className="flex items-start gap-2">
-                    <span className="font-semibold text-primary">{i + 1}.</span>
+                    <span className="font-semibold text-primary">{num}.</span>
                     <p className="font-medium flex-1">{q.prompt}</p>
                     {submitted && (isCorrect ? <CheckCircle2 className="h-5 w-5 text-success" /> : <XCircle className="h-5 w-5 text-destructive" />)}
                   </div>

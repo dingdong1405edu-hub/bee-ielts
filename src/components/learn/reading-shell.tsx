@@ -34,6 +34,8 @@ export interface ShellQ {
   options: string[] | null;
   correctAnswer: string;
   formGroup?: string | null;
+  /** Admin-set displayed number; falls back to the runner's auto-numbering. */
+  displayNumber?: number | null;
 }
 
 export interface ShellPart {
@@ -304,7 +306,7 @@ function PartQuestions({
               <InlineBlankGroup
                 items={groupQuestions.map((q, j) => ({
                   q,
-                  num: groupStart + j,
+                  num: q.displayNumber ?? groupStart + j,
                   value: answers[q.id] || "",
                   onChange: (v: string) => onChange(q.id, v),
                 }))}
@@ -316,7 +318,7 @@ function PartQuestions({
                     <MultiSelectQuestion
                       key={q.id}
                       q={q}
-                      num={groupStart + j}
+                      num={q.displayNumber ?? groupStart + j}
                       value={answers[q.id] || ""}
                       onChange={(v) => onChange(q.id, v)}
                     />
@@ -324,7 +326,7 @@ function PartQuestions({
                     <QuestionInput
                       key={q.id}
                       q={q}
-                      num={groupStart + j}
+                      num={q.displayNumber ?? groupStart + j}
                       value={answers[q.id] || ""}
                       onChange={(v) => onChange(q.id, v)}
                     />

@@ -23,6 +23,8 @@ type Q = {
   /** For MATCHING_HEADINGS this is the index (as string) into the shared heading list. */
   correctAnswer: string;
   explanation: string;
+  /** Optional admin-set displayed number ("" = use auto). */
+  displayNumber: string;
 };
 
 /** Lowercase roman numerals for the List of Headings (i, ii, iii, …). */
@@ -54,6 +56,7 @@ const blankQ = (type: QType): Q => ({
   options: type === "MCQ" ? ["", "", "", ""] : type === "MULTI_SELECT" ? ["", "", "", "", ""] : [],
   correctAnswer: "",
   explanation: "",
+  displayNumber: "",
 });
 
 /** DB-shaped reading test passed in when editing an existing record. */
@@ -69,6 +72,7 @@ export type ReadingInitial = {
     correctAnswer: string;
     explanation: string | null;
     formGroup: string | null;
+    displayNumber: number | null;
   }[];
 };
 
@@ -103,13 +107,14 @@ function toFormState(initial?: ReadingInitial): ReadingFormState {
   let headings: string[] = [];
   const questions: Q[] = regular.map((q) => {
     const explanation = q.explanation ?? "";
+    const displayNumber = q.displayNumber != null ? String(q.displayNumber) : "";
     if (q.formGroup?.startsWith("ms")) {
       // Multi-select: stored correctAnswer is the correct option texts; the
       // editor works with their indices into the options list.
       const opts = q.options ?? [];
       const correctTexts = q.correctAnswer.split("\n").map((s) => s.trim()).filter(Boolean);
       const idxs = correctTexts.map((t) => opts.indexOf(t)).filter((n) => n >= 0);
-      return { type: "MULTI_SELECT", prompt: q.prompt, options: opts, correctAnswer: idxs.join("\n"), explanation };
+      return { type: "MULTI_SELECT", prompt: q.prompt, options: opts, correctAnswer: idxs.join("\n"), explanation, displayNumber };
     }
     const type = coerceType(q.type);
     if (type === "MATCHING_HEADINGS") {
@@ -117,12 +122,12 @@ function toFormState(initial?: ReadingInitial): ReadingFormState {
       // Keep the most complete list seen so every stored answer index resolves.
       if (hs.length > headings.length) headings = hs;
       const idx = ROMAN.indexOf(q.correctAnswer);
-      return { type, prompt: q.prompt, options: [], correctAnswer: idx >= 0 ? String(idx) : "", explanation };
+      return { type, prompt: q.prompt, options: [], correctAnswer: idx >= 0 ? String(idx) : "", explanation, displayNumber };
     }
     if (type === "MCQ") {
-      return { type, prompt: q.prompt, options: q.options && q.options.length ? q.options : ["", ""], correctAnswer: q.correctAnswer, explanation };
+      return { type, prompt: q.prompt, options: q.options && q.options.length ? q.options : ["", ""], correctAnswer: q.correctAnswer, explanation, displayNumber };
     }
-    return { type, prompt: q.prompt, options: [], correctAnswer: q.correctAnswer, explanation };
+    return { type, prompt: q.prompt, options: [], correctAnswer: q.correctAnswer, explanation, displayNumber };
   });
   // A form-only test has no loose questions; a brand-new editor gets one blank.
   const finalQuestions = questions.length > 0 ? questions : formQs.length > 0 ? [] : [blankQ("MCQ")];
@@ -222,26 +227,37 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
     }
     const numberedHeadings = finalHeadings.map((h, i) => `${ROMAN[i]}. ${h}`);
 
-    const payload: { type: QType; prompt: string; options?: string[]; correctAnswer: string; explanation?: string; formGroup?: string }[] = [];
+    const payload: { type: QType; prompt: string; options?: string[]; correctAnswer: string; explanation?: string; formGroup?: string; displayNumber?: number | null }[] = [];
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
       if (!q.prompt.trim()) return toast.error(`Câu ${i + 1}: thiếu nội dung câu hỏi`);
+
+      // Admin override for the displayed question number (e.g. "16" so Part 2
+      // continues IELTS numbering). Blank = use auto-number on the runner.
+      const dnRaw = q.displayNumber.trim();
+      let displayNumber: number | null = null;
+      if (dnRaw) {
+        const n = parseInt(dnRaw, 10);
+        if (!Number.isFinite(n) || n < 1 || n > 999)
+          return toast.error(`Câu ${i + 1}: số hiển thị phải là số nguyên 1–999`);
+        displayNumber = n;
+      }
 
       if (q.type === "MCQ") {
         const opts = q.options.map((o) => o.trim()).filter(Boolean);
         if (opts.length < 2) return toast.error(`Câu ${i + 1}: cần ít nhất 2 lựa chọn`);
         if (!q.correctAnswer || !opts.includes(q.correctAnswer))
           return toast.error(`Câu ${i + 1}: chọn đáp án đúng`);
-        payload.push({ type: "MCQ", prompt: q.prompt.trim(), options: opts, correctAnswer: q.correctAnswer, explanation: q.explanation.trim() || undefined });
+        payload.push({ type: "MCQ", prompt: q.prompt.trim(), options: opts, correctAnswer: q.correctAnswer, explanation: q.explanation.trim() || undefined, displayNumber });
       } else if (q.type === "MATCHING_HEADINGS") {
         const origIdx = parseInt(q.correctAnswer, 10);
         const newIdx = Number.isNaN(origIdx) ? undefined : headingRemap.get(origIdx);
         if (newIdx === undefined) return toast.error(`Câu ${i + 1}: chọn heading đúng cho đoạn này`);
-        payload.push({ type: "MATCHING_HEADINGS", prompt: q.prompt.trim(), options: numberedHeadings, correctAnswer: ROMAN[newIdx], explanation: q.explanation.trim() || undefined });
+        payload.push({ type: "MATCHING_HEADINGS", prompt: q.prompt.trim(), options: numberedHeadings, correctAnswer: ROMAN[newIdx], explanation: q.explanation.trim() || undefined, displayNumber });
       } else if (q.type === "TRUE_FALSE_NOT_GIVEN") {
         if (!["True", "False", "Not Given"].includes(q.correctAnswer))
           return toast.error(`Câu ${i + 1}: chọn đáp án đúng`);
-        payload.push({ type: "TRUE_FALSE_NOT_GIVEN", prompt: q.prompt.trim(), options: ["True", "False", "Not Given"], correctAnswer: q.correctAnswer, explanation: q.explanation.trim() || undefined });
+        payload.push({ type: "TRUE_FALSE_NOT_GIVEN", prompt: q.prompt.trim(), options: ["True", "False", "Not Given"], correctAnswer: q.correctAnswer, explanation: q.explanation.trim() || undefined, displayNumber });
       } else if (q.type === "MULTI_SELECT") {
         // Choose TWO/THREE letters — stored as one question; the picked option
         // texts are joined by newline so a plain exact-match grades it.
@@ -262,10 +278,11 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
           correctAnswer: sorted.join("\n"),
           explanation: q.explanation.trim() || undefined,
           formGroup: "ms-" + Date.now().toString(36) + i,
+          displayNumber,
         });
       } else {
         if (!q.correctAnswer.trim()) return toast.error(`Câu ${i + 1}: nhập đáp án đúng`);
-        payload.push({ type: "FILL_BLANK", prompt: q.prompt.trim(), correctAnswer: q.correctAnswer.trim(), explanation: q.explanation.trim() || undefined });
+        payload.push({ type: "FILL_BLANK", prompt: q.prompt.trim(), correctAnswer: q.correctAnswer.trim(), explanation: q.explanation.trim() || undefined, displayNumber });
       }
     }
 
@@ -465,17 +482,33 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
                   </Button>
                 </div>
 
-                <div>
-                  <Label>Dạng câu hỏi</Label>
-                  <select
-                    value={q.type}
-                    onChange={(e) => changeType(qi, e.target.value as QType)}
-                    className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                  >
-                    {(Object.keys(TYPE_LABEL) as QType[]).map((t) => (
-                      <option key={t} value={t}>{TYPE_LABEL[t]}</option>
-                    ))}
-                  </select>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="col-span-2">
+                    <Label>Dạng câu hỏi</Label>
+                    <select
+                      value={q.type}
+                      onChange={(e) => changeType(qi, e.target.value as QType)}
+                      className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                    >
+                      {(Object.keys(TYPE_LABEL) as QType[]).map((t) => (
+                        <option key={t} value={t}>{TYPE_LABEL[t]}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label>Số hiển thị</Label>
+                    <Input
+                      inputMode="numeric"
+                      placeholder={`Tự ${qi + 1}`}
+                      value={q.displayNumber}
+                      onChange={(e) =>
+                        patchQ(qi, { displayNumber: e.target.value.replace(/[^0-9]/g, "").slice(0, 3) })
+                      }
+                    />
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      Số học viên thấy. VD “16” cho Part 2. Để trống = tự đánh.
+                    </p>
+                  </div>
                 </div>
 
                 <div>

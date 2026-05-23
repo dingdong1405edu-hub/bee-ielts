@@ -23,6 +23,8 @@ type Q = {
   options: string[];
   correctAnswer: string;
   explanation: string;
+  /** Optional admin-set displayed number ("" = use auto). */
+  displayNumber: string;
 };
 
 type Payload = {
@@ -32,6 +34,7 @@ type Payload = {
   correctAnswer: string;
   explanation?: string;
   formGroup?: string;
+  displayNumber?: number | null;
 };
 
 const TYPE_LABEL: Record<QType, string> = {
@@ -47,6 +50,7 @@ const blankQ = (type: QType): Q => ({
   options: type === "MCQ" ? ["", "", "", ""] : [],
   correctAnswer: "",
   explanation: "",
+  displayNumber: "",
 });
 
 /** DB-shaped listening test passed in when editing an existing record. */
@@ -66,6 +70,7 @@ export type ListeningInitial = {
     correctAnswer: string;
     explanation: string | null;
     formGroup: string | null;
+    displayNumber: number | null;
   }[];
 };
 
@@ -99,10 +104,11 @@ function toFormState(initial?: ListeningInitial): FormState {
   const questions: Q[] = regular.map((q) => {
     const type = coerceType(q.type);
     const explanation = q.explanation ?? "";
+    const displayNumber = q.displayNumber != null ? String(q.displayNumber) : "";
     if (type === "MCQ") {
-      return { type, prompt: q.prompt, options: q.options && q.options.length ? q.options : ["", ""], correctAnswer: q.correctAnswer, explanation };
+      return { type, prompt: q.prompt, options: q.options && q.options.length ? q.options : ["", ""], correctAnswer: q.correctAnswer, explanation, displayNumber };
     }
-    return { type, prompt: q.prompt, options: [], correctAnswer: q.correctAnswer, explanation };
+    return { type, prompt: q.prompt, options: [], correctAnswer: q.correctAnswer, explanation, displayNumber };
   });
   // Stitch a group's segment-prompts back into the pasted text (blanks as dots).
   const stitch = (qs: typeof regular) =>
@@ -171,19 +177,28 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
       const q = questions[i];
       if (!q.prompt.trim()) return toast.error(`Câu ${i + 1}: thiếu nội dung câu hỏi`);
 
+      const dnRaw = q.displayNumber.trim();
+      let displayNumber: number | null = null;
+      if (dnRaw) {
+        const n = parseInt(dnRaw, 10);
+        if (!Number.isFinite(n) || n < 1 || n > 999)
+          return toast.error(`Câu ${i + 1}: số hiển thị phải là số nguyên 1–999`);
+        displayNumber = n;
+      }
+
       if (q.type === "MCQ") {
         const opts = q.options.map((o) => o.trim()).filter(Boolean);
         if (opts.length < 2) return toast.error(`Câu ${i + 1}: cần ít nhất 2 lựa chọn`);
         if (!q.correctAnswer || !opts.includes(q.correctAnswer))
           return toast.error(`Câu ${i + 1}: chọn đáp án đúng`);
-        regularPayload.push({ type: "MCQ", prompt: q.prompt.trim(), options: opts, correctAnswer: q.correctAnswer, explanation: q.explanation.trim() || undefined });
+        regularPayload.push({ type: "MCQ", prompt: q.prompt.trim(), options: opts, correctAnswer: q.correctAnswer, explanation: q.explanation.trim() || undefined, displayNumber });
       } else if (q.type === "TRUE_FALSE_NOT_GIVEN") {
         if (!["True", "False", "Not Given"].includes(q.correctAnswer))
           return toast.error(`Câu ${i + 1}: chọn đáp án đúng`);
-        regularPayload.push({ type: "TRUE_FALSE_NOT_GIVEN", prompt: q.prompt.trim(), options: ["True", "False", "Not Given"], correctAnswer: q.correctAnswer, explanation: q.explanation.trim() || undefined });
+        regularPayload.push({ type: "TRUE_FALSE_NOT_GIVEN", prompt: q.prompt.trim(), options: ["True", "False", "Not Given"], correctAnswer: q.correctAnswer, explanation: q.explanation.trim() || undefined, displayNumber });
       } else {
         if (!q.correctAnswer.trim()) return toast.error(`Câu ${i + 1}: nhập đáp án đúng`);
-        regularPayload.push({ type: q.type, prompt: q.prompt.trim(), correctAnswer: q.correctAnswer.trim(), explanation: q.explanation.trim() || undefined });
+        regularPayload.push({ type: q.type, prompt: q.prompt.trim(), correctAnswer: q.correctAnswer.trim(), explanation: q.explanation.trim() || undefined, displayNumber });
       }
     }
 
@@ -455,20 +470,36 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
                 </Button>
               </div>
 
-              <div>
-                <Label>Dạng câu hỏi</Label>
-                <select
-                  value={q.type}
-                  onChange={(e) => {
-                    const type = e.target.value as QType;
-                    patchQ(qi, { type, options: blankQ(type).options, correctAnswer: "" });
-                  }}
-                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                >
-                  {(Object.keys(TYPE_LABEL) as QType[]).map((t) => (
-                    <option key={t} value={t}>{TYPE_LABEL[t]}</option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="col-span-2">
+                  <Label>Dạng câu hỏi</Label>
+                  <select
+                    value={q.type}
+                    onChange={(e) => {
+                      const type = e.target.value as QType;
+                      patchQ(qi, { type, options: blankQ(type).options, correctAnswer: "" });
+                    }}
+                    className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                  >
+                    {(Object.keys(TYPE_LABEL) as QType[]).map((t) => (
+                      <option key={t} value={t}>{TYPE_LABEL[t]}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label>Số hiển thị</Label>
+                  <Input
+                    inputMode="numeric"
+                    placeholder={`Tự ${qi + 1}`}
+                    value={q.displayNumber}
+                    onChange={(e) =>
+                      patchQ(qi, { displayNumber: e.target.value.replace(/[^0-9]/g, "").slice(0, 3) })
+                    }
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Số học viên thấy. Để trống = tự đánh.
+                  </p>
+                </div>
               </div>
 
               <div>

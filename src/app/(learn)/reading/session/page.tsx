@@ -43,6 +43,7 @@ export default async function ReadingSessionPage({ searchParams }: { searchParam
           options: (q.options as string[] | null) ?? null,
           correctAnswer: q.correctAnswer as string,
           formGroup: q.formGroup,
+          displayNumber: q.displayNumber,
         })),
       }))}
     />

@@ -32,6 +32,7 @@ export default async function EditListeningPage({ params }: { params: Promise<{ 
           correctAnswer: q.correctAnswer as string,
           explanation: q.explanation,
           formGroup: q.formGroup,
+          displayNumber: q.displayNumber,
         })),
       }}
     />

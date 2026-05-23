@@ -30,6 +30,7 @@ export default async function EditReadingPage({ params }: { params: Promise<{ id
           correctAnswer: q.correctAnswer as string,
           explanation: q.explanation,
           formGroup: q.formGroup,
+          displayNumber: q.displayNumber,
         })),
       }}
     />
