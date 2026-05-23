@@ -13,7 +13,7 @@ const gradableQuestion = z.object({
 
 const schema = z.object({
   listening: z.object({
-    testId: z.string(),
+    testIds: z.array(z.string()),
     answers: z.record(z.string()),
     questions: z.array(gradableQuestion),
   }),
@@ -139,7 +139,7 @@ export async function POST(req: Request) {
       data: {
         userId,
         skill: "LISTENING",
-        refId: `mock-${listening.testId}`,
+        refId: `mock-${listening.testIds.join("+")}`,
         rawAnswer: listening.answers,
         score: lBand,
       },

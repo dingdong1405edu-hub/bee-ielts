@@ -57,6 +57,8 @@ export type ListeningInitial = {
   imageUrl: string | null;
   contentImageUrl: string | null;
   transcript: string | null;
+  /** IELTS section 1-4 — only used for MOCK tests. */
+  section: number | null;
   questions: {
     type: string;
     prompt: string;
@@ -129,6 +131,7 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
   const [contentImageUrl, setContentImageUrl] = useState(initial?.contentImageUrl ?? "");
   const [transcript, setTranscript] = useState(initial?.transcript ?? "");
+  const [section, setSection] = useState<number | "">(initial?.section ?? "");
   const [init] = useState(() => toFormState(initial));
   const [questions, setQuestions] = useState<Q[]>(init.questions);
   const [formPassage, setFormPassage] = useState(init.formPassage);
@@ -159,6 +162,8 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
     if (!audioUrl.trim()) return toast.error("Thêm audio cho bài nghe (tải file lên hoặc dán URL công khai)");
     if (/^file:\/\//i.test(audioUrl.trim()))
       return toast.error("Link file:/// chỉ có trên máy bạn — hãy tải file âm thanh lên thay vì dán link đó");
+    if (isMock && (section === "" || section < 1 || section > 4))
+      return toast.error("Chọn Section 1–4 cho đề thi thử (mỗi đề mock cần thuộc 1 section)");
 
     // Loose questions.
     const regularPayload: Payload[] = [];
@@ -228,6 +233,7 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
           contentImageUrl: contentImageUrl.trim() || null,
           transcript: transcript.trim() || undefined,
           bank,
+          section: isMock && section !== "" ? section : null,
           questions: payload,
         }),
       });
@@ -262,6 +268,26 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
             <Label>Tiêu đề</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="VD: IELTS Listening — Section 1" />
           </div>
+          {isMock && (
+            <div>
+              <Label>Section của IELTS</Label>
+              <select
+                value={section === "" ? "" : String(section)}
+                onChange={(e) => setSection(e.target.value === "" ? "" : Number(e.target.value))}
+                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+              >
+                <option value="">— Chọn section —</option>
+                <option value="1">Section 1</option>
+                <option value="2">Section 2</option>
+                <option value="3">Section 3</option>
+                <option value="4">Section 4</option>
+              </select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Đề thi thử cần đủ 4 section. Mỗi bài MOCK phải gắn 1 section; khi học viên thi thử
+                hệ thống bốc ngẫu nhiên 1 bài mỗi section (1–4) ghép thành đề Listening hoàn chỉnh.
+              </p>
+            </div>
+          )}
           <AudioUrlField value={audioUrl} onChange={setAudioUrl} />
           <div>
             <Label>Transcript (tuỳ chọn)</Label>

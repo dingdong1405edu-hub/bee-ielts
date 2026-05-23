@@ -77,17 +77,39 @@ export default async function MockTestPage() {
   }
   if (readings.length === 0) readings = pickMany(readingTests, Math.min(4, readingTests.length));
 
-  const listening = pickRandom(fresh(listeningTests));
+  // Listening: 4 sections, one bài per IELTS section (1–4) so the mock has a
+  // complete Listening exam regardless of which titles the admin used.
+  const sectionedListenings = listeningTests.filter((l) => l.section);
+  const listenings: typeof listeningTests = [];
+  for (const sec of [1, 2, 3, 4] as const) {
+    const inSection = sectionedListenings.filter((l) => l.section === sec);
+    if (inSection.length === 0) continue;
+    listenings.push(pickRandom(fresh(inSection)));
+  }
+
   const writing1 = pickRandom(fresh(writingT1));
   const writing2 = pickRandom(fresh(writingT2));
   const speaking = pickRandom(fresh(speakingSets));
 
+  if (listenings.length < 4) {
+    return (
+      <div className="max-w-2xl mx-auto text-center py-20">
+        <h1 className="text-2xl font-extrabold">Đề Listening chưa đủ 4 section</h1>
+        <p className="text-muted-foreground mt-2">
+          Đề thi thử Listening cần đủ Section 1–4. Hiện chỉ có {listenings.length} section. Admin
+          hãy vào kho “Listening — Đề thi thử” và gắn section cho đủ.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <MockRunner
       targetBand={targetBand}
-      listening={{
+      listenings={listenings.map((listening) => ({
         id: listening.id,
         title: listening.title,
+        section: listening.section ?? 0,
         audioUrl: listening.audioUrl,
         imageUrl: listening.imageUrl,
         contentImageUrl: listening.contentImageUrl,
@@ -100,7 +122,7 @@ export default async function MockTestPage() {
           correctAnswer: q.correctAnswer as string,
           formGroup: q.formGroup,
         })),
-      }}
+      }))}
       readings={readings.map((reading) => ({
         id: reading.id,
         title: reading.title,

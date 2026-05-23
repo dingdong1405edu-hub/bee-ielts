@@ -24,6 +24,7 @@ export default async function EditListeningPage({ params }: { params: Promise<{ 
         imageUrl: test.imageUrl,
         contentImageUrl: test.contentImageUrl,
         transcript: test.transcript,
+        section: test.section,
         questions: test.questions.map((q) => ({
           type: q.type,
           prompt: q.prompt,

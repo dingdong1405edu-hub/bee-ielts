@@ -32,7 +32,7 @@ type Q = {
 
 interface Props {
   targetBand: number;
-  listening: { id: string; title: string; audioUrl: string; imageUrl?: string | null; contentImageUrl?: string | null; transcript: string | null; questions: Q[] };
+  listenings: { id: string; title: string; section: number; audioUrl: string; imageUrl?: string | null; contentImageUrl?: string | null; transcript: string | null; questions: Q[] }[];
   readings: { id: string; title: string; level: string; passage: string; imageUrl?: string | null; questions: Q[] }[];
   writing: {
     task1: { id: string; prompt: string; minWords: number; diagramSvg: string | null };
@@ -48,7 +48,7 @@ interface Props {
   };
 }
 
-export function MockRunner({ targetBand, listening, readings, writing, speaking }: Props) {
+export function MockRunner({ targetBand, listenings, readings, writing, speaking }: Props) {
   const router = useRouter();
   const [stage, setStage] = useState<Stage>("intro");
   const [listeningAns, setListeningAns] = useState<Record<string, string>>({});
@@ -68,9 +68,9 @@ export function MockRunner({ targetBand, listening, readings, writing, speaking 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           listening: {
-            testId: listening.id,
+            testIds: listenings.map((l) => l.id),
             answers: listeningAns,
-            questions: listening.questions.map((q) => ({ id: q.id, correctAnswer: q.correctAnswer, type: q.type })),
+            questions: listenings.flatMap((l) => l.questions.map((q) => ({ id: q.id, correctAnswer: q.correctAnswer, type: q.type }))),
           },
           reading: {
             testIds: readings.map((r) => r.id),
@@ -130,13 +130,8 @@ export function MockRunner({ targetBand, listening, readings, writing, speaking 
   if (stage === "listening") {
     return (
       <MockListening
-        title={listening.title}
-        audioUrl={listening.audioUrl}
-        imageUrl={listening.imageUrl}
-        contentImageUrl={listening.contentImageUrl}
-        transcript={listening.transcript}
-        questions={listening.questions}
-        timeLimit={20 * 60}
+        sections={listenings}
+        timeLimit={30 * 60}
         onDone={(ans) => {
           setListeningAns(ans);
           setStage("reading");

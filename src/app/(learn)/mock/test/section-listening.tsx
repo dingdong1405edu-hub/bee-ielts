@@ -18,29 +18,33 @@ type Q = {
   formGroup?: string | null;
 };
 
-export function MockListening({
-  title,
-  audioUrl,
-  imageUrl,
-  contentImageUrl,
-  transcript,
-  questions,
-  timeLimit,
-  onDone,
-}: {
+interface Section {
+  id: string;
   title: string;
+  section: number;
   audioUrl: string;
   imageUrl?: string | null;
   contentImageUrl?: string | null;
   transcript: string | null;
   questions: Q[];
+}
+
+/**
+ * Mock Listening — IELTS-style 4 sections in one sitting. Each section has its
+ * own audio recording (admin labels which section it belongs to); the candidate
+ * plays each, answers its questions, and submits everything together for grading.
+ */
+export function MockListening({
+  sections,
+  timeLimit,
+  onDone,
+}: {
+  sections: Section[];
   timeLimit: number;
   onDone: (answers: Record<string, string>) => void;
 }) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [remaining, setRemaining] = useState(timeLimit);
-  const [playing, setPlaying] = useState(false);
-  const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
     const t = setInterval(() => {
@@ -57,7 +61,75 @@ export function MockListening({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const hasRealAudio = audioUrl && !audioUrl.startsWith("/audio/sample");
+  // Continuous numbering across the 4 sections (Q1–40 in a real IELTS).
+  const sectionOffsets: number[] = [];
+  {
+    let off = 1;
+    for (const s of sections) {
+      sectionOffsets.push(off);
+      off += s.questions.length;
+    }
+  }
+  const totalAnswered = sections
+    .flatMap((s) => s.questions)
+    .filter((q) => (answers[q.id] || "").trim()).length;
+  const totalQuestions = sections.reduce((n, s) => n + s.questions.length, 0);
+
+  const onChange = (qId: string, value: string) =>
+    setAnswers((a) => ({ ...a, [qId]: value }));
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-4">
+      <div className="rounded-2xl border bg-amber-500 text-white p-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Headphones className="h-6 w-6" />
+          <div>
+            <div className="text-xs uppercase tracking-wider opacity-80">Section 1/4 · Listening</div>
+            <div className="font-extrabold">4 sections, {totalQuestions} câu</div>
+          </div>
+        </div>
+        <Badge variant="outline" className="bg-white/15 border-white/30 text-white text-base px-3 py-1">
+          <Clock className="h-4 w-4 mr-1" /> {formatDuration(remaining)}
+        </Badge>
+      </div>
+
+      {sections.map((s, i) => (
+        <SectionBlock
+          key={s.id}
+          section={s}
+          startNum={sectionOffsets[i]}
+          answers={answers}
+          onChange={onChange}
+        />
+      ))}
+
+      <div className="rounded-2xl border bg-card p-4 flex items-center justify-between gap-3 sticky bottom-3 shadow-lg">
+        <div className="text-sm">
+          Đã trả lời <strong>{totalAnswered}/{totalQuestions}</strong>
+        </div>
+        <Button onClick={() => onDone(answers)} variant="brand" size="lg" className="rounded-full">
+          Nộp & sang Reading →
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/** One of the 4 listening sections — own audio + own question list. */
+function SectionBlock({
+  section,
+  startNum,
+  answers,
+  onChange,
+}: {
+  section: Section;
+  startNum: number;
+  answers: Record<string, string>;
+  onChange: (qId: string, value: string) => void;
+}) {
+  const [playing, setPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const hasRealAudio = section.audioUrl && !section.audioUrl.startsWith("/audio/sample");
 
   const togglePlay = async () => {
     if (hasRealAudio && audioRef.current) {
@@ -70,7 +142,7 @@ export function MockListening({
       }
       return;
     }
-    if (!transcript) return;
+    if (!section.transcript) return;
     if (playing) {
       stopSpeaking();
       setPlaying(false);
@@ -82,38 +154,35 @@ export function MockListening({
     }
     setPlaying(true);
     try {
-      await speakText(transcript, { rate: 0.9 });
+      await speakText(section.transcript, { rate: 0.9 });
     } finally {
       setPlaying(false);
     }
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-4">
-      <div className="rounded-2xl border bg-amber-500 text-white p-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Headphones className="h-6 w-6" />
-          <div>
-            <div className="text-xs uppercase tracking-wider opacity-80">Section 1/4</div>
-            <div className="font-extrabold">Listening</div>
-          </div>
-        </div>
-        <Badge variant="outline" className="bg-white/15 border-white/30 text-white text-base px-3 py-1">
-          <Clock className="h-4 w-4 mr-1" /> {formatDuration(remaining)}
-        </Badge>
-      </div>
-
+    <div className="space-y-3">
       <Card>
         <CardContent className="p-5 space-y-3">
-          <div className="font-semibold">{title}</div>
-          {imageUrl && (
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <div className="text-xs font-extrabold uppercase tracking-wider text-amber-600">
+                Section {section.section}
+              </div>
+              <div className="font-semibold">{section.title}</div>
+            </div>
+            <Badge variant="outline">
+              Câu {startNum}–{startNum + section.questions.length - 1}
+            </Badge>
+          </div>
+          {section.imageUrl && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={imageUrl} alt="" className="w-full max-h-72 rounded-lg border bg-muted/30 object-contain" />
+            <img src={section.imageUrl} alt="" className="w-full max-h-56 rounded-lg border bg-muted/30 object-contain" />
           )}
           {hasRealAudio ? (
             <audio
               ref={audioRef}
-              src={audioUrl}
+              src={section.audioUrl}
               onPlay={() => setPlaying(true)}
               onPause={() => setPlaying(false)}
               onEnded={() => setPlaying(false)}
@@ -127,54 +196,51 @@ export function MockListening({
                 {playing ? "Dừng" : "Phát audio"}
               </Button>
               <p className="text-xs text-muted-foreground mt-2 text-center">
-                ⚠️ Mock test — chỉ phát 1 lần. Audio dùng giọng AI.
+                ⚠️ Mock test — Audio dùng giọng AI.
               </p>
             </div>
+          )}
+          {section.contentImageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={section.contentImageUrl}
+              alt="Hình ảnh cho bài làm"
+              className="w-full max-h-[32rem] rounded-lg border bg-muted/30 object-contain"
+            />
           )}
         </CardContent>
       </Card>
 
-      {contentImageUrl && (
-        <Card>
-          <CardContent className="p-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={contentImageUrl}
-              alt="Hình ảnh cho bài làm"
-              className="w-full max-h-[32rem] rounded-lg border bg-muted/30 object-contain"
-            />
-          </CardContent>
-        </Card>
-      )}
-
       <div className="space-y-3">
-        {groupQuestions(questions).map((unit) => {
+        {groupQuestions(section.questions).map((unit) => {
           if (unit.kind === "form") {
-            const end = unit.startNum + unit.items.length - 1;
+            const end = startNum + unit.startNum - 1 + unit.items.length - 1;
+            const start = startNum + unit.startNum - 1;
             const Block = unit.layout === "table" ? TableBlanks : FormBlanks;
             return (
               <Card key={`form-${unit.items[0].id}`}>
                 <CardContent className="p-5 space-y-2">
                   <div className="text-xs font-extrabold uppercase tracking-wider text-primary">
-                    Câu {unit.startNum}–{end} · {unit.layout === "table" ? "Hoàn thành bảng" : "Điền vào chỗ trống"}
+                    Câu {start}–{end} · {unit.layout === "table" ? "Hoàn thành bảng" : "Điền vào chỗ trống"}
                   </div>
                   <Block
                     items={unit.items}
-                    startNum={unit.startNum}
+                    startNum={start}
                     answers={answers}
-                    onChange={(id, v) => setAnswers((a) => ({ ...a, [id]: v }))}
+                    onChange={onChange}
                   />
                 </CardContent>
               </Card>
             );
           }
           const q = unit.q;
+          const num = startNum + unit.num - 1;
           const userAns = answers[q.id] || "";
           return (
             <Card key={q.id}>
               <CardContent className="p-5 space-y-3">
                 <div className="flex items-start gap-2">
-                  <span className="font-semibold text-primary">{unit.num}.</span>
+                  <span className="font-semibold text-primary">{num}.</span>
                   <p className="font-medium flex-1">{q.prompt}</p>
                 </div>
                 {q.options ? (
@@ -189,7 +255,7 @@ export function MockListening({
                           name={q.id}
                           value={opt}
                           checked={userAns === opt}
-                          onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
+                          onChange={(e) => onChange(q.id, e.target.value)}
                           className="h-4 w-4"
                         />
                         <span className="text-sm">{opt}</span>
@@ -200,7 +266,7 @@ export function MockListening({
                   <Input
                     placeholder="Câu trả lời..."
                     value={userAns}
-                    onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
+                    onChange={(e) => onChange(q.id, e.target.value)}
                   />
                 )}
               </CardContent>
@@ -208,10 +274,6 @@ export function MockListening({
           );
         })}
       </div>
-
-      <Button onClick={() => onDone(answers)} variant="brand" size="xl" className="w-full rounded-full">
-        Nộp & sang Reading →
-      </Button>
     </div>
   );
 }

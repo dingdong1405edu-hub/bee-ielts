@@ -247,6 +247,8 @@ model ListeningTest {
   transcript      String?    @db.Text
   timeLimit       Int        @default(1200)
   bank            TestBank   @default(PRACTICE)
+  // IELTS section 1-4 — only used for MOCK tests so the runner can pick one per section.
+  section         Int?
   questions       Question[]
   createdAt       DateTime   @default(now())
 

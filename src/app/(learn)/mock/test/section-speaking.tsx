@@ -9,7 +9,7 @@ import { formatDuration } from "@/lib/utils";
 import { VoicePicker, useTtsVoice } from "@/components/learn/voice-picker";
 
 const INTRO_TEXT =
-  "Welcome to the speaking portion of the IELTS exam. My name is Adrian. I will be your examiner for this part of the test, and I will give you instructions for each of the three parts. Firstly, I will record this for marking purposes.";
+  "This is the speaking IELTS test for the International English Language Testing System.";
 
 const PART2_PREP_SEC = 60;
 const PART2_SPEAK_SEC = 120;
