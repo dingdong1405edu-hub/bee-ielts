@@ -8,24 +8,40 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Trash2, Plus, Loader2, GraduationCap, Headphones, AlignLeft, Table } from "lucide-react";
+import { Trash2, Plus, Loader2, GraduationCap, Headphones, AlignLeft, Table, List } from "lucide-react";
 import { ImageUrlField } from "./image-url-field";
 import { AudioUrlField } from "./audio-url-field";
 import { DeleteTestButton } from "./delete-test-button";
 import { countBlanks, parseTablePaste, buildFormQuestions } from "@/lib/form-completion";
 
 type Bank = "PRACTICE" | "MOCK";
-type QType = "MCQ" | "FILL_BLANK" | "TRUE_FALSE_NOT_GIVEN" | "SHORT_ANSWER";
+type QType = "MCQ" | "FILL_BLANK" | "TRUE_FALSE_NOT_GIVEN" | "SHORT_ANSWER" | "MATCHING_HEADINGS";
 
 type Q = {
   type: QType;
   prompt: string;
   options: string[];
+  /** For MATCHING_HEADINGS this is the index (as string) into the shared heading list. */
   correctAnswer: string;
   explanation: string;
   /** Optional admin-set displayed number ("" = use auto). */
   displayNumber: string;
 };
+
+/** Lowercase roman numerals for the List of Headings (i, ii, iii, …). */
+function toRoman(n: number): string {
+  const map: [number, string][] = [
+    [10, "x"], [9, "ix"], [5, "v"], [4, "iv"], [1, "i"],
+  ];
+  let out = "";
+  let num = n;
+  for (const [v, s] of map) while (num >= v) { out += s; num -= v; }
+  return out;
+}
+const ROMAN = Array.from({ length: 30 }, (_, i) => toRoman(i + 1));
+
+/** Capital letters used to label each MATCHING_HEADINGS speaker/segment (A, B, C…). */
+const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
 type Payload = {
   type: QType;
@@ -42,6 +58,7 @@ const TYPE_LABEL: Record<QType, string> = {
   FILL_BLANK: "Điền vào chỗ trống (Completion)",
   TRUE_FALSE_NOT_GIVEN: "Xác nhận thông tin (True / False / Not Given)",
   SHORT_ANSWER: "Câu trả lời ngắn (Short answer)",
+  MATCHING_HEADINGS: "Nối tiêu đề (Matching Headings)",
 };
 
 const blankQ = (type: QType): Q => ({
@@ -75,9 +92,16 @@ export type ListeningInitial = {
 };
 
 function coerceType(t: string): QType {
-  if (t === "MCQ" || t === "FILL_BLANK" || t === "TRUE_FALSE_NOT_GIVEN" || t === "SHORT_ANSWER") return t;
+  if (
+    t === "MCQ" ||
+    t === "FILL_BLANK" ||
+    t === "TRUE_FALSE_NOT_GIVEN" ||
+    t === "SHORT_ANSWER" ||
+    t === "MATCHING_HEADINGS"
+  )
+    return t;
   if (t.startsWith("TRUE_FALSE")) return "TRUE_FALSE_NOT_GIVEN";
-  if (t === "MATCHING" || t.startsWith("MATCHING")) return "MCQ";
+  if (t.startsWith("MATCHING")) return "MATCHING_HEADINGS";
   return "FILL_BLANK";
 }
 
@@ -88,6 +112,7 @@ function coerceType(t: string): QType {
  */
 type FormState = {
   questions: Q[];
+  headings: string[];
   formPassage: string;
   formAnswers: string[];
   tablePassage: string;
@@ -96,15 +121,30 @@ type FormState = {
 
 function toFormState(initial?: ListeningInitial): FormState {
   if (!initial || initial.questions.length === 0) {
-    return { questions: [blankQ("MCQ")], formPassage: "", formAnswers: [], tablePassage: "", tableAnswers: [] };
+    return {
+      questions: [blankQ("MCQ")],
+      headings: ["", "", "", ""],
+      formPassage: "",
+      formAnswers: [],
+      tablePassage: "",
+      tableAnswers: [],
+    };
   }
   const tableQs = initial.questions.filter((q) => q.formGroup?.startsWith("tbl"));
   const formQs = initial.questions.filter((q) => q.formGroup && !q.formGroup.startsWith("tbl"));
   const regular = initial.questions.filter((q) => !q.formGroup);
+  let headings: string[] = [];
   const questions: Q[] = regular.map((q) => {
     const type = coerceType(q.type);
     const explanation = q.explanation ?? "";
     const displayNumber = q.displayNumber != null ? String(q.displayNumber) : "";
+    if (type === "MATCHING_HEADINGS") {
+      const hs = (q.options ?? []).map((o) => o.replace(/^[ivxlcdm]+\.\s*/i, "").trim());
+      // Keep the most complete list seen so every stored answer index resolves.
+      if (hs.length > headings.length) headings = hs;
+      const idx = ROMAN.indexOf(q.correctAnswer);
+      return { type, prompt: q.prompt, options: [], correctAnswer: idx >= 0 ? String(idx) : "", explanation, displayNumber };
+    }
     if (type === "MCQ") {
       return { type, prompt: q.prompt, options: q.options && q.options.length ? q.options : ["", ""], correctAnswer: q.correctAnswer, explanation, displayNumber };
     }
@@ -118,6 +158,7 @@ function toFormState(initial?: ListeningInitial): FormState {
   const finalQuestions = questions.length > 0 ? questions : hasGrouped ? [] : [blankQ("MCQ")];
   return {
     questions: finalQuestions,
+    headings: headings.length >= 2 ? headings : ["", "", "", ""],
     formPassage: formQs.length ? stitch(formQs) : "",
     formAnswers: formQs.map((q) => q.correctAnswer),
     tablePassage: tableQs.length ? stitch(tableQs) : "",
@@ -140,6 +181,7 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
   const [section, setSection] = useState<number | "">(initial?.section ?? "");
   const [init] = useState(() => toFormState(initial));
   const [questions, setQuestions] = useState<Q[]>(init.questions);
+  const [headings, setHeadings] = useState<string[]>(init.headings);
   const [formPassage, setFormPassage] = useState(init.formPassage);
   const [formAnswers, setFormAnswers] = useState<string[]>(init.formAnswers);
   const [tablePassage, setTablePassage] = useState(init.tablePassage);
@@ -147,9 +189,45 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
 
   const blankCount = countBlanks(formPassage);
   const tableBlankCount = countBlanks(tablePassage);
+  const hasMatching = questions.some((q) => q.type === "MATCHING_HEADINGS");
 
   const patchQ = (qi: number, patch: Partial<Q>) =>
     setQuestions((qs) => qs.map((q, i) => (i === qi ? { ...q, ...patch } : q)));
+
+  const setHeadingAt = (hi: number, v: string) =>
+    setHeadings((hs) => hs.map((x, j) => (j === hi ? v : x)));
+
+  /** Remove a shared heading and keep every paragraph's chosen index valid. */
+  const removeHeading = (hi: number) => {
+    setHeadings((hs) => hs.filter((_, i) => i !== hi));
+    setQuestions((qs) =>
+      qs.map((q) => {
+        if (q.type !== "MATCHING_HEADINGS" || q.correctAnswer === "") return q;
+        const idx = parseInt(q.correctAnswer, 10);
+        if (idx === hi) return { ...q, correctAnswer: "" };
+        if (idx > hi) return { ...q, correctAnswer: String(idx - 1) };
+        return q;
+      }),
+    );
+  };
+
+  /** Paragraph letter for the Matching Headings question at index `qi`. */
+  const mhLetterAt = (qi: number): string => {
+    let c = 0;
+    for (let i = 0; i < qi; i++) if (questions[i].type === "MATCHING_HEADINGS") c++;
+    return LETTERS[c] ?? "?";
+  };
+
+  /** Switch a question's type and prefill sensible defaults (MCQ options, MH label). */
+  const changeType = (qi: number, type: QType) => {
+    const q = questions[qi];
+    const patch: Partial<Q> = { type, correctAnswer: "" };
+    patch.options = type === "MCQ" ? (q.options.length ? q.options : blankQ("MCQ").options) : [];
+    if (type === "MATCHING_HEADINGS" && !q.prompt.trim()) {
+      patch.prompt = `Speaker ${mhLetterAt(qi)}`;
+    }
+    patchQ(qi, patch);
+  };
 
   /** Set answer `i` in a numbered answer list, growing the array as needed. */
   const setAnswerAt =
@@ -170,6 +248,21 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
       return toast.error("Link file:/// chỉ có trên máy bạn — hãy tải file âm thanh lên thay vì dán link đó");
     if (isMock && (section === "" || section < 1 || section > 4))
       return toast.error("Chọn Section 1–4 cho đề thi thử (mỗi đề mock cần thuộc 1 section)");
+
+    // Build the shared List of Headings once — used by every Matching Headings question.
+    const headingRemap = new Map<number, number>();
+    const finalHeadings: string[] = [];
+    if (hasMatching) {
+      headings.forEach((h, i) => {
+        const t = h.trim();
+        if (t) {
+          headingRemap.set(i, finalHeadings.length);
+          finalHeadings.push(t);
+        }
+      });
+      if (finalHeadings.length < 2) return toast.error("Danh sách Heading cần ít nhất 2 mục");
+    }
+    const numberedHeadings = finalHeadings.map((h, i) => `${ROMAN[i]}. ${h}`);
 
     // Loose questions.
     const regularPayload: Payload[] = [];
@@ -192,6 +285,11 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
         if (!q.correctAnswer || !opts.includes(q.correctAnswer))
           return toast.error(`Câu ${i + 1}: chọn đáp án đúng`);
         regularPayload.push({ type: "MCQ", prompt: q.prompt.trim(), options: opts, correctAnswer: q.correctAnswer, explanation: q.explanation.trim() || undefined, displayNumber });
+      } else if (q.type === "MATCHING_HEADINGS") {
+        const origIdx = parseInt(q.correctAnswer, 10);
+        const newIdx = Number.isNaN(origIdx) ? undefined : headingRemap.get(origIdx);
+        if (newIdx === undefined) return toast.error(`Câu ${i + 1}: chọn heading đúng cho đoạn này`);
+        regularPayload.push({ type: "MATCHING_HEADINGS", prompt: q.prompt.trim(), options: numberedHeadings, correctAnswer: ROMAN[newIdx], explanation: q.explanation.trim() || undefined, displayNumber });
       } else if (q.type === "TRUE_FALSE_NOT_GIVEN") {
         if (!["True", "False", "Not Given"].includes(q.correctAnswer))
           return toast.error(`Câu ${i + 1}: chọn đáp án đúng`);
@@ -445,6 +543,42 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
         </CardContent>
       </Card>
 
+      {hasMatching && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <List className="h-5 w-5 text-primary" /> Danh sách Heading (dùng chung)
+              </CardTitle>
+              <Button size="sm" variant="outline" onClick={() => setHeadings([...headings, ""])}>
+                <Plus className="h-4 w-4" /> Thêm heading
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Danh sách heading đánh số La Mã (i, ii, iii…). Mỗi câu Matching Headings bên dưới
+              sẽ chọn 1 heading từ danh sách này.
+            </p>
+            {headings.map((h, hi) => (
+              <div key={hi} className="flex items-center gap-2">
+                <span className="text-sm font-bold w-8 shrink-0 text-muted-foreground">{ROMAN[hi]}.</span>
+                <Input
+                  value={h}
+                  placeholder={`Nội dung heading ${hi + 1}`}
+                  onChange={(e) => setHeadingAt(hi, e.target.value)}
+                />
+                {headings.length > 2 && (
+                  <Button variant="ghost" size="sm" onClick={() => removeHeading(hi)}>
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </Button>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -454,17 +588,22 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
             </Button>
           </div>
           <p className="text-sm text-muted-foreground">
-            Câu hỏi trắc nghiệm, T/F/NG, điền lẻ… (không bắt buộc nếu bài chỉ dùng phần dán đoạn ở trên).
+            Câu hỏi trắc nghiệm, T/F/NG, điền lẻ, Matching Headings… (không bắt buộc nếu bài chỉ dùng phần dán đoạn ở trên).
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
           {questions.length === 0 && (
             <p className="text-sm text-muted-foreground">Chưa có câu hỏi lẻ nào.</p>
           )}
-          {questions.map((q, qi) => (
+          {questions.map((q, qi) => {
+            const mhLetter = q.type === "MATCHING_HEADINGS" ? mhLetterAt(qi) : null;
+            return (
             <div key={qi} className="rounded-lg border p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="font-semibold">Câu {qi + 1}</span>
+                <span className="font-semibold">
+                  Câu {qi + 1}
+                  {mhLetter && <span className="text-primary"> · Đoạn {mhLetter}</span>}
+                </span>
                 <Button variant="ghost" size="sm" onClick={() => setQuestions(questions.filter((_, i) => i !== qi))}>
                   <Trash2 className="h-3.5 w-3.5 text-destructive" />
                 </Button>
@@ -475,10 +614,7 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
                   <Label>Dạng câu hỏi</Label>
                   <select
                     value={q.type}
-                    onChange={(e) => {
-                      const type = e.target.value as QType;
-                      patchQ(qi, { type, options: blankQ(type).options, correctAnswer: "" });
-                    }}
+                    onChange={(e) => changeType(qi, e.target.value as QType)}
                     className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                   >
                     {(Object.keys(TYPE_LABEL) as QType[]).map((t) => (
@@ -503,7 +639,7 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
               </div>
 
               <div>
-                <Label>Nội dung câu hỏi</Label>
+                <Label>{q.type === "MATCHING_HEADINGS" ? "Tên đoạn / Speaker (hiển thị cạnh ô chọn)" : "Nội dung câu hỏi"}</Label>
                 <Textarea
                   value={q.prompt}
                   onChange={(e) => patchQ(qi, { prompt: e.target.value })}
@@ -512,12 +648,18 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
                       ? "Dùng ___ cho chỗ trống."
                       : q.type === "TRUE_FALSE_NOT_GIVEN"
                         ? "Một nhận định để người học xác nhận."
-                        : "Nội dung câu hỏi..."
+                        : q.type === "MATCHING_HEADINGS"
+                          ? "VD: Speaker A"
+                          : "Nội dung câu hỏi..."
                   }
                 />
               </div>
 
               {q.type === "MCQ" && <McqOptions q={q} qi={qi} patchQ={patchQ} />}
+
+              {q.type === "MATCHING_HEADINGS" && (
+                <HeadingPicker headings={headings} value={q.correctAnswer} onChange={(v) => patchQ(qi, { correctAnswer: v })} />
+              )}
 
               {q.type === "TRUE_FALSE_NOT_GIVEN" && (
                 <div>
@@ -554,7 +696,8 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
                 <Textarea value={q.explanation} onChange={(e) => patchQ(qi, { explanation: e.target.value })} />
               </div>
             </div>
-          ))}
+            );
+          })}
         </CardContent>
       </Card>
 
@@ -616,6 +759,43 @@ function McqOptions({ q, qi, patchQ }: { q: Q; qi: number; patchQ: (qi: number, 
         <Plus className="h-4 w-4" /> Thêm lựa chọn
       </Button>
       <p className="text-xs text-muted-foreground">Chọn ô tròn bên trái để đánh dấu đáp án đúng.</p>
+    </div>
+  );
+}
+
+/** Dropdown for a Matching Headings paragraph — picks one heading from the shared list. */
+function HeadingPicker({
+  headings,
+  value,
+  onChange,
+}: {
+  headings: string[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const filled = headings.some((h) => h.trim());
+  return (
+    <div>
+      <Label>Heading đúng cho đoạn / speaker này</Label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+      >
+        <option value="">— Chọn heading —</option>
+        {headings.map((h, hi) =>
+          h.trim() ? (
+            <option key={hi} value={String(hi)}>
+              {ROMAN[hi]}. {h}
+            </option>
+          ) : null,
+        )}
+      </select>
+      {!filled && (
+        <p className="text-xs text-destructive mt-1">
+          Hãy nhập “Danh sách Heading” ở khung phía trên trước.
+        </p>
+      )}
     </div>
   );
 }

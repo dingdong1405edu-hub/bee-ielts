@@ -142,7 +142,15 @@ export function ListeningPlayer({
                   <p className="font-medium flex-1">{q.prompt}</p>
                   {submitted && (isCorrect ? <CheckCircle2 className="h-5 w-5 text-success" /> : <XCircle className="h-5 w-5 text-destructive" />)}
                 </div>
-                {q.options ? (
+                {q.type === "MATCHING_HEADINGS" ? (
+                  <MatchingHeadingPicker
+                    options={q.options ?? []}
+                    value={userAns}
+                    correct={q.correctAnswer}
+                    submitted={submitted}
+                    onChange={(v) => setAnswers((a) => ({ ...a, [q.id]: v }))}
+                  />
+                ) : q.options ? (
                   <div className="space-y-2">
                     {q.options.map((opt) => (
                       <label
@@ -323,5 +331,67 @@ function AudioPlayer({ audioUrl, transcript }: { audioUrl: string; transcript: s
         )}
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * Matching Headings answer UI: a small list of the shared headings + a dropdown
+ * for this paragraph. Options come in as "i. Heading text" — the dropdown value
+ * is the roman numeral so the stored answer matches the admin's saved key.
+ */
+function MatchingHeadingPicker({
+  options,
+  value,
+  correct,
+  submitted,
+  onChange,
+}: {
+  options: string[];
+  value: string;
+  correct: string;
+  submitted: boolean;
+  onChange: (v: string) => void;
+}) {
+  const items = options.map((opt) => {
+    const m = opt.match(/^([ivxIVX]+)\.\s*(.*)$/);
+    return { roman: m ? m[1].toLowerCase() : opt, label: m ? m[2] : opt, raw: opt };
+  });
+  return (
+    <div className="space-y-2">
+      <div className="rounded-lg border bg-muted/30 px-3 py-2">
+        <div className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground mb-1">
+          Danh sách Heading
+        </div>
+        <ul className="space-y-0.5 text-sm leading-relaxed">
+          {items.map((it) => (
+            <li key={it.roman}>
+              <span className="font-bold mr-1">{it.roman}.</span> {it.label}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <select
+        value={value}
+        disabled={submitted}
+        onChange={(e) => onChange(e.target.value)}
+        className={cn(
+          "h-10 w-full rounded-lg border-2 bg-background px-3 text-sm font-bold",
+          submitted && value === correct && "border-success",
+          submitted && value !== correct && "border-destructive",
+        )}
+      >
+        <option value="">— Chọn heading —</option>
+        {items.map((it) => (
+          <option key={it.roman} value={it.roman}>
+            {it.roman}. {it.label}
+          </option>
+        ))}
+      </select>
+      {submitted && value !== correct && (
+        <p className="text-sm text-muted-foreground">
+          Đáp án đúng: <strong className="text-success">{correct}</strong>
+        </p>
+      )}
+    </div>
   );
 }

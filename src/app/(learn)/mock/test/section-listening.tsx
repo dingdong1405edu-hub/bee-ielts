@@ -243,7 +243,13 @@ function SectionBlock({
                   <span className="font-semibold text-primary">{num}.</span>
                   <p className="font-medium flex-1">{q.prompt}</p>
                 </div>
-                {q.options ? (
+                {q.type === "MATCHING_HEADINGS" ? (
+                  <MockHeadingPicker
+                    options={q.options ?? []}
+                    value={userAns}
+                    onChange={(v) => onChange(q.id, v)}
+                  />
+                ) : q.options ? (
                   <div className="space-y-2">
                     {q.options.map((opt) => (
                       <label
@@ -274,6 +280,53 @@ function SectionBlock({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Mock-listening Matching Headings answer UI: reference list of headings + a
+ * dropdown whose value is the roman numeral (matches the admin's stored key).
+ */
+function MockHeadingPicker({
+  options,
+  value,
+  onChange,
+}: {
+  options: string[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const items = options.map((opt) => {
+    const m = opt.match(/^([ivxIVX]+)\.\s*(.*)$/);
+    return { roman: m ? m[1].toLowerCase() : opt, label: m ? m[2] : opt };
+  });
+  return (
+    <div className="space-y-2">
+      <div className="rounded-lg border bg-muted/30 px-3 py-2">
+        <div className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground mb-1">
+          Danh sách Heading
+        </div>
+        <ul className="space-y-0.5 text-sm leading-relaxed">
+          {items.map((it) => (
+            <li key={it.roman}>
+              <span className="font-bold mr-1">{it.roman}.</span> {it.label}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-10 w-full rounded-lg border-2 bg-background px-3 text-sm font-bold"
+      >
+        <option value="">— Chọn heading —</option>
+        {items.map((it) => (
+          <option key={it.roman} value={it.roman}>
+            {it.roman}. {it.label}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }
