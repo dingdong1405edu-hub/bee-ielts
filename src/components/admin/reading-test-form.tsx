@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -8,10 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Trash2, Plus, Loader2, GraduationCap, BookOpen, List, AlignLeft } from "lucide-react";
+import { Trash2, Plus, Loader2, GraduationCap, BookOpen, List, AlignLeft, Table, Sparkles, Upload } from "lucide-react";
 import { ImageUrlField } from "./image-url-field";
 import { DeleteTestButton } from "./delete-test-button";
-import { countBlanks, buildFormQuestions } from "@/lib/form-completion";
+import { countBlanks, parseTablePaste, buildFormQuestions } from "@/lib/form-completion";
 
 type Bank = "PRACTICE" | "MOCK";
 type QType = "MCQ" | "MATCHING_HEADINGS" | "FILL_BLANK" | "TRUE_FALSE_NOT_GIVEN" | "MULTI_SELECT";
@@ -100,6 +100,8 @@ type ReadingFormState = {
   headings: string[];
   formPassage: string;
   formAnswers: string[];
+  tablePassage: string;
+  tableAnswers: string[];
 };
 
 /**
@@ -110,11 +112,20 @@ type ReadingFormState = {
  */
 function toFormState(initial?: ReadingInitial): ReadingFormState {
   if (!initial || initial.questions.length === 0) {
-    return { questions: [blankQ("MCQ")], headings: ["", "", "", ""], formPassage: "", formAnswers: [] };
+    return {
+      questions: [blankQ("MCQ")],
+      headings: ["", "", "", ""],
+      formPassage: "",
+      formAnswers: [],
+      tablePassage: "",
+      tableAnswers: [],
+    };
   }
-  // Form-completion paste questions use an "fg"/"tbl" formGroup; multi-select
-  // questions use an "ms" formGroup but stay inline as ordinary loose questions.
-  const formQs = initial.questions.filter((q) => q.formGroup && !q.formGroup.startsWith("ms"));
+  // formGroup prefixes: "ms"=multi-select, "tbl"=table, "fg"/other=text form.
+  const tableQs = initial.questions.filter((q) => q.formGroup?.startsWith("tbl"));
+  const formQs = initial.questions.filter(
+    (q) => q.formGroup && !q.formGroup.startsWith("ms") && !q.formGroup.startsWith("tbl"),
+  );
   const regular = initial.questions.filter((q) => !q.formGroup || q.formGroup.startsWith("ms"));
   let headings: string[] = [];
   const questions: Q[] = regular.map((q) => {
@@ -141,13 +152,19 @@ function toFormState(initial?: ReadingInitial): ReadingFormState {
     }
     return { type, prompt: q.prompt, options: [], correctAnswer: q.correctAnswer, explanation, displayNumber };
   });
-  // A form-only test has no loose questions; a brand-new editor gets one blank.
-  const finalQuestions = questions.length > 0 ? questions : formQs.length > 0 ? [] : [blankQ("MCQ")];
+  const hasGrouped = formQs.length > 0 || tableQs.length > 0;
+  // A grouped-only test has no loose questions; a brand-new editor gets one blank.
+  const finalQuestions = questions.length > 0 ? questions : hasGrouped ? [] : [blankQ("MCQ")];
+  // Stitch each pasted block's segment-prompts back into the original paste shape.
+  const stitch = (qs: typeof regular) =>
+    qs.map((q) => q.prompt).join("").replace(/_{2,}/g, "..........");
   return {
     questions: finalQuestions,
     headings: headings.length >= 2 ? headings : ["", "", "", ""],
-    formPassage: formQs.length ? formQs.map((q) => q.prompt).join("").replace(/_{2,}/g, "..........") : "",
+    formPassage: formQs.length ? stitch(formQs) : "",
     formAnswers: formQs.map((q) => q.correctAnswer),
+    tablePassage: tableQs.length ? stitch(tableQs) : "",
+    tableAnswers: tableQs.map((q) => q.correctAnswer),
   };
 }
 
@@ -174,9 +191,14 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
   const [headings, setHeadings] = useState<string[]>(init.headings);
   const [formPassage, setFormPassage] = useState(init.formPassage);
   const [formAnswers, setFormAnswers] = useState<string[]>(init.formAnswers);
+  const [tablePassage, setTablePassage] = useState(init.tablePassage);
+  const [tableAnswers, setTableAnswers] = useState<string[]>(init.tableAnswers);
+  const [extractingTable, setExtractingTable] = useState(false);
+  const tableImgRef = useRef<HTMLInputElement>(null);
 
   const hasMatching = questions.some((q) => q.type === "MATCHING_HEADINGS");
   const blankCount = countBlanks(formPassage);
+  const tableBlankCount = countBlanks(tablePassage);
 
   const patchQ = (qi: number, patch: Partial<Q>) =>
     setQuestions((qs) => qs.map((q, i) => (i === qi ? { ...q, ...patch } : q)));
@@ -188,6 +210,65 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
       next[i] = v;
       return next;
     });
+
+  const setTableAnswerAt = (i: number, v: string) =>
+    setTableAnswers((prev) => {
+      const next = [...prev];
+      while (next.length <= i) next.push("");
+      next[i] = v;
+      return next;
+    });
+
+  /** Pop the OS file picker → compress → send to AI → fill table textarea + answers. */
+  const extractTableFromFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const arr = Array.from(files).slice(0, 4).filter((f) => f.type.startsWith("image/"));
+    if (arr.length === 0) return;
+    setExtractingTable(true);
+    try {
+      const images: string[] = [];
+      for (const f of arr) {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(r.result as string);
+          r.onerror = () => reject(new Error("read failed"));
+          r.readAsDataURL(f);
+        });
+        const compressed = await new Promise<string>((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => {
+            const maxW = 2000;
+            const scale = Math.min(1, maxW / img.width);
+            const c = document.createElement("canvas");
+            c.width = Math.round(img.width * scale);
+            c.height = Math.round(img.height * scale);
+            const ctx = c.getContext("2d");
+            if (!ctx) return reject(new Error("no canvas"));
+            ctx.drawImage(img, 0, 0, c.width, c.height);
+            resolve(c.toDataURL("image/jpeg", 0.85));
+          };
+          img.onerror = () => reject(new Error("load failed"));
+          img.src = dataUrl;
+        });
+        images.push(compressed);
+      }
+      const res = await fetch("/api/admin/extract-table", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ images }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "AI không đọc được bảng");
+      setTablePassage(data.tableText as string);
+      setTableAnswers(Array.isArray(data.answers) ? data.answers : []);
+      toast.success("AI đã tạo bảng — kiểm tra lại đáp án bên dưới");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Tạo bảng thất bại");
+    } finally {
+      setExtractingTable(false);
+      if (tableImgRef.current) tableImgRef.current.value = "";
+    }
+  };
 
   const setHeadingAt = (hi: number, v: string) =>
     setHeadings((hs) => hs.map((x, j) => (j === hi ? v : x)));
@@ -311,8 +392,24 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
       formPayload = buildFormQuestions(formPassage, formAnswers, "fg" + Date.now().toString(36));
     }
 
-    if (formPayload.length + payload.length === 0)
-      return toast.error("Cần ít nhất 1 câu hỏi — thêm câu hỏi hoặc dán đoạn điền chỗ trống");
+    // Table-completion paste → one FILL_BLANK per blank (formGroup "tbl…").
+    let tablePayload: typeof payload = [];
+    if (tablePassage.trim()) {
+      const tableText = parseTablePaste(tablePassage)
+        .map((row) => row.join(" | "))
+        .join("\n");
+      const n = countBlanks(tableText);
+      if (n < 1)
+        return toast.error("Bảng chưa có chỗ trống — dùng chuỗi dấu chấm cho mỗi ô cần điền");
+      for (let i = 0; i < n; i++) {
+        if (!(tableAnswers[i] || "").trim())
+          return toast.error(`Bảng: thiếu đáp án cho chỗ trống ${i + 1}`);
+      }
+      tablePayload = buildFormQuestions(tableText, tableAnswers, "tbl" + Date.now().toString(36));
+    }
+
+    if (formPayload.length + tablePayload.length + payload.length === 0)
+      return toast.error("Cần ít nhất 1 câu hỏi — thêm câu hỏi, dán đoạn điền chỗ trống, hoặc dán bảng");
 
     setLoading(true);
     try {
@@ -325,7 +422,7 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
           imageUrl: imageUrl.trim() || null,
           level,
           bank,
-          questions: [...formPayload, ...payload],
+          questions: [...formPayload, ...tablePayload, ...payload],
         }),
       });
       const data = await res.json();
@@ -435,6 +532,96 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
                       <Input
                         value={formAnswers[i] ?? ""}
                         onChange={(e) => setFormAnswerAt(i, e.target.value)}
+                        placeholder={`Đáp án ${i + 1}`}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Table className="h-5 w-5 text-primary" /> Bảng điền chỗ trống — dán cả bảng
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Dán bảng (Word/Excel/Pages — cột tự cách bằng Tab), hoặc bấm{" "}
+            <strong>“Tạo bảng từ ảnh”</strong> để AI dựng lại bảng + đáp án từ ảnh chụp/scan.
+            Mỗi ô cần điền là một chuỗi dấu chấm.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="rounded-xl border bg-muted/30 p-3 space-y-2">
+            <div className="flex items-center gap-2 text-sm font-extrabold uppercase tracking-wider text-primary">
+              <Sparkles className="h-4 w-4" /> AI tạo bảng từ ảnh
+            </div>
+            <input
+              ref={tableImgRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(e) => extractTableFromFiles(e.target.files)}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-lg"
+              disabled={extractingTable}
+              onClick={() => tableImgRef.current?.click()}
+            >
+              {extractingTable ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="h-4 w-4" />
+              )}
+              {extractingTable ? "AI đang đọc bảng…" : "Tải ảnh để AI tạo bảng"}
+            </Button>
+            <p className="text-[11px] text-muted-foreground">
+              Chụp/scan rõ phần bảng (kèm cả tiêu đề cột). AI sẽ điền vào ô “Bảng” và danh sách
+              đáp án bên dưới — bạn kiểm tra lại trước khi lưu. Tối đa 4 ảnh.
+            </p>
+          </div>
+          <div>
+            <Label>Bảng</Label>
+            <Textarea
+              value={tablePassage}
+              onChange={(e) => setTablePassage(e.target.value)}
+              className="min-h-[180px] font-mono text-[13px]"
+              placeholder={
+                "Activity | Day | Price\nCity Walking Tour | Wednesday | Free\nLocal Museum Visit | Thursday | 7. £..........\nTraditional 8. .......... Show | Friday | £25"
+              }
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Dán từ Word/Excel (cột cách bằng Tab) hoặc gõ tay, ngăn cột bằng “|”. Mỗi ô trống
+              là một chuỗi dấu chấm; số “7.”, “8.”… sẽ tự thành ô điền.
+            </p>
+          </div>
+          {tablePassage.trim() && (
+            <div>
+              <Label>Đáp án — {tableBlankCount} chỗ trống</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Nhiều đáp án đúng cho một ô? Ngăn cách bằng dấu “/” — VD “8 / eight”.
+              </p>
+              {tableBlankCount === 0 ? (
+                <p className="text-xs text-destructive mt-1">
+                  Chưa phát hiện chỗ trống nào — mỗi ô cần điền cần một chuỗi dấu chấm.
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 mt-1">
+                  {Array.from({ length: tableBlankCount }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-1.5">
+                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-600 text-white text-xs font-bold">
+                        {i + 1}
+                      </span>
+                      <Input
+                        value={tableAnswers[i] ?? ""}
+                        onChange={(e) => setTableAnswerAt(i, e.target.value)}
                         placeholder={`Đáp án ${i + 1}`}
                       />
                     </div>

@@ -332,3 +332,63 @@ Please grade and return the JSON.`;
 
   return extractJSON(text);
 }
+
+const TABLE_EXTRACT_SYSTEM = `You read a photo or scan of an IELTS table-completion task and convert the table into our admin paste format so the editor can render it back exactly.
+
+Rules:
+1. First row = the HEADER row (column titles). Echo it as the first line of "tableText".
+2. Each subsequent line in "tableText" = one row of the body. Columns are separated by a single " | " (space, pipe, space).
+3. Preserve EVERY cell. Empty cells stay empty (".. | .. | ").
+4. Replace each numbered gap (a blank the candidate must fill) with the exact substring "..........". If the cell shows "7. ..........", keep the "7." token so the renderer keeps the number visible (e.g. "7. ..........", "8. ..........").
+5. Walk the gaps in reading order (left→right, top→bottom). For EACH gap output one entry in "answers" — the word/phrase the candidate should fill. If the source already shows the answer (worked example), copy it; otherwise leave the answer empty string "".
+6. If the same gap accepts multiple alternatives (e.g. "8 / eight"), join them with " / ".
+7. Do NOT invent extra rows or columns. Do NOT include any instruction text — only the table itself.
+
+Return ONLY valid JSON — no markdown, no commentary — matching this exact TypeScript type:
+
+type TableExtract = {
+  tableText: string;     // newline-separated rows, " | "-separated cells
+  answers: string[];     // one per ".........." gap, in reading order
+};`;
+
+export interface TableExtractResult {
+  tableText: string;
+  answers: string[];
+}
+
+/**
+ * Ask Claude to look at one or more images of an IELTS table-completion
+ * task and turn them into our paste format (header row + `|`-separated
+ * cells, blanks as `..........`) plus the answer list in reading order.
+ */
+export async function extractTableFromImage(input: {
+  images: ReadingImageInput[];
+}): Promise<TableExtractResult> {
+  if (!input.images.length) throw new Error("Cần ít nhất 1 ảnh");
+  const content: Array<Anthropic.TextBlockParam | Anthropic.ImageBlockParam> = [];
+  for (const img of input.images) {
+    content.push({
+      type: "image",
+      source: { type: "base64", media_type: img.mediaType, data: img.data },
+    });
+  }
+  content.push({
+    type: "text",
+    text: "Convert this IELTS table-completion image into the JSON format described in the system prompt. Return only JSON.",
+  });
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 2000,
+    temperature: 0.1,
+    system: TABLE_EXTRACT_SYSTEM,
+    messages: [{ role: "user", content }],
+  });
+
+  const text = response.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("");
+
+  return extractJSON(text) as TableExtractResult;
+}
