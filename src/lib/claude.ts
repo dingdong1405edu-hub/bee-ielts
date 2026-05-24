@@ -162,6 +162,10 @@ export interface ReadingImageInput {
   data: string; // base64, without the data: prefix
 }
 
+export interface ReadingPdfInput {
+  data: string; // base64, without the data: prefix
+}
+
 export interface GeneratedReadingQuestion {
   type: "MCQ" | "MATCHING_HEADINGS" | "FILL_BLANK" | "TRUE_FALSE_NOT_GIVEN";
   prompt: string;
@@ -177,30 +181,65 @@ export interface GeneratedReadingTest {
 }
 
 /**
- * Build a complete, already-solved IELTS reading test from a pasted exam
- * and/or scanned page images. Claude detects every question's type and
- * works out the correct answers itself.
+ * Build a complete, already-solved IELTS reading test from a pasted exam,
+ * scanned page images, or a CamScanner / scanned PDF. Claude detects every
+ * question's type and works out the correct answers itself. PDFs go through
+ * the beta documents API so the page layout (multi-column passages,
+ * question numbering) is preserved.
  */
 export async function generateReadingTest(input: {
   rawText?: string;
   images?: ReadingImageInput[];
+  pdf?: ReadingPdfInput;
 }): Promise<GeneratedReadingTest> {
-  const content: Array<Anthropic.TextBlockParam | Anthropic.ImageBlockParam> = [];
+  const intro = input.rawText?.trim()
+    ? `Pasted IELTS Reading exam content:\n\n${input.rawText.trim()}`
+    : input.pdf
+      ? "The IELTS Reading exam is in the attached PDF (CamScanner export). Read every page."
+      : "The IELTS Reading exam is in the attached page image(s).";
+  const promptText = `${intro}\n\nBuild the complete reading test now and return ONLY the JSON.`;
 
+  // PDFs need the beta documents API (`pdfs-2024-09-25` header) — keep the
+  // text + images path on the stable endpoint to avoid bumping every call.
+  if (input.pdf) {
+    type BetaBlock =
+      | { type: "document"; source: { type: "base64"; media_type: "application/pdf"; data: string } }
+      | Anthropic.ImageBlockParam
+      | Anthropic.TextBlockParam;
+    const blocks: BetaBlock[] = [
+      { type: "document", source: { type: "base64", media_type: "application/pdf", data: input.pdf.data } },
+    ];
+    for (const img of input.images ?? []) {
+      blocks.push({
+        type: "image",
+        source: { type: "base64", media_type: img.mediaType, data: img.data },
+      });
+    }
+    blocks.push({ type: "text", text: promptText });
+
+    const response = await client.beta.messages.create({
+      model: MODEL,
+      max_tokens: 8000,
+      temperature: 0.2,
+      system: READING_BUILDER_SYSTEM,
+      messages: [{ role: "user", content: blocks as unknown as Anthropic.Beta.Messages.BetaContentBlockParam[] }],
+      betas: ["pdfs-2024-09-25"],
+    });
+    const text = response.content
+      .filter((b): b is Anthropic.Beta.Messages.BetaTextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join("");
+    return extractJSON(text) as GeneratedReadingTest;
+  }
+
+  const content: Array<Anthropic.TextBlockParam | Anthropic.ImageBlockParam> = [];
   for (const img of input.images ?? []) {
     content.push({
       type: "image",
       source: { type: "base64", media_type: img.mediaType, data: img.data },
     });
   }
-
-  const intro = input.rawText?.trim()
-    ? `Pasted IELTS Reading exam content:\n\n${input.rawText.trim()}`
-    : "The IELTS Reading exam is in the attached page image(s).";
-  content.push({
-    type: "text",
-    text: `${intro}\n\nBuild the complete reading test now and return ONLY the JSON.`,
-  });
+  content.push({ type: "text", text: promptText });
 
   const response = await client.messages.create({
     model: MODEL,

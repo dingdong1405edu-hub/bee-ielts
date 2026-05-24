@@ -2,8 +2,9 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Sparkles, Loader2, Upload, X } from "lucide-react";
+import { Sparkles, Loader2, Upload, X, FileText, Link as LinkIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,6 +41,7 @@ function compressImage(src: string, maxW = 2000): Promise<string> {
 }
 
 const MAX_IMAGES = 8;
+const MAX_PDF_BYTES = 12 * 1024 * 1024;
 
 /**
  * AI-powered reading-test creator: the admin pastes a whole exam (passage +
@@ -51,8 +53,12 @@ export function ReadingAiImport({ bank }: { bank: "PRACTICE" | "MOCK" }) {
   const router = useRouter();
   const [text, setText] = useState("");
   const [images, setImages] = useState<string[]>([]);
+  const [pdfName, setPdfName] = useState<string | null>(null);
+  const [pdfDataUrl, setPdfDataUrl] = useState<string | null>(null);
+  const [camLink, setCamLink] = useState("");
   const [busy, setBusy] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
 
   const addFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -71,12 +77,34 @@ export function ReadingAiImport({ bank }: { bank: "PRACTICE" | "MOCK" }) {
       }
     }
     if (out.length) setImages((prev) => [...prev, ...out]);
-    if (fileRef.current) fileRef.current.value = "";
+    if (imageInputRef.current) imageInputRef.current.value = "";
+  };
+
+  const addPdf = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const f = files[0];
+    if (f.type !== "application/pdf" && !f.name.toLowerCase().endsWith(".pdf")) {
+      toast.error("Chỉ nhận file .pdf");
+      return;
+    }
+    if (f.size > MAX_PDF_BYTES) {
+      toast.error("File PDF quá lớn (>12MB) — chia nhỏ hoặc xuất ảnh từng trang");
+      return;
+    }
+    try {
+      const data = await readAsDataUrl(f);
+      setPdfDataUrl(data);
+      setPdfName(f.name);
+      toast.success(`Đã chọn ${f.name}`);
+    } catch {
+      toast.error("Không đọc được file PDF");
+    }
+    if (pdfInputRef.current) pdfInputRef.current.value = "";
   };
 
   const generate = async () => {
-    if (!text.trim() && images.length === 0) {
-      toast.error("Dán nội dung đề hoặc tải ảnh đề lên trước");
+    if (!text.trim() && images.length === 0 && !pdfDataUrl && !camLink.trim()) {
+      toast.error("Dán nội dung, tải ảnh/PDF, hoặc dán link CamScanner trước");
       return;
     }
     setBusy(true);
@@ -84,7 +112,13 @@ export function ReadingAiImport({ bank }: { bank: "PRACTICE" | "MOCK" }) {
       const res = await fetch("/api/admin/reading/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rawText: text.trim() || undefined, images, bank }),
+        body: JSON.stringify({
+          rawText: text.trim() || undefined,
+          images,
+          pdfDataUrl: pdfDataUrl ?? undefined,
+          camScannerUrl: !pdfDataUrl && camLink.trim() ? camLink.trim() : undefined,
+          bank,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Tạo đề thất bại");
@@ -103,8 +137,9 @@ export function ReadingAiImport({ bank }: { bank: "PRACTICE" | "MOCK" }) {
           <Sparkles className="h-5 w-5 text-primary" /> Tạo đề bằng AI
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Dán nguyên cả đề (đoạn văn + câu hỏi) hoặc tải ảnh chụp/scan đề lên. AI sẽ tự nhận
-          dạng loại câu hỏi, tự giải và tạo bài Reading hoàn chỉnh — bạn chỉ cần kiểm tra lại.
+          Có thể (1) dán nguyên đề chữ, (2) tải ảnh chụp/scan từng trang, (3) tải file PDF từ
+          CamScanner, hoặc (4) dán link CamScanner. AI đọc tất cả, tự nhận dạng loại câu hỏi,
+          tự giải và tạo bài Reading hoàn chỉnh — bạn chỉ cần kiểm tra lại.
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -119,9 +154,71 @@ export function ReadingAiImport({ bank }: { bank: "PRACTICE" | "MOCK" }) {
           />
         </div>
 
+        <div className="rounded-xl border bg-muted/30 p-3 space-y-2">
+          <div className="flex items-center gap-2 text-sm font-extrabold uppercase tracking-wider text-primary">
+            <FileText className="h-4 w-4" /> Tải file PDF từ CamScanner
+          </div>
+          <input
+            ref={pdfInputRef}
+            type="file"
+            accept="application/pdf,.pdf"
+            className="hidden"
+            onChange={(e) => addPdf(e.target.files)}
+          />
+          {pdfDataUrl ? (
+            <div className="flex items-center justify-between rounded-lg border bg-background px-3 py-2 text-sm">
+              <div className="flex items-center gap-2 min-w-0">
+                <FileText className="h-4 w-4 shrink-0 text-primary" />
+                <span className="truncate font-medium">{pdfName}</span>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={busy}
+                onClick={() => {
+                  setPdfDataUrl(null);
+                  setPdfName(null);
+                }}
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-lg"
+              disabled={busy}
+              onClick={() => pdfInputRef.current?.click()}
+            >
+              <Upload className="h-4 w-4" /> Chọn file PDF
+            </Button>
+          )}
+          <div>
+            <Label className="text-xs">Hoặc dán link CamScanner</Label>
+            <div className="flex items-center gap-2">
+              <LinkIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+              <Input
+                value={camLink}
+                onChange={(e) => setCamLink(e.target.value)}
+                disabled={busy || !!pdfDataUrl}
+                placeholder="https://v3.camscanner.com/... hoặc Google Drive direct link"
+                className="text-[13px]"
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              ⚠️ Link CamScanner thường cần đăng nhập — nếu lỗi, vào app CamScanner → Share →
+              <strong> Save PDF</strong> rồi tải file lên ở nút trên. Google Drive nhớ đổi sang
+              link “Anyone with the link” + dạng <span className="font-mono">uc?export=download&id=…</span>.
+            </p>
+          </div>
+        </div>
+
         <div>
           <input
-            ref={fileRef}
+            ref={imageInputRef}
             type="file"
             accept="image/*"
             multiple
@@ -134,13 +231,12 @@ export function ReadingAiImport({ bank }: { bank: "PRACTICE" | "MOCK" }) {
             size="sm"
             className="rounded-lg"
             disabled={busy || images.length >= MAX_IMAGES}
-            onClick={() => fileRef.current?.click()}
+            onClick={() => imageInputRef.current?.click()}
           >
             <Upload className="h-4 w-4" /> Tải ảnh đề lên (chụp / scan)
           </Button>
           <p className="text-xs text-muted-foreground mt-1">
-            Dùng được cả khi chỉ có ảnh, không cần gõ lại. File PDF: hãy xuất/chụp từng trang
-            thành ảnh. Tối đa {MAX_IMAGES} ảnh.
+            Dùng khi chỉ có ảnh — không cần gõ lại. Tối đa {MAX_IMAGES} ảnh.
           </p>
           {images.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-2">
