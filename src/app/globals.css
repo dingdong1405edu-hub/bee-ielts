@@ -250,3 +250,15 @@
   }
 }
 
+/* Fullscreen mock test: hide the (learn) layout chrome so the candidate sees
+   only the test surface. Triggered by browser fullscreen (mock-runner calls
+   document.documentElement.requestFullscreen()). */
+html:fullscreen [data-chrome],
+html:-webkit-full-screen [data-chrome] {
+  display: none !important;
+}
+html:fullscreen main,
+html:-webkit-full-screen main {
+  padding: 0 !important;
+}
+

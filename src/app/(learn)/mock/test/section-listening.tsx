@@ -4,10 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Headphones, Play, Pause } from "lucide-react";
+import { Clock, Headphones, Play, Lock, CheckCircle2 } from "lucide-react";
 import { formatDuration, cn } from "@/lib/utils";
 import { speakText, stopSpeaking, isTTSSupported } from "@/lib/tts";
 import { FormBlanks, TableBlanks, groupQuestions } from "@/components/learn/form-blanks";
+
+const REVIEW_SECONDS = 10 * 60;
 
 type Q = {
   id: string;
@@ -30,27 +32,35 @@ interface Section {
 }
 
 /**
- * Mock Listening — IELTS-style 4 sections in one sitting, but rendered ONE
- * section at a time (forward-only) to mimic the real exam flow. The shared
- * 30-min timer keeps running across sections; after Section 4 the candidate
- * submits to move on to Reading.
+ * Mock Listening — real IELTS flow:
+ *   1. Sections 1→4 are played ONE AT A TIME. Each section's audio can only
+ *      be played a single time (no rewind, no replay). The candidate writes
+ *      answers while listening; clicks "Sang Section X →" to advance.
+ *   2. After Section 4, the candidate enters a 10-minute REVIEW phase. All
+ *      4 sections' questions are visible in one scroll for final touches.
+ *      Audio is permanently locked. A 10-minute countdown auto-submits.
+ * `timeLimit` from the caller is ignored — the real flow drives timing.
  */
 export function MockListening({
   sections,
-  timeLimit,
   onDone,
 }: {
   sections: Section[];
-  timeLimit: number;
+  /** Kept for backward compat with MockRunner; not used. */
+  timeLimit?: number;
   onDone: (answers: Record<string, string>) => void;
 }) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [remaining, setRemaining] = useState(timeLimit);
   const [activeIdx, setActiveIdx] = useState(0);
+  const [phase, setPhase] = useState<"playing" | "reviewing">("playing");
+  const [playedIds, setPlayedIds] = useState<Set<string>>(new Set());
+  const [reviewLeft, setReviewLeft] = useState(REVIEW_SECONDS);
 
+  // 10-min review countdown only — no global timer during playback.
   useEffect(() => {
+    if (phase !== "reviewing") return;
     const t = setInterval(() => {
-      setRemaining((r) => {
+      setReviewLeft((r) => {
         if (r <= 1) {
           clearInterval(t);
           onDone(answers);
@@ -61,7 +71,7 @@ export function MockListening({
     }, 1000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [phase]);
 
   // Continuous numbering across the 4 sections (Q1–40 in a real IELTS).
   const sectionOffsets: number[] = [];
@@ -74,22 +84,74 @@ export function MockListening({
   }
 
   const totalQuestions = sections.reduce((n, s) => n + s.questions.length, 0);
+  const onChange = (qId: string, value: string) =>
+    setAnswers((a) => ({ ...a, [qId]: value }));
+  const markPlayed = (id: string) =>
+    setPlayedIds((s) => {
+      if (s.has(id)) return s;
+      const next = new Set(s);
+      next.add(id);
+      return next;
+    });
+
+  if (phase === "reviewing") {
+    const totalAnswered = sections
+      .flatMap((s) => s.questions)
+      .filter((q) => (answers[q.id] || "").trim()).length;
+    return (
+      <div className="max-w-3xl mx-auto space-y-4">
+        <div className="rounded-2xl border bg-emerald-600 text-white p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="h-6 w-6" />
+            <div>
+              <div className="text-xs uppercase tracking-wider opacity-80">Kiểm tra đáp án · Listening</div>
+              <div className="font-extrabold">10 phút cuối — không thể nghe lại audio</div>
+            </div>
+          </div>
+          <Badge variant="outline" className="bg-white/15 border-white/30 text-white text-base px-3 py-1">
+            <Clock className="h-4 w-4 mr-1" /> {formatDuration(reviewLeft)}
+          </Badge>
+        </div>
+
+        {sections.map((s, i) => (
+          <SectionBlock
+            key={s.id}
+            section={s}
+            startNum={sectionOffsets[i]}
+            answers={answers}
+            onChange={onChange}
+            played
+            onPlayed={() => {}}
+            reviewing
+          />
+        ))}
+
+        <div className="rounded-2xl border bg-card p-4 flex items-center justify-between gap-3 sticky bottom-3 shadow-lg">
+          <div className="text-sm">
+            Đã trả lời <strong>{totalAnswered}/{totalQuestions}</strong>
+          </div>
+          <Button onClick={() => onDone(answers)} variant="brand" size="lg" className="rounded-full">
+            Nộp & sang Reading →
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // —— Section playback phase ——
   const currentSection = sections[activeIdx];
   const currentAnswered = currentSection.questions.filter(
     (q) => (answers[q.id] || "").trim(),
   ).length;
   const isLast = activeIdx === sections.length - 1;
-
-  const onChange = (qId: string, value: string) =>
-    setAnswers((a) => ({ ...a, [qId]: value }));
+  const currentPlayed = playedIds.has(currentSection.id);
 
   const goNext = () => {
     if (isLast) {
-      onDone(answers);
-      return;
+      setPhase("reviewing");
+    } else {
+      setActiveIdx((i) => i + 1);
     }
-    setActiveIdx((i) => i + 1);
-    // Jump to top so the next section starts at its audio player.
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -108,8 +170,8 @@ export function MockListening({
             </div>
           </div>
         </div>
-        <Badge variant="outline" className="bg-white/15 border-white/30 text-white text-base px-3 py-1">
-          <Clock className="h-4 w-4 mr-1" /> {formatDuration(remaining)}
+        <Badge variant="outline" className="bg-white/15 border-white/30 text-white text-xs px-3 py-1">
+          <Lock className="h-3.5 w-3.5 mr-1" /> Audio 1 lần duy nhất
         </Badge>
       </div>
 
@@ -133,6 +195,9 @@ export function MockListening({
         startNum={sectionOffsets[activeIdx]}
         answers={answers}
         onChange={onChange}
+        played={currentPlayed}
+        onPlayed={() => markPlayed(currentSection.id)}
+        reviewing={false}
       />
 
       <div className="rounded-2xl border bg-card p-4 flex items-center justify-between gap-3 sticky bottom-3 shadow-lg">
@@ -140,46 +205,52 @@ export function MockListening({
           Section này: <strong>{currentAnswered}/{currentSection.questions.length}</strong>
         </div>
         <Button onClick={goNext} variant="brand" size="lg" className="rounded-full">
-          {isLast ? "Nộp & sang Reading →" : `Sang Section ${activeIdx + 2} →`}
+          {isLast ? "Sang kiểm tra (10:00) →" : `Sang Section ${activeIdx + 2} →`}
         </Button>
       </div>
     </div>
   );
 }
 
-/** One of the 4 listening sections — own audio + own question list. */
+/**
+ * One of the 4 listening sections — own audio + own question list.
+ * `played` is owned by the parent so the lock survives any local re-render
+ * (e.g. when entering review). `reviewing` hides the audio control entirely.
+ */
 function SectionBlock({
   section,
   startNum,
   answers,
   onChange,
+  played,
+  onPlayed,
+  reviewing,
 }: {
   section: Section;
   startNum: number;
   answers: Record<string, string>;
   onChange: (qId: string, value: string) => void;
+  played: boolean;
+  onPlayed: () => void;
+  reviewing: boolean;
 }) {
   const [playing, setPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const hasRealAudio = section.audioUrl && !section.audioUrl.startsWith("/audio/sample");
+  const locked = played; // already played → no replay
 
-  const togglePlay = async () => {
-    if (hasRealAudio && audioRef.current) {
-      if (playing) {
-        audioRef.current.pause();
-        setPlaying(false);
-      } else {
-        await audioRef.current.play();
-        setPlaying(true);
-      }
-      return;
-    }
-    if (!section.transcript) return;
-    if (playing) {
-      stopSpeaking();
+  const startRealAudio = async () => {
+    if (!audioRef.current || locked || playing) return;
+    try {
+      setPlaying(true);
+      await audioRef.current.play();
+    } catch {
       setPlaying(false);
-      return;
     }
+  };
+
+  const startTts = async () => {
+    if (!section.transcript || locked || playing) return;
     if (!isTTSSupported()) {
       alert("Browser không hỗ trợ TTS. Dùng Chrome desktop nhé.");
       return;
@@ -189,8 +260,12 @@ function SectionBlock({
       await speakText(section.transcript, { rate: 0.9 });
     } finally {
       setPlaying(false);
+      onPlayed();
     }
   };
+
+  // If we unmount mid-playback (e.g. user navigates away), stop TTS cleanly.
+  useEffect(() => () => stopSpeaking(), []);
 
   return (
     <div className="space-y-3">
@@ -211,25 +286,49 @@ function SectionBlock({
             // eslint-disable-next-line @next/next/no-img-element
             <img src={section.imageUrl} alt="" className="w-full max-h-56 rounded-lg border bg-muted/30 object-contain" />
           )}
-          {hasRealAudio ? (
-            <audio
-              ref={audioRef}
-              src={section.audioUrl}
-              onPlay={() => setPlaying(true)}
-              onPause={() => setPlaying(false)}
-              onEnded={() => setPlaying(false)}
-              controls
-              className="w-full"
-            />
-          ) : (
+          {/* Audio control — strictly play-once. Hidden during review. */}
+          {!reviewing && (
             <div className="rounded-xl border p-4 bg-muted/30">
-              <Button onClick={togglePlay} variant={playing ? "destructive" : "brand"} size="lg" className="w-full">
-                {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                {playing ? "Dừng" : "Phát audio"}
-              </Button>
-              <p className="text-xs text-muted-foreground mt-2 text-center">
-                ⚠️ Mock test — Audio dùng giọng AI.
-              </p>
+              {hasRealAudio && (
+                <audio
+                  ref={audioRef}
+                  src={section.audioUrl}
+                  onEnded={() => {
+                    setPlaying(false);
+                    onPlayed();
+                  }}
+                  // No `controls` — candidate cannot seek back, pause, or replay.
+                  className="hidden"
+                />
+              )}
+              {locked ? (
+                <div className="flex items-center justify-center gap-2 text-sm font-bold text-muted-foreground py-2">
+                  <Lock className="h-4 w-4" /> Đã nghe xong — không thể nghe lại
+                </div>
+              ) : playing ? (
+                <Button disabled variant="outline" size="lg" className="w-full">
+                  <Play className="h-4 w-4" /> Đang phát… (không thể dừng)
+                </Button>
+              ) : (
+                <Button
+                  onClick={hasRealAudio ? startRealAudio : startTts}
+                  variant="brand"
+                  size="lg"
+                  className="w-full"
+                >
+                  <Play className="h-4 w-4" /> Phát audio (1 lần duy nhất)
+                </Button>
+              )}
+              {!hasRealAudio && (
+                <p className="text-xs text-muted-foreground mt-2 text-center">
+                  ⚠️ Mock test — Audio dùng giọng AI.
+                </p>
+              )}
+            </div>
+          )}
+          {reviewing && (
+            <div className="rounded-xl border bg-muted/40 p-3 flex items-center justify-center gap-2 text-xs font-bold text-muted-foreground">
+              <Lock className="h-3.5 w-3.5" /> Đã khoá audio — đang trong 10 phút kiểm tra
             </div>
           )}
           {section.contentImageUrl && (

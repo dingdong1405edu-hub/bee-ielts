@@ -22,9 +22,11 @@ export default async function LearnLayout({ children }: { children: React.ReactN
   return (
     <div className="flex min-h-screen">
       <LearnBackground />
-      <Sidebar isAdmin={isAdmin} />
+      <div data-chrome>
+        <Sidebar isAdmin={isAdmin} />
+      </div>
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 backdrop-blur-md px-4 py-3 md:px-8 md:py-4">
+        <header data-chrome className="sticky top-0 z-30 flex items-center justify-between gap-3 backdrop-blur-md px-4 py-3 md:px-8 md:py-4">
           <div className="flex items-center gap-2 md:hidden">
             <MobileMenu isAdmin={isAdmin} />
             <div className="grid h-9 w-9 place-items-center rounded-xl gradient-brand text-white font-bold text-sm">🐝</div>
@@ -51,8 +53,10 @@ export default async function LearnLayout({ children }: { children: React.ReactN
         </header>
         <main className="flex-1 p-4 md:p-8">{children}</main>
       </div>
-      <AddWordButton />
-      <PopQuiz enabled={user?.popQuizOn ?? false} />
+      <div data-chrome>
+        <AddWordButton />
+        <PopQuiz enabled={user?.popQuizOn ?? false} />
+      </div>
     </div>
   );
 }
