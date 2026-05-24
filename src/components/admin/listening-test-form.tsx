@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Trash2, Plus, Loader2, GraduationCap, Headphones, AlignLeft, Table, List } from "lucide-react";
+import { Trash2, Plus, Loader2, GraduationCap, Headphones, AlignLeft, Table, List, Sparkles, Upload } from "lucide-react";
 import { ImageUrlField } from "./image-url-field";
 import { AudioUrlField } from "./audio-url-field";
 import { DeleteTestButton } from "./delete-test-button";
@@ -186,10 +186,63 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
   const [formAnswers, setFormAnswers] = useState<string[]>(init.formAnswers);
   const [tablePassage, setTablePassage] = useState(init.tablePassage);
   const [tableAnswers, setTableAnswers] = useState<string[]>(init.tableAnswers);
+  const [extractingTable, setExtractingTable] = useState(false);
+  const tableImgRef = useRef<HTMLInputElement>(null);
 
   const blankCount = countBlanks(formPassage);
   const tableBlankCount = countBlanks(tablePassage);
   const hasMatching = questions.some((q) => q.type === "MATCHING_HEADINGS");
+
+  /** Pop the OS file picker → compress → send to AI → fill table textarea + answers. */
+  const extractTableFromFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const arr = Array.from(files).slice(0, 4).filter((f) => f.type.startsWith("image/"));
+    if (arr.length === 0) return;
+    setExtractingTable(true);
+    try {
+      const images: string[] = [];
+      for (const f of arr) {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(r.result as string);
+          r.onerror = () => reject(new Error("read failed"));
+          r.readAsDataURL(f);
+        });
+        const compressed = await new Promise<string>((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => {
+            const maxW = 2000;
+            const scale = Math.min(1, maxW / img.width);
+            const c = document.createElement("canvas");
+            c.width = Math.round(img.width * scale);
+            c.height = Math.round(img.height * scale);
+            const ctx = c.getContext("2d");
+            if (!ctx) return reject(new Error("no canvas"));
+            ctx.drawImage(img, 0, 0, c.width, c.height);
+            resolve(c.toDataURL("image/jpeg", 0.85));
+          };
+          img.onerror = () => reject(new Error("load failed"));
+          img.src = dataUrl;
+        });
+        images.push(compressed);
+      }
+      const res = await fetch("/api/admin/extract-table", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ images }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "AI không đọc được bảng");
+      setTablePassage(data.tableText as string);
+      setTableAnswers(Array.isArray(data.answers) ? data.answers : []);
+      toast.success("AI đã tạo bảng — kiểm tra lại đáp án bên dưới");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Tạo bảng thất bại");
+    } finally {
+      setExtractingTable(false);
+      if (tableImgRef.current) tableImgRef.current.value = "";
+    }
+  };
 
   const patchQ = (qi: number, patch: Partial<Q>) =>
     setQuestions((qs) => qs.map((q, i) => (i === qi ? { ...q, ...patch } : q)));
@@ -492,11 +545,44 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
             <Table className="h-5 w-5 text-primary" /> Bảng điền chỗ trống — dán cả bảng
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Dán một bảng (table completion). Mỗi ô cách nhau bằng Tab hoặc dấu “|”, mỗi hàng
-            một dòng. Hàng đầu là tiêu đề cột. Mỗi ô cần điền là một chuỗi dấu chấm.
+            Dán bảng (Word/Excel/Pages — cột tự cách bằng Tab), hoặc bấm{" "}
+            <strong>“Tải ảnh để AI tạo bảng”</strong> để AI dựng lại bảng + đáp án từ ảnh
+            chụp/scan. Mỗi ô cần điền là một chuỗi dấu chấm.
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
+          <div className="rounded-xl border bg-muted/30 p-3 space-y-2">
+            <div className="flex items-center gap-2 text-sm font-extrabold uppercase tracking-wider text-primary">
+              <Sparkles className="h-4 w-4" /> AI tạo bảng từ ảnh
+            </div>
+            <input
+              ref={tableImgRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(e) => extractTableFromFiles(e.target.files)}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-lg"
+              disabled={extractingTable}
+              onClick={() => tableImgRef.current?.click()}
+            >
+              {extractingTable ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="h-4 w-4" />
+              )}
+              {extractingTable ? "AI đang đọc bảng…" : "Tải ảnh để AI tạo bảng"}
+            </Button>
+            <p className="text-[11px] text-muted-foreground">
+              Chụp/scan rõ phần bảng (kèm cả tiêu đề cột). AI sẽ điền vào ô “Bảng” và danh sách
+              đáp án bên dưới — bạn kiểm tra lại trước khi lưu. Tối đa 4 ảnh.
+            </p>
+          </div>
           <div>
             <Label>Bảng</Label>
             <Textarea
