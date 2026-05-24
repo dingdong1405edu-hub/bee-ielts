@@ -15,7 +15,7 @@ import { DeleteTestButton } from "./delete-test-button";
 import { countBlanks, parseTablePaste, buildFormQuestions } from "@/lib/form-completion";
 
 type Bank = "PRACTICE" | "MOCK";
-type QType = "MCQ" | "FILL_BLANK" | "TRUE_FALSE_NOT_GIVEN" | "SHORT_ANSWER" | "MATCHING_HEADINGS";
+type QType = "MCQ" | "FILL_BLANK" | "TRUE_FALSE_NOT_GIVEN" | "SHORT_ANSWER" | "MATCHING_HEADINGS" | "MATCHING";
 
 type Q = {
   type: QType;
@@ -59,6 +59,7 @@ const TYPE_LABEL: Record<QType, string> = {
   TRUE_FALSE_NOT_GIVEN: "Xác nhận thông tin (True / False / Not Given)",
   SHORT_ANSWER: "Câu trả lời ngắn (Short answer)",
   MATCHING_HEADINGS: "Nối tiêu đề (Matching Headings)",
+  MATCHING: "Nối câu (Matching) — chọn A/B/C/…",
 };
 
 const blankQ = (type: QType): Q => ({
@@ -97,7 +98,8 @@ function coerceType(t: string): QType {
     t === "FILL_BLANK" ||
     t === "TRUE_FALSE_NOT_GIVEN" ||
     t === "SHORT_ANSWER" ||
-    t === "MATCHING_HEADINGS"
+    t === "MATCHING_HEADINGS" ||
+    t === "MATCHING"
   )
     return t;
   if (t.startsWith("TRUE_FALSE")) return "TRUE_FALSE_NOT_GIVEN";
@@ -113,6 +115,8 @@ function coerceType(t: string): QType {
 type FormState = {
   questions: Q[];
   headings: string[];
+  /** Shared option list for plain MATCHING questions (A, B, C…). */
+  matchOptions: string[];
   formPassage: string;
   formAnswers: string[];
   tablePassage: string;
@@ -124,6 +128,7 @@ function toFormState(initial?: ListeningInitial): FormState {
     return {
       questions: [blankQ("MCQ")],
       headings: ["", "", "", ""],
+      matchOptions: ["", "", "", ""],
       formPassage: "",
       formAnswers: [],
       tablePassage: "",
@@ -134,6 +139,7 @@ function toFormState(initial?: ListeningInitial): FormState {
   const formQs = initial.questions.filter((q) => q.formGroup && !q.formGroup.startsWith("tbl"));
   const regular = initial.questions.filter((q) => !q.formGroup);
   let headings: string[] = [];
+  let matchOptions: string[] = [];
   const questions: Q[] = regular.map((q) => {
     const type = coerceType(q.type);
     const explanation = q.explanation ?? "";
@@ -143,6 +149,13 @@ function toFormState(initial?: ListeningInitial): FormState {
       // Keep the most complete list seen so every stored answer index resolves.
       if (hs.length > headings.length) headings = hs;
       const idx = ROMAN.indexOf(q.correctAnswer);
+      return { type, prompt: q.prompt, options: [], correctAnswer: idx >= 0 ? String(idx) : "", explanation, displayNumber };
+    }
+    if (type === "MATCHING") {
+      const mo = (q.options ?? []).map((o) => o.replace(/^[A-Z]\.\s*/, "").trim());
+      if (mo.length > matchOptions.length) matchOptions = mo;
+      // correctAnswer is a single letter (A/B/…) — translate to an index.
+      const idx = q.correctAnswer.length === 1 ? q.correctAnswer.toUpperCase().charCodeAt(0) - 65 : -1;
       return { type, prompt: q.prompt, options: [], correctAnswer: idx >= 0 ? String(idx) : "", explanation, displayNumber };
     }
     if (type === "MCQ") {
@@ -159,6 +172,7 @@ function toFormState(initial?: ListeningInitial): FormState {
   return {
     questions: finalQuestions,
     headings: headings.length >= 2 ? headings : ["", "", "", ""],
+    matchOptions: matchOptions.length >= 2 ? matchOptions : ["", "", "", ""],
     formPassage: formQs.length ? stitch(formQs) : "",
     formAnswers: formQs.map((q) => q.correctAnswer),
     tablePassage: tableQs.length ? stitch(tableQs) : "",
@@ -182,6 +196,7 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
   const [init] = useState(() => toFormState(initial));
   const [questions, setQuestions] = useState<Q[]>(init.questions);
   const [headings, setHeadings] = useState<string[]>(init.headings);
+  const [matchOptions, setMatchOptions] = useState<string[]>(init.matchOptions);
   const [formPassage, setFormPassage] = useState(init.formPassage);
   const [formAnswers, setFormAnswers] = useState<string[]>(init.formAnswers);
   const [tablePassage, setTablePassage] = useState(init.tablePassage);
@@ -192,6 +207,7 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
   const blankCount = countBlanks(formPassage);
   const tableBlankCount = countBlanks(tablePassage);
   const hasMatching = questions.some((q) => q.type === "MATCHING_HEADINGS");
+  const hasMatch = questions.some((q) => q.type === "MATCHING");
 
   /** Pop the OS file picker → compress → send to AI → fill table textarea + answers. */
   const extractTableFromFiles = async (files: FileList | null) => {
@@ -264,6 +280,23 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
     );
   };
 
+  const setMatchOptionAt = (oi: number, v: string) =>
+    setMatchOptions((opts) => opts.map((x, j) => (j === oi ? v : x)));
+
+  /** Remove a shared MATCHING option and reindex every question's chosen letter. */
+  const removeMatchOption = (oi: number) => {
+    setMatchOptions((opts) => opts.filter((_, i) => i !== oi));
+    setQuestions((qs) =>
+      qs.map((q) => {
+        if (q.type !== "MATCHING" || q.correctAnswer === "") return q;
+        const idx = parseInt(q.correctAnswer, 10);
+        if (idx === oi) return { ...q, correctAnswer: "" };
+        if (idx > oi) return { ...q, correctAnswer: String(idx - 1) };
+        return q;
+      }),
+    );
+  };
+
   /** Paragraph letter for the Matching Headings question at index `qi`. */
   const mhLetterAt = (qi: number): string => {
     let c = 0;
@@ -278,6 +311,9 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
     patch.options = type === "MCQ" ? (q.options.length ? q.options : blankQ("MCQ").options) : [];
     if (type === "MATCHING_HEADINGS" && !q.prompt.trim()) {
       patch.prompt = `Speaker ${mhLetterAt(qi)}`;
+    }
+    if (type === "MATCHING" && !q.prompt.trim()) {
+      patch.prompt = "Câu cần nối…";
     }
     patchQ(qi, patch);
   };
@@ -317,6 +353,21 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
     }
     const numberedHeadings = finalHeadings.map((h, i) => `${ROMAN[i]}. ${h}`);
 
+    // Same idea for plain MATCHING questions — shared A/B/C list.
+    const matchRemap = new Map<number, number>();
+    const finalMatch: string[] = [];
+    if (hasMatch) {
+      matchOptions.forEach((o, i) => {
+        const t = o.trim();
+        if (t) {
+          matchRemap.set(i, finalMatch.length);
+          finalMatch.push(t);
+        }
+      });
+      if (finalMatch.length < 2) return toast.error("Danh sách câu nối cần ít nhất 2 mục");
+    }
+    const letteredMatch = finalMatch.map((o, i) => `${LETTERS[i]}. ${o}`);
+
     // Loose questions.
     const regularPayload: Payload[] = [];
     for (let i = 0; i < questions.length; i++) {
@@ -343,6 +394,11 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
         const newIdx = Number.isNaN(origIdx) ? undefined : headingRemap.get(origIdx);
         if (newIdx === undefined) return toast.error(`Câu ${i + 1}: chọn heading đúng cho đoạn này`);
         regularPayload.push({ type: "MATCHING_HEADINGS", prompt: q.prompt.trim(), options: numberedHeadings, correctAnswer: ROMAN[newIdx], explanation: q.explanation.trim() || undefined, displayNumber });
+      } else if (q.type === "MATCHING") {
+        const origIdx = parseInt(q.correctAnswer, 10);
+        const newIdx = Number.isNaN(origIdx) ? undefined : matchRemap.get(origIdx);
+        if (newIdx === undefined) return toast.error(`Câu ${i + 1}: chọn câu nối đúng (A/B/C/…)`);
+        regularPayload.push({ type: "MATCHING", prompt: q.prompt.trim(), options: letteredMatch, correctAnswer: LETTERS[newIdx], explanation: q.explanation.trim() || undefined, displayNumber });
       } else if (q.type === "TRUE_FALSE_NOT_GIVEN") {
         if (!["True", "False", "Not Given"].includes(q.correctAnswer))
           return toast.error(`Câu ${i + 1}: chọn đáp án đúng`);
@@ -665,6 +721,42 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
         </Card>
       )}
 
+      {hasMatch && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <List className="h-5 w-5 text-primary" /> Danh sách câu nối (dùng chung)
+              </CardTitle>
+              <Button size="sm" variant="outline" onClick={() => setMatchOptions([...matchOptions, ""])}>
+                <Plus className="h-4 w-4" /> Thêm câu
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Danh sách câu nối đánh số A, B, C… Mỗi câu “Matching” bên dưới sẽ chọn 1 câu nối
+              từ danh sách này. VD: A. Likes coffee · B. Prefers tea · C. Doesn’t drink at all.
+            </p>
+            {matchOptions.map((o, oi) => (
+              <div key={oi} className="flex items-center gap-2">
+                <span className="text-sm font-bold w-8 shrink-0 text-muted-foreground">{LETTERS[oi]}.</span>
+                <Input
+                  value={o}
+                  placeholder={`Nội dung câu nối ${LETTERS[oi] ?? oi + 1}`}
+                  onChange={(e) => setMatchOptionAt(oi, e.target.value)}
+                />
+                {matchOptions.length > 2 && (
+                  <Button variant="ghost" size="sm" onClick={() => removeMatchOption(oi)}>
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </Button>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -725,7 +817,13 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
               </div>
 
               <div>
-                <Label>{q.type === "MATCHING_HEADINGS" ? "Tên đoạn / Speaker (hiển thị cạnh ô chọn)" : "Nội dung câu hỏi"}</Label>
+                <Label>
+                  {q.type === "MATCHING_HEADINGS"
+                    ? "Tên đoạn / Speaker (hiển thị cạnh ô chọn)"
+                    : q.type === "MATCHING"
+                      ? "Câu cần nối (học viên sẽ chọn A/B/C/… cho câu này)"
+                      : "Nội dung câu hỏi"}
+                </Label>
                 <Textarea
                   value={q.prompt}
                   onChange={(e) => patchQ(qi, { prompt: e.target.value })}
@@ -736,7 +834,9 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
                         ? "Một nhận định để người học xác nhận."
                         : q.type === "MATCHING_HEADINGS"
                           ? "VD: Speaker A"
-                          : "Nội dung câu hỏi..."
+                          : q.type === "MATCHING"
+                            ? "VD: Tom nói rằng…"
+                            : "Nội dung câu hỏi..."
                   }
                 />
               </div>
@@ -745,6 +845,10 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
 
               {q.type === "MATCHING_HEADINGS" && (
                 <HeadingPicker headings={headings} value={q.correctAnswer} onChange={(v) => patchQ(qi, { correctAnswer: v })} />
+              )}
+
+              {q.type === "MATCHING" && (
+                <MatchPicker options={matchOptions} value={q.correctAnswer} onChange={(v) => patchQ(qi, { correctAnswer: v })} />
               )}
 
               {q.type === "TRUE_FALSE_NOT_GIVEN" && (
@@ -880,6 +984,43 @@ function HeadingPicker({
       {!filled && (
         <p className="text-xs text-destructive mt-1">
           Hãy nhập “Danh sách Heading” ở khung phía trên trước.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Dropdown for a plain MATCHING question — picks one A/B/C/… from the shared list. */
+function MatchPicker({
+  options,
+  value,
+  onChange,
+}: {
+  options: string[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const filled = options.some((o) => o.trim());
+  return (
+    <div>
+      <Label>Câu nối đúng (A/B/C/…)</Label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+      >
+        <option value="">— Chọn —</option>
+        {options.map((o, oi) =>
+          o.trim() ? (
+            <option key={oi} value={String(oi)}>
+              {LETTERS[oi]}. {o}
+            </option>
+          ) : null,
+        )}
+      </select>
+      {!filled && (
+        <p className="text-xs text-destructive mt-1">
+          Hãy nhập “Danh sách câu nối” ở khung phía trên trước.
         </p>
       )}
     </div>

@@ -142,13 +142,15 @@ export function ListeningPlayer({
                   <p className="font-medium flex-1">{q.prompt}</p>
                   {submitted && (isCorrect ? <CheckCircle2 className="h-5 w-5 text-success" /> : <XCircle className="h-5 w-5 text-destructive" />)}
                 </div>
-                {q.type === "MATCHING_HEADINGS" ? (
+                {q.type === "MATCHING_HEADINGS" || q.type === "MATCHING" ? (
                   <MatchingHeadingPicker
                     options={q.options ?? []}
                     value={userAns}
                     correct={q.correctAnswer}
                     submitted={submitted}
                     onChange={(v) => setAnswers((a) => ({ ...a, [q.id]: v }))}
+                    label={q.type === "MATCHING" ? "Danh sách câu nối" : "Danh sách Heading"}
+                    placeholder={q.type === "MATCHING" ? "— Chọn A/B/C/… —" : "— Chọn heading —"}
                   />
                 ) : q.options ? (
                   <div className="space-y-2">
@@ -345,27 +347,36 @@ function MatchingHeadingPicker({
   correct,
   submitted,
   onChange,
+  label = "Danh sách Heading",
+  placeholder = "— Chọn heading —",
 }: {
   options: string[];
   value: string;
   correct: string;
   submitted: boolean;
   onChange: (v: string) => void;
+  label?: string;
+  placeholder?: string;
 }) {
+  // Accept both roman ("i. text") and letter ("A. text") prefixes — letters
+  // are kept upper-case, romans lower-case so values match the saved keys.
   const items = options.map((opt) => {
-    const m = opt.match(/^([ivxIVX]+)\.\s*(.*)$/);
-    return { roman: m ? m[1].toLowerCase() : opt, label: m ? m[2] : opt, raw: opt };
+    const m = opt.match(/^([A-Z]|[ivxIVX]+)\.\s*(.*)$/);
+    if (!m) return { key: opt, label: opt };
+    const raw = m[1];
+    const isLetter = /^[A-Z]$/.test(raw);
+    return { key: isLetter ? raw : raw.toLowerCase(), label: m[2] };
   });
   return (
     <div className="space-y-2">
       <div className="rounded-lg border bg-muted/30 px-3 py-2">
         <div className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground mb-1">
-          Danh sách Heading
+          {label}
         </div>
         <ul className="space-y-0.5 text-sm leading-relaxed">
           {items.map((it) => (
-            <li key={it.roman}>
-              <span className="font-bold mr-1">{it.roman}.</span> {it.label}
+            <li key={it.key}>
+              <span className="font-bold mr-1">{it.key}.</span> {it.label}
             </li>
           ))}
         </ul>
@@ -380,10 +391,10 @@ function MatchingHeadingPicker({
           submitted && value !== correct && "border-destructive",
         )}
       >
-        <option value="">— Chọn heading —</option>
+        <option value="">{placeholder}</option>
         {items.map((it) => (
-          <option key={it.roman} value={it.roman}>
-            {it.roman}. {it.label}
+          <option key={it.key} value={it.key}>
+            {it.key}. {it.label}
           </option>
         ))}
       </select>

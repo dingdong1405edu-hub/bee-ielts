@@ -406,11 +406,13 @@ function SectionBlock({
                   <span className="font-semibold text-primary">{num}.</span>
                   <p className="font-medium flex-1">{q.prompt}</p>
                 </div>
-                {q.type === "MATCHING_HEADINGS" ? (
+                {q.type === "MATCHING_HEADINGS" || q.type === "MATCHING" ? (
                   <MockHeadingPicker
                     options={q.options ?? []}
                     value={userAns}
                     onChange={(v) => onChange(q.id, v)}
+                    label={q.type === "MATCHING" ? "Danh sách câu nối" : "Danh sách Heading"}
+                    placeholder={q.type === "MATCHING" ? "— Chọn A/B/C/… —" : "— Chọn heading —"}
                   />
                 ) : q.options ? (
                   <div className="space-y-2">
@@ -455,25 +457,33 @@ function MockHeadingPicker({
   options,
   value,
   onChange,
+  label = "Danh sách Heading",
+  placeholder = "— Chọn heading —",
 }: {
   options: string[];
   value: string;
   onChange: (v: string) => void;
+  label?: string;
+  placeholder?: string;
 }) {
+  // Accept both roman ("i. text") and letter ("A. text") prefixes.
   const items = options.map((opt) => {
-    const m = opt.match(/^([ivxIVX]+)\.\s*(.*)$/);
-    return { roman: m ? m[1].toLowerCase() : opt, label: m ? m[2] : opt };
+    const m = opt.match(/^([A-Z]|[ivxIVX]+)\.\s*(.*)$/);
+    if (!m) return { key: opt, label: opt };
+    const raw = m[1];
+    const isLetter = /^[A-Z]$/.test(raw);
+    return { key: isLetter ? raw : raw.toLowerCase(), label: m[2] };
   });
   return (
     <div className="space-y-2">
       <div className="rounded-lg border bg-muted/30 px-3 py-2">
         <div className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground mb-1">
-          Danh sách Heading
+          {label}
         </div>
         <ul className="space-y-0.5 text-sm leading-relaxed">
           {items.map((it) => (
-            <li key={it.roman}>
-              <span className="font-bold mr-1">{it.roman}.</span> {it.label}
+            <li key={it.key}>
+              <span className="font-bold mr-1">{it.key}.</span> {it.label}
             </li>
           ))}
         </ul>
@@ -483,10 +493,10 @@ function MockHeadingPicker({
         onChange={(e) => onChange(e.target.value)}
         className="h-10 w-full rounded-lg border-2 bg-background px-3 text-sm font-bold"
       >
-        <option value="">— Chọn heading —</option>
+        <option value="">{placeholder}</option>
         {items.map((it) => (
-          <option key={it.roman} value={it.roman}>
-            {it.roman}. {it.label}
+          <option key={it.key} value={it.key}>
+            {it.key}. {it.label}
           </option>
         ))}
       </select>
