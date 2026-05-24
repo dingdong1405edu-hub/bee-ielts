@@ -55,9 +55,15 @@ interface Props {
   submitting?: boolean;
   /** Practise mode: đếm xuôi thời gian đã làm, không tự nộp khi hết giờ. */
   countUp?: boolean;
+  /**
+   * Mock mode: candidate must move forward part-by-part — the bottom nav
+   * becomes a progress indicator only, and an in-pane "Sang Part X →" button
+   * advances. Submit only appears on the last part.
+   */
+  sequential?: boolean;
 }
 
-export function ReadingShell({ testTitle, parts, timeLimit, onSubmit, submitting, countUp }: Props) {
+export function ReadingShell({ testTitle, parts, timeLimit, onSubmit, submitting, countUp, sequential }: Props) {
   const [activePart, setActivePart] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [remaining, setRemaining] = useState(timeLimit);
@@ -170,14 +176,33 @@ export function ReadingShell({ testTitle, parts, timeLimit, onSubmit, submitting
               </>
             )}
           </div>
-          <Button
-            onClick={() => onSubmit(answers)}
-            disabled={submitting}
-            size="sm"
-            className="rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white h-8 md:h-9 px-3 md:px-4 text-xs md:text-sm"
-          >
-            Submit <Send className="h-3.5 w-3.5" />
-          </Button>
+          {sequential ? (
+            <Button
+              onClick={() => {
+                if (activePart < parts.length - 1) {
+                  setActivePart(activePart + 1);
+                  // Reset scroll to top of next part.
+                  if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+                } else {
+                  onSubmit(answers);
+                }
+              }}
+              disabled={submitting}
+              size="sm"
+              className="rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white h-8 md:h-9 px-3 md:px-4 text-xs md:text-sm"
+            >
+              {activePart < parts.length - 1 ? `Sang Part ${activePart + 2} →` : <>Submit <Send className="h-3.5 w-3.5" /></>}
+            </Button>
+          ) : (
+            <Button
+              onClick={() => onSubmit(answers)}
+              disabled={submitting}
+              size="sm"
+              className="rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white h-8 md:h-9 px-3 md:px-4 text-xs md:text-sm"
+            >
+              Submit <Send className="h-3.5 w-3.5" />
+            </Button>
+          )}
         </div>
       </header>
 
@@ -254,6 +279,7 @@ export function ReadingShell({ testTitle, parts, timeLimit, onSubmit, submitting
         activePart={activePart}
         setActivePart={setActivePart}
         answers={answers}
+        locked={!!sequential}
       />
     </div>
     </HighlightProvider>
@@ -598,11 +624,14 @@ function BottomNav({
   activePart,
   setActivePart,
   answers,
+  locked,
 }: {
   parts: ShellPart[];
   activePart: number;
   setActivePart: (i: number) => void;
   answers: Record<string, string>;
+  /** Mock mode: nav becomes a read-only progress indicator. */
+  locked?: boolean;
 }) {
   const partOffsets = parts.reduce<number[]>((acc, p, i) => {
     if (i === 0) return [1];
@@ -618,10 +647,16 @@ function BottomNav({
           return (
             <button
               key={p.id}
-              onClick={() => setActivePart(i)}
+              onClick={() => {
+                if (locked) return;
+                setActivePart(i);
+              }}
+              disabled={locked && !active}
               className={cn(
                 "flex items-center gap-2 md:gap-3 rounded-xl border-2 px-2 py-1 md:px-3 md:py-1.5 transition-colors",
-                active ? "border-primary bg-accent/30 min-w-[180px] md:min-w-[260px]" : "border-border hover:border-primary/30",
+                active ? "border-primary bg-accent/30 min-w-[180px] md:min-w-[260px]" : "border-border",
+                !locked && !active && "hover:border-primary/30",
+                locked && !active && "opacity-50 cursor-not-allowed",
               )}
             >
               <span className={cn("font-bold text-xs md:text-sm shrink-0", active ? "text-primary" : "text-foreground")}>

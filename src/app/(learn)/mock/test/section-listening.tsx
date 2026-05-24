@@ -30,9 +30,10 @@ interface Section {
 }
 
 /**
- * Mock Listening — IELTS-style 4 sections in one sitting. Each section has its
- * own audio recording (admin labels which section it belongs to); the candidate
- * plays each, answers its questions, and submits everything together for grading.
+ * Mock Listening — IELTS-style 4 sections in one sitting, but rendered ONE
+ * section at a time (forward-only) to mimic the real exam flow. The shared
+ * 30-min timer keeps running across sections; after Section 4 the candidate
+ * submits to move on to Reading.
  */
 export function MockListening({
   sections,
@@ -45,6 +46,7 @@ export function MockListening({
 }) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [remaining, setRemaining] = useState(timeLimit);
+  const [activeIdx, setActiveIdx] = useState(0);
 
   useEffect(() => {
     const t = setInterval(() => {
@@ -70,13 +72,26 @@ export function MockListening({
       off += s.questions.length;
     }
   }
-  const totalAnswered = sections
-    .flatMap((s) => s.questions)
-    .filter((q) => (answers[q.id] || "").trim()).length;
+
   const totalQuestions = sections.reduce((n, s) => n + s.questions.length, 0);
+  const currentSection = sections[activeIdx];
+  const currentAnswered = currentSection.questions.filter(
+    (q) => (answers[q.id] || "").trim(),
+  ).length;
+  const isLast = activeIdx === sections.length - 1;
 
   const onChange = (qId: string, value: string) =>
     setAnswers((a) => ({ ...a, [qId]: value }));
+
+  const goNext = () => {
+    if (isLast) {
+      onDone(answers);
+      return;
+    }
+    setActiveIdx((i) => i + 1);
+    // Jump to top so the next section starts at its audio player.
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   return (
     <div className="max-w-3xl mx-auto space-y-4">
@@ -84,8 +99,13 @@ export function MockListening({
         <div className="flex items-center gap-3">
           <Headphones className="h-6 w-6" />
           <div>
-            <div className="text-xs uppercase tracking-wider opacity-80">Section 1/4 · Listening</div>
-            <div className="font-extrabold">4 sections, {totalQuestions} câu</div>
+            <div className="text-xs uppercase tracking-wider opacity-80">
+              Section {activeIdx + 1}/{sections.length} · Listening
+            </div>
+            <div className="font-extrabold">
+              {totalQuestions} câu · Câu {sectionOffsets[activeIdx]}–
+              {sectionOffsets[activeIdx] + currentSection.questions.length - 1}
+            </div>
           </div>
         </div>
         <Badge variant="outline" className="bg-white/15 border-white/30 text-white text-base px-3 py-1">
@@ -93,22 +113,34 @@ export function MockListening({
         </Badge>
       </div>
 
-      {sections.map((s, i) => (
-        <SectionBlock
-          key={s.id}
-          section={s}
-          startNum={sectionOffsets[i]}
-          answers={answers}
-          onChange={onChange}
-        />
-      ))}
+      {/* Section progress dots — visible only, not clickable (forward-only). */}
+      <div className="flex items-center justify-center gap-1.5">
+        {sections.map((s, i) => (
+          <div
+            key={s.id}
+            className={cn(
+              "h-1.5 rounded-full transition-all",
+              i < activeIdx ? "w-6 bg-amber-500" : i === activeIdx ? "w-10 bg-amber-600" : "w-6 bg-muted",
+            )}
+            aria-label={`Section ${i + 1}`}
+          />
+        ))}
+      </div>
+
+      <SectionBlock
+        key={currentSection.id}
+        section={currentSection}
+        startNum={sectionOffsets[activeIdx]}
+        answers={answers}
+        onChange={onChange}
+      />
 
       <div className="rounded-2xl border bg-card p-4 flex items-center justify-between gap-3 sticky bottom-3 shadow-lg">
         <div className="text-sm">
-          Đã trả lời <strong>{totalAnswered}/{totalQuestions}</strong>
+          Section này: <strong>{currentAnswered}/{currentSection.questions.length}</strong>
         </div>
-        <Button onClick={() => onDone(answers)} variant="brand" size="lg" className="rounded-full">
-          Nộp & sang Reading →
+        <Button onClick={goNext} variant="brand" size="lg" className="rounded-full">
+          {isLast ? "Nộp & sang Reading →" : `Sang Section ${activeIdx + 2} →`}
         </Button>
       </div>
     </div>

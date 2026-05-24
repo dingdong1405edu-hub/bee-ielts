@@ -26,6 +26,7 @@ export function MockReading({
       parts={parts}
       timeLimit={timeLimit}
       onSubmit={(ans) => onDone(ans)}
+      sequential
     />
   );
 }

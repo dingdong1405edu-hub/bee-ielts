@@ -1,7 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Headphones, BookOpen, PenLine, Mic, GraduationCap, Trophy, Loader2 } from "lucide-react";
+import { Headphones, BookOpen, PenLine, Mic, GraduationCap, Trophy, Loader2, Maximize2, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { BreakTimer } from "./break-timer";
@@ -10,6 +10,29 @@ import { MockReading } from "./section-reading";
 import { MockWriting } from "./section-writing";
 import { MockSpeaking } from "./section-speaking";
 import { toast } from "sonner";
+
+/** Best-effort fullscreen request; ignores failures (some browsers / iframes block). */
+async function enterFullscreen() {
+  if (typeof document === "undefined") return;
+  const el = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> };
+  try {
+    if (el.requestFullscreen) await el.requestFullscreen();
+    else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
+  } catch {
+    // user denied or browser blocked — silently skip
+  }
+}
+
+async function exitFullscreen() {
+  if (typeof document === "undefined") return;
+  const d = document as Document & { webkitExitFullscreen?: () => Promise<void> };
+  try {
+    if (document.fullscreenElement && document.exitFullscreen) await document.exitFullscreen();
+    else if (d.webkitExitFullscreen) await d.webkitExitFullscreen();
+  } catch {
+    // ignore
+  }
+}
 
 type Stage =
   | "intro"
@@ -59,6 +82,29 @@ export function MockRunner({ targetBand, listenings, readings, writing, speaking
   });
   const [speakingTranscripts, setSpeakingTranscripts] = useState<{ 1: string; 2: string; 3: string }>({ 1: "", 2: "", 3: "" });
   const [result, setResult] = useState<MockResult | null>(null);
+  const [isFs, setIsFs] = useState(false);
+
+  // Track fullscreen state so the toggle button reflects reality (user can press Esc).
+  useEffect(() => {
+    const onChange = () => setIsFs(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
+  // When the candidate finishes (or aborts), drop back out of fullscreen.
+  useEffect(() => {
+    if (stage === "done" || stage === "intro") exitFullscreen();
+  }, [stage]);
+
+  const startMock = async () => {
+    await enterFullscreen();
+    setStage("listening");
+  };
+
+  const toggleFs = async () => {
+    if (document.fullscreenElement) await exitFullscreen();
+    else await enterFullscreen();
+  };
 
   const submitMock = async (transcripts: { 1: string; 2: string; 3: string }) => {
     setStage("grading");
@@ -111,7 +157,8 @@ export function MockRunner({ targetBand, listenings, readings, writing, speaking
           <CardContent className="p-5 text-sm space-y-2">
             <p>📋 Listening → Reading (60′, 4 bài) → nghỉ 15′ → Writing (60′, 2 task) → Speaking (3 part)</p>
             <p>⏸ Có 1 lần nghỉ 15 phút sau Reading (có thể skip)</p>
-            <p>🚫 Khi bắt đầu rồi thì không thể quay lại phần trước</p>
+            <p>🚫 Khi bắt đầu rồi thì không thể quay lại phần / section trước</p>
+            <p>🖥️ Tự bật toàn màn hình khi bắt đầu — nhấn Esc để thoát bất kỳ lúc nào</p>
             <p>📊 Cuối bài AI sẽ chấm cả 4 kỹ năng</p>
           </CardContent>
         </Card>
@@ -119,7 +166,7 @@ export function MockRunner({ targetBand, listenings, readings, writing, speaking
           <Button variant="outline" size="xl" className="flex-1 rounded-full" onClick={() => router.push("/mock")}>
             Quay lại
           </Button>
-          <Button variant="brand" size="xl" className="flex-1 rounded-full" onClick={() => setStage("listening")}>
+          <Button variant="brand" size="xl" className="flex-1 rounded-full" onClick={startMock}>
             Bắt đầu →
           </Button>
         </div>
@@ -127,60 +174,80 @@ export function MockRunner({ targetBand, listenings, readings, writing, speaking
     );
   }
 
+  const fsToggle = <FsToggle isFs={isFs} onClick={toggleFs} />;
+
   if (stage === "listening") {
     return (
-      <MockListening
-        sections={listenings}
-        timeLimit={30 * 60}
-        onDone={(ans) => {
-          setListeningAns(ans);
-          setStage("reading");
-        }}
-      />
+      <>
+        <MockListening
+          sections={listenings}
+          timeLimit={30 * 60}
+          onDone={(ans) => {
+            setListeningAns(ans);
+            setStage("reading");
+          }}
+        />
+        {fsToggle}
+      </>
     );
   }
 
   if (stage === "reading") {
     return (
-      <MockReading
-        passages={readings}
-        timeLimit={60 * 60}
-        onDone={(ans) => {
-          setReadingAns(ans);
-          setStage("break");
-        }}
-      />
+      <>
+        <MockReading
+          passages={readings}
+          timeLimit={60 * 60}
+          onDone={(ans) => {
+            setReadingAns(ans);
+            setStage("break");
+          }}
+        />
+        {fsToggle}
+      </>
     );
   }
-  if (stage === "break") return <BreakTimer seconds={15 * 60} onDone={() => setStage("writing")} />;
+  if (stage === "break")
+    return (
+      <>
+        <BreakTimer seconds={15 * 60} onDone={() => setStage("writing")} />
+        {fsToggle}
+      </>
+    );
 
   if (stage === "writing") {
     return (
-      <MockWriting
-        task1={writing.task1}
-        task2={writing.task2}
-        timeLimit={60 * 60}
-        onDone={(essays) => {
-          setWritingEssays(essays);
-          setStage("speaking");
-        }}
-      />
+      <>
+        <MockWriting
+          task1={writing.task1}
+          task2={writing.task2}
+          timeLimit={60 * 60}
+          onDone={(essays) => {
+            setWritingEssays(essays);
+            setStage("speaking");
+          }}
+        />
+        {fsToggle}
+      </>
     );
   }
 
   if (stage === "speaking") {
     return (
-      <MockSpeaking
-        topic={speaking.topic}
-        imageUrl={speaking.imageUrl}
-        part1Questions={speaking.part1Questions}
-        part2CueCard={speaking.part2CueCard}
-        part3Questions={speaking.part3Questions}
-        onDone={(transcripts) => {
-          setSpeakingTranscripts(transcripts);
-          submitMock(transcripts);
-        }}
-      />
+      <>
+        <MockSpeaking
+          topic={speaking.topic}
+          imageUrl={speaking.imageUrl}
+          part1Questions={speaking.part1Questions}
+          part2CueCard={speaking.part2CueCard}
+          part3Questions={speaking.part3Questions}
+          onDone={(transcripts) => {
+            setSpeakingTranscripts(transcripts);
+            submitMock(transcripts);
+          }}
+        />
+        {fsToggle}
+      </>
     );
   }
 
@@ -274,5 +341,19 @@ function SkillCard({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+/** Floating button to enter/exit fullscreen during the mock test. */
+function FsToggle({ isFs, onClick }: { isFs: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="fixed bottom-4 right-4 z-[60] grid h-11 w-11 place-items-center rounded-full border bg-card/95 backdrop-blur shadow-lg hover:bg-accent transition-colors"
+      title={isFs ? "Thoát toàn màn hình (Esc)" : "Vào toàn màn hình"}
+      aria-label={isFs ? "Thoát toàn màn hình" : "Vào toàn màn hình"}
+    >
+      {isFs ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+    </button>
   );
 }
