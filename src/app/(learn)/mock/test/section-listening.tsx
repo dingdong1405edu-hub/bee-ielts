@@ -267,6 +267,38 @@ function SectionBlock({
   // If we unmount mid-playback (e.g. user navigates away), stop TTS cleanly.
   useEffect(() => () => stopSpeaking(), []);
 
+  // Auto-play the moment this section mounts so the candidate doesn't have to
+  // click "Phát audio" every time they advance to the next section. The user
+  // gesture from "Sang Section X →" carries through, so browsers allow it.
+  // Skips when already played (review phase remount) or in review mode.
+  useEffect(() => {
+    if (reviewing || locked) return;
+    if (hasRealAudio) {
+      // Defer so the <audio> element is mounted before we ask it to play.
+      const t = setTimeout(() => {
+        if (!audioRef.current) return;
+        audioRef.current.play().then(() => setPlaying(true)).catch(() => {
+          // Autoplay blocked — leave the "Phát audio" button visible so user can click.
+        });
+      }, 50);
+      return () => clearTimeout(t);
+    }
+    // TTS fallback: only start if browser supports it; ignore errors.
+    if (section.transcript && isTTSSupported()) {
+      const t = setTimeout(() => {
+        setPlaying(true);
+        speakText(section.transcript ?? "", { rate: 0.9 })
+          .catch(() => {})
+          .finally(() => {
+            setPlaying(false);
+            onPlayed();
+          });
+      }, 50);
+      return () => clearTimeout(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="space-y-3">
       <Card>

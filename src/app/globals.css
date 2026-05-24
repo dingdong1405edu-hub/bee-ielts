@@ -250,21 +250,17 @@
   }
 }
 
-/* Fullscreen mock test: hide the (learn) layout chrome so the candidate sees
-   only the test surface. Triggered by browser fullscreen (mock-runner calls
-   document.documentElement.requestFullscreen()). */
-html:fullscreen [data-chrome],
-html:-webkit-full-screen [data-chrome] {
+/* Exam mode: while the candidate is inside the mock test (listening →
+   speaking), hide the (learn) layout chrome and widen the test pane so the
+   page reads as a clean exam UI. Toggled by mock-runner adding/removing
+   `mock-exam` on document.body when the active stage is in-test. */
+body.mock-exam [data-chrome] {
   display: none !important;
 }
-html:fullscreen main,
-html:-webkit-full-screen main {
+body.mock-exam main {
   padding: 1.5rem 0 !important;
 }
-/* Let the test pane breathe — without sidebar/topbar, the 3xl-wide cards
-   look stranded on a 1920px monitor. Expand to ~1280px with side padding. */
-html:fullscreen [data-mock-pane],
-html:-webkit-full-screen [data-mock-pane] {
+body.mock-exam [data-mock-pane] {
   max-width: min(1280px, 95vw) !important;
   padding-left: 1.5rem !important;
   padding-right: 1.5rem !important;

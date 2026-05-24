@@ -96,6 +96,21 @@ export function MockRunner({ targetBand, listenings, readings, writing, speaking
     if (stage === "done" || stage === "intro") exitFullscreen();
   }, [stage]);
 
+  // Exam mode: hide the learn-layout chrome (sidebar + topbar + floating
+  // helpers) once the candidate enters any test stage, regardless of
+  // whether they've also entered browser fullscreen.
+  useEffect(() => {
+    const inTest =
+      stage === "listening" ||
+      stage === "reading" ||
+      stage === "break" ||
+      stage === "writing" ||
+      stage === "speaking";
+    if (inTest) document.body.classList.add("mock-exam");
+    else document.body.classList.remove("mock-exam");
+    return () => document.body.classList.remove("mock-exam");
+  }, [stage]);
+
   const startMock = async () => {
     await enterFullscreen();
     setStage("listening");
