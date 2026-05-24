@@ -99,7 +99,7 @@ export function MockListening({
       .flatMap((s) => s.questions)
       .filter((q) => (answers[q.id] || "").trim()).length;
     return (
-      <div className="max-w-3xl mx-auto space-y-4">
+      <div data-mock-pane className="max-w-3xl mx-auto space-y-4">
         <div className="rounded-2xl border bg-emerald-600 text-white p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <CheckCircle2 className="h-6 w-6" />
@@ -156,7 +156,7 @@ export function MockListening({
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-4">
+    <div data-mock-pane className="max-w-3xl mx-auto space-y-4">
       <div className="rounded-2xl border bg-amber-500 text-white p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Headphones className="h-6 w-6" />

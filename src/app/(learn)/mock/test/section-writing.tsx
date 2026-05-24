@@ -68,7 +68,7 @@ export function MockWriting({
   const wc = wordCount(essay);
 
   return (
-    <div className="max-w-5xl mx-auto space-y-4">
+    <div data-mock-pane className="max-w-5xl mx-auto space-y-4">
       <div className="rounded-2xl border bg-rose-600 text-white p-4 flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <PenLine className="h-6 w-6" />

@@ -259,6 +259,14 @@ html:-webkit-full-screen [data-chrome] {
 }
 html:fullscreen main,
 html:-webkit-full-screen main {
-  padding: 0 !important;
+  padding: 1.5rem 0 !important;
+}
+/* Let the test pane breathe — without sidebar/topbar, the 3xl-wide cards
+   look stranded on a 1920px monitor. Expand to ~1280px with side padding. */
+html:fullscreen [data-mock-pane],
+html:-webkit-full-screen [data-mock-pane] {
+  max-width: min(1280px, 95vw) !important;
+  padding-left: 1.5rem !important;
+  padding-right: 1.5rem !important;
 }
 

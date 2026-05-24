@@ -240,7 +240,7 @@ export function MockSpeaking({ topic, imageUrl, part1Questions, part2CueCard, pa
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4">
+    <div data-mock-pane className="max-w-2xl mx-auto space-y-4">
       <div className="rounded-2xl border bg-indigo-600 text-white p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Mic className="h-6 w-6" />
