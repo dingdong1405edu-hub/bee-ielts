@@ -23,6 +23,7 @@ export default async function EditReadingPage({ params }: { params: Promise<{ id
         title: test.title,
         passage: test.passage,
         imageUrl: test.imageUrl,
+        level: test.level,
         questions: test.questions.map((q) => ({
           type: q.type,
           prompt: q.prompt,

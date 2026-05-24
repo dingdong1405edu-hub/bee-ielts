@@ -7,6 +7,7 @@ const schema = z.object({
   title: z.string().min(1),
   passage: z.string().min(50),
   imageUrl: z.string().url().nullable().optional(),
+  level: z.enum(["A1", "A2", "B1", "B2", "C1", "C2"]).default("B1"),
   bank: z.enum(["PRACTICE", "MOCK"]).default("PRACTICE"),
   questions: z
     .array(
@@ -28,14 +29,15 @@ export async function POST(req: Request) {
   if (!session?.user || session.user.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const parsed = schema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
-  const { title, passage, imageUrl, bank, questions } = parsed.data;
+  const { title, passage, imageUrl, level, bank, questions } = parsed.data;
 
-  // level + timeLimit dùng giá trị mặc định của schema (B1, 1200s) — admin không cần nhập.
+  // timeLimit uses the schema default (1200s); admin picks the CEFR level.
   const test = await prisma.readingTest.create({
     data: {
       title,
       passage,
       imageUrl: imageUrl ?? null,
+      level,
       bank,
       questions: {
         create: questions.map((q, i) => ({

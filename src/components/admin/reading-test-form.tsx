@@ -59,12 +59,24 @@ const blankQ = (type: QType): Q => ({
   displayNumber: "",
 });
 
+type Level = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
+const LEVELS: Level[] = ["A1", "A2", "B1", "B2", "C1", "C2"];
+const LEVEL_LABEL: Record<Level, string> = {
+  A1: "A1 — Sơ cấp (Beginner)",
+  A2: "A2 — Mới biết (Elementary)",
+  B1: "B1 — Trung cấp (Intermediate)",
+  B2: "B2 — Khá (Upper-Intermediate)",
+  C1: "C1 — Cao (Advanced)",
+  C2: "C2 — Thông thạo (Proficiency)",
+};
+
 /** DB-shaped reading test passed in when editing an existing record. */
 export type ReadingInitial = {
   id: string;
   title: string;
   passage: string;
   imageUrl: string | null;
+  level: Level;
   questions: {
     type: string;
     prompt: string;
@@ -156,6 +168,7 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
   const [title, setTitle] = useState(initial?.title ?? "");
   const [passage, setPassage] = useState(initial?.passage ?? "");
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
+  const [level, setLevel] = useState<Level>(initial?.level ?? "B1");
   const [init] = useState(() => toFormState(initial));
   const [questions, setQuestions] = useState<Q[]>(init.questions);
   const [headings, setHeadings] = useState<string[]>(init.headings);
@@ -310,6 +323,7 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
           title: title.trim(),
           passage: passage.trim(),
           imageUrl: imageUrl.trim() || null,
+          level,
           bank,
           questions: [...formPayload, ...payload],
         }),
@@ -344,6 +358,21 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
           <div>
             <Label>Tiêu đề</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="VD: The History of Tea" />
+          </div>
+          <div>
+            <Label>Cấp độ (CEFR)</Label>
+            <select
+              value={level}
+              onChange={(e) => setLevel(e.target.value as Level)}
+              className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+            >
+              {LEVELS.map((l) => (
+                <option key={l} value={l}>{LEVEL_LABEL[l]}</option>
+              ))}
+            </select>
+            <p className="text-xs text-muted-foreground mt-1">
+              Quyết định bài hiển thị trong nhóm cấp độ nào cho học viên.
+            </p>
           </div>
           <div>
             <Label>Đoạn văn (passage)</Label>
