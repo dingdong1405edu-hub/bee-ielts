@@ -1,17 +1,25 @@
 import Link from "next/link";
-import { Plus, Pencil, TrendingUp } from "lucide-react";
+import { Plus, Pencil, TrendingUp, BookOpen } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { SAMPLE_READING_4_TO_5 } from "@/lib/band-climber-reading-sample";
 import { SeedDefaultsButton } from "./seed-defaults-button";
+import { SeedReadingButton } from "./seed-reading-button";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminBandClimberPage() {
   const stages = await prisma.bandStage.findMany({
     orderBy: [{ order: "asc" }, { fromBand: "asc" }],
+    include: {
+      readingTests: { select: { id: true, title: true } },
+    },
   });
+  const fourToFive = stages.find((s) => s.fromBand === 4.0 && s.toBand === 5.0);
+  const sampleExists =
+    fourToFive?.readingTests.some((t) => t.title === SAMPLE_READING_4_TO_5.title) ?? false;
 
   return (
     <div className="max-w-5xl space-y-5">
@@ -24,8 +32,9 @@ export default async function AdminBandClimberPage() {
             Mẹo giúp học viên nâng từ band X lên band Y, chia theo 4 kỹ năng.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <SeedDefaultsButton hasAny={stages.length > 0} />
+          {fourToFive && <SeedReadingButton exists={sampleExists} />}
           <Button asChild>
             <Link href="/admin/band-climber/new">
               <Plus className="h-4 w-4" /> Thêm chặng
@@ -65,6 +74,11 @@ export default async function AdminBandClimberPage() {
                     {s.listening.trim() && <Badge variant="outline" className="text-[10px]">Listening</Badge>}
                     {s.writing.trim() && <Badge variant="outline" className="text-[10px]">Writing</Badge>}
                     {s.speaking.trim() && <Badge variant="outline" className="text-[10px]">Speaking</Badge>}
+                    {s.readingTests.length > 0 && (
+                      <Badge className="text-[10px] bg-emerald-600 hover:bg-emerald-700">
+                        <BookOpen className="h-2.5 w-2.5 mr-0.5" /> {s.readingTests.length} đề Reading
+                      </Badge>
+                    )}
                   </div>
                 </div>
                 <Button asChild variant="outline" size="sm">

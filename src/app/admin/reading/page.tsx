@@ -8,7 +8,7 @@ import { DeleteTestButton } from "@/components/admin/delete-test-button";
 
 export default async function AdminReadingPage() {
   const tests = await prisma.readingTest.findMany({
-    where: { bank: "PRACTICE" },
+    where: { bank: "PRACTICE", bandStageId: null },
     orderBy: { createdAt: "desc" },
     include: { _count: { select: { questions: true } } },
   });

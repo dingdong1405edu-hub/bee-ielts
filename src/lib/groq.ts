@@ -264,7 +264,8 @@ Rules:
 - The quote MUST be a literal substring of the passage (same casing, same punctuation).
 - Keywords MUST be substrings of the quote.
 - All text in Vietnamese only (quote stays in English).
-- Return ONLY valid JSON.`;
+- Return ONLY valid JSON.
+- If a BAND-CLIMB CONTEXT block is present in the user message, you MUST weave those specific tips into the "reasoning" and "mistake" fields. Be concrete: name the exact "từ neo" (hard keyword) in the quote — a number, year, capitalised name, country or term in quotes — and explain how a learner could have located it by scanning. If the question type is order-based (TRUE_FALSE / TRUE_FALSE_NOT_GIVEN / FILL_BLANK / SHORT_ANSWER), remind the learner to prioritise these. If the type is MATCHING_HEADINGS / MATCHING_INFO, remind them to leave these for last.`;
 
 export interface ReadingExplainInput {
   passage: string;
@@ -273,6 +274,8 @@ export interface ReadingExplainInput {
   options?: string[] | null;
   correctAnswer: string;
   userAnswer?: string;
+  /** When set, Groq weaves these band-climb tips into the explanation. */
+  bandClimbContext?: string;
 }
 
 export interface ReadingExplainResult {
@@ -287,7 +290,13 @@ export async function explainReadingGroq(input: ReadingExplainInput): Promise<Re
   const isWrong =
     input.userAnswer !== undefined &&
     !isAnswerCorrect(input.userAnswer, input.correctAnswer, input.questionType);
-  const userMessage = `PASSAGE:
+  const climb = input.bandClimbContext?.trim()
+    ? `BAND-CLIMB CONTEXT (the learner is practising this stage — weave these tips into your reasoning):
+${input.bandClimbContext.trim()}
+
+`
+    : "";
+  const userMessage = `${climb}PASSAGE:
 ${input.passage}
 
 QUESTION TYPE: ${input.questionType}

@@ -108,6 +108,8 @@ model BandStage {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  readingTests ReadingTest[]
+
   @@unique([fromBand, toBand])
 }
 
@@ -270,11 +272,17 @@ model ReadingTest {
   timeLimit Int              @default(1200)
   slot      String?
   bank      TestBank         @default(PRACTICE)
+  // Optional link to a Vượt band stage — when set, the test is hidden from
+  // the regular /reading list and appears as practice attached to a stage
+  // (with the BeeGuide tour + tip-aware Groq explanations).
+  bandStageId String?
+  bandStage   BandStage?     @relation(fields: [bandStageId], references: [id], onDelete: SetNull)
   questions Question[]
   comments  ReadingComment[]
   createdAt DateTime         @default(now())
 
   @@index([bank])
+  @@index([bandStageId])
 }
 
 model ReadingComment {

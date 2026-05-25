@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, TrendingUp } from "lucide-react";
+import { ArrowLeft, BookOpen, Sparkles, TrendingUp } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,15 @@ export default async function BandStagePage({
   params: Promise<{ stageId: string }>;
 }) {
   const { stageId } = await params;
-  const stage = await prisma.bandStage.findUnique({ where: { id: stageId } });
+  const stage = await prisma.bandStage.findUnique({
+    where: { id: stageId },
+    include: {
+      readingTests: {
+        orderBy: { createdAt: "asc" },
+        select: { id: true, title: true, level: true, questions: { select: { id: true } } },
+      },
+    },
+  });
   if (!stage) notFound();
 
   return (
@@ -52,6 +60,43 @@ export default async function BandStagePage({
         <Card>
           <CardContent className="p-5">
             <p className="text-sm leading-relaxed">{stage.description}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {stage.readingTests.length > 0 && (
+        <Card className="border-2 border-emerald-300/60 bg-emerald-50/60 dark:bg-emerald-900/10">
+          <CardContent className="p-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-500/30">
+                <BookOpen className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="font-extrabold text-lg leading-tight">Luyện Reading vượt band</h2>
+                <p className="text-xs text-muted-foreground">
+                  Bee 🐝 sẽ hướng dẫn mẹo trước khi bạn làm bài. Sau khi nộp, AI phân tích từng câu sai kèm mẹo riêng cho chặng này.
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {stage.readingTests.map((t) => (
+                <Link
+                  key={t.id}
+                  href={`/band-climber/${stage.id}/reading/${t.id}`}
+                  className="group rounded-xl border-2 border-emerald-200 bg-card p-3 hover:border-emerald-400 transition-colors flex items-center gap-2"
+                >
+                  <Sparkles className="h-4 w-4 text-emerald-600 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-sm truncate group-hover:text-emerald-700">
+                      {t.title}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {t.level} · {t.questions.length} câu hỏi
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </CardContent>
         </Card>
       )}

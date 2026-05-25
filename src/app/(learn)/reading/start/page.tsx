@@ -21,7 +21,7 @@ export default async function ReadingStartPage() {
   const recentIds = new Set(recent.map((r) => r.refId.replace("mock-", "")));
 
   // Practise = 1 bài đọc duy nhất từ kho practice (thi thử dùng kho MOCK riêng).
-  const all = await prisma.readingTest.findMany({ where: { bank: "PRACTICE" }, select: { id: true } });
+  const all = await prisma.readingTest.findMany({ where: { bank: "PRACTICE", bandStageId: null }, select: { id: true } });
   if (all.length === 0) redirect("/reading");
 
   const fresh = all.filter((t) => !recentIds.has(t.id));

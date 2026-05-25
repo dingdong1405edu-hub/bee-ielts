@@ -10,6 +10,7 @@ const schema = z.object({
   options: z.array(z.string()).nullable().optional(),
   correctAnswer: z.string(),
   userAnswer: z.string().optional(),
+  bandClimbContext: z.string().max(4000).optional(),
 });
 
 export async function POST(req: Request) {

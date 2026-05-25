@@ -29,9 +29,12 @@ type Explanation = {
 export function ReadingSolutions({
   passages,
   answers,
+  bandClimbContext,
 }: {
   passages: SolutionPassage[];
   answers: Record<string, string>;
+  /** When set, sent to /api/reading/explain so Groq tailors tips to the band-climb stage. */
+  bandClimbContext?: string;
 }) {
   const [activePart, setActivePart] = useState(0);
   // cache: questionId -> explanation OR "loading" OR "error"
@@ -57,6 +60,7 @@ export function ReadingSolutions({
           options: q.options,
           correctAnswer: q.correctAnswer,
           userAnswer: answers[q.id] || "",
+          bandClimbContext,
         }),
       });
       if (!res.ok) throw new Error();
