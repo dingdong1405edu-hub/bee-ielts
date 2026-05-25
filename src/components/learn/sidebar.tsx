@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Home, Sparkles, BookOpenText, BookOpen, Headphones, PenLine, Mic,
-  GraduationCap, Shield, LogOut, User, Users, Menu, X, Layers,
+  GraduationCap, Shield, LogOut, User, Users, Menu, X, Layers, TrendingUp,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -18,6 +18,7 @@ const nav = [
   { href: "/writing", label: "Writing", icon: PenLine },
   { href: "/speaking", label: "Speaking", icon: Mic },
   { href: "/words", label: "Học từ", icon: Layers },
+  { href: "/band-climber", label: "Vượt band", icon: TrendingUp },
   { href: "/mock", label: "Thi thử", icon: GraduationCap },
   { href: "/community", label: "Cộng đồng", icon: Users },
   { href: "/profile", label: "Hồ sơ", icon: User },

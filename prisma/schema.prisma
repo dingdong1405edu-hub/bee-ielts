@@ -88,6 +88,29 @@ enum PaymentStatus {
   FAILED
 }
 
+/// A "band climber" stage: a curated lesson admins write to help learners
+/// move from one IELTS band to the next (e.g. 4.0 → 5.0). Each stage holds
+/// markdown content for all four skills; users tap a stage and read the
+/// per-skill tips. Listening stays empty for now per the product spec —
+/// admin can fill it in later without a migration.
+model BandStage {
+  id          String   @id @default(cuid())
+  fromBand    Float
+  toBand      Float
+  title       String
+  subtitle    String?
+  description String?  @db.Text
+  order       Int      @default(0)
+  reading     String   @default("") @db.Text
+  listening   String   @default("") @db.Text
+  writing     String   @default("") @db.Text
+  speaking    String   @default("") @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([fromBand, toBand])
+}
+
 // PayOS order — one per attempted checkout. orderCode is the integer ID
 // PayOS uses to identify the order across its webhook + return URL params.
 model Payment {

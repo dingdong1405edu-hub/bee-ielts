@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { isOwner } from "@/lib/admin";
-import { Shield, BookOpen, PenLine, Mic, Sparkles, BookOpenText, Headphones, Users, KeyRound, ExternalLink, GraduationCap } from "lucide-react";
+import { Shield, BookOpen, PenLine, Mic, Sparkles, BookOpenText, Headphones, Users, KeyRound, ExternalLink, GraduationCap, TrendingUp } from "lucide-react";
 
 const nav = [
   { href: "/admin", label: "Tổng quan", icon: Shield },
@@ -14,6 +14,7 @@ const nav = [
   { href: "/admin/speaking", label: "Speaking", icon: Mic },
   { href: "/admin/vocab", label: "Vocabulary", icon: Sparkles },
   { href: "/admin/grammar", label: "Grammar", icon: BookOpenText },
+  { href: "/admin/band-climber", label: "Vượt band", icon: TrendingUp },
   { href: "/admin/users", label: "Users", icon: Users },
 ];
 
