@@ -23,6 +23,7 @@
     "@anthropic-ai/sdk": "^0.32.1",
     "@auth/prisma-adapter": "^2.7.4",
     "@hookform/resolvers": "^3.9.1",
+    "@payos/node": "^2.0.5",
     "@prisma/client": "^5.22.0",
     "@radix-ui/react-dialog": "^1.1.2",
     "@radix-ui/react-label": "^2.1.0",

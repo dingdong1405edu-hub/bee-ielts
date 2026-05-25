@@ -78,6 +78,34 @@ model User {
   readingComments ReadingComment[]
   wordDecks       WordDeck[]
   studyPlan       StudyPlanEntry[]
+  payments        Payment[]
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  CANCELLED
+  FAILED
+}
+
+// PayOS order — one per attempted checkout. orderCode is the integer ID
+// PayOS uses to identify the order across its webhook + return URL params.
+model Payment {
+  id          String        @id @default(cuid())
+  orderCode   Int           @unique
+  amount      Int
+  description String        @db.Text
+  status      PaymentStatus @default(PENDING)
+  userId      String?
+  user        User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  checkoutUrl String?       @db.Text
+  paidAt      DateTime?
+  rawWebhook  Json?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([status])
 }
 
 // User-created Quizlet-style vocabulary decks.
