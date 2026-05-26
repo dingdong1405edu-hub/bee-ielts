@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Mic, MicOff, Volume2 } from "lucide-react";
 import { formatDuration } from "@/lib/utils";
 import { VoicePicker, useTtsVoice } from "@/components/learn/voice-picker";
+import { playExaminerLine, stopExaminerLine } from "@/lib/tts";
 
 const INTRO_TEXT =
   "This is the speaking IELTS test for the International English Language Testing System.";
@@ -45,40 +46,20 @@ export function MockSpeaking({ topic, imageUrl, part1Questions, part2CueCard, pa
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const stopSpeak = () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-    }
+    stopExaminerLine(audioRef);
     setSpeaking(false);
   };
 
-  // Read a prompt aloud with the chosen Deepgram voice. Resolves when audio ends.
+  /**
+   * Read a prompt aloud. Uses Deepgram via the proxy; if that's unavailable
+   * (missing API key, network failure, …) the helper falls back to the
+   * browser's SpeechSynthesis so the candidate ALWAYS hears the examiner
+   * read each question.
+   */
   const speak = async (text: string) => {
     setSpeaking(true);
     try {
-      const res = await fetch("/api/speaking/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, voice: voiceRef.current }),
-      });
-      if (!res.ok) throw new Error("tts");
-      const url = URL.createObjectURL(await res.blob());
-      if (audioRef.current) audioRef.current.pause();
-      const audio = new Audio(url);
-      audioRef.current = audio;
-      await new Promise<void>((resolve) => {
-        audio.onended = () => {
-          URL.revokeObjectURL(url);
-          resolve();
-        };
-        audio.onerror = () => {
-          URL.revokeObjectURL(url);
-          resolve();
-        };
-        audio.play().catch(() => resolve());
-      });
-    } catch {
-      /* ignore TTS errors — keep the exam flowing */
+      await playExaminerLine(text, voiceRef.current, audioRef);
     } finally {
       setSpeaking(false);
     }

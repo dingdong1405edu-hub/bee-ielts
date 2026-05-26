@@ -13,6 +13,7 @@ import { formatDuration, cn, personalize } from "@/lib/utils";
 import { TipsCard } from "@/components/learn/tips-card";
 import { VoicePicker, useTtsVoice } from "@/components/learn/voice-picker";
 import { VocabSuggestions, type VocabItem } from "@/components/learn/writing-feedback";
+import { playExaminerLine } from "@/lib/tts";
 
 interface DGWord {
   word: string;
@@ -129,27 +130,11 @@ export function SpeakingPlayer({
     };
   }, [phase]);
 
-  // ---- Deepgram TTS: play any text ----
+  // ---- Examiner TTS: Deepgram with SpeechSynthesis fallback ----
   const playTTS = async (text: string) => {
+    setTtsBusy(true);
     try {
-      setTtsBusy(true);
-      const res = await fetch("/api/speaking/tts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, voice }),
-      });
-      if (!res.ok) throw new Error();
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-      const audio = new Audio(url);
-      audioRef.current = audio;
-      audio.onended = () => URL.revokeObjectURL(url);
-      await audio.play();
-    } catch {
-      toast.error("Không phát được âm thanh");
+      await playExaminerLine(text, voice, audioRef);
     } finally {
       setTtsBusy(false);
     }

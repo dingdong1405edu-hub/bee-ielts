@@ -8,6 +8,83 @@ export interface TTSOptions {
   lang?: string;
 }
 
+/**
+ * Speak an examiner line during the Speaking section. Tries the Deepgram
+ * proxy at /api/speaking/tts first — it sounds the most like a real IELTS
+ * examiner. If the proxy is unavailable (DEEPGRAM_API_KEY missing on the
+ * server, network error, etc.) we fall back to the browser's built-in
+ * SpeechSynthesis so the candidate STILL hears the question. The promise
+ * resolves once playback is finished or the fallback's voice stops.
+ *
+ * `audioRef` is mutated so callers can pause an in-flight Deepgram audio
+ * tag when the phase changes (`audioRef.current.pause()`).
+ */
+export async function playExaminerLine(
+  text: string,
+  voice: string,
+  audioRef: { current: HTMLAudioElement | null },
+): Promise<void> {
+  const trimmed = text.trim();
+  if (!trimmed) return;
+
+  // ---- Path 1: Deepgram TTS proxy ----
+  try {
+    const res = await fetch("/api/speaking/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: trimmed, voice }),
+    });
+    if (!res.ok) throw new Error(`tts ${res.status}`);
+    const url = URL.createObjectURL(await res.blob());
+    if (audioRef.current) audioRef.current.pause();
+    const audio = new Audio(url);
+    audioRef.current = audio;
+    await new Promise<void>((resolve) => {
+      audio.onended = () => {
+        URL.revokeObjectURL(url);
+        resolve();
+      };
+      audio.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve();
+      };
+      audio.play().catch(() => {
+        URL.revokeObjectURL(url);
+        resolve();
+      });
+    });
+    return;
+  } catch (e) {
+    console.warn("[playExaminerLine] Deepgram failed, falling back to SpeechSynthesis:", e);
+  }
+
+  // ---- Path 2: browser SpeechSynthesis fallback ----
+  try {
+    await speakText(trimmed, { rate: 0.95 });
+  } catch (e) {
+    console.warn("[playExaminerLine] SpeechSynthesis also failed:", e);
+  }
+}
+
+/** Stop any in-flight examiner audio: pause the Deepgram tag + cancel SpeechSynthesis. */
+export function stopExaminerLine(audioRef: { current: HTMLAudioElement | null }) {
+  if (audioRef.current) {
+    try {
+      audioRef.current.pause();
+    } catch {
+      /* ignore */
+    }
+    audioRef.current = null;
+  }
+  if (typeof window !== "undefined" && "speechSynthesis" in window) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
 export function speakText(text: string, opts: TTSOptions = {}): Promise<void> {
   return new Promise((resolve, reject) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) {
