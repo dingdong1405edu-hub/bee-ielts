@@ -20,6 +20,7 @@ export default async function EditSpeakingPage({ params }: { params: Promise<{ i
         part1Questions: (set.part1Questions as string[]) ?? [],
         part2CueCard: (set.part2CueCard as { topic: string; points: string[] }) ?? { topic: "", points: [] },
         part3Questions: (set.part3Questions as string[]) ?? [],
+        bandStageId: set.bandStageId,
       }}
     />
   );

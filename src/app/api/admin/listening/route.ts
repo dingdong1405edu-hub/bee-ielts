@@ -13,6 +13,7 @@ const schema = z.object({
   transcript: z.string().optional(),
   bank: z.enum(["PRACTICE", "MOCK"]).default("PRACTICE"),
   section: z.number().int().min(1).max(4).nullable().optional(),
+  bandStageId: z.string().nullable().optional(),
   questions: z
     .array(
       z.object({
@@ -35,7 +36,7 @@ export async function POST(req: Request) {
   }
   const parsed = schema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
-  const { title, audioUrl, imageUrl, contentImageUrl, transcript, bank, section, questions } = parsed.data;
+  const { title, audioUrl, imageUrl, contentImageUrl, transcript, bank, section, bandStageId, questions } = parsed.data;
 
   const test = await prisma.listeningTest.create({
     data: {
@@ -46,6 +47,7 @@ export async function POST(req: Request) {
       transcript: transcript || null,
       bank,
       section: section ?? null,
+      bandStageId: bandStageId ?? null,
       questions: {
         create: questions.map((q, i) => ({
           type: q.type,

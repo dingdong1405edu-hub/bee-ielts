@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { ImageUrlField } from "./image-url-field";
 import { DeleteTestButton } from "./delete-test-button";
+import { BandStageSelect } from "./band-stage-select";
 
 /** DB-shaped writing task passed in when editing an existing record. */
 export type WritingInitial = {
@@ -19,6 +20,7 @@ export type WritingInitial = {
   imageUrl: string | null;
   minWords: number;
   timeLimit: number;
+  bandStageId: string | null;
 };
 
 /** Writing-task create/edit form. Pass `initial` to edit an existing record. */
@@ -31,6 +33,7 @@ export function WritingTaskForm({ initial }: { initial?: WritingInitial }) {
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
   const [minWords, setMinWords] = useState(initial?.minWords ?? 250);
   const [timeLimit, setTimeLimit] = useState(initial?.timeLimit ?? 2400);
+  const [bandStageId, setBandStageId] = useState<string | null>(initial?.bandStageId ?? null);
 
   const submit = async () => {
     if (prompt.trim().length < 20) return toast.error("Đề bài quá ngắn (tối thiểu 20 ký tự)");
@@ -45,6 +48,7 @@ export function WritingTaskForm({ initial }: { initial?: WritingInitial }) {
           imageUrl: imageUrl.trim() || null,
           minWords,
           timeLimit,
+          bandStageId,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -97,6 +101,7 @@ export function WritingTaskForm({ initial }: { initial?: WritingInitial }) {
             label="Ảnh bìa / biểu đồ (cho Task 1)"
             hint="Ảnh biểu đồ Task 1 + ảnh bìa thẻ chọn đề. Tải ảnh từ máy, hoặc chuột phải ảnh ngoài web → “Copy image address” rồi dán vào — link sẽ tự được nạp vào hệ thống. Hoặc để AI tạo."
           />
+          <BandStageSelect value={bandStageId} onChange={setBandStageId} />
         </CardContent>
       </Card>
       <div className="flex gap-2">

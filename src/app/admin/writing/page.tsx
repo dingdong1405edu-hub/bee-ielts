@@ -7,7 +7,10 @@ import { Plus, Pencil } from "lucide-react";
 import { DeleteTestButton } from "@/components/admin/delete-test-button";
 
 export default async function AdminWritingPage() {
-  const tasks = await prisma.writingTask.findMany({ orderBy: [{ taskType: "asc" }, { createdAt: "desc" }] });
+  const tasks = await prisma.writingTask.findMany({
+    where: { bandStageId: null },
+    orderBy: [{ taskType: "asc" }, { createdAt: "desc" }],
+  });
   return (
     <div className="space-y-6 max-w-4xl">
       <div className="flex items-center justify-between">

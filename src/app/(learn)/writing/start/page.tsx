@@ -21,8 +21,8 @@ export default async function WritingStartPage() {
   const recentIds = new Set(recent.map((r) => r.refId.replace("mock-", "")));
 
   const [t1Pool, t2Pool] = await Promise.all([
-    prisma.writingTask.findMany({ where: { taskType: 1 }, select: { id: true } }),
-    prisma.writingTask.findMany({ where: { taskType: 2 }, select: { id: true } }),
+    prisma.writingTask.findMany({ where: { taskType: 1, bandStageId: null }, select: { id: true } }),
+    prisma.writingTask.findMany({ where: { taskType: 2, bandStageId: null }, select: { id: true } }),
   ]);
   if (t1Pool.length === 0 || t2Pool.length === 0) redirect("/writing");
 

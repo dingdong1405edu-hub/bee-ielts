@@ -6,7 +6,10 @@ import { Plus, Pencil } from "lucide-react";
 import { DeleteTestButton } from "@/components/admin/delete-test-button";
 
 export default async function AdminSpeakingPage() {
-  const sets = await prisma.speakingSet.findMany({ orderBy: { createdAt: "desc" } });
+  const sets = await prisma.speakingSet.findMany({
+    where: { bandStageId: null },
+    orderBy: { createdAt: "desc" },
+  });
   return (
     <div className="max-w-4xl space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">

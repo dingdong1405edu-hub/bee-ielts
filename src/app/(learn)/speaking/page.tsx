@@ -12,6 +12,7 @@ export default async function SpeakingIntroPage() {
 
   const [sets, counts] = await Promise.all([
     prisma.speakingSet.findMany({
+      where: { bandStageId: null },
       orderBy: { createdAt: "desc" },
       select: { id: true, topic: true, imageUrl: true },
     }),

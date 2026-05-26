@@ -12,6 +12,7 @@ import { Trash2, Plus, Loader2, GraduationCap, Headphones, AlignLeft, Table, Lis
 import { ImageUrlField } from "./image-url-field";
 import { AudioUrlField } from "./audio-url-field";
 import { DeleteTestButton } from "./delete-test-button";
+import { BandStageSelect } from "./band-stage-select";
 import { countBlanks, parseTablePaste, buildFormQuestions } from "@/lib/form-completion";
 
 type Bank = "PRACTICE" | "MOCK";
@@ -81,6 +82,7 @@ export type ListeningInitial = {
   transcript: string | null;
   /** IELTS section 1-4 — only used for MOCK tests. */
   section: number | null;
+  bandStageId: string | null;
   questions: {
     type: string;
     prompt: string;
@@ -193,6 +195,7 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
   const [contentImageUrl, setContentImageUrl] = useState(initial?.contentImageUrl ?? "");
   const [transcript, setTranscript] = useState(initial?.transcript ?? "");
   const [section, setSection] = useState<number | "">(initial?.section ?? "");
+  const [bandStageId, setBandStageId] = useState<string | null>(initial?.bandStageId ?? null);
   const [init] = useState(() => toFormState(initial));
   const [questions, setQuestions] = useState<Q[]>(init.questions);
   const [headings, setHeadings] = useState<string[]>(init.headings);
@@ -456,6 +459,7 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
           transcript: transcript.trim() || undefined,
           bank,
           section: isMock && section !== "" ? section : null,
+          bandStageId,
           questions: payload,
         }),
       });
@@ -534,6 +538,7 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
             label="Ảnh trong bài làm (tuỳ chọn)"
             hint="Ảnh hiển thị ngay trong phần làm bài — dùng cho dạng bản đồ, sơ đồ, bảng biểu mà câu hỏi nhắc tới. Tải ảnh từ máy lên hoặc dán URL."
           />
+          <BandStageSelect value={bandStageId} onChange={setBandStageId} />
         </CardContent>
       </Card>
 

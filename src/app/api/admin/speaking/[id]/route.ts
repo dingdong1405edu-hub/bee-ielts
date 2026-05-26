@@ -12,6 +12,7 @@ const schema = z.object({
     points: z.array(z.string().trim().min(1)).min(1),
   }),
   part3Questions: z.array(z.string().trim().min(1)).min(1),
+  bandStageId: z.string().nullable().optional(),
 });
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -26,7 +27,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const parsed = schema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
-  const { topic, imageUrl, part1Questions, part2CueCard, part3Questions } = parsed.data;
+  const { topic, imageUrl, part1Questions, part2CueCard, part3Questions, bandStageId } = parsed.data;
 
   await prisma.speakingSet.update({
     where: { id },
@@ -36,6 +37,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       part1Questions,
       part2CueCard,
       part3Questions,
+      bandStageId: bandStageId ?? null,
     },
   });
   return NextResponse.json({ id });

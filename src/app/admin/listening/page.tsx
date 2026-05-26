@@ -8,7 +8,7 @@ import { audioSourceLabel } from "@/lib/utils";
 
 export default async function AdminListeningPage() {
   const tests = await prisma.listeningTest.findMany({
-    where: { bank: "PRACTICE" },
+    where: { bank: "PRACTICE", bandStageId: null },
     orderBy: { createdAt: "desc" },
     include: { _count: { select: { questions: true } } },
   });

@@ -12,7 +12,7 @@ export default async function ListeningIntroPage() {
 
   const [tests, counts] = await Promise.all([
     prisma.listeningTest.findMany({
-      where: { bank: "PRACTICE" },
+      where: { bank: "PRACTICE", bandStageId: null },
       orderBy: { createdAt: "desc" },
       select: { id: true, title: true, imageUrl: true, questions: { select: { type: true } } },
     }),

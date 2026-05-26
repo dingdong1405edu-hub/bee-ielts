@@ -108,7 +108,10 @@ model BandStage {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  readingTests ReadingTest[]
+  readingTests   ReadingTest[]
+  listeningTests ListeningTest[]
+  writingTasks   WritingTask[]
+  speakingSets   SpeakingSet[]
 
   @@unique([fromBand, toBand])
 }
@@ -308,10 +311,14 @@ model ListeningTest {
   bank            TestBank   @default(PRACTICE)
   // IELTS section 1-4 — only used for MOCK tests so the runner can pick one per section.
   section         Int?
+  // Optional Vượt band stage attachment (mirrors ReadingTest.bandStageId).
+  bandStageId     String?
+  bandStage       BandStage? @relation(fields: [bandStageId], references: [id], onDelete: SetNull)
   questions       Question[]
   createdAt       DateTime   @default(now())
 
   @@index([bank])
+  @@index([bandStageId])
 }
 
 model Question {
@@ -336,24 +343,32 @@ model Question {
 }
 
 model WritingTask {
-  id         String   @id @default(cuid())
-  taskType   Int
-  prompt     String   @db.Text
-  imageUrl   String?
-  diagramSvg String?  @db.Text
-  minWords   Int      @default(150)
-  timeLimit  Int      @default(1200)
-  createdAt  DateTime @default(now())
+  id          String     @id @default(cuid())
+  taskType    Int
+  prompt      String     @db.Text
+  imageUrl    String?
+  diagramSvg  String?    @db.Text
+  minWords    Int        @default(150)
+  timeLimit   Int        @default(1200)
+  bandStageId String?
+  bandStage   BandStage? @relation(fields: [bandStageId], references: [id], onDelete: SetNull)
+  createdAt   DateTime   @default(now())
+
+  @@index([bandStageId])
 }
 
 model SpeakingSet {
-  id             String   @id @default(cuid())
+  id             String     @id @default(cuid())
   topic          String
-  imageUrl       String?  @db.Text
+  imageUrl       String?    @db.Text
   part1Questions Json
   part2CueCard   Json
   part3Questions Json
-  createdAt      DateTime @default(now())
+  bandStageId    String?
+  bandStage      BandStage? @relation(fields: [bandStageId], references: [id], onDelete: SetNull)
+  createdAt      DateTime   @default(now())
+
+  @@index([bandStageId])
 }
 
 /// User study plan entries: manual notes/milestones plus auto-generated roadmap tasks.

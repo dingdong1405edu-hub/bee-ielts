@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trash2, Plus, Loader2, GraduationCap, BookOpen, List, AlignLeft, Table, Sparkles, Upload } from "lucide-react";
 import { ImageUrlField } from "./image-url-field";
 import { DeleteTestButton } from "./delete-test-button";
+import { BandStageSelect } from "./band-stage-select";
 import { countBlanks, parseTablePaste, buildFormQuestions } from "@/lib/form-completion";
 
 type Bank = "PRACTICE" | "MOCK";
@@ -77,6 +78,7 @@ export type ReadingInitial = {
   passage: string;
   imageUrl: string | null;
   level: Level;
+  bandStageId: string | null;
   questions: {
     type: string;
     prompt: string;
@@ -186,6 +188,7 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
   const [passage, setPassage] = useState(initial?.passage ?? "");
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
   const [level, setLevel] = useState<Level>(initial?.level ?? "B1");
+  const [bandStageId, setBandStageId] = useState<string | null>(initial?.bandStageId ?? null);
   const [init] = useState(() => toFormState(initial));
   const [questions, setQuestions] = useState<Q[]>(init.questions);
   const [headings, setHeadings] = useState<string[]>(init.headings);
@@ -422,6 +425,7 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
           imageUrl: imageUrl.trim() || null,
           level,
           bank,
+          bandStageId,
           questions: [...formPayload, ...tablePayload, ...payload],
         }),
       });
@@ -482,6 +486,7 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
             label="Ảnh bìa (tuỳ chọn)"
             hint="Ảnh bìa hiển thị ở thẻ chọn đề và phía trên đoạn văn. Dán URL, tải ảnh lên, hoặc để AI tạo."
           />
+          <BandStageSelect value={bandStageId} onChange={setBandStageId} />
         </CardContent>
       </Card>
 

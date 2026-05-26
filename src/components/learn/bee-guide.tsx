@@ -273,21 +273,40 @@ function SpotlightBackdrop({
   );
 }
 
-/** Animated bee mascot — 🐝 with idle hover + wing flap. */
+/**
+ * Animated bee mascot. Uses /bee-mascot.png if the admin has dropped a
+ * custom mascot image into `public/`; otherwise renders the 🐝 emoji
+ * inside a yellow gradient circle. The wing flap + idle hover animations
+ * are applied to whichever variant renders.
+ */
 function Bee() {
+  const [imgFailed, setImgFailed] = useState(false);
   return (
     <motion.div
       animate={{ y: [0, -8, 0], rotate: [-3, 3, -3] }}
       transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
       className="relative shrink-0"
-      style={{ width: 64, height: 64 }}
+      style={{ width: 72, height: 72 }}
     >
       <motion.div
         animate={{ scale: [1, 1.05, 1] }}
         transition={{ duration: 0.35, repeat: Infinity, ease: "easeInOut" }}
-        className="grid h-16 w-16 place-items-center rounded-full bg-gradient-to-br from-amber-300 to-amber-500 text-4xl shadow-lg shadow-amber-500/40 drop-shadow-lg"
+        className="h-18 w-18 drop-shadow-lg"
+        style={{ width: 72, height: 72 }}
       >
-        🐝
+        {imgFailed ? (
+          <div className="grid h-full w-full place-items-center rounded-full bg-gradient-to-br from-amber-300 to-amber-500 text-4xl shadow-lg shadow-amber-500/40">
+            🐝
+          </div>
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src="/bee-mascot.png"
+            alt="Bee"
+            onError={() => setImgFailed(true)}
+            className="h-full w-full object-contain"
+          />
+        )}
       </motion.div>
       {/* Trail dots */}
       <motion.span

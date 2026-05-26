@@ -9,6 +9,7 @@ const schema = z.object({
   imageUrl: z.string().url().nullable(),
   minWords: z.number().min(50),
   timeLimit: z.number().min(60),
+  bandStageId: z.string().nullable().optional(),
 });
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -24,7 +25,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const parsed = schema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
 
-  await prisma.writingTask.update({ where: { id }, data: parsed.data });
+  await prisma.writingTask.update({
+    where: { id },
+    data: { ...parsed.data, bandStageId: parsed.data.bandStageId ?? null },
+  });
   return NextResponse.json({ id });
 }
 

@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trash2, Plus, Loader2 } from "lucide-react";
 import { ImageUrlField } from "@/components/admin/image-url-field";
 import { DeleteTestButton } from "@/components/admin/delete-test-button";
+import { BandStageSelect } from "@/components/admin/band-stage-select";
 
 /** DB-shaped speaking set passed in when editing an existing record. */
 export type SpeakingInitial = {
@@ -19,6 +20,7 @@ export type SpeakingInitial = {
   part1Questions: string[];
   part2CueCard: { topic: string; points: string[] };
   part3Questions: string[];
+  bandStageId: string | null;
 };
 
 const updateAt = (arr: string[], i: number, v: string) => arr.map((x, j) => (j === i ? v : x));
@@ -40,6 +42,7 @@ export function SpeakingSetForm({ initial }: { initial?: SpeakingInitial }) {
   const [part3, setPart3] = useState<string[]>(
     initial?.part3Questions?.length ? initial.part3Questions : ["", ""],
   );
+  const [bandStageId, setBandStageId] = useState<string | null>(initial?.bandStageId ?? null);
 
   const submit = async () => {
     if (!topic.trim()) return toast.error("Nhập topic");
@@ -62,6 +65,7 @@ export function SpeakingSetForm({ initial }: { initial?: SpeakingInitial }) {
           part1Questions: p1,
           part2CueCard: { topic: cueTopic.trim(), points },
           part3Questions: p3,
+          bandStageId,
         }),
       });
       const data = await res.json();
@@ -94,6 +98,7 @@ export function SpeakingSetForm({ initial }: { initial?: SpeakingInitial }) {
             label="Ảnh bìa (tuỳ chọn)"
             hint="Ảnh bìa hiển thị ở thẻ chọn đề, màn intro & Part 2. Dán URL, tải ảnh lên, hoặc để AI tạo."
           />
+          <BandStageSelect value={bandStageId} onChange={setBandStageId} />
         </CardContent>
       </Card>
 

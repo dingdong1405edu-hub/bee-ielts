@@ -9,6 +9,7 @@ const schema = z.object({
   imageUrl: z.string().url().nullable().optional(),
   level: z.enum(["A1", "A2", "B1", "B2", "C1", "C2"]).default("B1"),
   bank: z.enum(["PRACTICE", "MOCK"]).default("PRACTICE"),
+  bandStageId: z.string().nullable().optional(),
   questions: z
     .array(
       z.object({
@@ -36,7 +37,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const parsed = schema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
-  const { title, passage, imageUrl, level, bank, questions } = parsed.data;
+  const { title, passage, imageUrl, level, bank, bandStageId, questions } = parsed.data;
 
   // Replace the whole question set so the editor is the single source of truth.
   await prisma.$transaction([
@@ -49,6 +50,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         imageUrl: imageUrl ?? null,
         level,
         bank,
+        bandStageId: bandStageId ?? null,
         questions: {
           create: questions.map((q, i) => ({
             type: q.type,

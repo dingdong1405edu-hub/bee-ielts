@@ -15,6 +15,7 @@ export default async function WritingIntroPage() {
 
   const [tasks, counts] = await Promise.all([
     prisma.writingTask.findMany({
+      where: { bandStageId: null },
       orderBy: [{ taskType: "asc" }, { createdAt: "desc" }],
       select: { id: true, taskType: true, prompt: true, minWords: true, imageUrl: true },
     }),

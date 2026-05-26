@@ -17,11 +17,11 @@ export default async function SpeakingStartPage() {
   const recentIds = recent.map((r) => r.refId.replace("mock-", ""));
 
   let set = await prisma.speakingSet.findFirst({
-    where: { id: { notIn: recentIds.length > 0 ? recentIds : ["__none__"] } },
+    where: { bandStageId: null, id: { notIn: recentIds.length > 0 ? recentIds : ["__none__"] } },
     orderBy: { createdAt: "desc" },
   });
   if (!set) {
-    const all = await prisma.speakingSet.findMany({ select: { id: true } });
+    const all = await prisma.speakingSet.findMany({ where: { bandStageId: null }, select: { id: true } });
     if (all.length === 0) redirect("/speaking");
     set = (await prisma.speakingSet.findUnique({ where: { id: all[Math.floor(Math.random() * all.length)].id } }))!;
   }

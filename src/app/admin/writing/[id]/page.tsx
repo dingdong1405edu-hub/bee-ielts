@@ -20,6 +20,7 @@ export default async function EditWritingPage({ params }: { params: Promise<{ id
         imageUrl: task.imageUrl,
         minWords: task.minWords,
         timeLimit: task.timeLimit,
+        bandStageId: task.bandStageId,
       }}
     />
   );

@@ -16,6 +16,19 @@ const bodySchema = z.object({
   speaking: z.string().default(""),
 });
 
+/** Used by admin exercise forms to populate the "Gắn vào chặng" dropdown. */
+export async function GET() {
+  const session = await auth();
+  if (!session?.user || session.user.role !== "ADMIN") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const stages = await prisma.bandStage.findMany({
+    orderBy: [{ order: "asc" }, { fromBand: "asc" }],
+    select: { id: true, fromBand: true, toBand: true, title: true },
+  });
+  return NextResponse.json({ stages });
+}
+
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user || session.user.role !== "ADMIN") {

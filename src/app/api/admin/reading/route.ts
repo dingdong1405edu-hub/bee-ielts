@@ -9,6 +9,7 @@ const schema = z.object({
   imageUrl: z.string().url().nullable().optional(),
   level: z.enum(["A1", "A2", "B1", "B2", "C1", "C2"]).default("B1"),
   bank: z.enum(["PRACTICE", "MOCK"]).default("PRACTICE"),
+  bandStageId: z.string().nullable().optional(),
   questions: z
     .array(
       z.object({
@@ -29,7 +30,7 @@ export async function POST(req: Request) {
   if (!session?.user || session.user.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const parsed = schema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
-  const { title, passage, imageUrl, level, bank, questions } = parsed.data;
+  const { title, passage, imageUrl, level, bank, bandStageId, questions } = parsed.data;
 
   // timeLimit uses the schema default (1200s); admin picks the CEFR level.
   const test = await prisma.readingTest.create({
@@ -39,6 +40,7 @@ export async function POST(req: Request) {
       imageUrl: imageUrl ?? null,
       level,
       bank,
+      bandStageId: bandStageId ?? null,
       questions: {
         create: questions.map((q, i) => ({
           type: q.type,
