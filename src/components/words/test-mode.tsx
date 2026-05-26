@@ -119,13 +119,13 @@ function MCQQuestion({
     state.answer !== "" ? parseInt(state.answer, 10) : null;
 
   return (
-    <div className="space-y-3">
-      <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+    <div className="space-y-4">
+      <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
         Câu {index + 1} · Trắc nghiệm
       </p>
-      <p className="text-base font-semibold leading-snug">{q.card.definition}</p>
+      <p className="text-xl md:text-2xl font-bold leading-snug">{q.card.definition}</p>
 
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         {q.options.map((opt, i) => {
           const isSelected = selectedIdx === i;
           const isCorrect = state.graded && i === q.correctIndex;
@@ -139,7 +139,7 @@ function MCQQuestion({
               disabled={state.graded}
               onClick={() => !state.graded && onChange(String(i))}
               className={cn(
-                "w-full text-left px-4 py-3 rounded-xl border-2 transition-colors text-sm font-medium",
+                "w-full text-left px-5 py-4 rounded-xl border-2 transition-colors text-lg font-semibold",
                 !state.graded && isSelected &&
                   "border-primary bg-accent",
                 !state.graded && !isSelected &&
@@ -152,7 +152,7 @@ function MCQQuestion({
                   "border-muted opacity-60",
               )}
             >
-              <span className="mr-2 opacity-50">{String.fromCharCode(65 + i)}.</span>
+              <span className="mr-3 font-extrabold opacity-60">{String.fromCharCode(65 + i)}.</span>
               {opt}
             </button>
           );
@@ -160,9 +160,9 @@ function MCQQuestion({
       </div>
 
       {state.graded && !state.correct && (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-base text-muted-foreground">
           Đáp án đúng:{" "}
-          <span className="font-semibold text-green-600 dark:text-green-400">
+          <span className="font-extrabold text-green-600 dark:text-green-400 text-lg">
             {q.card.term}
           </span>
         </p>
@@ -183,11 +183,11 @@ function TypingQuestion({
   const q = state.question as TypingQuestion;
 
   return (
-    <div className="space-y-3">
-      <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+    <div className="space-y-4">
+      <p className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
         Câu {index + 1} · Điền từ
       </p>
-      <p className="text-base font-semibold leading-snug">{q.card.definition}</p>
+      <p className="text-xl md:text-2xl font-bold leading-snug">{q.card.definition}</p>
 
       <input
         type="text"
@@ -196,7 +196,7 @@ function TypingQuestion({
         onChange={(e) => onChange(e.target.value)}
         placeholder="Nhập từ / cụm từ..."
         className={cn(
-          "w-full rounded-xl border-2 px-4 py-3 text-sm font-medium outline-none transition-colors bg-background",
+          "w-full rounded-xl border-2 px-5 py-4 text-xl font-bold outline-none transition-colors bg-background",
           !state.graded && "border-muted focus:border-primary",
           state.graded && state.correct &&
             "border-green-500 bg-green-50 text-green-800 dark:bg-green-950 dark:text-green-300",
@@ -206,9 +206,9 @@ function TypingQuestion({
       />
 
       {state.graded && !state.correct && (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-base text-muted-foreground">
           Đáp án đúng:{" "}
-          <span className="font-semibold text-green-600 dark:text-green-400">
+          <span className="font-extrabold text-green-600 dark:text-green-400 text-lg">
             {q.card.term}
           </span>
         </p>
@@ -261,10 +261,10 @@ export function TestMode({ cards }: { cards: StudyCard[] }) {
   }
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="mx-auto max-w-5xl space-y-7 pb-12">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="font-extrabold text-2xl tracking-tight">Kiểm tra</h2>
+        <h2 className="font-extrabold text-3xl tracking-tight">Kiểm tra</h2>
         {submitted && (
           <Button variant="outline" size="sm" onClick={handleRetry} className="gap-2">
             <RotateCw className="h-4 w-4" />
@@ -309,7 +309,7 @@ export function TestMode({ cards }: { cards: StudyCard[] }) {
               s.graded && !s.correct && "border-red-200 dark:border-red-800",
             )}
           >
-            <CardContent className="py-5 space-y-1">
+            <CardContent className="p-6 space-y-2">
               {/* Graded badge */}
               {s.graded && (
                 <div className="flex justify-end mb-1">

@@ -30,8 +30,12 @@ export function DeckView({
   const [mode, setMode] = useState<Mode>("cards");
   const [cards, setCards] = useState<StudyCard[]>(initialCards);
 
+  // Learning modes (flashcard / learn / match / test) need more room so the
+  // cards + fonts are big enough to read comfortably; the card manager
+  // stays in a narrower lane because it's just a list.
+  const wide = mode !== "cards";
   return (
-    <div className="max-w-3xl mx-auto space-y-5">
+    <div className={cn("mx-auto space-y-5", wide ? "max-w-6xl" : "max-w-3xl")}>
       <div>
         <Link href="/words" className="text-sm text-muted-foreground hover:underline inline-flex items-center gap-1">
           <ArrowLeft className="h-4 w-4" /> Bộ thẻ của tôi

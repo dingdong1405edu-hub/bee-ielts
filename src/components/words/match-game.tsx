@@ -168,21 +168,21 @@ function GameBoard({ cards }: { cards: StudyCard[] }) {
     setGameKey((k) => k + 1);
   }, [cards]);
 
-  // ---------- column count: 3 on mobile, 4 on sm+ ----------
-  const gridClass = "grid grid-cols-3 sm:grid-cols-4 gap-3";
+  // ---------- column count: 2 on mobile, 3 on sm+, 4 on lg+ ----------
+  const gridClass = "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4";
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="mx-auto flex max-w-6xl flex-col gap-6">
       {/* Header row */}
       <div className="flex items-center justify-between">
-        <h2 className="font-extrabold text-lg tracking-tight">Nối hộp</h2>
+        <h2 className="font-extrabold text-2xl tracking-tight">Nối hộp</h2>
         <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1 text-sm font-semibold tabular-nums text-muted-foreground">
-            <Timer className="h-4 w-4" />
+          <span className="flex items-center gap-1.5 text-base font-bold tabular-nums text-muted-foreground">
+            <Timer className="h-5 w-5" />
             {formatTime(elapsed)}
           </span>
-          <Button variant="ghost" size="sm" onClick={restart} className="gap-1.5">
-            <RotateCw className="h-4 w-4" />
+          <Button variant="outline" size="lg" onClick={restart} className="gap-1.5">
+            <RotateCw className="h-5 w-5" />
             Chơi lại
           </Button>
         </div>
@@ -243,22 +243,22 @@ function TileCell({ tile, state, onClick }: TileCellProps) {
       disabled={isMatched}
       onClick={onClick}
       className={cn(
-        // base
-        "relative flex min-h-[5rem] w-full items-center justify-center rounded-xl border-2 p-3",
-        "text-sm font-medium leading-snug transition-all duration-150",
+        // base — much taller + thicker border so tiles read from across the room
+        "relative flex min-h-[8rem] w-full items-center justify-center rounded-2xl border-2 p-4",
+        "text-base md:text-lg font-bold leading-snug transition-all duration-150",
         "cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
         // idle / hover
         !isMatched && !isSelected && !isWrong &&
-          "border-border bg-card hover:border-primary/60 hover:bg-primary/5",
+          "border-border bg-card hover:border-primary/60 hover:bg-primary/5 hover:shadow-md",
         // selected
-        isSelected && "border-primary bg-primary/10 ring-2 ring-primary/40",
+        isSelected && "border-primary bg-primary/10 ring-2 ring-primary/40 shadow-md",
         // wrong flash
         isWrong && "border-destructive bg-destructive/10",
         // matched — invisible but keeps grid slot
         isMatched && "pointer-events-none cursor-default border-transparent bg-transparent opacity-0",
       )}
     >
-      <span className={cn("text-center", isMatched && "invisible")}>{tile.text}</span>
+      <span className={cn("text-center break-words", isMatched && "invisible")}>{tile.text}</span>
     </button>
   );
 }

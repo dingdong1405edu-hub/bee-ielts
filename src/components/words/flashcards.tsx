@@ -91,45 +91,47 @@ export function Flashcards({ cards }: { cards: StudyCard[] }) {
   const card = deck[index];
 
   return (
-    <div className="flex flex-col items-center gap-6 px-4 py-6 select-none">
+    <div className="flex flex-col items-center gap-7 px-4 py-8 select-none">
       {/* Progress */}
-      <div className="flex w-full max-w-2xl items-center justify-between">
-        <span className="text-sm font-medium text-muted-foreground">
+      <div className="flex w-full max-w-5xl items-center justify-between">
+        <span className="text-lg font-bold text-muted-foreground tabular-nums">
           {index + 1} / {deck.length}
         </span>
         <div className="flex gap-2">
           <Button
-            variant="ghost"
-            size="sm"
+            variant="outline"
+            size="lg"
             onClick={handleShuffle}
             aria-label="Trộn thẻ"
             title="Trộn thẻ"
+            className="text-base"
           >
-            <Shuffle className="h-4 w-4 mr-1" />
+            <Shuffle className="h-5 w-5 mr-1.5" />
             Trộn thẻ
           </Button>
           <Button
-            variant="ghost"
-            size="sm"
+            variant="outline"
+            size="lg"
             onClick={handleReset}
             aria-label="Đặt lại"
             title="Đặt lại thứ tự gốc"
+            className="text-base"
           >
-            <RotateCw className="h-4 w-4 mr-1" />
+            <RotateCw className="h-5 w-5 mr-1.5" />
             Đặt lại
           </Button>
         </div>
       </div>
 
       {/* Progress bar */}
-      <div className="w-full max-w-2xl h-1.5 rounded-full bg-muted overflow-hidden">
+      <div className="w-full max-w-5xl h-2 rounded-full bg-muted overflow-hidden">
         <div
           className="h-full rounded-full bg-primary transition-all duration-300"
           style={{ width: `${((index + 1) / deck.length) * 100}%` }}
         />
       </div>
 
-      {/* Card */}
+      {/* Card — wider + taller so the term reads from across the room */}
       <AnimatePresence mode="wait">
         <motion.div
           key={flipKey}
@@ -137,11 +139,11 @@ export function Flashcards({ cards }: { cards: StudyCard[] }) {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -16 }}
           transition={{ duration: 0.18, ease: "easeOut" }}
-          className="w-full max-w-2xl"
+          className="w-full max-w-5xl"
         >
           <div
             className="relative w-full cursor-pointer"
-            style={{ minHeight: "18rem", perspective: "1200px" }}
+            style={{ minHeight: "32rem", perspective: "1200px" }}
             onClick={flip}
             role="button"
             tabIndex={0}
@@ -159,32 +161,33 @@ export function Flashcards({ cards }: { cards: StudyCard[] }) {
               style={{
                 transformStyle: "preserve-3d",
                 transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
-                minHeight: "18rem",
+                minHeight: "32rem",
               }}
             >
               {/* Front */}
               <CardFace side="front">
-                <span className="absolute top-3 right-4 text-xs font-medium text-muted-foreground uppercase tracking-widest">
+                <span className="absolute top-5 right-6 text-sm font-bold text-muted-foreground uppercase tracking-widest">
                   Từ
                 </span>
-                <p className="font-extrabold text-3xl md:text-4xl text-foreground leading-tight">
+                <p className="font-extrabold text-6xl md:text-7xl lg:text-8xl text-foreground leading-tight text-center break-words">
                   {card.term}
                 </p>
-                <p className="mt-4 text-xs text-muted-foreground">
-                  Nhấn vào thẻ hoặc nhấn <kbd className="px-1 py-0.5 rounded bg-muted border text-xs">Space</kbd> để lật
+                <p className="mt-8 text-base text-muted-foreground">
+                  Nhấn vào thẻ hoặc nhấn{" "}
+                  <kbd className="px-2 py-1 rounded bg-muted border text-sm">Space</kbd> để lật
                 </p>
               </CardFace>
 
               {/* Back */}
               <CardFace side="back">
-                <span className="absolute top-3 right-4 text-xs font-medium text-muted-foreground uppercase tracking-widest">
+                <span className="absolute top-5 right-6 text-sm font-bold text-muted-foreground uppercase tracking-widest">
                   Nghĩa
                 </span>
-                <p className="font-extrabold text-2xl md:text-3xl text-foreground leading-snug">
+                <p className="font-extrabold text-4xl md:text-5xl lg:text-6xl text-foreground leading-tight text-center break-words">
                   {card.definition}
                 </p>
                 {card.example && (
-                  <p className="mt-4 text-sm md:text-base italic text-muted-foreground leading-relaxed">
+                  <p className="mt-8 text-xl md:text-2xl italic text-muted-foreground leading-relaxed text-center max-w-3xl">
                     {card.example}
                   </p>
                 )}
@@ -195,40 +198,40 @@ export function Flashcards({ cards }: { cards: StudyCard[] }) {
       </AnimatePresence>
 
       {/* Navigation */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-5">
         <Button
           variant="outline"
-          size="lg"
+          size="xl"
           onClick={goPrev}
           aria-label="Thẻ trước"
-          className={cn(deck.length <= 1 && "opacity-40 pointer-events-none")}
+          className={cn("text-lg px-6", deck.length <= 1 && "opacity-40 pointer-events-none")}
         >
-          <ChevronLeft className="h-5 w-5 mr-1" />
+          <ChevronLeft className="h-6 w-6 mr-1.5" />
           Trước
         </Button>
 
-        <span className="text-sm text-muted-foreground w-16 text-center font-medium tabular-nums">
+        <span className="text-lg text-muted-foreground w-20 text-center font-bold tabular-nums">
           {index + 1} / {deck.length}
         </span>
 
         <Button
           variant="outline"
-          size="lg"
+          size="xl"
           onClick={goNext}
           aria-label="Thẻ tiếp"
-          className={cn(deck.length <= 1 && "opacity-40 pointer-events-none")}
+          className={cn("text-lg px-6", deck.length <= 1 && "opacity-40 pointer-events-none")}
         >
           Tiếp
-          <ChevronRight className="h-5 w-5 ml-1" />
+          <ChevronRight className="h-6 w-6 ml-1.5" />
         </Button>
       </div>
 
       {/* Keyboard hint */}
-      <p className="text-xs text-muted-foreground">
-        <kbd className="px-1.5 py-0.5 rounded bg-muted border">←</kbd>{" "}
-        <kbd className="px-1.5 py-0.5 rounded bg-muted border">→</kbd>{" "}
+      <p className="text-sm text-muted-foreground">
+        <kbd className="px-2 py-1 rounded bg-muted border">←</kbd>{" "}
+        <kbd className="px-2 py-1 rounded bg-muted border">→</kbd>{" "}
         để chuyển thẻ &nbsp;·&nbsp;{" "}
-        <kbd className="px-1.5 py-0.5 rounded bg-muted border">Space</kbd> để lật
+        <kbd className="px-2 py-1 rounded bg-muted border">Space</kbd> để lật
       </p>
     </div>
   );
@@ -248,7 +251,7 @@ function CardFace({ side, children }: CardFaceProps) {
     <div
       className={cn(
         "absolute inset-0 flex flex-col items-center justify-center",
-        "rounded-3xl border bg-card px-8 py-10 shadow-md",
+        "rounded-3xl border-2 bg-card px-10 py-14 shadow-xl",
         "backface-hidden",
         side === "back" && "[transform:rotateY(180deg)]",
       )}

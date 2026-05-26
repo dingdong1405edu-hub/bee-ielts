@@ -144,38 +144,38 @@ export function LearnMode({
   const progressPct = total > 0 ? Math.round((mastered / total) * 100) : 0;
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-7">
       {/* Progress bar */}
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
+      <div className="space-y-2">
+        <div className="flex items-center justify-between text-base font-bold text-muted-foreground">
           <span>
             Đã thuộc{" "}
-            <span className="font-semibold text-foreground">{mastered}</span> /{" "}
+            <span className="font-extrabold text-foreground">{mastered}</span> /{" "}
             {total}
           </span>
-          <span className="font-semibold">{progressPct}%</span>
+          <span className="font-extrabold text-foreground">{progressPct}%</span>
         </div>
-        <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
+        <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
           <div
             className="h-full rounded-full bg-green-500 transition-all duration-500"
             style={{ width: `${progressPct}%` }}
           />
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Còn lại trong hàng đợi:{" "}
-          <span className="font-semibold">{queue.length}</span>
+          <span className="font-bold text-foreground">{queue.length}</span>
         </p>
       </div>
 
-      {/* Flashcard */}
-      <Card className="rounded-3xl shadow-md">
-        <CardContent className="flex min-h-[280px] flex-col items-center justify-center gap-6 p-8 text-center">
+      {/* Flashcard — bigger so the term reads from across the room */}
+      <Card className="rounded-3xl shadow-xl border-2">
+        <CardContent className="flex min-h-[26rem] flex-col items-center justify-center gap-8 p-10 text-center">
           {/* Term */}
-          <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          <div className="space-y-3">
+            <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
               Từ / Thuật ngữ
             </p>
-            <h2 className="text-4xl font-extrabold tracking-tight">
+            <h2 className="text-6xl md:text-7xl lg:text-8xl font-extrabold tracking-tight leading-tight break-words">
               {current.term}
             </h2>
           </div>
@@ -184,29 +184,29 @@ export function LearnMode({
           {!revealed ? (
             <Button
               variant="outline"
-              size="lg"
-              className="gap-2"
+              size="xl"
+              className="gap-2 text-lg px-8"
               onClick={handleReveal}
             >
-              <Eye className="h-4 w-4" />
+              <Eye className="h-6 w-6" />
               Hiện nghĩa
             </Button>
           ) : (
-            <div className="w-full space-y-3 rounded-2xl border border-border bg-muted/40 p-5 text-left">
+            <div className="w-full space-y-4 rounded-2xl border-2 border-border bg-muted/40 p-6 text-left">
               <div>
-                <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                <p className="mb-2 text-sm font-bold uppercase tracking-widest text-muted-foreground">
                   Định nghĩa
                 </p>
-                <p className="text-lg font-semibold leading-snug">
+                <p className="text-2xl md:text-3xl font-bold leading-snug">
                   {current.definition}
                 </p>
               </div>
               {current.example && (
                 <div>
-                  <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  <p className="mb-2 text-sm font-bold uppercase tracking-widest text-muted-foreground">
                     Ví dụ
                   </p>
-                  <p className="italic text-muted-foreground">
+                  <p className="text-lg md:text-xl italic text-muted-foreground leading-relaxed">
                     {current.example}
                   </p>
                 </div>
@@ -228,25 +228,25 @@ export function LearnMode({
         <Button
           size="xl"
           className={cn(
-            "gap-2 rounded-2xl text-white",
+            "gap-2 rounded-2xl text-white text-lg h-16",
             "bg-amber-500 hover:bg-amber-600 active:bg-amber-700",
           )}
           onClick={handleNotMastered}
           aria-label="Chưa thuộc"
         >
-          <X className="h-5 w-5" />
+          <X className="h-6 w-6" />
           Chưa thuộc
         </Button>
         <Button
           size="xl"
           className={cn(
-            "gap-2 rounded-2xl text-white",
+            "gap-2 rounded-2xl text-white text-lg h-16",
             "bg-green-600 hover:bg-green-700 active:bg-green-800",
           )}
           onClick={handleMastered}
           aria-label="Đã thuộc"
         >
-          <Check className="h-5 w-5" />
+          <Check className="h-6 w-6" />
           Đã thuộc ✓
         </Button>
       </div>
