@@ -48,30 +48,10 @@ export function BeeGuide({
   const [rect, setRect] = useState<Rect | null>(null);
   const [viewport, setViewport] = useState({ w: 0, h: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
-  // Typewriter: body text reveals character-by-character so the learner has
-  // a beat to absorb each line — feels like Bee is actually saying it.
-  const [bodyShown, setBodyShown] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
 
   const step = steps[idx];
   const isCenter = step.target === "center";
   const isLast = idx === steps.length - 1;
-
-  // Restart the typewriter every time the step changes.
-  useEffect(() => {
-    setBodyShown("");
-    setIsTyping(true);
-    let i = 0;
-    const id = setInterval(() => {
-      i++;
-      setBodyShown(step.body.slice(0, i));
-      if (i >= step.body.length) {
-        clearInterval(id);
-        setIsTyping(false);
-      }
-    }, 22);
-    return () => clearInterval(id);
-  }, [idx, step.body]);
 
   // Lock body scroll while the tour is active.
   useEffect(() => {
@@ -127,14 +107,9 @@ export function BeeGuide({
   };
   const prev = () => setIdx((i) => Math.max(i - 1, 0));
 
-  // Tap anywhere on the overlay to advance. If the typewriter is still
-  // running, the first tap completes the line; the next tap advances.
+  // Tap anywhere on the overlay to advance the tour. Buttons inside the
+  // bubble stopPropagation so they don't double-fire.
   const handleOverlayTap = () => {
-    if (isTyping) {
-      setBodyShown(step.body);
-      setIsTyping(false);
-      return;
-    }
     next();
   };
 
@@ -233,7 +208,7 @@ export function BeeGuide({
 
       {/* Hint pill: tap to advance */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 pointer-events-none rounded-full bg-white/90 px-3 py-1.5 text-[11px] font-bold text-zinc-700 shadow">
-        {isTyping ? "Tap để hiện hết câu" : "Tap để tiếp tục →"}
+        Tap để tiếp tục →
       </div>
 
       {/* Bee + speech bubble — animated as one cluster */}
@@ -266,10 +241,7 @@ export function BeeGuide({
                     {step.title}
                   </h3>
                   <p className="text-sm leading-relaxed text-foreground/90 mt-1 whitespace-pre-line min-h-[3em]">
-                    {bodyShown}
-                    {isTyping && (
-                      <span className="inline-block w-[2px] h-[1em] ml-0.5 bg-foreground/70 align-text-bottom animate-pulse" />
-                    )}
+                    <TypewriterText text={step.body} />
                   </p>
                   {step.highlights?.map((h, i) => (
                     <div
@@ -432,5 +404,48 @@ function SpeechBubble({ children }: { children: React.ReactNode }) {
       <div className="absolute -left-2 bottom-6 h-4 w-4 rotate-45 bg-white border-l border-b border-zinc-200" />
       {children}
     </div>
+  );
+}
+
+/**
+ * Character-by-character text reveal. Lives as its own component so its
+ * state is tied to the parent <motion.div> mount lifecycle — when the
+ * tour advances and AnimatePresence's mode="wait" exits the old bubble,
+ * the old TypewriterText stays mounted (with its already-shown text)
+ * until the exit animation finishes. The new TypewriterText mounts
+ * fresh inside the new bubble and starts typing from "". This prevents
+ * the bug where a parent-level state reset blanked out the exiting
+ * bubble during its fade-out.
+ */
+function TypewriterText({ text, speed = 22 }: { text: string; speed?: number }) {
+  const [shown, setShown] = useState("");
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    setShown("");
+    setDone(false);
+    if (!text) {
+      setDone(true);
+      return;
+    }
+    let i = 0;
+    const id = setInterval(() => {
+      i++;
+      setShown(text.slice(0, i));
+      if (i >= text.length) {
+        clearInterval(id);
+        setDone(true);
+      }
+    }, speed);
+    return () => clearInterval(id);
+  }, [text, speed]);
+
+  return (
+    <>
+      {shown}
+      {!done && (
+        <span className="inline-block w-[2px] h-[1em] ml-0.5 bg-foreground/70 align-text-bottom animate-pulse" />
+      )}
+    </>
   );
 }
