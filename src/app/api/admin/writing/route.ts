@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { toNullableJsonArray } from "@/lib/prisma-json";
 
 const schema = z.object({
   taskType: z.union([z.literal(1), z.literal(2)]),
@@ -10,6 +11,7 @@ const schema = z.object({
   minWords: z.number().min(50),
   timeLimit: z.number().min(60),
   bandStageId: z.string().nullable().optional(),
+  bandClimbTips: z.array(z.unknown()).nullable().optional(),
 });
 
 export async function POST(req: Request) {
@@ -17,8 +19,13 @@ export async function POST(req: Request) {
   if (!session?.user || session.user.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const parsed = schema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
+  const { bandClimbTips, ...rest } = parsed.data;
   const task = await prisma.writingTask.create({
-    data: { ...parsed.data, bandStageId: parsed.data.bandStageId ?? null },
+    data: {
+      ...rest,
+      bandStageId: rest.bandStageId ?? null,
+      bandClimbTips: toNullableJsonArray(bandClimbTips),
+    },
   });
   return NextResponse.json({ id: task.id });
 }

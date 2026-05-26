@@ -11,6 +11,7 @@ import { Loader2 } from "lucide-react";
 import { ImageUrlField } from "./image-url-field";
 import { DeleteTestButton } from "./delete-test-button";
 import { BandStageSelect } from "./band-stage-select";
+import { BandClimbToursEditor, type TourStepDraft } from "./band-climb-tours-editor";
 
 /** DB-shaped writing task passed in when editing an existing record. */
 export type WritingInitial = {
@@ -21,6 +22,7 @@ export type WritingInitial = {
   minWords: number;
   timeLimit: number;
   bandStageId: string | null;
+  bandClimbTips: TourStepDraft[];
 };
 
 /** Writing-task create/edit form. Pass `initial` to edit an existing record. */
@@ -34,6 +36,7 @@ export function WritingTaskForm({ initial }: { initial?: WritingInitial }) {
   const [minWords, setMinWords] = useState(initial?.minWords ?? 250);
   const [timeLimit, setTimeLimit] = useState(initial?.timeLimit ?? 2400);
   const [bandStageId, setBandStageId] = useState<string | null>(initial?.bandStageId ?? null);
+  const [tips, setTips] = useState<TourStepDraft[]>(initial?.bandClimbTips ?? []);
 
   const submit = async () => {
     if (prompt.trim().length < 20) return toast.error("Đề bài quá ngắn (tối thiểu 20 ký tự)");
@@ -49,6 +52,7 @@ export function WritingTaskForm({ initial }: { initial?: WritingInitial }) {
           minWords,
           timeLimit,
           bandStageId,
+          bandClimbTips: tips.length > 0 ? tips : null,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -104,6 +108,18 @@ export function WritingTaskForm({ initial }: { initial?: WritingInitial }) {
           <BandStageSelect value={bandStageId} onChange={setBandStageId} />
         </CardContent>
       </Card>
+
+      {bandStageId && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Bee 🐝 hướng dẫn — bài này</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <BandClimbToursEditor steps={tips} onChange={setTips} />
+          </CardContent>
+        </Card>
+      )}
+
       <div className="flex gap-2">
         <Button variant="outline" onClick={() => router.push("/admin/writing")}>Huỷ</Button>
         <Button onClick={submit} disabled={loading}>

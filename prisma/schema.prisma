@@ -280,6 +280,11 @@ model ReadingTest {
   // (with the BeeGuide tour + tip-aware Groq explanations).
   bandStageId String?
   bandStage   BandStage?     @relation(fields: [bandStageId], references: [id], onDelete: SetNull)
+  // Admin-authored Bee 🐝 tour steps shown before the test starts when
+  // accessed through the Vượt band flow. JSON array of TourStep —
+  // see src/components/learn/bee-guide.tsx for the shape. Null = use the
+  // skill default tour from src/lib/band-climb-tours.ts.
+  bandClimbTips Json?
   questions Question[]
   comments  ReadingComment[]
   createdAt DateTime         @default(now())
@@ -314,6 +319,7 @@ model ListeningTest {
   // Optional Vượt band stage attachment (mirrors ReadingTest.bandStageId).
   bandStageId     String?
   bandStage       BandStage? @relation(fields: [bandStageId], references: [id], onDelete: SetNull)
+  bandClimbTips   Json?
   questions       Question[]
   createdAt       DateTime   @default(now())
 
@@ -343,16 +349,17 @@ model Question {
 }
 
 model WritingTask {
-  id          String     @id @default(cuid())
-  taskType    Int
-  prompt      String     @db.Text
-  imageUrl    String?
-  diagramSvg  String?    @db.Text
-  minWords    Int        @default(150)
-  timeLimit   Int        @default(1200)
-  bandStageId String?
-  bandStage   BandStage? @relation(fields: [bandStageId], references: [id], onDelete: SetNull)
-  createdAt   DateTime   @default(now())
+  id            String     @id @default(cuid())
+  taskType      Int
+  prompt        String     @db.Text
+  imageUrl      String?
+  diagramSvg    String?    @db.Text
+  minWords      Int        @default(150)
+  timeLimit     Int        @default(1200)
+  bandStageId   String?
+  bandStage     BandStage? @relation(fields: [bandStageId], references: [id], onDelete: SetNull)
+  bandClimbTips Json?
+  createdAt     DateTime   @default(now())
 
   @@index([bandStageId])
 }
@@ -366,6 +373,7 @@ model SpeakingSet {
   part3Questions Json
   bandStageId    String?
   bandStage      BandStage? @relation(fields: [bandStageId], references: [id], onDelete: SetNull)
+  bandClimbTips  Json?
   createdAt      DateTime   @default(now())
 
   @@index([bandStageId])

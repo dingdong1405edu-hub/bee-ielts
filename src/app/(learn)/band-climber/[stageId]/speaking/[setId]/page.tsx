@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { SpeakingPlayer } from "@/app/(learn)/speaking/[setId]/speaking-player";
 import { BandClimbIntro } from "@/components/learn/band-climb-intro";
 import { SPEAKING_DEFAULT_TOUR } from "@/lib/band-climb-tours";
+import type { TourStep } from "@/components/learn/bee-guide";
 
 export const dynamic = "force-dynamic";
 
@@ -22,8 +23,14 @@ export default async function BandClimbSpeakingPage({
   ]);
   if (!set) notFound();
 
+  const customTour = set.bandClimbTips as TourStep[] | null;
+  const steps =
+    customTour && Array.isArray(customTour) && customTour.length > 0
+      ? customTour
+      : SPEAKING_DEFAULT_TOUR;
+
   return (
-    <BandClimbIntro steps={SPEAKING_DEFAULT_TOUR}>
+    <BandClimbIntro steps={steps}>
       <SpeakingPlayer
         setId={set.id}
         topic={set.topic}

@@ -12,6 +12,7 @@ import { Trash2, Plus, Loader2, GraduationCap, BookOpen, List, AlignLeft, Table,
 import { ImageUrlField } from "./image-url-field";
 import { DeleteTestButton } from "./delete-test-button";
 import { BandStageSelect } from "./band-stage-select";
+import { BandClimbToursEditor, type TourStepDraft } from "./band-climb-tours-editor";
 import { countBlanks, parseTablePaste, buildFormQuestions } from "@/lib/form-completion";
 
 type Bank = "PRACTICE" | "MOCK";
@@ -79,6 +80,7 @@ export type ReadingInitial = {
   imageUrl: string | null;
   level: Level;
   bandStageId: string | null;
+  bandClimbTips: TourStepDraft[];
   questions: {
     type: string;
     prompt: string;
@@ -189,6 +191,7 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
   const [level, setLevel] = useState<Level>(initial?.level ?? "B1");
   const [bandStageId, setBandStageId] = useState<string | null>(initial?.bandStageId ?? null);
+  const [tips, setTips] = useState<TourStepDraft[]>(initial?.bandClimbTips ?? []);
   const [init] = useState(() => toFormState(initial));
   const [questions, setQuestions] = useState<Q[]>(init.questions);
   const [headings, setHeadings] = useState<string[]>(init.headings);
@@ -426,6 +429,7 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
           level,
           bank,
           bandStageId,
+          bandClimbTips: tips.length > 0 ? tips : null,
           questions: [...formPayload, ...tablePayload, ...payload],
         }),
       });
@@ -489,6 +493,17 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
           <BandStageSelect value={bandStageId} onChange={setBandStageId} />
         </CardContent>
       </Card>
+
+      {bandStageId && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Bee 🐝 hướng dẫn — bài này</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <BandClimbToursEditor steps={tips} onChange={setTips} />
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

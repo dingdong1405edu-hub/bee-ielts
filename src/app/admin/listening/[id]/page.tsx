@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { ListeningTestForm } from "@/components/admin/listening-test-form";
+import type { TourStepDraft } from "@/components/admin/band-climb-tours-editor";
 
 export default async function EditListeningPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -26,6 +27,7 @@ export default async function EditListeningPage({ params }: { params: Promise<{ 
         transcript: test.transcript,
         section: test.section,
         bandStageId: test.bandStageId,
+        bandClimbTips: (test.bandClimbTips as TourStepDraft[] | null) ?? [],
         questions: test.questions.map((q) => ({
           type: q.type,
           prompt: q.prompt,

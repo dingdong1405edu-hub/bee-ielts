@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { toNullableJsonArray } from "@/lib/prisma-json";
 
 const schema = z.object({
   title: z.string().min(1),
@@ -10,6 +11,7 @@ const schema = z.object({
   level: z.enum(["A1", "A2", "B1", "B2", "C1", "C2"]).default("B1"),
   bank: z.enum(["PRACTICE", "MOCK"]).default("PRACTICE"),
   bandStageId: z.string().nullable().optional(),
+  bandClimbTips: z.array(z.unknown()).nullable().optional(),
   questions: z
     .array(
       z.object({
@@ -37,7 +39,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const parsed = schema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
-  const { title, passage, imageUrl, level, bank, bandStageId, questions } = parsed.data;
+  const { title, passage, imageUrl, level, bank, bandStageId, bandClimbTips, questions } = parsed.data;
 
   // Replace the whole question set so the editor is the single source of truth.
   await prisma.$transaction([
@@ -51,6 +53,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         level,
         bank,
         bandStageId: bandStageId ?? null,
+        bandClimbTips: toNullableJsonArray(bandClimbTips),
         questions: {
           create: questions.map((q, i) => ({
             type: q.type,

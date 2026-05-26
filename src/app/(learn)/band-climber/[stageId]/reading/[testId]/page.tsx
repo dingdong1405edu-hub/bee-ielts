@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { BandClimbReadingPractice } from "./practice";
 import { BAND_4_TO_5_TIPS } from "@/lib/band-climber-reading-sample";
+import type { TourStep } from "@/components/learn/bee-guide";
 
 export const dynamic = "force-dynamic";
 
@@ -31,8 +32,11 @@ export default async function BandClimbReadingTestPage({
   const isFourToFive = test.bandStage.fromBand === 4.0 && test.bandStage.toBand === 5.0;
   const bandClimbContext = isFourToFive ? BAND_4_TO_5_TIPS : "";
 
+  const customTour = test.bandClimbTips as TourStep[] | null;
+
   return (
     <BandClimbReadingPractice
+      customTour={customTour && Array.isArray(customTour) && customTour.length > 0 ? customTour : null}
       stage={{
         id: test.bandStage.id,
         fromBand: test.bandStage.fromBand,

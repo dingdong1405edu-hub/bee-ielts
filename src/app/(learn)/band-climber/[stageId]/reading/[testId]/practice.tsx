@@ -96,10 +96,13 @@ export function BandClimbReadingPractice({
   stage,
   test,
   bandClimbContext,
+  customTour,
 }: {
   stage: Stage;
   test: TestPayload;
   bandClimbContext: string;
+  /** Admin-authored tour from DB. Falls back to TOUR_STEPS when null. */
+  customTour: TourStep[] | null;
 }) {
   const router = useRouter();
   const [tourOpen, setTourOpen] = useState(true);
@@ -165,7 +168,7 @@ export function BandClimbReadingPractice({
   return (
     <div className="max-w-7xl mx-auto space-y-4">
       {tourOpen && (
-        <BeeGuide steps={TOUR_STEPS} onFinish={() => setTourOpen(false)} />
+        <BeeGuide steps={customTour ?? TOUR_STEPS} onFinish={() => setTourOpen(false)} />
       )}
 
       <Card className="bg-gradient-to-br from-primary/10 to-accent border-2 border-primary/20">
@@ -274,7 +277,11 @@ export function BandClimbReadingPractice({
               const groupStart = groupStartFor(test.questions, i);
               const isFirstMatching = q.id === firstMatchingId;
               return (
-                <div key={q.id} data-tour={isFirstMatching ? "matching" : undefined}>
+                <div
+                  key={q.id}
+                  data-tour={isFirstMatching ? "matching" : undefined}
+                  data-question-id={q.id}
+                >
                   {groupStart && (
                     <ReadingGroupHeader
                       type={q.type}

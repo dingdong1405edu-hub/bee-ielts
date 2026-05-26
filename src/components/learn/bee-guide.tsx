@@ -16,6 +16,9 @@ import { Button } from "@/components/ui/button";
 export interface TourStep {
   /** data-tour key of the element to highlight, or "center" for a centred message. */
   target: string | "center";
+  /** When set, BeeGuide looks up `[data-question-id="..."]` in the DOM and
+   *  spotlights that specific question card — overrides `target`. */
+  targetQuestionId?: string | null;
   title: string;
   /** Short paragraph (plain text — newlines render as <br/>). */
   body: string;
@@ -69,7 +72,11 @@ export function BeeGuide({
         setRect(null);
         return;
       }
-      const el = document.querySelector<HTMLElement>(`[data-tour="${step.target}"]`);
+      // Question-specific targets take priority — they let admins point at
+      // an exact question card via its DB id.
+      const el = step.targetQuestionId
+        ? document.querySelector<HTMLElement>(`[data-question-id="${step.targetQuestionId}"]`)
+        : document.querySelector<HTMLElement>(`[data-tour="${step.target}"]`);
       if (!el) {
         setRect(null);
         return;
@@ -89,7 +96,7 @@ export function BeeGuide({
       window.removeEventListener("resize", measure);
       window.removeEventListener("scroll", measure, true);
     };
-  }, [idx, isCenter, step.target]);
+  }, [idx, isCenter, step.target, step.targetQuestionId]);
 
   const next = () => {
     if (isLast) {

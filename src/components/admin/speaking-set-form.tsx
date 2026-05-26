@@ -11,6 +11,7 @@ import { Trash2, Plus, Loader2 } from "lucide-react";
 import { ImageUrlField } from "@/components/admin/image-url-field";
 import { DeleteTestButton } from "@/components/admin/delete-test-button";
 import { BandStageSelect } from "@/components/admin/band-stage-select";
+import { BandClimbToursEditor, type TourStepDraft } from "@/components/admin/band-climb-tours-editor";
 
 /** DB-shaped speaking set passed in when editing an existing record. */
 export type SpeakingInitial = {
@@ -21,6 +22,7 @@ export type SpeakingInitial = {
   part2CueCard: { topic: string; points: string[] };
   part3Questions: string[];
   bandStageId: string | null;
+  bandClimbTips: TourStepDraft[];
 };
 
 const updateAt = (arr: string[], i: number, v: string) => arr.map((x, j) => (j === i ? v : x));
@@ -43,6 +45,7 @@ export function SpeakingSetForm({ initial }: { initial?: SpeakingInitial }) {
     initial?.part3Questions?.length ? initial.part3Questions : ["", ""],
   );
   const [bandStageId, setBandStageId] = useState<string | null>(initial?.bandStageId ?? null);
+  const [tips, setTips] = useState<TourStepDraft[]>(initial?.bandClimbTips ?? []);
 
   const submit = async () => {
     if (!topic.trim()) return toast.error("Nhập topic");
@@ -66,6 +69,7 @@ export function SpeakingSetForm({ initial }: { initial?: SpeakingInitial }) {
           part2CueCard: { topic: cueTopic.trim(), points },
           part3Questions: p3,
           bandStageId,
+          bandClimbTips: tips.length > 0 ? tips : null,
         }),
       });
       const data = await res.json();
@@ -195,6 +199,17 @@ export function SpeakingSetForm({ initial }: { initial?: SpeakingInitial }) {
           ))}
         </CardContent>
       </Card>
+
+      {bandStageId && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Bee 🐝 hướng dẫn — bài này</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <BandClimbToursEditor steps={tips} onChange={setTips} />
+          </CardContent>
+        </Card>
+      )}
 
       <div className="flex gap-2">
         <Button variant="outline" onClick={() => router.push("/admin/speaking")}>Huỷ</Button>

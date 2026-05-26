@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { ReadingTestForm } from "@/components/admin/reading-test-form";
+import type { TourStepDraft } from "@/components/admin/band-climb-tours-editor";
 
 export default async function EditReadingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -25,6 +26,7 @@ export default async function EditReadingPage({ params }: { params: Promise<{ id
         imageUrl: test.imageUrl,
         level: test.level,
         bandStageId: test.bandStageId,
+        bandClimbTips: (test.bandClimbTips as TourStepDraft[] | null) ?? [],
         questions: test.questions.map((q) => ({
           type: q.type,
           prompt: q.prompt,

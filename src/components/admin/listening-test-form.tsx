@@ -13,6 +13,7 @@ import { ImageUrlField } from "./image-url-field";
 import { AudioUrlField } from "./audio-url-field";
 import { DeleteTestButton } from "./delete-test-button";
 import { BandStageSelect } from "./band-stage-select";
+import { BandClimbToursEditor, type TourStepDraft } from "./band-climb-tours-editor";
 import { countBlanks, parseTablePaste, buildFormQuestions } from "@/lib/form-completion";
 
 type Bank = "PRACTICE" | "MOCK";
@@ -83,6 +84,7 @@ export type ListeningInitial = {
   /** IELTS section 1-4 — only used for MOCK tests. */
   section: number | null;
   bandStageId: string | null;
+  bandClimbTips: TourStepDraft[];
   questions: {
     type: string;
     prompt: string;
@@ -196,6 +198,7 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
   const [transcript, setTranscript] = useState(initial?.transcript ?? "");
   const [section, setSection] = useState<number | "">(initial?.section ?? "");
   const [bandStageId, setBandStageId] = useState<string | null>(initial?.bandStageId ?? null);
+  const [tips, setTips] = useState<TourStepDraft[]>(initial?.bandClimbTips ?? []);
   const [init] = useState(() => toFormState(initial));
   const [questions, setQuestions] = useState<Q[]>(init.questions);
   const [headings, setHeadings] = useState<string[]>(init.headings);
@@ -460,6 +463,7 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
           bank,
           section: isMock && section !== "" ? section : null,
           bandStageId,
+          bandClimbTips: tips.length > 0 ? tips : null,
           questions: payload,
         }),
       });
@@ -541,6 +545,17 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
           <BandStageSelect value={bandStageId} onChange={setBandStageId} />
         </CardContent>
       </Card>
+
+      {bandStageId && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Bee 🐝 hướng dẫn — bài này</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <BandClimbToursEditor steps={tips} onChange={setTips} />
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

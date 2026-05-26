@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { ListeningPlayer } from "@/app/(learn)/listening/[testId]/listening-player";
 import { BandClimbIntro } from "@/components/learn/band-climb-intro";
 import { LISTENING_DEFAULT_TOUR } from "@/lib/band-climb-tours";
+import type { TourStep } from "@/components/learn/bee-guide";
 
 export const dynamic = "force-dynamic";
 
@@ -22,8 +23,14 @@ export default async function BandClimbListeningPage({
   });
   if (!test) notFound();
 
+  const customTour = test.bandClimbTips as TourStep[] | null;
+  const steps =
+    customTour && Array.isArray(customTour) && customTour.length > 0
+      ? customTour
+      : LISTENING_DEFAULT_TOUR;
+
   return (
-    <BandClimbIntro steps={LISTENING_DEFAULT_TOUR}>
+    <BandClimbIntro steps={steps}>
       <ListeningPlayer
         testId={test.id}
         title={test.title}

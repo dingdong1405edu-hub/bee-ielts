@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { SpeakingSetForm } from "@/components/admin/speaking-set-form";
+import type { TourStepDraft } from "@/components/admin/band-climb-tours-editor";
 
 export default async function EditSpeakingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -21,6 +22,7 @@ export default async function EditSpeakingPage({ params }: { params: Promise<{ i
         part2CueCard: (set.part2CueCard as { topic: string; points: string[] }) ?? { topic: "", points: [] },
         part3Questions: (set.part3Questions as string[]) ?? [],
         bandStageId: set.bandStageId,
+        bandClimbTips: (set.bandClimbTips as TourStepDraft[] | null) ?? [],
       }}
     />
   );

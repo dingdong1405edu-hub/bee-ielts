@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { toNullableJsonArray } from "@/lib/prisma-json";
 
 const schema = z.object({
   title: z.string().min(1),
@@ -14,6 +15,7 @@ const schema = z.object({
   bank: z.enum(["PRACTICE", "MOCK"]).default("PRACTICE"),
   section: z.number().int().min(1).max(4).nullable().optional(),
   bandStageId: z.string().nullable().optional(),
+  bandClimbTips: z.array(z.unknown()).nullable().optional(),
   questions: z
     .array(
       z.object({
@@ -41,7 +43,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const parsed = schema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
-  const { title, audioUrl, imageUrl, contentImageUrl, transcript, bank, section, bandStageId, questions } = parsed.data;
+  const { title, audioUrl, imageUrl, contentImageUrl, transcript, bank, section, bandStageId, bandClimbTips, questions } = parsed.data;
 
   await prisma.$transaction([
     prisma.question.deleteMany({ where: { listeningId: id } }),
@@ -56,6 +58,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         bank,
         section: section ?? null,
         bandStageId: bandStageId ?? null,
+        bandClimbTips: toNullableJsonArray(bandClimbTips),
         questions: {
           create: questions.map((q, i) => ({
             type: q.type,

@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { WritingTaskForm } from "@/components/admin/writing-task-form";
+import type { TourStepDraft } from "@/components/admin/band-climb-tours-editor";
 
 export default async function EditWritingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -21,6 +22,7 @@ export default async function EditWritingPage({ params }: { params: Promise<{ id
         minWords: task.minWords,
         timeLimit: task.timeLimit,
         bandStageId: task.bandStageId,
+        bandClimbTips: (task.bandClimbTips as TourStepDraft[] | null) ?? [],
       }}
     />
   );
