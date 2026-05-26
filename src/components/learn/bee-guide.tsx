@@ -237,10 +237,10 @@ export function BeeGuide({
                   <div className="text-[11px] font-bold uppercase tracking-wider text-primary inline-flex items-center gap-1">
                     <Sparkles className="h-3 w-3" /> Bước {idx + 1} / {steps.length}
                   </div>
-                  <h3 className="text-base md:text-lg font-extrabold tracking-tight mt-0.5">
+                  <h3 className="text-base md:text-lg font-extrabold tracking-tight mt-0.5 text-zinc-900">
                     {step.title}
                   </h3>
-                  <p className="text-sm leading-relaxed text-foreground/90 mt-1 whitespace-pre-line min-h-[3em]">
+                  <p className="text-sm leading-relaxed text-zinc-800 mt-1 whitespace-pre-line min-h-[3em]">
                     <TypewriterText text={step.body} />
                   </p>
                   {step.highlights?.map((h, i) => (
@@ -444,7 +444,7 @@ function TypewriterText({ text, speed = 22 }: { text: string; speed?: number }) 
     <>
       {shown}
       {!done && (
-        <span className="inline-block w-[2px] h-[1em] ml-0.5 bg-foreground/70 align-text-bottom animate-pulse" />
+        <span className="inline-block w-[2px] h-[1em] ml-0.5 bg-zinc-700 align-text-bottom animate-pulse" />
       )}
     </>
   );
