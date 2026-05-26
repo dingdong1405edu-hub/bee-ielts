@@ -274,19 +274,23 @@ export function BeeGuide({
                   {step.highlights?.map((h, i) => (
                     <div
                       key={i}
-                      className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2"
+                      className="mt-3 rounded-xl border-2 border-amber-400 bg-gradient-to-br from-amber-50 to-yellow-100 px-3.5 py-2.5 shadow-md shadow-amber-200/60"
                     >
-                      <div className="text-[11px] font-bold uppercase tracking-wider text-amber-700">
-                        {h.label}
+                      <div className="text-xs font-extrabold uppercase tracking-wider text-amber-700 inline-flex items-center gap-1">
+                        <Sparkles className="h-3.5 w-3.5 text-amber-600" /> {h.label}
                       </div>
-                      <div className="mt-1 flex flex-wrap gap-1.5">
-                        {h.items.map((it) => (
-                          <span
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {h.items.map((it, k) => (
+                          <motion.span
                             key={it}
-                            className="inline-flex items-center rounded-md bg-amber-200 px-2 py-0.5 text-xs font-bold text-amber-900"
+                            initial={{ scale: 0.6, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ delay: 0.08 * k, type: "spring", stiffness: 320, damping: 18 }}
+                            className="inline-flex items-center rounded-lg bg-gradient-to-br from-yellow-300 to-amber-400 px-2.5 py-1 text-sm font-extrabold text-amber-950 shadow-sm shadow-amber-400/40 ring-1 ring-amber-500/40"
+                            style={{ animation: "bee-keyword-pulse 2.4s ease-in-out infinite" }}
                           >
                             {it}
-                          </span>
+                          </motion.span>
                         ))}
                       </div>
                     </div>
