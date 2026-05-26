@@ -48,10 +48,30 @@ export function BeeGuide({
   const [rect, setRect] = useState<Rect | null>(null);
   const [viewport, setViewport] = useState({ w: 0, h: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
+  // Typewriter: body text reveals character-by-character so the learner has
+  // a beat to absorb each line — feels like Bee is actually saying it.
+  const [bodyShown, setBodyShown] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
 
   const step = steps[idx];
   const isCenter = step.target === "center";
   const isLast = idx === steps.length - 1;
+
+  // Restart the typewriter every time the step changes.
+  useEffect(() => {
+    setBodyShown("");
+    setIsTyping(true);
+    let i = 0;
+    const id = setInterval(() => {
+      i++;
+      setBodyShown(step.body.slice(0, i));
+      if (i >= step.body.length) {
+        clearInterval(id);
+        setIsTyping(false);
+      }
+    }, 22);
+    return () => clearInterval(id);
+  }, [idx, step.body]);
 
   // Lock body scroll while the tour is active.
   useEffect(() => {
@@ -107,6 +127,17 @@ export function BeeGuide({
   };
   const prev = () => setIdx((i) => Math.max(i - 1, 0));
 
+  // Tap anywhere on the overlay to advance. If the typewriter is still
+  // running, the first tap completes the line; the next tap advances.
+  const handleOverlayTap = () => {
+    if (isTyping) {
+      setBodyShown(step.body);
+      setIsTyping(false);
+      return;
+    }
+    next();
+  };
+
   // Bee + bubble target position. We prefer placing the bubble to the SIDE
   // (left or right) of the spotlight so it never covers the highlighted
   // area itself — that was the complaint from the screenshot. Falls back
@@ -157,7 +188,14 @@ export function BeeGuide({
   })();
 
   return (
-    <div ref={containerRef} className="fixed inset-0 z-[120]">
+    <div
+      ref={containerRef}
+      onClick={handleOverlayTap}
+      className="fixed inset-0 z-[120] cursor-pointer"
+      role="button"
+      tabIndex={-1}
+      aria-label="Tap để tiếp tục hướng dẫn"
+    >
       {/* Spotlight backdrop — 4 dark rectangles around the target so the
           target area stays fully transparent. When no target, single full
           backdrop. */}
@@ -182,13 +220,21 @@ export function BeeGuide({
         />
       )}
 
-      {/* Skip button */}
+      {/* Skip button — stopPropagation so the overlay-tap doesn't also fire. */}
       <button
-        onClick={onFinish}
-        className="absolute top-4 right-4 z-10 inline-flex items-center gap-1 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold text-zinc-700 shadow-lg hover:bg-white"
+        onClick={(e) => {
+          e.stopPropagation();
+          onFinish();
+        }}
+        className="absolute top-4 right-4 z-10 inline-flex items-center gap-1 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold text-zinc-700 shadow-lg hover:bg-white cursor-pointer"
       >
         <X className="h-3.5 w-3.5" /> Bỏ qua hướng dẫn
       </button>
+
+      {/* Hint pill: tap to advance */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 pointer-events-none rounded-full bg-white/90 px-3 py-1.5 text-[11px] font-bold text-zinc-700 shadow">
+        {isTyping ? "Tap để hiện hết câu" : "Tap để tiếp tục →"}
+      </div>
 
       {/* Bee + speech bubble — animated as one cluster */}
       <motion.div
@@ -219,8 +265,11 @@ export function BeeGuide({
                   <h3 className="text-base md:text-lg font-extrabold tracking-tight mt-0.5">
                     {step.title}
                   </h3>
-                  <p className="text-sm leading-relaxed text-foreground/90 mt-1 whitespace-pre-line">
-                    {step.body}
+                  <p className="text-sm leading-relaxed text-foreground/90 mt-1 whitespace-pre-line min-h-[3em]">
+                    {bodyShown}
+                    {isTyping && (
+                      <span className="inline-block w-[2px] h-[1em] ml-0.5 bg-foreground/70 align-text-bottom animate-pulse" />
+                    )}
                   </p>
                   {step.highlights?.map((h, i) => (
                     <div
@@ -248,7 +297,10 @@ export function BeeGuide({
 
             <div className="mt-3 flex items-center justify-between gap-2">
               <Button
-                onClick={prev}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  prev();
+                }}
                 disabled={idx === 0}
                 variant="ghost"
                 size="sm"
@@ -257,7 +309,10 @@ export function BeeGuide({
                 <ArrowLeft className="h-3.5 w-3.5" /> Trước
               </Button>
               <Button
-                onClick={next}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  next();
+                }}
                 size="sm"
                 className="text-xs font-bold shadow-md shadow-primary/20"
               >
