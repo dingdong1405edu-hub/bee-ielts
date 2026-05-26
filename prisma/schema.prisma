@@ -60,6 +60,11 @@ model User {
   lastActiveAt       DateTime?
   targetBand         Float     @default(6.0)
   examDate           DateTime?
+  // Placement band — last overallBand from a /mock/test attempt. Used by
+  // /band-climber to recommend the right stage (4→5, 5→6, …). Null until
+  // the learner completes their first mock.
+  placementBand      Float?
+  placementDoneAt    DateTime?
   popQuizOn          Boolean   @default(false)
   streakRestoresUsed Int       @default(0)
   streakRestoreMonth String?

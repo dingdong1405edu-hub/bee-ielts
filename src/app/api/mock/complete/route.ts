@@ -133,6 +133,14 @@ export async function POST(req: Request) {
 
   const overallBand = roundOverall((lBand + rBand + wBand + sBand) / 4);
 
+  // Update placement — first mock auto-sets it, subsequent mocks refresh
+  // it so /band-climber always recommends a stage matching the learner's
+  // current level.
+  await prisma.user.update({
+    where: { id: userId },
+    data: { placementBand: overallBand, placementDoneAt: new Date() },
+  });
+
   // Save 4 attempts with prefix mock- to distinguish from practice
   await prisma.$transaction([
     prisma.attempt.create({
