@@ -26,7 +26,13 @@ export type WritingInitial = {
 };
 
 /** Writing-task create/edit form. Pass `initial` to edit an existing record. */
-export function WritingTaskForm({ initial }: { initial?: WritingInitial }) {
+export function WritingTaskForm({
+  initial,
+  defaultBandStageId,
+}: {
+  initial?: WritingInitial;
+  defaultBandStageId?: string;
+}) {
   const router = useRouter();
   const isEdit = !!initial;
   const [loading, setLoading] = useState(false);
@@ -35,7 +41,9 @@ export function WritingTaskForm({ initial }: { initial?: WritingInitial }) {
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
   const [minWords, setMinWords] = useState(initial?.minWords ?? 250);
   const [timeLimit, setTimeLimit] = useState(initial?.timeLimit ?? 2400);
-  const [bandStageId, setBandStageId] = useState<string | null>(initial?.bandStageId ?? null);
+  const [bandStageId, setBandStageId] = useState<string | null>(
+    initial?.bandStageId ?? defaultBandStageId ?? null,
+  );
   const [tips, setTips] = useState<TourStepDraft[]>(initial?.bandClimbTips ?? []);
 
   const submit = async () => {

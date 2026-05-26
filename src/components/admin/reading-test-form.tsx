@@ -180,7 +180,16 @@ function mhLetterAt(questions: Q[], qi: number): string {
 }
 
 /** Reading-test create/edit form. Pass `initial` to edit an existing record. */
-export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: ReadingInitial }) {
+export function ReadingTestForm({
+  bank,
+  initial,
+  defaultBandStageId,
+}: {
+  bank: Bank;
+  initial?: ReadingInitial;
+  /** Pre-fill the band-stage dropdown — used by /admin/band-climber/[id]'s "Thêm Reading" link. */
+  defaultBandStageId?: string;
+}) {
   const router = useRouter();
   const isEdit = !!initial;
   const isMock = bank === "MOCK";
@@ -190,7 +199,9 @@ export function ReadingTestForm({ bank, initial }: { bank: Bank; initial?: Readi
   const [passage, setPassage] = useState(initial?.passage ?? "");
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
   const [level, setLevel] = useState<Level>(initial?.level ?? "B1");
-  const [bandStageId, setBandStageId] = useState<string | null>(initial?.bandStageId ?? null);
+  const [bandStageId, setBandStageId] = useState<string | null>(
+    initial?.bandStageId ?? defaultBandStageId ?? null,
+  );
   const [tips, setTips] = useState<TourStepDraft[]>(initial?.bandClimbTips ?? []);
   const [init] = useState(() => toFormState(initial));
   const [questions, setQuestions] = useState<Q[]>(init.questions);

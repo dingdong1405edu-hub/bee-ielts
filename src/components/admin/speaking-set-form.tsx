@@ -28,7 +28,13 @@ export type SpeakingInitial = {
 const updateAt = (arr: string[], i: number, v: string) => arr.map((x, j) => (j === i ? v : x));
 
 /** Speaking-set create/edit form. Pass `initial` to edit an existing record. */
-export function SpeakingSetForm({ initial }: { initial?: SpeakingInitial }) {
+export function SpeakingSetForm({
+  initial,
+  defaultBandStageId,
+}: {
+  initial?: SpeakingInitial;
+  defaultBandStageId?: string;
+}) {
   const router = useRouter();
   const isEdit = !!initial;
   const [loading, setLoading] = useState(false);
@@ -44,7 +50,9 @@ export function SpeakingSetForm({ initial }: { initial?: SpeakingInitial }) {
   const [part3, setPart3] = useState<string[]>(
     initial?.part3Questions?.length ? initial.part3Questions : ["", ""],
   );
-  const [bandStageId, setBandStageId] = useState<string | null>(initial?.bandStageId ?? null);
+  const [bandStageId, setBandStageId] = useState<string | null>(
+    initial?.bandStageId ?? defaultBandStageId ?? null,
+  );
   const [tips, setTips] = useState<TourStepDraft[]>(initial?.bandClimbTips ?? []);
 
   const submit = async () => {

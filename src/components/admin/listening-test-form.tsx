@@ -185,7 +185,15 @@ function toFormState(initial?: ListeningInitial): FormState {
 }
 
 /** Listening-test create/edit form. Pass `initial` to edit an existing record. */
-export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: ListeningInitial }) {
+export function ListeningTestForm({
+  bank,
+  initial,
+  defaultBandStageId,
+}: {
+  bank: Bank;
+  initial?: ListeningInitial;
+  defaultBandStageId?: string;
+}) {
   const router = useRouter();
   const isEdit = !!initial;
   const isMock = bank === "MOCK";
@@ -197,7 +205,9 @@ export function ListeningTestForm({ bank, initial }: { bank: Bank; initial?: Lis
   const [contentImageUrl, setContentImageUrl] = useState(initial?.contentImageUrl ?? "");
   const [transcript, setTranscript] = useState(initial?.transcript ?? "");
   const [section, setSection] = useState<number | "">(initial?.section ?? "");
-  const [bandStageId, setBandStageId] = useState<string | null>(initial?.bandStageId ?? null);
+  const [bandStageId, setBandStageId] = useState<string | null>(
+    initial?.bandStageId ?? defaultBandStageId ?? null,
+  );
   const [tips, setTips] = useState<TourStepDraft[]>(initial?.bandClimbTips ?? []);
   const [init] = useState(() => toFormState(initial));
   const [questions, setQuestions] = useState<Q[]>(init.questions);
