@@ -289,6 +289,7 @@ export function MockRunner({ targetBand, listenings, readings, writing, speaking
 }
 
 type MockResult = {
+  attemptId: string;
   overallBand: number;
   perSkill: {
     listening: { band: number; correct: number; total: number };
@@ -300,6 +301,48 @@ type MockResult = {
 };
 
 function MockResultView({ result, onBack }: { result: MockResult; onBack: () => void }) {
+  const router = useRouter();
+  const skills: {
+    key: "listening" | "reading" | "writing" | "speaking";
+    label: string;
+    icon: React.ElementType;
+    grad: string;
+    band: number;
+    note: string;
+  }[] = [
+    {
+      key: "listening",
+      label: "Listening",
+      icon: Headphones,
+      grad: "from-amber-500 to-orange-500",
+      band: result.perSkill.listening.band,
+      note: `${result.perSkill.listening.correct}/${result.perSkill.listening.total} câu đúng`,
+    },
+    {
+      key: "reading",
+      label: "Reading",
+      icon: BookOpen,
+      grad: "from-emerald-500 to-teal-500",
+      band: result.perSkill.reading.band,
+      note: `${result.perSkill.reading.correct}/${result.perSkill.reading.total} câu đúng`,
+    },
+    {
+      key: "writing",
+      label: "Writing",
+      icon: PenLine,
+      grad: "from-rose-500 to-pink-500",
+      band: result.perSkill.writing.band,
+      note: "AI chấm theo 4 tiêu chí",
+    },
+    {
+      key: "speaking",
+      label: "Speaking",
+      icon: Mic,
+      grad: "from-indigo-500 to-blue-500",
+      band: result.perSkill.speaking.band,
+      note: "AI chấm theo 4 tiêu chí",
+    },
+  ];
   return (
     <div className="max-w-3xl mx-auto space-y-5">
       <div className="text-center space-y-2">
@@ -317,36 +360,54 @@ function MockResultView({ result, onBack }: { result: MockResult; onBack: () => 
         </CardContent>
       </Card>
 
-      <div className="grid sm:grid-cols-2 gap-3">
-        <SkillCard icon={Headphones} label="Listening" band={result.perSkill.listening.band} note={`${result.perSkill.listening.correct}/${result.perSkill.listening.total} câu đúng`} grad="from-amber-500 to-orange-500" />
-        <SkillCard icon={BookOpen} label="Reading" band={result.perSkill.reading.band} note={`${result.perSkill.reading.correct}/${result.perSkill.reading.total} câu đúng`} grad="from-emerald-500 to-teal-500" />
-        <SkillCard icon={PenLine} label="Writing" band={result.perSkill.writing.band} note={result.perSkill.writing.feedback} grad="from-rose-500 to-pink-500" />
-        <SkillCard icon={Mic} label="Speaking" band={result.perSkill.speaking.band} note={result.perSkill.speaking.feedback} grad="from-indigo-500 to-blue-500" />
+      <div>
+        <h2 className="text-lg font-extrabold mb-2">Xem lại từng kỹ năng</h2>
+        <p className="text-sm text-muted-foreground mb-3">
+          Bấm vào ô bên dưới để xem đề bài, đáp án đúng và giải thích của từng kỹ năng.
+        </p>
+        <div className="grid sm:grid-cols-2 gap-3">
+          {skills.map((s) => (
+            <ReviewSkillCard
+              key={s.key}
+              icon={s.icon}
+              label={s.label}
+              band={s.band}
+              note={s.note}
+              grad={s.grad}
+              onClick={() => router.push(`/mock/review/${result.attemptId}?skill=${s.key}`)}
+            />
+          ))}
+        </div>
       </div>
 
-      <Button onClick={onBack} variant="brand" size="xl" className="w-full rounded-full">
+      <Button onClick={onBack} variant="outline" size="xl" className="w-full rounded-full">
         Về trang Mock
       </Button>
     </div>
   );
 }
 
-function SkillCard({
+function ReviewSkillCard({
   icon: Icon,
   label,
   band,
   note,
   grad,
+  onClick,
 }: {
   icon: React.ElementType;
   label: string;
   band: number;
   note: string;
   grad: string;
+  onClick: () => void;
 }) {
   return (
-    <Card>
-      <CardContent className="p-5">
+    <button
+      onClick={onClick}
+      className="text-left rounded-2xl border-2 bg-card hover:border-primary/40 hover:shadow-lg transition-all"
+    >
+      <div className="p-5">
         <div className="flex items-start justify-between">
           <div className={`grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br ${grad} text-white`}>
             <Icon className="h-5 w-5" />
@@ -355,10 +416,11 @@ function SkillCard({
         </div>
         <div className="mt-3">
           <div className="font-bold">{label}</div>
-          <p className="text-xs text-muted-foreground mt-1 line-clamp-3">{note}</p>
+          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{note}</p>
+          <p className="text-xs font-bold text-primary mt-2">Xem chi tiết →</p>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </button>
   );
 }
 

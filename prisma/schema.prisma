@@ -84,6 +84,38 @@ model User {
   wordDecks       WordDeck[]
   studyPlan       StudyPlanEntry[]
   payments        Payment[]
+  mockAttempts    MockAttempt[]
+}
+
+/// One row per completed mock test. Stores enough data to render the
+/// per-skill review page later — the underlying tests can change without
+/// breaking history. JSON columns hold a snapshot of each skill so the
+/// review page can render answers + explanations + AI feedback.
+model MockAttempt {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  completedAt DateTime @default(now())
+  overallBand Float
+  summary     String   @db.Text
+
+  listeningBand    Float
+  listeningCorrect Int
+  listeningTotal   Int
+  listeningPayload Json
+
+  readingBand    Float
+  readingCorrect Int
+  readingTotal   Int
+  readingPayload Json
+
+  writingBand     Float
+  writingPayload  Json
+
+  speakingBand    Float
+  speakingPayload Json
+
+  @@index([userId, completedAt])
 }
 
 enum PaymentStatus {

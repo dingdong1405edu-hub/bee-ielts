@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { gradeWritingGroq, gradeSpeakingGroq } from "@/lib/groq";
@@ -38,7 +39,6 @@ const schema = z.object({
 function scoreToBand(correct: number, total: number): number {
   if (total === 0) return 0;
   const pct = correct / total;
-  // IELTS-like band mapping (simplified)
   if (pct >= 0.97) return 9.0;
   if (pct >= 0.9) return 8.5;
   if (pct >= 0.85) return 8.0;
@@ -76,58 +76,56 @@ export async function POST(req: Request) {
   const lBand = scoreToBand(lCorrect, listening.questions.length);
   const rBand = scoreToBand(rCorrect, reading.questions.length);
 
-  // Writing: AI grade both tasks — Task 1 weighted 1/3, Task 2 weighted 2/3.
-  // If we can't grade (empty essay, AI failure, etc.) the user gets the
-  // floor band 1.0 for that section — the brief is explicit that unable
-  // ≠ free pass.
+  // Writing — band-1.0 floor on AI failure / empty essay. Each task is graded
+  // independently so a Task 1 failure doesn't void Task 2's score.
   let wBand = 1.0;
   let wFeedback = "Không chấm được Writing — band 1.0 mặc định.";
-  try {
-    const [wt1, wt2] = await Promise.all([
-      prisma.writingTask.findUnique({ where: { id: writing.task1Id } }),
-      prisma.writingTask.findUnique({ where: { id: writing.task2Id } }),
-    ]);
-    let b1 = 1.0;
-    let b2 = 1.0;
-    let s1 = "Bài quá ngắn hoặc không có nội dung — band 1.0.";
-    let s2 = "Bài quá ngắn hoặc không có nội dung — band 1.0.";
-    if (wt1 && writing.essay1.trim().length > 20) {
-      try {
-        const r1 = (await gradeWritingGroq({
-          taskType: 1,
-          prompt: wt1.prompt,
-          essay: writing.essay1,
-        })) as { overallBand: number; summary: string };
-        b1 = Number.isFinite(r1.overallBand) && r1.overallBand > 0 ? r1.overallBand : 1.0;
-        s1 = r1.summary || "—";
-      } catch (e) {
-        console.error("[mock writing task1]", e);
-      }
+  let task1Result: { band: number; summary: string; full: unknown } | null = null;
+  let task2Result: { band: number; summary: string; full: unknown } | null = null;
+  const [wt1, wt2] = await Promise.all([
+    prisma.writingTask.findUnique({ where: { id: writing.task1Id } }),
+    prisma.writingTask.findUnique({ where: { id: writing.task2Id } }),
+  ]);
+  if (wt1 && writing.essay1.trim().length > 20) {
+    try {
+      const r1 = (await gradeWritingGroq({
+        taskType: 1,
+        prompt: wt1.prompt,
+        essay: writing.essay1,
+      })) as { overallBand: number; summary: string };
+      const band = Number.isFinite(r1.overallBand) && r1.overallBand > 0 ? r1.overallBand : 1.0;
+      task1Result = { band, summary: r1.summary || "—", full: r1 };
+    } catch (e) {
+      console.error("[mock writing task1]", e);
+      task1Result = { band: 1.0, summary: "Chấm thất bại — band 1.0.", full: null };
     }
-    if (wt2 && writing.essay2.trim().length > 20) {
-      try {
-        const r2 = (await gradeWritingGroq({
-          taskType: 2,
-          prompt: wt2.prompt,
-          essay: writing.essay2,
-        })) as { overallBand: number; summary: string };
-        b2 = Number.isFinite(r2.overallBand) && r2.overallBand > 0 ? r2.overallBand : 1.0;
-        s2 = r2.summary || "—";
-      } catch (e) {
-        console.error("[mock writing task2]", e);
-      }
-    }
-    wBand = roundOverall(b1 / 3 + (2 * b2) / 3);
-    if (wBand < 1.0) wBand = 1.0;
-    wFeedback = `Task 1 (${b1.toFixed(1)}): ${s1} | Task 2 (${b2.toFixed(1)}): ${s2}`;
-  } catch (e) {
-    console.error("[mock writing]", e);
+  } else {
+    task1Result = { band: 1.0, summary: "Bài quá ngắn — band 1.0.", full: null };
   }
+  if (wt2 && writing.essay2.trim().length > 20) {
+    try {
+      const r2 = (await gradeWritingGroq({
+        taskType: 2,
+        prompt: wt2.prompt,
+        essay: writing.essay2,
+      })) as { overallBand: number; summary: string };
+      const band = Number.isFinite(r2.overallBand) && r2.overallBand > 0 ? r2.overallBand : 1.0;
+      task2Result = { band, summary: r2.summary || "—", full: r2 };
+    } catch (e) {
+      console.error("[mock writing task2]", e);
+      task2Result = { band: 1.0, summary: "Chấm thất bại — band 1.0.", full: null };
+    }
+  } else {
+    task2Result = { band: 1.0, summary: "Bài quá ngắn — band 1.0.", full: null };
+  }
+  wBand = roundOverall(task1Result.band / 3 + (2 * task2Result.band) / 3);
+  if (wBand < 1.0) wBand = 1.0;
+  wFeedback = `Task 1 (${task1Result.band.toFixed(1)}): ${task1Result.summary} | Task 2 (${task2Result.band.toFixed(1)}): ${task2Result.summary}`;
 
-  // Speaking: AI grade (combine all 3 parts). Same floor rule — empty or
-  // failed grading caps at band 1.0 instead of the previous courtesy 5.0.
+  // Speaking — same band-1.0 floor. Full grader output kept for review.
   let sBand = 1.0;
   let sFeedback = "Không chấm được Speaking — band 1.0 mặc định.";
+  let speakingFull: unknown = null;
   try {
     const combinedTranscript = `[Part 1]\n${speaking.transcripts["1"]}\n\n[Part 2]\n${speaking.transcripts["2"]}\n\n[Part 3]\n${speaking.transcripts["3"]}`;
     if (combinedTranscript.replace(/\[.*?\]/g, "").trim().length > 20) {
@@ -139,6 +137,7 @@ export async function POST(req: Request) {
       })) as { overallBand: number; summary: string };
       sBand = Number.isFinite(sResult.overallBand) && sResult.overallBand > 0 ? sResult.overallBand : 1.0;
       sFeedback = sResult.summary || "—";
+      speakingFull = sResult;
     } else {
       sFeedback = "Transcript trống hoặc quá ngắn (<20 ký tự) — band 1.0 mặc định.";
     }
@@ -148,15 +147,142 @@ export async function POST(req: Request) {
 
   const overallBand = roundOverall((lBand + rBand + wBand + sBand) / 4);
 
-  // Update placement — first mock auto-sets it, subsequent mocks refresh
-  // it so /band-climber always recommends a stage matching the learner's
-  // current level.
-  await prisma.user.update({
-    where: { id: userId },
-    data: { placementBand: overallBand, placementDoneAt: new Date() },
-  });
+  const summary =
+    overallBand >= 7.5
+      ? "Tuyệt vời — bạn đang ở mức rất khá. Tiếp tục giữ phong độ và tinh chỉnh chi tiết."
+      : overallBand >= 6.5
+        ? "Khá tốt. Tập trung vào kỹ năng yếu nhất để kéo overall band lên."
+        : overallBand >= 5.5
+          ? "Mức trung bình. Cần luyện thêm về vocabulary và độ tự tin trong Speaking/Writing."
+          : "Cần luyện đều cả 4 kỹ năng. Làm thêm các bài practice trước khi mock lại.";
 
-  // Save 4 attempts with prefix mock- to distinguish from practice
+  // Fetch full test detail so the review page can show prompts + correct
+  // answers + explanations without depending on the underlying tests
+  // still existing later.
+  const [lTests, rTests, sSet] = await Promise.all([
+    prisma.listeningTest.findMany({
+      where: { id: { in: listening.testIds } },
+      include: { questions: { orderBy: { order: "asc" } } },
+    }),
+    prisma.readingTest.findMany({
+      where: { id: { in: reading.testIds } },
+      include: { questions: { orderBy: { order: "asc" } } },
+    }),
+    prisma.speakingSet.findUnique({ where: { id: speaking.setId } }),
+  ]);
+
+  // Update placement + persist the full mock attempt as one row.
+  const [, attempt] = await prisma.$transaction([
+    prisma.user.update({
+      where: { id: userId },
+      data: { placementBand: overallBand, placementDoneAt: new Date() },
+    }),
+    prisma.mockAttempt.create({
+      data: {
+        userId,
+        overallBand,
+        summary,
+        listeningBand: lBand,
+        listeningCorrect: lCorrect,
+        listeningTotal: listening.questions.length,
+        listeningPayload: {
+          tests: lTests.map((t) => ({
+            id: t.id,
+            title: t.title,
+            audioUrl: t.audioUrl,
+            transcript: t.transcript,
+            section: t.section,
+          })),
+          questions: lTests.flatMap((t) =>
+            t.questions.map((q) => ({
+              id: q.id,
+              testId: t.id,
+              type: q.type,
+              prompt: q.prompt,
+              options: q.options,
+              correctAnswer: q.correctAnswer,
+              explanation: q.explanation,
+              displayNumber: q.displayNumber,
+              formGroup: q.formGroup,
+            })),
+          ),
+          answers: listening.answers,
+        },
+        readingBand: rBand,
+        readingCorrect: rCorrect,
+        readingTotal: reading.questions.length,
+        readingPayload: {
+          passages: rTests.map((t) => ({
+            id: t.id,
+            title: t.title,
+            passage: t.passage,
+            imageUrl: t.imageUrl,
+            level: t.level,
+          })),
+          questions: rTests.flatMap((t) =>
+            t.questions.map((q) => ({
+              id: q.id,
+              testId: t.id,
+              type: q.type,
+              prompt: q.prompt,
+              options: q.options,
+              correctAnswer: q.correctAnswer,
+              explanation: q.explanation,
+              displayNumber: q.displayNumber,
+              formGroup: q.formGroup,
+            })),
+          ),
+          answers: reading.answers,
+        },
+        writingBand: wBand,
+        writingPayload: {
+          task1: {
+            id: writing.task1Id,
+            taskType: 1,
+            prompt: wt1?.prompt ?? "(đã xoá)",
+            imageUrl: wt1?.imageUrl ?? null,
+            diagramSvg: wt1?.diagramSvg ?? null,
+            essay: writing.essay1,
+            band: task1Result.band,
+            summary: task1Result.summary,
+            ai: task1Result.full as Prisma.InputJsonValue,
+          },
+          task2: {
+            id: writing.task2Id,
+            taskType: 2,
+            prompt: wt2?.prompt ?? "(đã xoá)",
+            imageUrl: wt2?.imageUrl ?? null,
+            essay: writing.essay2,
+            band: task2Result.band,
+            summary: task2Result.summary,
+            ai: task2Result.full as Prisma.InputJsonValue,
+          },
+          combinedFeedback: wFeedback,
+        } as Prisma.InputJsonValue,
+        speakingBand: sBand,
+        speakingPayload: {
+          setId: speaking.setId,
+          topic: speaking.topic,
+          imageUrl: sSet?.imageUrl ?? null,
+          part1Questions: (sSet?.part1Questions as string[] | undefined) ?? [],
+          part2CueCard: (sSet?.part2CueCard as { topic: string; points: string[] } | undefined) ?? {
+            topic: "",
+            points: [],
+          },
+          // Mock trims Part 3 to a single question; record what was actually asked.
+          part3Questions: ((sSet?.part3Questions as string[] | undefined) ?? []).slice(0, 1),
+          transcripts: speaking.transcripts,
+          band: sBand,
+          summary: sFeedback,
+          ai: speakingFull as Prisma.InputJsonValue,
+        } as Prisma.InputJsonValue,
+      },
+      select: { id: true },
+    }),
+  ]);
+
+  // Keep the legacy Attempt rows so /api/attempt-counts + per-skill review
+  // history elsewhere still works.
   await prisma.$transaction([
     prisma.attempt.create({
       data: {
@@ -198,16 +324,8 @@ export async function POST(req: Request) {
     }),
   ]);
 
-  const summary =
-    overallBand >= 7.5
-      ? "Tuyệt vời — bạn đang ở mức rất khá. Tiếp tục giữ phong độ và tinh chỉnh chi tiết."
-      : overallBand >= 6.5
-        ? "Khá tốt. Tập trung vào kỹ năng yếu nhất để kéo overall band lên."
-        : overallBand >= 5.5
-          ? "Mức trung bình. Cần luyện thêm về vocabulary và độ tự tin trong Speaking/Writing."
-          : "Cần luyện đều cả 4 kỹ năng. Làm thêm các bài practice trước khi mock lại.";
-
   return NextResponse.json({
+    attemptId: attempt.id,
     overallBand,
     perSkill: {
       listening: { band: lBand, correct: lCorrect, total: listening.questions.length },

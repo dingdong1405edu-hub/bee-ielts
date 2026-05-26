@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
-import { BookOpen, Headphones, PenLine, Mic, Sparkles, BookOpenText, Zap, Flame, Target, ChevronRight } from "lucide-react";
+import { BookOpen, Headphones, PenLine, Mic, Sparkles, BookOpenText, Zap, Flame, Target, ChevronRight, GraduationCap, Trophy } from "lucide-react";
 import { ProfileHeader } from "./profile-header";
 import { DeleteAttemptButton } from "@/components/learn/delete-attempt-button";
 
@@ -30,7 +30,7 @@ export default async function ProfilePage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const [user, attempts] = await Promise.all([
+  const [user, attempts, mocks] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
@@ -50,6 +50,20 @@ export default async function ProfilePage() {
       orderBy: { createdAt: "desc" },
       take: 60,
       select: { id: true, skill: true, score: true, createdAt: true, refId: true },
+    }),
+    prisma.mockAttempt.findMany({
+      where: { userId: session.user.id },
+      orderBy: { completedAt: "desc" },
+      take: 10,
+      select: {
+        id: true,
+        completedAt: true,
+        overallBand: true,
+        listeningBand: true,
+        readingBand: true,
+        writingBand: true,
+        speakingBand: true,
+      },
     }),
   ]);
   if (!user) redirect("/login");
@@ -71,6 +85,46 @@ export default async function ProfilePage() {
         <StatTile icon={Target} label="Mục tiêu" value={`Band ${user.targetBand.toFixed(1)}`} grad="from-violet-500 to-fuchsia-500" />
         <StatTile icon={BookOpen} label="Bài đã làm" value={String(attempts.length)} grad="from-emerald-500 to-teal-500" />
       </div>
+
+      {/* Mock test history */}
+      {mocks.length > 0 && (
+        <div>
+          <h2 className="text-lg font-extrabold mb-3 flex items-center gap-2">
+            <Trophy className="h-5 w-5 text-primary" /> Bài thi thử đã làm
+          </h2>
+          <div className="space-y-2">
+            {mocks.map((m) => (
+              <Link key={m.id} href={`/mock/review/${m.id}`} className="block">
+                <Card className="hover:shadow-md hover:border-primary/40 transition-all">
+                  <CardContent className="p-4 flex items-center gap-3 flex-wrap">
+                    <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl gradient-brand text-white shadow-md font-extrabold">
+                      {m.overallBand.toFixed(1)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold inline-flex items-center gap-1.5">
+                        <GraduationCap className="h-4 w-4 text-primary" /> Overall band {m.overallBand.toFixed(1)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {new Intl.DateTimeFormat("vi-VN", {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        }).format(m.completedAt)}
+                      </div>
+                      <div className="mt-1 flex flex-wrap gap-1.5 text-[11px]">
+                        <MiniBand label="L" v={m.listeningBand} />
+                        <MiniBand label="R" v={m.readingBand} />
+                        <MiniBand label="W" v={m.writingBand} />
+                        <MiniBand label="S" v={m.speakingBand} />
+                      </div>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Attempt history */}
       <div>
@@ -133,6 +187,15 @@ export default async function ProfilePage() {
         )}
       </div>
     </div>
+  );
+}
+
+function MiniBand({ label, v }: { label: string; v: number }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border bg-muted/40 px-2 py-0.5">
+      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
+      <span className="font-extrabold">{v.toFixed(1)}</span>
+    </span>
   );
 }
 
