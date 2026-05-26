@@ -107,23 +107,53 @@ export function BeeGuide({
   };
   const prev = () => setIdx((i) => Math.max(i - 1, 0));
 
-  // Bee + bubble target position. Centred when no rect, otherwise above the
-  // spotlight if there's room, else below.
+  // Bee + bubble target position. We prefer placing the bubble to the SIDE
+  // (left or right) of the spotlight so it never covers the highlighted
+  // area itself — that was the complaint from the screenshot. Falls back
+  // to below / above only when neither side has room (narrow screens).
+  const BUBBLE_W = 380;
+  const BUBBLE_H_GUESS = 360;
+  const GAP = 24;
   const beePos = (() => {
     const { w, h } = viewport;
-    if (!rect) return { x: w / 2 - 40, y: h / 2 - 160 };
+    if (!rect) return { x: w / 2 - BUBBLE_W / 2, y: h / 2 - BUBBLE_H_GUESS / 2 };
     const padded = {
       top: rect.top - SPOTLIGHT_PAD,
       left: rect.left - SPOTLIGHT_PAD,
       width: rect.width + SPOTLIGHT_PAD * 2,
       height: rect.height + SPOTLIGHT_PAD * 2,
     };
+    const spaceLeft = padded.left;
+    const spaceRight = w - (padded.left + padded.width);
     const spaceBelow = h - (padded.top + padded.height);
     const spaceAbove = padded.top;
-    const placeBelow = spaceBelow > 280 || spaceBelow > spaceAbove;
-    const y = placeBelow ? padded.top + padded.height + 16 : padded.top - 240;
-    const x = Math.max(16, Math.min(w - 380 - 16, padded.left + padded.width / 2 - 190));
-    return { x, y: Math.max(16, y) };
+    // Vertically center the bubble next to the spotlight, clamped to viewport.
+    const sideY = Math.max(
+      16,
+      Math.min(h - BUBBLE_H_GUESS - 16, padded.top + padded.height / 2 - BUBBLE_H_GUESS / 2),
+    );
+
+    // 1) Right side — preferred so the bee reads left-to-right alongside the
+    //    highlighted card and feels like an examiner pointing in.
+    if (spaceRight >= BUBBLE_W + GAP) {
+      return { x: padded.left + padded.width + GAP, y: sideY };
+    }
+    // 2) Left side
+    if (spaceLeft >= BUBBLE_W + GAP) {
+      return { x: padded.left - BUBBLE_W - GAP, y: sideY };
+    }
+    // 3) Below
+    if (spaceBelow >= BUBBLE_H_GUESS + GAP) {
+      return {
+        x: Math.max(16, Math.min(w - BUBBLE_W - 16, padded.left + padded.width / 2 - BUBBLE_W / 2)),
+        y: padded.top + padded.height + GAP,
+      };
+    }
+    // 4) Above (last resort)
+    return {
+      x: Math.max(16, Math.min(w - BUBBLE_W - 16, padded.left + padded.width / 2 - BUBBLE_W / 2)),
+      y: Math.max(16, padded.top - Math.min(BUBBLE_H_GUESS, spaceAbove - GAP) - GAP),
+    };
   })();
 
   return (
@@ -171,45 +201,50 @@ export function BeeGuide({
         <div className="flex items-end gap-2">
           <Bee />
           <SpeechBubble>
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.25 }}
-              >
-                <div className="text-[11px] font-bold uppercase tracking-wider text-primary inline-flex items-center gap-1">
-                  <Sparkles className="h-3 w-3" /> Bước {idx + 1} / {steps.length}
-                </div>
-                <h3 className="text-base md:text-lg font-extrabold tracking-tight mt-0.5">
-                  {step.title}
-                </h3>
-                <p className="text-sm leading-relaxed text-foreground/90 mt-1 whitespace-pre-line">
-                  {step.body}
-                </p>
-                {step.highlights?.map((h, i) => (
-                  <div
-                    key={i}
-                    className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2"
-                  >
-                    <div className="text-[11px] font-bold uppercase tracking-wider text-amber-700">
-                      {h.label}
-                    </div>
-                    <div className="mt-1 flex flex-wrap gap-1.5">
-                      {h.items.map((it) => (
-                        <span
-                          key={it}
-                          className="inline-flex items-center rounded-md bg-amber-200 px-2 py-0.5 text-xs font-bold text-amber-900"
-                        >
-                          {it}
-                        </span>
-                      ))}
-                    </div>
+            <div
+              className="overflow-y-auto pr-1"
+              style={{ maxHeight: "min(60vh, 480px)" }}
+            >
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.25 }}
+                >
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-primary inline-flex items-center gap-1">
+                    <Sparkles className="h-3 w-3" /> Bước {idx + 1} / {steps.length}
                   </div>
-                ))}
-              </motion.div>
-            </AnimatePresence>
+                  <h3 className="text-base md:text-lg font-extrabold tracking-tight mt-0.5">
+                    {step.title}
+                  </h3>
+                  <p className="text-sm leading-relaxed text-foreground/90 mt-1 whitespace-pre-line">
+                    {step.body}
+                  </p>
+                  {step.highlights?.map((h, i) => (
+                    <div
+                      key={i}
+                      className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2"
+                    >
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-amber-700">
+                        {h.label}
+                      </div>
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {h.items.map((it) => (
+                          <span
+                            key={it}
+                            className="inline-flex items-center rounded-md bg-amber-200 px-2 py-0.5 text-xs font-bold text-amber-900"
+                          >
+                            {it}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </motion.div>
+              </AnimatePresence>
+            </div>
 
             <div className="mt-3 flex items-center justify-between gap-2">
               <Button
