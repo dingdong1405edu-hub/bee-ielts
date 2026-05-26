@@ -77,44 +77,57 @@ export async function POST(req: Request) {
   const rBand = scoreToBand(rCorrect, reading.questions.length);
 
   // Writing: AI grade both tasks — Task 1 weighted 1/3, Task 2 weighted 2/3.
-  let wBand = 0;
-  let wFeedback = "Không chấm được Writing.";
+  // If we can't grade (empty essay, AI failure, etc.) the user gets the
+  // floor band 1.0 for that section — the brief is explicit that unable
+  // ≠ free pass.
+  let wBand = 1.0;
+  let wFeedback = "Không chấm được Writing — band 1.0 mặc định.";
   try {
     const [wt1, wt2] = await Promise.all([
       prisma.writingTask.findUnique({ where: { id: writing.task1Id } }),
       prisma.writingTask.findUnique({ where: { id: writing.task2Id } }),
     ]);
-    let b1 = 0;
-    let b2 = 0;
-    let s1 = "";
-    let s2 = "";
+    let b1 = 1.0;
+    let b2 = 1.0;
+    let s1 = "Bài quá ngắn hoặc không có nội dung — band 1.0.";
+    let s2 = "Bài quá ngắn hoặc không có nội dung — band 1.0.";
     if (wt1 && writing.essay1.trim().length > 20) {
-      const r1 = (await gradeWritingGroq({
-        taskType: 1,
-        prompt: wt1.prompt,
-        essay: writing.essay1,
-      })) as { overallBand: number; summary: string };
-      b1 = r1.overallBand;
-      s1 = r1.summary;
+      try {
+        const r1 = (await gradeWritingGroq({
+          taskType: 1,
+          prompt: wt1.prompt,
+          essay: writing.essay1,
+        })) as { overallBand: number; summary: string };
+        b1 = Number.isFinite(r1.overallBand) && r1.overallBand > 0 ? r1.overallBand : 1.0;
+        s1 = r1.summary || "—";
+      } catch (e) {
+        console.error("[mock writing task1]", e);
+      }
     }
     if (wt2 && writing.essay2.trim().length > 20) {
-      const r2 = (await gradeWritingGroq({
-        taskType: 2,
-        prompt: wt2.prompt,
-        essay: writing.essay2,
-      })) as { overallBand: number; summary: string };
-      b2 = r2.overallBand;
-      s2 = r2.summary;
+      try {
+        const r2 = (await gradeWritingGroq({
+          taskType: 2,
+          prompt: wt2.prompt,
+          essay: writing.essay2,
+        })) as { overallBand: number; summary: string };
+        b2 = Number.isFinite(r2.overallBand) && r2.overallBand > 0 ? r2.overallBand : 1.0;
+        s2 = r2.summary || "—";
+      } catch (e) {
+        console.error("[mock writing task2]", e);
+      }
     }
     wBand = roundOverall(b1 / 3 + (2 * b2) / 3);
-    wFeedback = `Task 1 (${b1.toFixed(1)}): ${s1 || "—"} | Task 2 (${b2.toFixed(1)}): ${s2 || "—"}`;
+    if (wBand < 1.0) wBand = 1.0;
+    wFeedback = `Task 1 (${b1.toFixed(1)}): ${s1} | Task 2 (${b2.toFixed(1)}): ${s2}`;
   } catch (e) {
     console.error("[mock writing]", e);
   }
 
-  // Speaking: AI grade (combine 3 parts into one transcript)
-  let sBand = 5.0;
-  let sFeedback = "Không chấm được Speaking.";
+  // Speaking: AI grade (combine all 3 parts). Same floor rule — empty or
+  // failed grading caps at band 1.0 instead of the previous courtesy 5.0.
+  let sBand = 1.0;
+  let sFeedback = "Không chấm được Speaking — band 1.0 mặc định.";
   try {
     const combinedTranscript = `[Part 1]\n${speaking.transcripts["1"]}\n\n[Part 2]\n${speaking.transcripts["2"]}\n\n[Part 3]\n${speaking.transcripts["3"]}`;
     if (combinedTranscript.replace(/\[.*?\]/g, "").trim().length > 20) {
@@ -124,8 +137,10 @@ export async function POST(req: Request) {
         questions: ["Part 1 + Part 2 + Part 3 combined"],
         transcript: combinedTranscript,
       })) as { overallBand: number; summary: string };
-      sBand = sResult.overallBand;
-      sFeedback = sResult.summary;
+      sBand = Number.isFinite(sResult.overallBand) && sResult.overallBand > 0 ? sResult.overallBand : 1.0;
+      sFeedback = sResult.summary || "—";
+    } else {
+      sFeedback = "Transcript trống hoặc quá ngắn (<20 ký tự) — band 1.0 mặc định.";
     }
   } catch (e) {
     console.error("[mock speaking]", e);

@@ -1,10 +1,9 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Mic, MicOff, Volume2, Clock } from "lucide-react";
+import { Mic, MicOff, Volume2 } from "lucide-react";
 import { formatDuration } from "@/lib/utils";
 import { VoicePicker, useTtsVoice } from "@/components/learn/voice-picker";
 
@@ -295,12 +294,7 @@ export function MockSpeaking({ topic, imageUrl, part1Questions, part2CueCard, pa
                 {questionIdx + 1 < part1Questions.length ? "Câu tiếp →" : "Sang Part 2 →"}
               </Button>
             </div>
-            <Textarea
-              value={transcripts[1]}
-              onChange={(e) => setTranscripts((t) => ({ ...t, 1: e.target.value }))}
-              placeholder="Transcript sẽ hiện ở đây khi bạn nói..."
-              className="min-h-[120px]"
-            />
+            <RecordingIndicator recording={recording} />
           </CardContent>
         </Card>
       )}
@@ -356,12 +350,6 @@ export function MockSpeaking({ topic, imageUrl, part1Questions, part2CueCard, pa
                 </ul>
               </CardContent>
             </Card>
-            <Textarea
-              value={transcripts[2]}
-              onChange={(e) => setTranscripts((t) => ({ ...t, 2: e.target.value }))}
-              placeholder="Transcript..."
-              className="min-h-[120px]"
-            />
             <Button
               onClick={() => {
                 if (part2TimerRef.current) clearInterval(part2TimerRef.current);
@@ -404,37 +392,39 @@ export function MockSpeaking({ topic, imageUrl, part1Questions, part2CueCard, pa
                 {questionIdx + 1 < part3Questions.length ? "Câu tiếp →" : "Hoàn thành →"}
               </Button>
             </div>
-            <Textarea
-              value={transcripts[3]}
-              onChange={(e) => setTranscripts((t) => ({ ...t, 3: e.target.value }))}
-              placeholder="Transcript..."
-              className="min-h-[120px]"
-            />
+            <RecordingIndicator recording={recording} />
           </CardContent>
         </Card>
       )}
 
       {phase === "review" && (
         <Card>
-          <CardContent className="p-6 space-y-4">
-            <h3 className="text-xl font-bold">Đã xong phần Speaking</h3>
-            <p className="text-sm text-muted-foreground">Review nhanh transcript trước khi AI chấm:</p>
-            {[1, 2, 3].map((p) => (
-              <div key={p}>
-                <div className="font-semibold text-sm">Part {p}</div>
-                <Textarea
-                  value={transcripts[p as 1 | 2 | 3]}
-                  onChange={(e) => setTranscripts((t) => ({ ...t, [p]: e.target.value }))}
-                  className="mt-1 min-h-[80px]"
-                />
-              </div>
-            ))}
+          <CardContent className="p-8 text-center space-y-4">
+            <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-indigo-100 text-indigo-600">
+              <Mic className="h-7 w-7" />
+            </div>
+            <h3 className="text-xl font-bold">Đã xong phần Speaking 🎉</h3>
+            <p className="text-sm text-muted-foreground">
+              Bài nói của bạn đã được ghi lại. AI giám khảo sẽ chấm điểm — bạn không xem transcript của mình theo chuẩn IELTS thi thật.
+            </p>
             <Button onClick={() => onDone(transcripts)} variant="brand" size="lg" className="w-full rounded-full">
               Nộp & chấm điểm →
             </Button>
           </CardContent>
         </Card>
       )}
+    </div>
+  );
+}
+
+/** Recording indicator — replaces the transcript textarea in mock mode. */
+function RecordingIndicator({ recording }: { recording: boolean }) {
+  return (
+    <div className="flex items-center justify-center gap-2 rounded-lg border bg-muted/30 p-3">
+      <div className={`h-2.5 w-2.5 rounded-full ${recording ? "bg-red-500 animate-pulse" : "bg-zinc-400"}`} />
+      <span className="text-sm text-muted-foreground">
+        {recording ? "Đang ghi âm — cứ nói thoải mái, AI sẽ chấm sau." : "Mic chưa bật. Bấm 'Bắt đầu trả lời' để ghi."}
+      </span>
     </div>
   );
 }

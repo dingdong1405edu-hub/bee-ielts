@@ -255,7 +255,10 @@ export function MockRunner({ targetBand, listenings, readings, writing, speaking
           imageUrl={speaking.imageUrl}
           part1Questions={speaking.part1Questions}
           part2CueCard={speaking.part2CueCard}
-          part3Questions={speaking.part3Questions}
+          // Mock exam intentionally trims Part 3 to a single question so the
+          // 4-skill test fits inside one sitting; the per-set library keeps
+          // the full Part 3 for non-mock practice.
+          part3Questions={speaking.part3Questions.slice(0, 1)}
           onDone={(transcripts) => {
             setSpeakingTranscripts(transcripts);
             submitMock(transcripts);
