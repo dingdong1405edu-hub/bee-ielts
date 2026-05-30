@@ -15,11 +15,21 @@ export default async function BandStagePage({
     include: {
       readingTests: {
         orderBy: { createdAt: "asc" },
-        select: { id: true, title: true, level: true, questions: { select: { id: true } } },
+        select: {
+          id: true,
+          title: true,
+          level: true,
+          // _count avoids hydrating the full question rows just to read a length.
+          _count: { select: { questions: true } },
+        },
       },
       listeningTests: {
         orderBy: { createdAt: "asc" },
-        select: { id: true, title: true, questions: { select: { id: true } } },
+        select: {
+          id: true,
+          title: true,
+          _count: { select: { questions: true } },
+        },
       },
       writingTasks: {
         orderBy: { createdAt: "asc" },
@@ -40,7 +50,7 @@ export default async function BandStagePage({
       exercises: stage.readingTests.map((t) => ({
         id: t.id,
         title: t.title,
-        subtitle: `${t.level} · ${t.questions.length} câu`,
+        subtitle: `${t.level} · ${t._count.questions} câu`,
         href: `/band-climber/${stage.id}/reading/${t.id}`,
       })),
     },
@@ -50,7 +60,7 @@ export default async function BandStagePage({
       exercises: stage.listeningTests.map((t) => ({
         id: t.id,
         title: t.title,
-        subtitle: `${t.questions.length} câu`,
+        subtitle: `${t._count.questions} câu`,
         href: `/band-climber/${stage.id}/listening/${t.id}`,
       })),
     },

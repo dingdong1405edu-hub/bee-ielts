@@ -6,8 +6,7 @@ import { Sidebar, MobileMenu } from "@/components/learn/sidebar";
 import { StatsBar } from "@/components/learn/stats-bar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LearnBackground } from "@/components/learn/learn-background";
-import { AddWordButton } from "@/components/words/add-word-button";
-import { PopQuiz } from "@/components/words/pop-quiz";
+import { FloatingHelpers } from "@/components/learn/floating-helpers";
 
 export default async function LearnLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -54,8 +53,7 @@ export default async function LearnLayout({ children }: { children: React.ReactN
         <main className="flex-1 p-4 md:p-8">{children}</main>
       </div>
       <div data-chrome>
-        <AddWordButton />
-        <PopQuiz enabled={user?.popQuizOn ?? false} />
+        <FloatingHelpers popQuizEnabled={user?.popQuizOn ?? false} />
       </div>
     </div>
   );
