@@ -14,6 +14,13 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn, isAnswerCorrect } from "@/lib/utils";
+import {
+  QuestionScoreCard,
+  CriteriaPills,
+  BandCircle,
+  type QuestionTip,
+  type Correction,
+} from "@/components/learn/speaking-review-card";
 import type {
   ListeningPayload,
   ReadingPayload,
@@ -416,28 +423,71 @@ function WritingTaskBlock({ task, num }: { task: WritingPayload["task1"] | Writi
 }
 
 function SpeakingReview({ payload, band }: { payload: SpeakingPayload; band: number }) {
-  // Mock policy: do NOT show the candidate's own transcript — only the AI feedback.
+  const overallCrit = payload.ai?.criteria
+    ? {
+        fluencyCoherence: payload.ai.criteria.fluencyCoherence?.band,
+        lexicalResource: payload.ai.criteria.lexicalResource?.band,
+        grammaticalRange: payload.ai.criteria.grammaticalRange?.band,
+        pronunciation: payload.ai.criteria.pronunciation?.band,
+      }
+    : undefined;
+  const tips: QuestionTip[] = (payload.ai?.questionTips as QuestionTip[] | undefined) ?? [];
+  const tipsWithBand = tips.filter(
+    (t) => t.band != null && Number.isFinite(t.band as number),
+  );
+  let weakestIndex = -1;
+  if (tipsWithBand.length > 0) {
+    const minBand = Math.min(...tipsWithBand.map((t) => t.band as number));
+    weakestIndex = tips.findIndex((t) => t.band === minBand);
+  }
+  const corrections: Correction[] = (payload.ai?.corrections as Correction[] | undefined) ?? [];
   return (
     <div className="space-y-4">
-      <Card className="bg-muted/30">
-        <CardContent className="p-4">
-          <div className="font-extrabold text-lg">Speaking — Band {band.toFixed(1)}</div>
-          <div className="text-sm text-muted-foreground">{payload.summary}</div>
+      <Card className="bg-gradient-to-br from-primary/10 to-accent border-2 border-primary/20">
+        <CardContent className="p-5 flex items-start gap-4 flex-wrap">
+          <BandCircle band={band} size="lg" />
+          <div className="flex-1 min-w-0">
+            <div className="font-extrabold text-lg">Speaking — band {band.toFixed(1)}</div>
+            <div className="text-sm text-muted-foreground">{payload.summary}</div>
+            {overallCrit && (
+              <div className="mt-2">
+                <CriteriaPills criteria={overallCrit} weakest={false} />
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
+      {tips.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="font-extrabold text-lg">Chấm theo từng câu</h3>
+          {tips.map((tip, i) => (
+            <QuestionScoreCard
+              key={i}
+              index={i}
+              tip={tip}
+              corrections={corrections}
+              isWeakest={i === weakestIndex}
+            />
+          ))}
+        </div>
+      )}
+
       {payload.ai?.criteria && (
         <Card>
-          <CardContent className="p-5 grid sm:grid-cols-2 gap-2">
-            {Object.entries(payload.ai.criteria).map(([k, v]) => (
-              <div key={k} className="rounded-lg border p-2.5">
-                <div className="flex items-center justify-between">
-                  <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{labelCrit(k)}</div>
-                  <div className="font-extrabold text-primary">{v.band.toFixed(1)}</div>
+          <CardContent className="p-5 space-y-2">
+            <h3 className="font-extrabold mb-1">4 tiêu chí — tổng quan</h3>
+            <div className="grid sm:grid-cols-2 gap-2">
+              {Object.entries(payload.ai.criteria).map(([k, v]) => (
+                <div key={k} className="rounded-lg border p-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{labelCrit(k)}</div>
+                    <div className="font-extrabold text-primary">{v.band.toFixed(1)}</div>
+                  </div>
+                  <p className="text-sm mt-1">{v.feedback}</p>
                 </div>
-                <p className="text-sm mt-1">{v.feedback}</p>
-              </div>
-            ))}
+              ))}
+            </div>
           </CardContent>
         </Card>
       )}

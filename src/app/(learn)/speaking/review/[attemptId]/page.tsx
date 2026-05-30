@@ -5,8 +5,15 @@ import { prisma } from "@/lib/db";
 import { personalize } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, Calendar, ClipboardList } from "lucide-react";
+import { ArrowLeft, ClipboardList } from "lucide-react";
 import { VocabSuggestions, type VocabItem } from "@/components/learn/writing-feedback";
+import {
+  QuestionScoreCard,
+  SpeakingSummaryHeader,
+  AnnotatedTranscript,
+  type QuestionTip,
+  type Correction,
+} from "@/components/learn/speaking-review-card";
 
 export const dynamic = "force-dynamic";
 
@@ -20,9 +27,9 @@ type SpeakingFeedback = {
     pronunciation?: Crit;
   };
   observations?: string[];
-  corrections?: { original: string; corrected: string; explanation: string }[];
+  corrections?: Correction[];
   pronunciationFixes?: { word: string; ipa: string; tip: string }[];
-  questionTips?: { question: string; opener: string; advice: string }[];
+  questionTips?: QuestionTip[];
   collocations?: VocabItem[];
   phrasalVerbs?: VocabItem[];
 };
@@ -52,6 +59,22 @@ export default async function SpeakingReviewPage({ params }: { params: { attempt
   }
 
   const fb = (attempt.feedback ?? {}) as SpeakingFeedback;
+  const overallCrit = {
+    fluencyCoherence: fb.criteria?.fluencyCoherence?.band,
+    lexicalResource: fb.criteria?.lexicalResource?.band,
+    grammaticalRange: fb.criteria?.grammaticalRange?.band,
+    pronunciation: fb.criteria?.pronunciation?.band,
+  };
+  // Find the weakest question (lowest band) so the UI can paint the
+  // luyennoi-style "Câu yếu nhất" amber ring around that card.
+  const tipsWithBand = (fb.questionTips ?? []).filter(
+    (t) => t.band != null && Number.isFinite(t.band as number),
+  );
+  let weakestIndex = -1;
+  if (tipsWithBand.length > 0) {
+    const minBand = Math.min(...tipsWithBand.map((t) => t.band as number));
+    weakestIndex = (fb.questionTips ?? []).findIndex((t) => t.band === minBand);
+  }
   const criteria = fb.criteria
     ? ([
         ["Fluency & Coherence", fb.criteria.fluencyCoherence],
@@ -69,19 +92,11 @@ export default async function SpeakingReviewPage({ params }: { params: { attempt
         </Link>
       </Button>
 
-      <Card className="bg-gradient-to-br from-primary/10 to-accent border-2 border-primary/20">
-        <CardContent className="p-6 text-center">
-          <div className="text-sm text-muted-foreground flex items-center justify-center gap-1.5">
-            <Calendar className="h-3.5 w-3.5" />
-            {new Date(attempt.createdAt).toLocaleString("vi-VN")}
-            {attempt.refId.startsWith("mock-") && " · Thi thử"}
-          </div>
-          <div className="text-5xl font-extrabold gradient-brand-text mt-2">
-            {(attempt.score ?? 0).toFixed(1)}
-          </div>
-          <div className="text-sm text-muted-foreground mt-1">Speaking band</div>
-        </CardContent>
-      </Card>
+      <SpeakingSummaryHeader
+        overall={attempt.score ?? 0}
+        criteria={overallCrit}
+        date={`${new Date(attempt.createdAt).toLocaleString("vi-VN")}${attempt.refId.startsWith("mock-") ? " · Thi thử" : ""}`}
+      />
 
       {fb.summary && (
         <Card>
@@ -92,10 +107,28 @@ export default async function SpeakingReviewPage({ params }: { params: { attempt
         </Card>
       )}
 
+      {fb.questionTips && fb.questionTips.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="font-extrabold text-lg flex items-center gap-2">
+            <ClipboardList className="h-5 w-5 text-primary" />
+            Chấm theo từng câu
+          </h3>
+          {fb.questionTips.map((tip, i) => (
+            <QuestionScoreCard
+              key={i}
+              index={i}
+              tip={tip}
+              corrections={fb.corrections}
+              isWeakest={i === weakestIndex}
+            />
+          ))}
+        </div>
+      )}
+
       {criteria.length > 0 && (
         <Card>
           <CardContent className="p-5 space-y-2">
-            <h3 className="font-extrabold mb-1">4 tiêu chí</h3>
+            <h3 className="font-extrabold mb-1">4 tiêu chí — tổng quan</h3>
             {criteria.map(([label, c]) =>
               c ? (
                 <div key={label} className="rounded-lg border p-3">
@@ -170,40 +203,26 @@ export default async function SpeakingReviewPage({ params }: { params: { attempt
         </Card>
       )}
 
-      {fb.questionTips && fb.questionTips.length > 0 && (
-        <Card>
-          <CardContent className="p-5 space-y-2">
-            <h3 className="font-extrabold mb-1">Gợi ý cho từng câu hỏi</h3>
-            {fb.questionTips.map((t, i) => (
-              <div key={i} className="rounded-lg border p-3 space-y-1.5">
-                <p className="text-sm font-bold">{t.question}</p>
-                <div className="rounded-md bg-success/10 p-2">
-                  <div className="text-[11px] font-extrabold uppercase tracking-wider text-success mb-0.5">
-                    Opening sentence
-                  </div>
-                  <p className="text-sm italic text-success">“{t.opener}”</p>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">{t.advice}</p>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
       <VocabSuggestions collocations={fb.collocations} phrasalVerbs={fb.phrasalVerbs} />
 
       <Card>
         <CardContent className="p-5 space-y-3">
-          <h3 className="font-extrabold">Bài nói của bạn (văn bản)</h3>
+          <h3 className="font-extrabold">Bài nói của bạn (văn bản đầy đủ)</h3>
+          <p className="text-xs text-muted-foreground">
+            Phần lỗi được gạch chân màu đỏ, bản sửa nằm cạnh ở màu xanh.
+          </p>
           {transcripts.length === 0 ? (
             <p className="text-sm text-muted-foreground italic">Không có bản ghi.</p>
           ) : (
             transcripts.map((t, i) => (
               <div key={i}>
                 {t.label && <div className="text-xs font-bold text-muted-foreground mb-1">{t.label}</div>}
-                <p className="text-sm whitespace-pre-wrap leading-relaxed rounded-lg border bg-muted/20 p-3">
-                  {t.text.normalize("NFC")}
-                </p>
+                <div className="rounded-lg border bg-muted/20 p-3">
+                  <AnnotatedTranscript
+                    text={t.text.normalize("NFC")}
+                    corrections={fb.corrections}
+                  />
+                </div>
               </div>
             ))
           )}

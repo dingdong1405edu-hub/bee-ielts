@@ -177,7 +177,19 @@ Return ONLY valid JSON:
     { "word": "<một từ candidate phát âm chưa chuẩn>", "ipa": "/<phiên âm IPA chuẩn của từ>/", "tip": "<mẹo đọc đúng — tiếng Việt>" }
   ],
   "questionTips": [
-    { "question": "<copy the exact question / Part 2 cue card prompt>", "opener": "<a strong, natural English sentence the candidate could use to OPEN the answer to THIS question>", "advice": "<2-3 sentences IN ENGLISH of concrete advice for THIS specific question: ideas worth mentioning, vocabulary or grammar structures to use, and how to extend the answer>" }
+    {
+      "question": "<copy the exact question / Part 2 cue card prompt>",
+      "band": 6.5,
+      "criteria": {
+        "fluencyCoherence": 6,
+        "lexicalResource": 7,
+        "grammaticalRange": 6,
+        "pronunciation": 6
+      },
+      "transcript": "<the part of the candidate's transcript that ANSWERS this specific question — copy verbatim from the input transcript; if you cannot identify which words answer this question (mixed-in / unclear) return an empty string>",
+      "opener": "<a strong, natural English sentence the candidate could use to OPEN the answer to THIS question>",
+      "advice": "<2-3 sentences IN ENGLISH of concrete advice for THIS specific question: ideas worth mentioning, vocabulary or grammar structures to use, and how to extend the answer>"
+    }
   ],
   "usefulPhrases": [{ "phrase": "<useful English phrase or idiom for this topic>", "use": "<when/how to use it — IN ENGLISH>" }],
   "collocations": [{ "phrase": "<collocation tiếng Anh band 7+ hợp chủ đề này>", "meaning": "<nghĩa tiếng Việt>", "example": "<câu ví dụ tiếng Anh dùng được ngay>" }],
@@ -187,7 +199,7 @@ Return ONLY valid JSON:
 }
 
 Provide 4-6 observations. For "corrections": find the real grammar/word-choice/collocation mistakes in the transcript and SHOW THE FIXED VERSION (do not merely point them out) — give 3-6 items, or [] if the transcript is genuinely error-free. For "pronunciationFixes": give an item with correct IPA for EACH word in the low-confidence list (and any other clearly mispronounced word) — these are words the candidate said unclearly.
-"questionTips": provide EXACTLY ONE entry for EVERY question listed in the prompt — each Part 1 question, the Part 2 cue card, and each Part 3 question — in the SAME ORDER they appear. The "question", "opener" and "advice" fields MUST all be written in ENGLISH. Provide 4-6 usefulPhrases tailored to THIS topic, not generic.
+"questionTips": provide EXACTLY ONE entry for EVERY question listed in the prompt — each Part 1 question, the Part 2 cue card, and each Part 3 question — in the SAME ORDER they appear. The "question", "opener" and "advice" fields MUST all be written in ENGLISH. For "band" and "criteria" give an HONEST per-question score based on the portion of the transcript that answers that question; if you cannot identify any answer to that question, set band=1.0 and all criteria=1. The "transcript" field is the verbatim slice of the candidate's transcript that answers THIS question (used by the UI to show inline annotations); leave it as "" if you cannot identify the slice. Provide 4-6 usefulPhrases tailored to THIS topic, not generic.
 Provide 5-7 collocations and 4-6 phrasalVerbs — both MUST be tailored to THIS topic and pitched at band 7+ so the candidate can upgrade their vocabulary.`;
 
 const TIPS_SYS = `You are a friendly IELTS coach giving practical actionable tips. Tone: warm, Gen-Z friendly. Write in Vietnamese.

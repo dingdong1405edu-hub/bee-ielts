@@ -126,5 +126,18 @@ export interface SpeakingAi {
   observations?: string[];
   corrections?: { original: string; corrected: string; explanation: string }[];
   pronunciationFixes?: { word: string; ipa: string; tip: string }[];
+  questionTips?: {
+    question: string;
+    band?: number;
+    criteria?: {
+      fluencyCoherence?: number;
+      lexicalResource?: number;
+      grammaticalRange?: number;
+      pronunciation?: number;
+    };
+    transcript?: string;
+    opener?: string;
+    advice?: string;
+  }[];
   summary?: string;
 }
