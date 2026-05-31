@@ -33,8 +33,8 @@ export interface Correction {
 }
 
 export function bandTone(band: number | undefined | null) {
-  if (band == null || !Number.isFinite(band) || band < 1) {
-    return { bg: "bg-zinc-200", text: "text-zinc-600", border: "border-zinc-300" };
+  if (band == null || !Number.isFinite(band) || band <= 0) {
+    return { bg: "bg-zinc-400", text: "text-white", border: "border-zinc-400" };
   }
   if (band >= 7) {
     return { bg: "bg-emerald-500", text: "text-white", border: "border-emerald-400" };
@@ -46,8 +46,8 @@ export function bandTone(band: number | undefined | null) {
 }
 
 export function pillTone(band: number | undefined | null) {
-  if (band == null || !Number.isFinite(band) || band < 1) {
-    return "bg-zinc-200 text-zinc-600";
+  if (band == null || !Number.isFinite(band) || band <= 0) {
+    return "bg-zinc-300 text-zinc-700";
   }
   if (band >= 7) return "bg-emerald-500 text-white";
   if (band >= 5) return "bg-amber-300 text-amber-950";
@@ -68,7 +68,7 @@ export function BandCircle({ band, size = "md" }: { band: number | undefined; si
         tone.text,
       )}
     >
-      {band == null || !Number.isFinite(band) || band < 1 ? "?" : band.toFixed(1)}
+      {band == null || !Number.isFinite(band) ? "0.0" : band.toFixed(1)}
     </div>
   );
 }
@@ -108,7 +108,7 @@ export function CriteriaPills({
           >
             {label}:{" "}
             <span className="font-extrabold">
-              {v == null || !Number.isFinite(v) ? "?" : v}
+              {v == null || !Number.isFinite(v) ? "0" : v}
             </span>
           </span>
         );

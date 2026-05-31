@@ -4,16 +4,15 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
-  Mic, Square, Loader2, Volume2, ArrowRight, Trophy, Play, Timer,
+  Mic, Loader2, Volume2, ArrowRight, Trophy, Play, Timer,
   Sparkles, MessageSquareQuote, ArrowRightToLine, Wand2, Check, ClipboardList,
 } from "lucide-react";
 import { formatDuration, cn, personalize } from "@/lib/utils";
 import { TipsCard } from "@/components/learn/tips-card";
 import { VoicePicker, useTtsVoice } from "@/components/learn/voice-picker";
 import { VocabSuggestions, type VocabItem } from "@/components/learn/writing-feedback";
-import { playExaminerLine } from "@/lib/tts";
+import { playExaminerLine, playStartBeep, timeOfDayGreeting } from "@/lib/tts";
 
 interface DGWord {
   word: string;
@@ -77,6 +76,7 @@ export function SpeakingPlayer({
   part1Questions: rawPart1,
   part2CueCard,
   part3Questions: rawPart3,
+  initialParts,
 }: {
   setId: string;
   topic: string;
@@ -85,16 +85,39 @@ export function SpeakingPlayer({
   part1Questions: string[];
   part2CueCard: { topic: string; points: string[] };
   part3Questions: string[];
+  /** When provided via ?parts=N, pre-select these parts. A single part skips the intro. */
+  initialParts?: PartNum[];
 }) {
-  // Practise format: 4 questions in Part 1, 1 cue card in Part 2, 1 question in Part 3.
-  const part1Questions = rawPart1.slice(0, 4);
+  // Config (luyennoi-style intro card): how many Part-1 questions to play,
+  // whether to run in "Căng" 30-sec-per-question mode, voice + follow-ups.
+  // Default to 4 questions (or whatever the set has if fewer).
+  const maxAvailableP1 = Math.max(2, rawPart1.length || 2);
+  const maxQuestions = Math.min(9, maxAvailableP1);
+  const defaultNum = Math.min(4, maxAvailableP1);
+  const [numQuestions, setNumQuestions] = useState(defaultNum);
+  const [mode, setMode] = useState<"cang" | "thuong">("cang");
+  const [enableFollowUp, setEnableFollowUp] = useState(true);
+  // Practise format: numQuestions in Part 1, 1 cue card in Part 2, 1 question in Part 3.
+  const part1Questions = rawPart1.slice(0, numQuestions);
   const part3Questions = rawPart3.slice(0, 1);
   const router = useRouter();
   const startedAtRef = useRef<number>(Date.now());
   const [voice, setVoice] = useTtsVoice();
 
-  const [phase, setPhase] = useState<Phase>("intro");
-  const [selectedParts, setSelectedParts] = useState<Record<PartNum, boolean>>({ 1: true, 2: true, 3: true });
+  const presetSinglePart = initialParts && initialParts.length === 1 ? initialParts[0] : null;
+  const initialPhase: Phase = presetSinglePart
+    ? presetSinglePart === 1
+      ? "part1"
+      : presetSinglePart === 2
+        ? "part2-prep"
+        : "part3"
+    : "intro";
+  const initialSelected: Record<PartNum, boolean> = initialParts && initialParts.length > 0
+    ? { 1: initialParts.includes(1), 2: initialParts.includes(2), 3: initialParts.includes(3) }
+    : { 1: true, 2: true, 3: true };
+
+  const [phase, setPhase] = useState<Phase>(initialPhase);
+  const [selectedParts, setSelectedParts] = useState<Record<PartNum, boolean>>(initialSelected);
   const orderedParts: PartNum[] = ([1, 2, 3] as PartNum[]).filter((p) => selectedParts[p]);
   const [qIdx, setQIdx] = useState(0);
   // Self-paced stopwatches: count UP — user controls when to move on / when to stop speaking.
@@ -111,11 +134,55 @@ export function SpeakingPlayer({
     3: part3Questions.map(empty),
   });
 
+  // Big "2..1..GO" countdown shown between the examiner reading the question
+  // and the beep that opens recording. 0 = no overlay.
+  const [countdown, setCountdown] = useState(0);
+  // Notes the candidate types during Part 2 preparation (luyennoi-style pad).
+  const [part2Notes, setPart2Notes] = useState("");
+  // Recorded audio blobs kept around so the user can re-listen in the review.
+  // Keyed by "p1-{idx}" / "p2" / "p3-{idx}". Refs (not state) because we don't
+  // want re-renders during recording.
+  const audioBlobsRef = useRef<Map<string, Blob>>(new Map());
+  const recordingKeyRef = useRef<string | null>(null);
+  // Object URLs derived from `audioBlobsRef` once we reach the done view —
+  // created in an effect, revoked on unmount.
+  const [audioUrls, setAudioUrls] = useState<Record<string, string>>({});
+  // Per-part greetings — fire once per session, not on every re-render.
+  const greetedRef = useRef({ part1: false, part2: false });
+
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const prepTimerRef = useRef<NodeJS.Timeout | null>(null);
   const recTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // ONE persistent mic stream held for the whole session — getUserMedia is
+  // requested up-front on "Bắt đầu" so subsequent question recordings don't
+  // need to re-prompt and don't hit Safari's gesture-decay rejection.
+  const streamRef = useRef<MediaStream | null>(null);
+  // Web Audio analyser for the 3-bar visualiser in the active phase.
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  const keyForCurrent = (): string => {
+    if (phase === "part1") return `p1-${qIdx}`;
+    if (phase === "part3") return `p3-${qIdx}`;
+    return "p2";
+  };
+
+  // When the user reaches the done view, materialise every saved blob into
+  // an `<audio>`-friendly object URL so each question card can offer
+  // playback. Revoke on unmount to avoid leaking memory.
+  useEffect(() => {
+    if (phase !== "done") return;
+    const urls: Record<string, string> = {};
+    for (const [k, blob] of audioBlobsRef.current.entries()) {
+      urls[k] = URL.createObjectURL(blob);
+    }
+    setAudioUrls(urls);
+    return () => {
+      for (const u of Object.values(urls)) URL.revokeObjectURL(u);
+    };
+  }, [phase]);
 
   // Prep stopwatch: counts up while in part2-prep (no auto-flip).
   useEffect(() => {
@@ -140,52 +207,152 @@ export function SpeakingPlayer({
     }
   };
 
-  // Auto-read the prompt aloud as soon as a question/part begins or changes.
+  // Examiner flow: greeting (once per part) → read question → 2-sec countdown
+  // → beep → auto-start recording. Modelled after luyennoi.com / the real
+  // IELTS Speaking test so the candidate doesn't have to remember to press
+  // the record button after every question.
   useEffect(() => {
-    if (phase === "part1") {
-      const q = part1Questions[qIdx];
-      if (q) playTTS(q);
-    } else if (phase === "part3") {
-      const q = part3Questions[qIdx];
-      if (q) playTTS(q);
-    } else if (phase === "part2-prep") {
-      // Read the cue card only during preparation — not again when speaking starts.
-      playTTS(part2CueCard.topic);
-    }
+    let cancelled = false;
+    (async () => {
+      // Part 1 opens with a friendly greeting tailored to the candidate's
+      // local time of day — only on the very first Part 1 question.
+      if (phase === "part1" && qIdx === 0 && !greetedRef.current.part1) {
+        greetedRef.current.part1 = true;
+        await playTTS(
+          `Hi, ${timeOfDayGreeting()}. Today I want to ask you some questions.`,
+        );
+        if (cancelled) return;
+      }
+      // Part 2 prep opens by setting expectations about prep time + notes.
+      if (phase === "part2-prep" && !greetedRef.current.part2) {
+        greetedRef.current.part2 = true;
+        await playTTS(
+          "Now I will give you a topic, and you will have one to two minutes to prepare and take notes.",
+        );
+        if (cancelled) return;
+      }
+
+      // Read the question / cue card. Skip part2-speak because the cue was
+      // already read during prep.
+      let q = "";
+      if (phase === "part1") q = part1Questions[qIdx] || "";
+      else if (phase === "part3") q = part3Questions[qIdx] || "";
+      else if (phase === "part2-prep") q = part2CueCard.topic;
+      if (q) {
+        await playTTS(q);
+        if (cancelled) return;
+      }
+
+      // Auto-record handshake — only for live answering phases, and only if
+      // this slot hasn't already been recorded (so "Ghi âm lại" stays manual).
+      const isAnswerPhase =
+        phase === "part1" || phase === "part3" || phase === "part2-speak";
+      if (!isAnswerPhase) return;
+      const existing =
+        phase === "part1"
+          ? ans[1][qIdx]
+          : phase === "part3"
+            ? ans[3][qIdx]
+            : ans[2];
+      if (existing?.transcript) return;
+
+      for (let n = 2; n > 0; n--) {
+        if (cancelled) return;
+        setCountdown(n);
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      if (cancelled) return;
+      setCountdown(0);
+      await playStartBeep();
+      if (cancelled) return;
+      startRecording();
+    })();
+
     return () => {
+      cancelled = true;
+      setCountdown(0);
       if (audioRef.current) audioRef.current.pause();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, qIdx]);
 
-  // ---- Recording (MediaRecorder) + transcription via Deepgram ----
-  const startRecording = async () => {
+  // Acquire microphone once, reuse for every question. Safari and some
+  // Chromium variants reject getUserMedia if too much time has elapsed since
+  // the original user gesture — we cache the stream + Web Audio analyser so
+  // the auto-record flow can fire any time without re-prompting.
+  const ensureMicrophone = async (): Promise<boolean> => {
+    if (streamRef.current && streamRef.current.getAudioTracks().some((t) => t.readyState === "live")) {
+      return true;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      // Build the analyser once — feeds the waveform bars while recording.
+      try {
+        const AC =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (AC) {
+          const ctx = new AC();
+          const src = ctx.createMediaStreamSource(stream);
+          const analyser = ctx.createAnalyser();
+          analyser.fftSize = 64;
+          src.connect(analyser);
+          audioCtxRef.current = ctx;
+          analyserRef.current = analyser;
+        }
+      } catch (e) {
+        console.warn("[mic] analyser setup failed (visualiser will be static)", e);
+      }
+      return true;
+    } catch (e) {
+      console.error("[mic] getUserMedia failed", e);
+      toast.error("Không truy cập được micro. Hãy cấp quyền micro và thử lại.");
+      return false;
+    }
+  };
+
+  // ---- Recording (MediaRecorder) + transcription via Deepgram ----
+  const startRecording = async () => {
+    const ok = await ensureMicrophone();
+    if (!ok || !streamRef.current) return;
+    try {
+      const stream = streamRef.current;
       const mr = new MediaRecorder(stream);
       chunksRef.current = [];
       mr.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
       mr.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
         const blob = new Blob(chunksRef.current, { type: mr.mimeType || "audio/webm" });
+        // Save the blob keyed by whichever question we were on when recording
+        // started — so the review view can play this exact take back. The
+        // mic stream itself stays alive for the rest of the session.
+        const key = recordingKeyRef.current ?? keyForCurrent();
+        audioBlobsRef.current.set(key, blob);
+        recordingKeyRef.current = null;
         await transcribe(blob);
       };
+      recordingKeyRef.current = keyForCurrent();
       mr.start();
       recorderRef.current = mr;
       setRecording(true);
       setRecElapsed(0);
       if (recTimerRef.current) clearInterval(recTimerRef.current);
       recTimerRef.current = setInterval(() => setRecElapsed((t) => t + 1), 1000);
-    } catch {
-      toast.error("Không truy cập được micro. Hãy cấp quyền micro.");
+    } catch (e) {
+      console.error("[recorder] start failed", e);
+      toast.error("Không bắt đầu được ghi âm — thử bấm 'Bấm để nói' thủ công.");
     }
   };
 
   const stopRecording = () => {
     if (recorderRef.current && recorderRef.current.state !== "inactive") {
-      recorderRef.current.stop();
+      try {
+        recorderRef.current.stop();
+      } catch {
+        /* ignore — already stopped */
+      }
     }
     recorderRef.current = null;
     setRecording(false);
@@ -194,6 +361,28 @@ export function SpeakingPlayer({
       recTimerRef.current = null;
     }
   };
+
+  // Căng mode: hard 30-sec cap per question — once reached, examiner cuts in
+  // and we auto-stop the take. Matches luyennoi.com's "Giới hạn 30s mỗi câu".
+  useEffect(() => {
+    if (mode !== "cang" || !recording) return;
+    if (recElapsed >= 30) {
+      toast.info("Hết 30 giây — giám khảo ngắt lời, chuyển câu.");
+      stopRecording();
+    }
+  }, [mode, recording, recElapsed]);
+
+  // Release the persistent mic stream + audio context when the player
+  // unmounts, so the browser's recording indicator disappears.
+  useEffect(() => {
+    return () => {
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+      audioCtxRef.current?.close().catch(() => undefined);
+      audioCtxRef.current = null;
+      analyserRef.current = null;
+    };
+  }, []);
 
   const transcribe = async (blob: Blob) => {
     setTranscribing(true);
@@ -341,97 +530,210 @@ export function SpeakingPlayer({
     }
   };
 
-  // ============================== INTRO ==============================
+  // ============================== INTRO (luyennoi-style config) =============
   if (phase === "intro") {
-    const partOptions: { num: PartNum; title: string; desc: string }[] = [
-      { num: 1, title: "Part 1", desc: `Câu hỏi cá nhân · ${part1Questions.length} câu` },
-      { num: 2, title: "Part 2", desc: "Cue card · tự bấm thời gian nói" },
-      { num: 3, title: "Part 3", desc: `Thảo luận sâu · ${part3Questions.length} câu` },
-    ];
+    const partsLabel = orderedParts.length === 1 ? `Part ${orderedParts[0]}` : "Speaking";
+    const noneSelected = orderedParts.length === 0;
     const togglePart = (p: PartNum) =>
       setSelectedParts((prev) => ({ ...prev, [p]: !prev[p] }));
-    const noneSelected = orderedParts.length === 0;
+    const startSession = async () => {
+      if (noneSelected) return;
+      // Pre-warm the microphone while we still have a fresh user gesture —
+      // this is what makes the auto-record at countdown=0 reliable.
+      await ensureMicrophone();
+      startedAtRef.current = Date.now();
+      setAns({
+        1: part1Questions.map(empty),
+        2: empty(),
+        3: part3Questions.map(empty),
+      });
+      setQIdx(0);
+      const first = orderedParts[0];
+      if (first === 1) setPhase("part1");
+      else if (first === 2) goPart2Prep();
+      else setPhase("part3");
+    };
     return (
-      <div className="max-w-xl mx-auto py-6 space-y-6">
-        <div className="text-center space-y-3">
-          <div className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-gradient-to-br from-indigo-500 to-blue-500 text-white shadow-lg shadow-indigo-500/30">
-            <Mic className="h-8 w-8" />
-          </div>
-          <h1 className="text-3xl font-extrabold tracking-tight">
-            Luyện tập <span className="gradient-brand-text">Speaking</span>
+      <div className="max-w-3xl mx-auto py-6">
+        <div className="rounded-3xl border bg-card shadow-sm p-6 md:p-8 space-y-6">
+          <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-center">
+            Test {partsLabel} — Thi thử, nhận điểm và sửa lỗi
           </h1>
-          <p className="text-muted-foreground">Topic: {topic}</p>
-        </div>
-        {imageUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={imageUrl} alt="" className="w-full max-h-72 rounded-2xl border bg-muted/30 object-contain" />
-        )}
-        <Card>
-          <CardContent className="p-6 text-sm space-y-2">
-            <p>🔊 Đề bài <strong>tự động được đọc to</strong> bằng Deepgram khi bắt đầu mỗi câu — nhấn nút loa để nghe lại.</p>
-            <p>🎤 Cấp quyền <strong>micro</strong>: ghi âm câu trả lời, AI nhận dạng giọng nói.</p>
-            <p>📝 Bài nói hiện dưới dạng văn bản — từ phát âm chưa rõ được <strong>in đậm gạch chân</strong>, nhấn để nghe phát âm đúng.</p>
-          </CardContent>
-        </Card>
 
-        <div className="space-y-2">
-          <div className="text-sm font-bold">Chọn phần muốn luyện</div>
-          <p className="text-xs text-muted-foreground">Có thể chọn 1, 2 hoặc cả 3 part. AI sẽ chấm dựa trên những phần bạn làm.</p>
-          <div className="grid sm:grid-cols-3 gap-2">
-            {partOptions.map((p) => {
-              const active = selectedParts[p.num];
-              return (
-                <button
-                  key={p.num}
-                  type="button"
-                  onClick={() => togglePart(p.num)}
-                  aria-pressed={active}
-                  className={cn(
-                    "relative rounded-2xl border-2 p-3 text-left transition-all",
-                    active
-                      ? "border-primary bg-primary/5 shadow-sm"
-                      : "border-input hover:border-primary/40 bg-card",
-                  )}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-extrabold">{p.title}</span>
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Left column: pitch bullets + part selector */}
+            <div className="space-y-4">
+              <ul className="space-y-2.5 text-sm">
+                <li className="flex items-start gap-2">
+                  <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-100 text-emerald-600 shrink-0 mt-0.5">
+                    <Check className="h-3.5 w-3.5" />
+                  </span>
+                  <span>Làm quen với cấu trúc bài thi, áp lực như thi thật.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-100 text-emerald-600 shrink-0 mt-0.5">
+                    <Check className="h-3.5 w-3.5" />
+                  </span>
+                  <span>Nhận đánh giá điểm sát như thi thật.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-100 text-emerald-600 shrink-0 mt-0.5">
+                    <Check className="h-3.5 w-3.5" />
+                  </span>
+                  <span>AI examiner đọc câu hỏi như người thật — bạn chỉ cần trả lời.</span>
+                </li>
+              </ul>
+
+              <div className="space-y-1.5">
+                <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Phần luyện
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {([1, 2, 3] as PartNum[]).map((p) => {
+                    const active = selectedParts[p];
+                    return (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => togglePart(p)}
+                        aria-pressed={active}
+                        className={cn(
+                          "rounded-full border-2 px-3 py-1 text-xs font-bold transition-all",
+                          active
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-input text-muted-foreground hover:border-primary/40",
+                        )}
+                      >
+                        Part {p}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Right column: config form (mode, voice, num questions, follow-up) */}
+            <div className="space-y-5">
+              <div>
+                <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+                  Chế độ thi
+                </div>
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <span
+                    role="switch"
+                    aria-checked={mode === "cang"}
+                    onClick={() => setMode(mode === "cang" ? "thuong" : "cang")}
+                    className={cn(
+                      "relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors",
+                      mode === "cang" ? "bg-primary" : "bg-zinc-300",
+                    )}
+                  >
                     <span
                       className={cn(
-                        "grid h-5 w-5 place-items-center rounded-md border-2",
-                        active ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/40",
+                        "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
+                        mode === "cang" ? "translate-x-5" : "translate-x-0.5",
                       )}
-                    >
-                      {active && <Check className="h-3 w-3" />}
+                    />
+                  </span>
+                  <span>
+                    <span className={cn("font-extrabold", mode === "cang" && "text-primary")}>
+                      Căng — chuẩn phòng thi
                     </span>
+                    <span className="block text-xs text-muted-foreground leading-snug">
+                      Giới hạn thời gian mỗi câu. Hết giờ là giám khảo ngắt lời để sang câu sau.
+                      Tối đa 30 giây mỗi câu.
+                    </span>
+                  </span>
+                </label>
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Giọng giám khảo
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      playTTS("Hi, how are you today? Let's begin the test.")
+                    }
+                    disabled={ttsBusy}
+                    aria-label="Nghe thử giọng"
+                    className="grid h-9 w-9 place-items-center rounded-full bg-primary/10 text-primary hover:bg-primary/20 disabled:opacity-50"
+                  >
+                    {ttsBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4 fill-current" />}
+                  </button>
+                  <VoicePicker voice={voice} onChange={setVoice} className="flex-1" />
+                </div>
+              </div>
+
+              {selectedParts[1] && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      Số câu hỏi (Part 1)
+                    </div>
+                    <div className="text-sm font-extrabold text-primary">{numQuestions}</div>
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">{p.desc}</div>
-                </button>
-              );
-            })}
+                  <input
+                    type="range"
+                    min={2}
+                    max={maxQuestions}
+                    step={1}
+                    value={numQuestions}
+                    onChange={(e) => setNumQuestions(Number(e.target.value))}
+                    className="w-full accent-primary"
+                  />
+                  <div className="flex justify-between text-[10px] text-muted-foreground -mt-1">
+                    {Array.from({ length: maxQuestions - 1 }, (_, i) => i + 2).map((n) => (
+                      <span key={n}>{n}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <label className="flex items-center justify-between cursor-pointer">
+                <span className="text-sm font-semibold">Thêm follow-up questions</span>
+                <span
+                  role="switch"
+                  aria-checked={enableFollowUp}
+                  onClick={() => setEnableFollowUp((v) => !v)}
+                  className={cn(
+                    "relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors",
+                    enableFollowUp ? "bg-primary" : "bg-zinc-300",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
+                      enableFollowUp ? "translate-x-5" : "translate-x-0.5",
+                    )}
+                  />
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <div className="border-t pt-4 flex items-center justify-between">
+            <Button
+              variant="outline"
+              size="lg"
+              className="rounded-full px-6"
+              onClick={() => router.push("/speaking")}
+            >
+              Thoát
+            </Button>
+            <Button
+              variant="brand"
+              size="lg"
+              className="rounded-full px-8"
+              disabled={noneSelected}
+              onClick={startSession}
+            >
+              Bắt đầu
+            </Button>
           </div>
         </div>
-
-        <div className="flex justify-center">
-          <VoicePicker voice={voice} onChange={setVoice} />
-        </div>
-        <Button
-          variant="brand"
-          size="xl"
-          className="w-full rounded-full"
-          disabled={noneSelected}
-          onClick={() => {
-            if (noneSelected) return;
-            startedAtRef.current = Date.now();
-            setQIdx(0);
-            const first = orderedParts[0];
-            if (first === 1) setPhase("part1");
-            else if (first === 2) goPart2Prep();
-            else setPhase("part3");
-          }}
-        >
-          <Play className="h-5 w-5" />{" "}
-          {noneSelected ? "Chọn ít nhất 1 part" : `Bắt đầu — ${orderedParts.map((p) => `Part ${p}`).join(" → ")}`}
-        </Button>
       </div>
     );
   }
@@ -482,22 +784,38 @@ export function SpeakingPlayer({
           ))}
         </div>
 
-        {/* Transcript review with mispronounced words */}
+        {/* Transcript review — each question shows a native HTML5 audio
+            player for the user's own recording PLUS the transcript with
+            mispronounced words underlined. Same affordance as luyennoi.com. */}
         <Card>
           <CardContent className="p-5 space-y-3">
             <h3 className="font-extrabold flex items-center gap-2">
-              <Volume2 className="h-5 w-5 text-primary" /> Bài nói của bạn
+              <Volume2 className="h-5 w-5 text-primary" /> Bài nói của bạn (audio + văn bản)
             </h3>
             <p className="text-xs text-muted-foreground -mt-1">
-              Từ <span className="font-bold underline">in đậm gạch chân</span> là phát âm chưa rõ — nhấn để nghe cách đọc đúng.
+              Nhấn ▶︎ để nghe lại bản ghi âm. Từ <span className="font-bold underline">in đậm gạch chân</span> là phát âm chưa rõ — nhấn để nghe cách đọc đúng.
             </p>
             {[
-              ...(selectedParts[1] ? part1Questions.map((q, i) => ({ q: `Part 1 · Câu ${i + 1}`, r: ans[1][i] })) : []),
-              ...(selectedParts[2] ? [{ q: `Part 2 · ${part2CueCard.topic}`, r: ans[2] }] : []),
-              ...(selectedParts[3] ? part3Questions.map((q, i) => ({ q: `Part 3 · Câu ${i + 1}`, r: ans[3][i] })) : []),
+              ...(selectedParts[1]
+                ? part1Questions.map((_q, i) => ({ q: `Part 1 · Câu ${i + 1}`, r: ans[1][i], key: `p1-${i}` }))
+                : []),
+              ...(selectedParts[2]
+                ? [{ q: `Part 2 · ${part2CueCard.topic}`, r: ans[2], key: "p2" }]
+                : []),
+              ...(selectedParts[3]
+                ? part3Questions.map((_q, i) => ({ q: `Part 3 · Câu ${i + 1}`, r: ans[3][i], key: `p3-${i}` }))
+                : []),
             ].map((item, i) => (
-              <div key={i} className="rounded-lg border p-3">
-                <div className="text-xs font-bold text-muted-foreground mb-1">{item.q}</div>
+              <div key={i} className="rounded-lg border p-3 space-y-2">
+                <div className="text-xs font-bold text-muted-foreground">{item.q}</div>
+                {audioUrls[item.key] && (
+                  <audio
+                    controls
+                    src={audioUrls[item.key]}
+                    className="w-full h-10"
+                    preload="metadata"
+                  />
+                )}
                 <TranscriptView result={item.r} onSpeak={playTTS} />
               </div>
             ))}
@@ -679,167 +997,339 @@ export function SpeakingPlayer({
     );
   }
 
-  // ============================== ACTIVE PHASES ==============================
+  // ============================== ACTIVE PHASES (luyennoi-style) ============
   const isQ = phase === "part1" || phase === "part3";
   const questions = phase === "part1" ? part1Questions : part3Questions;
   const currentQ = isQ ? questions[qIdx] : "";
-  const currentResult = phase === "part1" ? ans[1][qIdx] : phase === "part3" ? ans[3][qIdx] : ans[2];
-  const phaseLabel =
-    phase === "part1" ? "Part 1" : phase === "part2-prep" ? "Part 2 — Chuẩn bị" : phase === "part2-speak" ? "Part 2 — Nói" : "Part 3";
+  const currentResult =
+    phase === "part1" ? ans[1][qIdx] : phase === "part3" ? ans[3][qIdx] : ans[2];
+  const partTitle =
+    phase === "part1"
+      ? "PART 1"
+      : phase === "part2-prep" || phase === "part2-speak"
+        ? "PART 2"
+        : "PART 3";
 
-  return (
-    <div className="max-w-2xl mx-auto space-y-4">
-      <div className="rounded-2xl border bg-indigo-600 text-white p-4 flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <Mic className="h-6 w-6" />
-          <div>
-            <div className="text-xs uppercase tracking-wider opacity-80">Speaking · {topic}</div>
-            <div className="font-extrabold">{phaseLabel}</div>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {phase === "part2-prep" && (
-            <Badge variant="outline" className="bg-white/15 border-white/30 text-white text-base px-3 py-1 tabular-nums">
-              <Timer className="h-4 w-4 mr-1" /> {formatDuration(prepElapsed)}
-            </Badge>
-          )}
-          {recording && (
-            <Badge variant="outline" className="bg-red-500/90 border-red-300 text-white text-base px-3 py-1 tabular-nums animate-pulse">
-              <Mic className="h-4 w-4 mr-1" /> {formatDuration(recElapsed)}
-            </Badge>
-          )}
-          <VoicePicker voice={voice} onChange={setVoice} />
-        </div>
-      </div>
-
-      {/* Part 2 prep */}
-      {phase === "part2-prep" && (
-        <Card>
-          <CardContent className="p-6 space-y-4">
-            <div className="text-center">
-              <div className="text-5xl font-extrabold tabular-nums">{formatDuration(prepElapsed)}</div>
-              <div className="text-sm text-muted-foreground mt-1">Thời gian chuẩn bị (tự bấm khi sẵn sàng)</div>
-            </div>
-            <Card className="bg-amber-50 border-amber-200 dark:bg-amber-950/30">
+  // Part 2 prep keeps its own dedicated layout (cue card + notes) — image 2
+  // of the user's mockups. Question phases share the minimal top/center/bottom
+  // layout (image 1's recording screen).
+  if (phase === "part2-prep") {
+    return (
+      <div className="max-w-3xl mx-auto py-6">
+        <div className="rounded-3xl border bg-card shadow-sm p-5 md:p-7 space-y-5">
+          <SpeakingTopBar
+            mode={mode}
+            partTitle="PART 2"
+            elapsed={prepElapsed}
+            onExit={() => router.push("/speaking")}
+          />
+          <div className="grid md:grid-cols-2 gap-4">
+            <Card className="bg-white border-2 border-zinc-200 dark:bg-zinc-900/40 dark:border-zinc-800 shadow-sm">
               <CardContent className="p-4 space-y-2">
                 <div className="flex items-center justify-between">
-                  <div className="font-bold text-base">{part2CueCard.topic}</div>
-                  <Button size="sm" variant="outline" className="rounded-full" onClick={() => playTTS(part2CueCard.topic)} disabled={ttsBusy}>
-                    <Volume2 className="h-4 w-4" />
+                  <div className="font-bold text-base text-pink-600 dark:text-pink-400">
+                    {part2CueCard.topic}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-full h-8 w-8 p-0"
+                    onClick={() => playTTS(part2CueCard.topic)}
+                    disabled={ttsBusy}
+                    aria-label="Nghe đề"
+                  >
+                    <Volume2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
                 {imageUrl && (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={imageUrl} alt="" className="w-full max-h-56 rounded-lg border bg-background object-contain" />
+                  <img
+                    src={imageUrl}
+                    alt=""
+                    className="w-full max-h-40 rounded-lg border bg-background object-contain"
+                  />
                 )}
-                <div className="text-sm">You should say:</div>
-                <ul className="list-disc pl-5 text-sm space-y-1">
+                <ul className="list-disc pl-5 text-sm space-y-1 text-zinc-600 dark:text-zinc-400">
                   {part2CueCard.points.map((p, i) => (
                     <li key={i}>{p}</li>
                   ))}
                 </ul>
               </CardContent>
             </Card>
-            <Button onClick={() => setPhase("part2-speak")} variant="brand" size="lg" className="w-full rounded-full">
-              <Play className="h-5 w-5" /> Sẵn sàng — bắt đầu nói
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Question phases: part1, part2-speak, part3 */}
-      {(isQ || phase === "part2-speak") && (
-        <Card>
-          <CardContent className="p-6 space-y-4">
-            {isQ && (
-              <div className="text-xs text-muted-foreground font-semibold tracking-wider uppercase">
-                Câu {qIdx + 1} / {questions.length}
-              </div>
-            )}
-            <div className="flex items-start gap-3">
-              <button
-                onClick={() => playTTS(phase === "part2-speak" ? part2CueCard.topic : currentQ)}
-                disabled={ttsBusy}
-                className={cn(
-                  "grid h-12 w-12 place-items-center rounded-2xl bg-indigo-100 text-indigo-600 shrink-0 dark:bg-indigo-950",
-                  ttsBusy && "animate-pulse",
-                )}
-                aria-label="Nghe đề"
-              >
-                {ttsBusy ? <Loader2 className="h-6 w-6 animate-spin" /> : <Volume2 className="h-6 w-6" />}
-              </button>
-              <div className="flex-1">
-                <p className="text-xl font-bold leading-tight">
-                  {phase === "part2-speak" ? part2CueCard.topic : currentQ}
-                </p>
-                {phase === "part2-speak" && (
-                  <ul className="list-disc pl-5 text-sm space-y-0.5 mt-2 text-muted-foreground">
-                    {part2CueCard.points.map((p, i) => (
-                      <li key={i}>{p}</li>
-                    ))}
-                  </ul>
-                )}
-                <p className="text-xs text-muted-foreground mt-1">Đề tự đọc khi bắt đầu — nhấn loa để nghe lại</p>
-              </div>
+            <textarea
+              value={part2Notes}
+              onChange={(e) => setPart2Notes(e.target.value)}
+              placeholder="Ghi chú ở đây..."
+              className="min-h-[200px] rounded-lg border-2 border-zinc-200 bg-background p-3 text-sm leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-primary/40 dark:border-zinc-800"
+            />
+          </div>
+          <div className="border-t pt-4 flex items-center justify-between">
+            <div className="text-sm text-sky-600 inline-flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-sky-500" />
+              {prepElapsed < 60
+                ? `Chuẩn bị ghi chú sau ${Math.max(0, 60 - prepElapsed)} giây`
+                : "Đã sẵn sàng — có thể nhấn 'Bắt đầu nói'"}
             </div>
+            <Button
+              onClick={() => setPhase("part2-speak")}
+              variant="brand"
+              size="lg"
+              className="rounded-full"
+            >
+              Bắt đầu nói <Play className="h-4 w-4 fill-current" />
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-            {/* Stopwatch: shown while recording, OR previous take's duration before re-record. */}
-            {(recording || (!recording && recElapsed > 0 && currentResult.transcript)) && (
-              <div className="rounded-2xl border bg-muted/30 p-4 flex items-center justify-center gap-3">
-                <Timer className={cn("h-5 w-5", recording ? "text-red-600" : "text-muted-foreground")} />
-                <span className={cn("text-4xl font-extrabold tabular-nums", recording && "text-red-600")}>
-                  {formatDuration(recElapsed)}
-                </span>
-                <span className="text-xs text-muted-foreground self-end mb-1.5">
-                  {recording ? "đang nói…" : "lần ghi trước"}
-                </span>
+  // ---- Question phases (Part 1 / Part 2 speak / Part 3) ----
+  const partQuestionsTotal = isQ ? questions.length : 1;
+  return (
+    <div className="max-w-3xl mx-auto py-6">
+      <div className="rounded-3xl border bg-card shadow-sm p-5 md:p-7 flex flex-col min-h-[520px]">
+        <SpeakingTopBar
+          mode={mode}
+          partTitle={partTitle}
+          elapsed={recElapsed}
+          onExit={() => router.push("/speaking")}
+          questionIndex={isQ ? qIdx + 1 : undefined}
+          questionTotal={isQ ? partQuestionsTotal : undefined}
+        />
+
+        <div className="flex-1 flex flex-col items-center justify-center text-center gap-6 py-6">
+          {/* Cue card content shown alongside notes during Part 2 speak */}
+          {phase === "part2-speak" && (
+            <div className="w-full text-left rounded-lg border-2 border-zinc-200 bg-white/60 dark:bg-zinc-900/40 dark:border-zinc-800 p-3 space-y-1">
+              <div className="font-bold text-pink-600 dark:text-pink-400">
+                {part2CueCard.topic}
               </div>
-            )}
-
-            {/* record */}
-            <div className="flex items-center gap-2">
-              {!recording ? (
-                <Button
-                  onClick={startRecording}
-                  disabled={transcribing}
-                  variant="brand"
-                  size="lg"
-                  className="rounded-full flex-1"
-                >
-                  <Mic className="h-5 w-5" /> {currentResult.transcript ? "Ghi âm lại" : "Bấm để nói"}
-                </Button>
-              ) : (
-                <Button onClick={stopRecording} size="lg" className="rounded-full flex-1 bg-red-600 hover:bg-red-700 text-white">
-                  <Square className="h-5 w-5 fill-white" /> Dừng — đã nói xong
-                </Button>
+              <ul className="list-disc pl-5 text-sm space-y-0.5 text-zinc-600 dark:text-zinc-400">
+                {part2CueCard.points.map((p, i) => (
+                  <li key={i}>{p}</li>
+                ))}
+              </ul>
+              {part2Notes.trim() && (
+                <div className="mt-2 rounded-md bg-amber-50 dark:bg-amber-950/20 px-2.5 py-1.5">
+                  <div className="text-[10px] font-extrabold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                    Ghi chú của bạn
+                  </div>
+                  <p className="whitespace-pre-wrap text-xs leading-relaxed">{part2Notes}</p>
+                </div>
               )}
             </div>
-            {recording && (
-              <div className="flex items-center gap-2 text-sm text-red-600">
-                <span className="h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse" /> Đang ghi âm — bấm "Dừng" khi xong
-              </div>
-            )}
-            {transcribing && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" /> Đang nhận dạng giọng nói...
-              </div>
-            )}
+          )}
 
-            {/* transcript preview */}
-            {currentResult.transcript && !recording && !transcribing && (
-              <div className="rounded-lg border bg-muted/40 p-3">
-                <div className="text-xs font-bold text-muted-foreground mb-1">Bài nói của bạn</div>
-                <TranscriptView result={currentResult} onSpeak={playTTS} />
+          {countdown > 0 && !recording ? (
+            <div className="flex flex-col items-center gap-2">
+              <div className="text-xs font-extrabold uppercase tracking-wider text-primary">
+                Sẵn sàng nói trong...
               </div>
-            )}
+              <div className="text-7xl font-extrabold text-primary tabular-nums animate-pulse">
+                {countdown}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Sẽ có tiếng bíp khi bắt đầu ghi âm
+              </div>
+            </div>
+          ) : (
+            <>
+              <p className="text-sm text-zinc-500 max-w-md leading-relaxed">
+                <span className="text-zinc-400">*</span>Trả lời câu hỏi, sau đó nhấn{" "}
+                <span className="font-bold text-primary">Ghi nhận câu trả lời</span> để sang câu
+                tiếp theo.
+              </p>
+              <button
+                type="button"
+                onClick={() =>
+                  playTTS(phase === "part2-speak" ? part2CueCard.topic : currentQ)
+                }
+                disabled={ttsBusy}
+                className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 px-4 py-2 text-sm font-semibold disabled:opacity-50"
+              >
+                {ttsBusy ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Volume2 className="h-4 w-4" />
+                )}
+                Nghe lại
+              </button>
+            </>
+          )}
+        </div>
 
-            <Button onClick={nextQuestion} variant="outline" size="lg" className="w-full rounded-full" disabled={recording || transcribing}>
-              {isLastStep() ? "Nộp bài & chấm" : "Câu tiếp theo"}
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+        <div className="border-t pt-4 flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2 min-w-[140px]">
+            {recording ? (
+              <>
+                <span className="h-2.5 w-2.5 rounded-full bg-sky-400 animate-pulse" />
+                <span className="text-sm font-semibold text-sky-600">Đang ghi âm...</span>
+              </>
+            ) : transcribing ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Đang nhận dạng...</span>
+              </>
+            ) : currentResult.transcript ? (
+              <>
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                <span className="text-sm font-semibold text-emerald-600">Đã ghi xong</span>
+              </>
+            ) : (
+              <span className="text-sm text-muted-foreground">Sẵn sàng</span>
+            )}
+          </div>
+
+          <WaveformBars active={recording} analyser={analyserRef} />
+
+          <div className="flex items-center gap-2">
+            {!recording && currentResult.transcript && (
+              <Button
+                onClick={startRecording}
+                disabled={transcribing || countdown > 0 || ttsBusy}
+                variant="outline"
+                size="sm"
+                className="rounded-full"
+              >
+                <Mic className="h-4 w-4" /> Ghi âm lại
+              </Button>
+            )}
+            {recording ? (
+              <Button
+                onClick={nextQuestion}
+                disabled={transcribing}
+                variant="brand"
+                size="lg"
+                className="rounded-full px-5"
+              >
+                Ghi nhận câu trả lời
+              </Button>
+            ) : (
+              <Button
+                onClick={nextQuestion}
+                disabled={transcribing || (!currentResult.transcript && countdown === 0 && !ttsBusy)}
+                variant="brand"
+                size="lg"
+                className="rounded-full px-5"
+              >
+                {isLastStep() ? "Nộp bài & chấm" : "Ghi nhận câu trả lời"}
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Top bar shared by every active speaking phase. Matches image 2's layout:
+ *  [Căng tag] · ........ PART X ........ · [Thoát] / divider line. */
+function SpeakingTopBar({
+  mode,
+  partTitle,
+  elapsed,
+  onExit,
+  questionIndex,
+  questionTotal,
+}: {
+  mode: "cang" | "thuong";
+  partTitle: string;
+  elapsed: number;
+  onExit: () => void;
+  questionIndex?: number;
+  questionTotal?: number;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b pb-3">
+      <div className="flex items-center gap-2">
+        <span
+          className={cn(
+            "inline-flex items-center gap-1 rounded-full border-2 px-3 py-1 text-xs font-extrabold",
+            mode === "cang"
+              ? "border-primary text-primary"
+              : "border-zinc-300 text-zinc-500",
+          )}
+        >
+          <Timer className="h-3.5 w-3.5" /> {mode === "cang" ? "Căng" : "Thường"}
+        </span>
+        {questionIndex != null && questionTotal != null && questionTotal > 1 && (
+          <span className="text-xs text-muted-foreground">
+            Câu {questionIndex}/{questionTotal}
+          </span>
+        )}
+      </div>
+      <div className="font-extrabold tracking-wider">{partTitle}</div>
+      <div className="flex items-center gap-2">
+        {elapsed > 0 && (
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {formatDuration(elapsed)}
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={onExit}
+          className="rounded-full border-2 border-zinc-300 px-3 py-1 text-xs font-bold text-zinc-600 hover:border-zinc-400"
+        >
+          Thoát
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Three audio-reactive bars (image 2's mid widget). When `analyser` is
+ *  connected we drive heights from FFT levels; otherwise just CSS pulses
+ *  so the candidate gets visual feedback even if Web Audio is unavailable. */
+function WaveformBars({
+  active,
+  analyser,
+}: {
+  active: boolean;
+  analyser: { current: AnalyserNode | null };
+}) {
+  const [levels, setLevels] = useState<[number, number, number]>([0.3, 0.3, 0.3]);
+  useEffect(() => {
+    if (!active || !analyser.current) {
+      setLevels([0.3, 0.3, 0.3]);
+      return;
+    }
+    let raf = 0;
+    const buf = new Uint8Array(analyser.current.frequencyBinCount);
+    const tick = () => {
+      const a = analyser.current;
+      if (!a) return;
+      a.getByteFrequencyData(buf);
+      // Cheap 3-band split.
+      const len = buf.length;
+      const band = (s: number, e: number) => {
+        let sum = 0;
+        for (let i = s; i < e; i++) sum += buf[i];
+        return sum / (e - s) / 255;
+      };
+      setLevels([
+        0.25 + band(0, Math.floor(len / 3)) * 0.9,
+        0.25 + band(Math.floor(len / 3), Math.floor((2 * len) / 3)) * 0.9,
+        0.25 + band(Math.floor((2 * len) / 3), len) * 0.9,
+      ]);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [active, analyser]);
+  return (
+    <div className="flex items-end gap-1 h-7" aria-hidden>
+      {levels.map((l, i) => (
+        <span
+          key={i}
+          className={cn(
+            "w-1.5 rounded-full transition-all",
+            active ? "bg-sky-400" : "bg-zinc-300 animate-pulse",
+          )}
+          style={{ height: `${Math.min(28, Math.max(6, l * 28))}px` }}
+        />
+      ))}
     </div>
   );
 }

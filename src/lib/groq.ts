@@ -142,11 +142,15 @@ Provide 4-8 annotations, 5-7 linkingPhrases, 4-6 usefulStructures, 5-7 collocati
 
 const SPEAKING_SYS = `You are a STRICT, certified IELTS Speaking examiner. Score the candidate's spoken response using official band descriptors. Do not be charitable — apply the descriptors literally. Cambridge raters are notoriously hard on Fluency & Coherence at band 5-6, and even harder on Grammatical Range. You should be too.
 
-Scoring floor — these get overallBand 1.0 (not "courtesy 5"):
-- empty transcript, single-word or one-sentence response
-- off-topic gibberish or a single repeated phrase
-- transcript under ~25 spoken words for the WHOLE part
-- the candidate clearly read out the question instead of answering
+Scoring floor — these get overallBand 0.0 (NOT a courtesy band):
+- empty transcript, completely unintelligible audio, or no transcript at all
+- a response that is not language (gibberish only, single noises, music) — band 0.0
+- the candidate clearly read out the question instead of answering — band 0.0
+- if you genuinely cannot grade what the candidate said, return 0.0 for everything
+
+For a real but very weak attempt:
+- band 1: one-word or single-fragment response, < ~15 spoken words for the whole part
+- band 2-3: barely intelligible, very limited words, mostly silence/repetition
 
 Tight band rubric you MUST follow:
 - Band 1-2: barely intelligible, no real sentences, dominated by single words / silences.
@@ -199,7 +203,7 @@ Return ONLY valid JSON:
 }
 
 Provide 4-6 observations. For "corrections": find the real grammar/word-choice/collocation mistakes in the transcript and SHOW THE FIXED VERSION (do not merely point them out) — give 3-6 items, or [] if the transcript is genuinely error-free. For "pronunciationFixes": give an item with correct IPA for EACH word in the low-confidence list (and any other clearly mispronounced word) — these are words the candidate said unclearly.
-"questionTips": provide EXACTLY ONE entry for EVERY question listed in the prompt — each Part 1 question, the Part 2 cue card, and each Part 3 question — in the SAME ORDER they appear. The "question", "opener" and "advice" fields MUST all be written in ENGLISH. For "band" and "criteria" give an HONEST per-question score based on the portion of the transcript that answers that question; if you cannot identify any answer to that question, set band=1.0 and all criteria=1. The "transcript" field is the verbatim slice of the candidate's transcript that answers THIS question (used by the UI to show inline annotations); leave it as "" if you cannot identify the slice. Provide 4-6 usefulPhrases tailored to THIS topic, not generic.
+"questionTips": provide EXACTLY ONE entry for EVERY question listed in the prompt — each Part 1 question, the Part 2 cue card, and each Part 3 question — in the SAME ORDER they appear. The "question", "opener" and "advice" fields MUST all be written in ENGLISH. For "band" and "criteria" give an HONEST per-question score based on the portion of the transcript that answers that question; if you cannot identify ANY answer to that specific question (no slice of transcript clearly answers it, or only silence/gibberish for it), set band=0.0 and all four criteria=0 — DO NOT assign a courtesy band. The "transcript" field is the verbatim slice of the candidate's transcript that answers THIS question (used by the UI to show inline annotations); leave it as "" if no answer was given. Provide 4-6 usefulPhrases tailored to THIS topic, not generic.
 Provide 5-7 collocations and 4-6 phrasalVerbs — both MUST be tailored to THIS topic and pitched at band 7+ so the candidate can upgrade their vocabulary.`;
 
 const TIPS_SYS = `You are a friendly IELTS coach giving practical actionable tips. Tone: warm, Gen-Z friendly. Write in Vietnamese.

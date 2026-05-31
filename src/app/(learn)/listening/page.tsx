@@ -1,13 +1,40 @@
+import { Suspense } from "react";
 import { Headphones, Clock, Volume2, Brain, Trophy } from "lucide-react";
 import { SkillIntro } from "@/components/learn/skill-intro";
 import { TestPicker, questionTypeLabel } from "@/components/learn/test-picker";
+import { TestPickerSkeleton } from "@/components/learn/test-picker-skeleton";
 import { attemptCounts } from "@/lib/attempt-counts";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-export default async function ListeningIntroPage() {
+export default function ListeningIntroPage() {
+  return (
+    <div className="space-y-8">
+      <SkillIntro
+        title="Listening"
+        subtitle="1 bài nghe mỗi lần luyện tập · audio + câu hỏi"
+        icon={Headphones}
+        grad="from-amber-500 to-orange-500"
+        startHref="/listening/start"
+        ctaLabel="AI chọn đề ngẫu nhiên"
+        bullets={[
+          { icon: Volume2, text: "Nghe audio và trả lời câu hỏi song song" },
+          { icon: Clock, text: "Không bấm giờ — hệ thống chỉ đếm thời gian bạn đã làm" },
+          { icon: Brain, text: "AI ưu tiên bài bạn chưa làm gần đây, tránh trùng lặp" },
+          { icon: Trophy, text: "Sau khi nộp, AI phân tích kết quả + cho transcript để dò lại" },
+        ]}
+      />
+
+      <Suspense fallback={<TestPickerSkeleton />}>
+        <ListeningTestList />
+      </Suspense>
+    </div>
+  );
+}
+
+async function ListeningTestList() {
   const session = await auth();
 
   const [tests, counts] = await Promise.all([
@@ -29,36 +56,19 @@ export default async function ListeningIntroPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <SkillIntro
-        title="Listening"
-        subtitle="1 bài nghe mỗi lần luyện tập · audio + câu hỏi"
-        icon={Headphones}
-        grad="from-amber-500 to-orange-500"
-        startHref="/listening/start"
-        ctaLabel="AI chọn đề ngẫu nhiên"
-        bullets={[
-          { icon: Volume2, text: "Nghe audio và trả lời câu hỏi song song" },
-          { icon: Clock, text: "Không bấm giờ — hệ thống chỉ đếm thời gian bạn đã làm" },
-          { icon: Brain, text: "AI ưu tiên bài bạn chưa làm gần đây, tránh trùng lặp" },
-          { icon: Trophy, text: "Sau khi nộp, AI phân tích kết quả + cho transcript để dò lại" },
-        ]}
-      />
-
-      <TestPicker
-        grad="from-amber-500 to-orange-500"
-        icon={Headphones}
-        emptyText="Chưa có bài nghe nào trong kho luyện tập."
-        items={tests.map((t) => ({
-          id: t.id,
-          href: `/listening/${t.id}`,
-          title: t.title,
-          imageUrl: t.imageUrl,
-          attemptCount: counts.get(t.id) ?? 0,
-          details: [...new Set(t.questions.map((q) => q.type))].map(questionTypeLabel),
-          done: doneIds.has(t.id),
-        }))}
-      />
-    </div>
+    <TestPicker
+      grad="from-amber-500 to-orange-500"
+      icon={Headphones}
+      emptyText="Chưa có bài nghe nào trong kho luyện tập."
+      items={tests.map((t) => ({
+        id: t.id,
+        href: `/listening/${t.id}`,
+        title: t.title,
+        imageUrl: t.imageUrl,
+        attemptCount: counts.get(t.id) ?? 0,
+        details: [...new Set(t.questions.map((q) => q.type))].map(questionTypeLabel),
+        done: doneIds.has(t.id),
+      }))}
+    />
   );
 }

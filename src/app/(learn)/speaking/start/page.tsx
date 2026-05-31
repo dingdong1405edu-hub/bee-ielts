@@ -4,9 +4,16 @@ import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-export default async function SpeakingStartPage() {
+export default async function SpeakingStartPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ parts?: string }>;
+}) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
+
+  const sp = await searchParams;
+  const partsQs = sp.parts ? `?parts=${encodeURIComponent(sp.parts)}` : "";
 
   const recent = await prisma.attempt.findMany({
     where: { userId: session.user.id, skill: "SPEAKING" },
@@ -25,5 +32,5 @@ export default async function SpeakingStartPage() {
     if (all.length === 0) redirect("/speaking");
     set = (await prisma.speakingSet.findUnique({ where: { id: all[Math.floor(Math.random() * all.length)].id } }))!;
   }
-  redirect(`/speaking/${set.id}`);
+  redirect(`/speaking/${set.id}${partsQs}`);
 }

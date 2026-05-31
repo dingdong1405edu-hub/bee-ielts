@@ -1,11 +1,52 @@
 "use client";
 
+import { TTS_VOICES } from "@/lib/tts-voices";
+
 export interface TTSOptions {
   rate?: number;
   pitch?: number;
   volume?: number;
   voiceName?: string;
   lang?: string;
+  /** Force a specific gender for the SpeechSynthesis fallback. */
+  gender?: "Nữ" | "Nam";
+}
+
+/**
+ * Gender hint for a given Deepgram voice id — used by the SpeechSynthesis
+ * fallback so the candidate keeps hearing a female voice when they picked a
+ * female Aura voice. Without this the browser would pick its first available
+ * voice (often male) and the gender would flip mid-session whenever Deepgram
+ * intermittently failed.
+ */
+export function genderForVoiceId(voiceId: string | undefined): "Nữ" | "Nam" | undefined {
+  if (!voiceId) return undefined;
+  return TTS_VOICES.find((v) => v.id === voiceId)?.gender;
+}
+
+// Cache the chosen browser voice per gender so it stays consistent within a
+// session — without this every utterance could pick a different SpeechSynthesis
+// voice and the candidate would hear different speakers across questions.
+let cachedBrowserVoice: { gender?: string; voice: SpeechSynthesisVoice } | null = null;
+
+function pickBrowserVoice(gender?: "Nữ" | "Nam"): SpeechSynthesisVoice | null {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
+  if (cachedBrowserVoice && cachedBrowserVoice.gender === gender) return cachedBrowserVoice.voice;
+  const all = speechSynthesis.getVoices().filter((v) => v.lang.startsWith("en"));
+  if (all.length === 0) return null;
+
+  // Heuristics: browser voices don't expose gender — match on common names.
+  const FEMALE = /samantha|victoria|karen|moira|kate|tessa|fiona|allison|ava|susan|female|zira|hazel|aria|jenny|sonia|nhung/i;
+  const MALE = /daniel|alex|fred|tom|oliver|aaron|male|david|mark|guy|ryan|jacob|gordon|james/i;
+  let pick: SpeechSynthesisVoice | undefined;
+  if (gender === "Nữ") pick = all.find((v) => FEMALE.test(v.name));
+  else if (gender === "Nam") pick = all.find((v) => MALE.test(v.name));
+  if (!pick) {
+    pick =
+      all.find((v) => /Google US English|Microsoft Aria|Daniel|Samantha/i.test(v.name)) || all[0];
+  }
+  cachedBrowserVoice = { gender, voice: pick };
+  return pick;
 }
 
 /**
@@ -40,27 +81,33 @@ export async function playExaminerLine(
     const audio = new Audio(url);
     audioRef.current = audio;
     await new Promise<void>((resolve) => {
-      audio.onended = () => {
+      let settled = false;
+      const done = () => {
+        if (settled) return;
+        settled = true;
         URL.revokeObjectURL(url);
         resolve();
       };
-      audio.onerror = () => {
-        URL.revokeObjectURL(url);
-        resolve();
+      audio.onended = done;
+      audio.onerror = done;
+      // Resolve on pause too — caller may pause via audioRef.current.pause()
+      // when the phase changes; without this the promise hangs forever and
+      // the auto-record flow would never reach the countdown.
+      audio.onpause = () => {
+        if (audio.ended || audio.currentTime === 0) return;
+        // Treat user-triggered pause as cancellation.
+        done();
       };
-      audio.play().catch(() => {
-        URL.revokeObjectURL(url);
-        resolve();
-      });
+      audio.play().catch(done);
     });
     return;
   } catch (e) {
     console.warn("[playExaminerLine] Deepgram failed, falling back to SpeechSynthesis:", e);
   }
 
-  // ---- Path 2: browser SpeechSynthesis fallback ----
+  // ---- Path 2: browser SpeechSynthesis fallback (gender-matched) ----
   try {
-    await speakText(trimmed, { rate: 0.95 });
+    await speakText(trimmed, { rate: 0.95, gender: genderForVoiceId(voice) });
   } catch (e) {
     console.warn("[playExaminerLine] SpeechSynthesis also failed:", e);
   }
@@ -100,10 +147,7 @@ export function speakText(text: string, opts: TTSOptions = {}): Promise<void> {
       const v = speechSynthesis.getVoices().find((x) => x.name === opts.voiceName);
       if (v) utter.voice = v;
     } else {
-      const voices = speechSynthesis.getVoices().filter((v) => v.lang.startsWith("en"));
-      const preferred =
-        voices.find((v) => /Google US English|Microsoft Aria|Daniel|Samantha/i.test(v.name)) ||
-        voices[0];
+      const preferred = pickBrowserVoice(opts.gender);
       if (preferred) utter.voice = preferred;
     }
     utter.onend = () => resolve();
@@ -120,6 +164,47 @@ export function stopSpeaking() {
 
 export function isTTSSupported(): boolean {
   return typeof window !== "undefined" && "speechSynthesis" in window;
+}
+
+/**
+ * Short 880Hz beep using the Web Audio API. Signals to the candidate that
+ * recording has begun (same affordance as luyennoi.com). Resolves after the
+ * tone has fully faded so it can be `await`-ed before MediaRecorder.start().
+ */
+export async function playStartBeep(): Promise<void> {
+  if (typeof window === "undefined") return;
+  const AudioCtx =
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioCtx) return;
+  const ctx = new AudioCtx();
+  try {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.frequency.value = 880;
+    osc.type = "sine";
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.25, ctx.currentTime + 0.02);
+    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.22);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.23);
+    await new Promise((r) => setTimeout(r, 240));
+  } finally {
+    try {
+      await ctx.close();
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+/** "Good morning/afternoon/evening" based on the candidate's local clock. */
+export function timeOfDayGreeting(now: Date = new Date()): string {
+  const h = now.getHours();
+  if (h < 12) return "Good morning";
+  if (h < 18) return "Good afternoon";
+  return "Good evening";
 }
 
 /** Speak with natural pacing — splits on punctuation, adds pauses. */

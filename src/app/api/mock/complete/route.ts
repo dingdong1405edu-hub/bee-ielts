@@ -122,9 +122,11 @@ export async function POST(req: Request) {
   if (wBand < 1.0) wBand = 1.0;
   wFeedback = `Task 1 (${task1Result.band.toFixed(1)}): ${task1Result.summary} | Task 2 (${task2Result.band.toFixed(1)}): ${task2Result.summary}`;
 
-  // Speaking — same band-1.0 floor. Full grader output kept for review.
-  let sBand = 1.0;
-  let sFeedback = "Không chấm được Speaking — band 1.0 mặc định.";
+  // Speaking — band-0.0 when we genuinely cannot grade (empty transcript, AI
+  // failure). The user explicitly asked for 0.0 in those cases so silence is
+  // not rewarded with a courtesy band.
+  let sBand = 0.0;
+  let sFeedback = "Không chấm được Speaking — band 0.0.";
   let speakingFull: unknown = null;
   try {
     const combinedTranscript = `[Part 1]\n${speaking.transcripts["1"]}\n\n[Part 2]\n${speaking.transcripts["2"]}\n\n[Part 3]\n${speaking.transcripts["3"]}`;
@@ -135,11 +137,11 @@ export async function POST(req: Request) {
         questions: ["Part 1 + Part 2 + Part 3 combined"],
         transcript: combinedTranscript,
       })) as { overallBand: number; summary: string };
-      sBand = Number.isFinite(sResult.overallBand) && sResult.overallBand > 0 ? sResult.overallBand : 1.0;
+      sBand = Number.isFinite(sResult.overallBand) && sResult.overallBand >= 0 ? sResult.overallBand : 0.0;
       sFeedback = sResult.summary || "—";
       speakingFull = sResult;
     } else {
-      sFeedback = "Transcript trống hoặc quá ngắn (<20 ký tự) — band 1.0 mặc định.";
+      sFeedback = "Transcript trống hoặc quá ngắn (<20 ký tự) — band 0.0.";
     }
   } catch (e) {
     console.error("[mock speaking]", e);

@@ -1,7 +1,9 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { PenLine, Clock, BarChart3, FileText, Trophy, History, ChevronRight } from "lucide-react";
 import { SkillIntro } from "@/components/learn/skill-intro";
 import { TestPicker } from "@/components/learn/test-picker";
+import { TestPickerSkeleton } from "@/components/learn/test-picker-skeleton";
 import { attemptCounts } from "@/lib/attempt-counts";
 import { Card, CardContent } from "@/components/ui/card";
 import { DeleteAttemptButton } from "@/components/learn/delete-attempt-button";
@@ -10,7 +12,32 @@ import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-export default async function WritingIntroPage() {
+export default function WritingIntroPage() {
+  return (
+    <div className="space-y-6">
+      <SkillIntro
+        title="Writing"
+        subtitle="2 task · không giới hạn thời gian · AI chấm 4 tiêu chí IELTS"
+        icon={PenLine}
+        grad="from-rose-500 to-pink-500"
+        startHref="/writing/start"
+        ctaLabel="AI chọn đề ngẫu nhiên"
+        bullets={[
+          { icon: BarChart3, text: "Task 1 (≥150 từ): mô tả biểu đồ / số liệu" },
+          { icon: FileText, text: "Task 2 (≥250 từ): essay về một chủ đề" },
+          { icon: Clock, text: "Autosave draft. Không bấm giờ — chỉ đếm thời gian bạn đã làm." },
+          { icon: Trophy, text: "AI chấm cả 2 task — overall = Task1 × 1/3 + Task2 × 2/3" },
+        ]}
+      />
+
+      <Suspense fallback={<TestPickerSkeleton />}>
+        <WritingTaskList />
+      </Suspense>
+    </div>
+  );
+}
+
+async function WritingTaskList() {
   const session = await auth();
 
   const [tasks, counts] = await Promise.all([
@@ -22,7 +49,6 @@ export default async function WritingIntroPage() {
     attemptCounts("WRITING"),
   ]);
 
-  // Past writing attempts — newest first
   let history: {
     id: string;
     score: number | null;
@@ -41,11 +67,11 @@ export default async function WritingIntroPage() {
     });
     const taskIds = Array.from(new Set(attempts.map((a) => a.refId.replace(/^mock-/, ""))));
     taskIds.forEach((id) => doneIds.add(id));
-    const tasks = await prisma.writingTask.findMany({
+    const tasksForHist = await prisma.writingTask.findMany({
       where: { id: { in: taskIds } },
       select: { id: true, taskType: true, prompt: true },
     });
-    const taskMap = new Map(tasks.map((t) => [t.id, t]));
+    const taskMap = new Map(tasksForHist.map((t) => [t.id, t]));
     history = attempts.map((a) => {
       const t = taskMap.get(a.refId.replace(/^mock-/, ""));
       return {
@@ -59,22 +85,7 @@ export default async function WritingIntroPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <SkillIntro
-        title="Writing"
-        subtitle="2 task · không giới hạn thời gian · AI chấm 4 tiêu chí IELTS"
-        icon={PenLine}
-        grad="from-rose-500 to-pink-500"
-        startHref="/writing/start"
-        ctaLabel="AI chọn đề ngẫu nhiên"
-        bullets={[
-          { icon: BarChart3, text: "Task 1 (≥150 từ): mô tả biểu đồ / số liệu" },
-          { icon: FileText, text: "Task 2 (≥250 từ): essay về một chủ đề" },
-          { icon: Clock, text: "Autosave draft. Không bấm giờ — chỉ đếm thời gian bạn đã làm." },
-          { icon: Trophy, text: "AI chấm cả 2 task — overall = Task1 × 1/3 + Task2 × 2/3" },
-        ]}
-      />
-
+    <>
       <TestPicker
         grad="from-rose-500 to-pink-500"
         icon={PenLine}
@@ -125,6 +136,6 @@ export default async function WritingIntroPage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
