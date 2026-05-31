@@ -336,20 +336,11 @@ export function SpeakingPlayer({
         if (!got || !streamRef.current) return;
       }
       const liveStream = streamRef.current!;
-      // Prefer webm/opus when available — Deepgram STT handles it best and
-      // chunks come through reliably; otherwise let the browser pick.
-      const mimeCandidates = [
-        "audio/webm;codecs=opus",
-        "audio/webm",
-        "audio/ogg;codecs=opus",
-        "",
-      ];
-      const supported = mimeCandidates.find(
-        (m) => m === "" || (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(m)),
-      );
-      const mr = supported
-        ? new MediaRecorder(liveStream, { mimeType: supported })
-        : new MediaRecorder(liveStream);
+      // Let the browser pick its native default mimeType — this is the most
+      // compatible across Chrome / Firefox / Safari and the resulting blob
+      // type is whatever Deepgram already knows how to handle.
+      const mr = new MediaRecorder(liveStream);
+      console.log("[recorder] starting with mimeType:", mr.mimeType);
       chunksRef.current = [];
       mr.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
@@ -359,11 +350,12 @@ export function SpeakingPlayer({
         toast.error("Lỗi MediaRecorder — thử bấm 'Ghi âm lại'.");
       };
       mr.onstop = async () => {
-        // Strip the codec parameter — Deepgram STT's parser is picky and
-        // sometimes rejects `audio/webm;codecs=opus`. The base type is
-        // enough for it to demux.
-        const baseType = (mr.mimeType || "audio/webm").split(";")[0];
-        const blob = new Blob(chunksRef.current, { type: baseType });
+        // Keep the full mimeType (codec param included) — Deepgram uses it
+        // to pick the right demuxer and the previous strip-codec attempt
+        // was a misdiagnosis.
+        const blobType = mr.mimeType || "audio/webm";
+        const blob = new Blob(chunksRef.current, { type: blobType });
+        console.log(`[recorder] stop — blob type=${blobType} size=${blob.size}`);
         if (blob.size < 1200) {
           console.warn("[recorder] tiny blob on stop:", blob.size);
           toast.error("Không thu được tiếng — kiểm tra micro và thử lại.");
@@ -434,13 +426,18 @@ export function SpeakingPlayer({
   const transcribe = async (blob: Blob) => {
     setTranscribing(true);
     try {
+      console.log(`[transcribe] sending ${blob.size} bytes, type=${blob.type}`);
       const res = await fetch("/api/speaking/transcribe", {
         method: "POST",
         headers: { "Content-Type": blob.type || "audio/webm" },
         body: blob,
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Lỗi");
+      if (!res.ok) {
+        console.error("[transcribe] server error:", res.status, data);
+        throw new Error(data.error || `Lỗi ${res.status}`);
+      }
+      console.log(`[transcribe] got transcript: "${data.transcript ?? ""}"`);
       const qr: QResult = { transcript: data.transcript || "", words: data.words || [] };
       if (!qr.transcript.trim()) {
         toast.error("Không nghe được gì — thử nói to và rõ hơn.");

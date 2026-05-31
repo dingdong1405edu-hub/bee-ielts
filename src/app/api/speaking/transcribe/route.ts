@@ -11,11 +11,14 @@ export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  // Strip any codec parameter — `audio/webm;codecs=opus` confuses Deepgram's
-  // demuxer in some cases; the base mime is enough.
+  // Keep the codec parameter — Deepgram actually USES it to pick the right
+  // demuxer. Stripping it earlier was a misdiagnosis. The raw header from
+  // the browser is the most accurate description of the bytes.
   const rawCt = req.headers.get("content-type") || "audio/webm";
-  const contentType = rawCt.split(";")[0].trim() || "audio/webm";
   const audio = await req.arrayBuffer();
+  console.log(
+    `[transcribe] received content-type="${rawCt}" bytes=${audio.byteLength}`,
+  );
   if (audio.byteLength < 1000) {
     return NextResponse.json({ error: "Bản ghi quá ngắn" }, { status: 400 });
   }
@@ -24,12 +27,10 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await deepgramTranscribe(audio, contentType);
+    const result = await deepgramTranscribe(audio, rawCt);
     return NextResponse.json(result);
   } catch (e) {
     console.error("[speaking/transcribe]", e);
-    // Surface the underlying Deepgram message so the client toast tells the
-    // user (and us) what actually went wrong, instead of a generic message.
     const detail = e instanceof Error ? e.message : "Lỗi không xác định";
     return NextResponse.json(
       { error: `Không nhận dạng được giọng nói: ${detail}` },
