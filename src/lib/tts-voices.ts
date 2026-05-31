@@ -10,7 +10,8 @@ export interface TtsVoice {
 }
 
 export const TTS_VOICES: TtsVoice[] = [
-  // Anh - Mỹ
+  // Anh - Mỹ — Aurora (aura-2) is the default IELTS examiner voice
+  { id: "aura-2-aurora-en", name: "Aurora", accent: "Anh - Mỹ", gender: "Nữ" },
   { id: "aura-asteria-en", name: "Asteria", accent: "Anh - Mỹ", gender: "Nữ" },
   { id: "aura-luna-en", name: "Luna", accent: "Anh - Mỹ", gender: "Nữ" },
   { id: "aura-stella-en", name: "Stella", accent: "Anh - Mỹ", gender: "Nữ" },
@@ -29,7 +30,7 @@ export const TTS_VOICES: TtsVoice[] = [
   { id: "aura-2-hyperion-en", name: "Hyperion", accent: "Anh - Úc", gender: "Nam" },
 ];
 
-export const DEFAULT_VOICE = "aura-asteria-en";
+export const DEFAULT_VOICE = "aura-2-aurora-en";
 
 export function isValidVoice(v: string | undefined | null): v is string {
   return !!v && TTS_VOICES.some((voice) => voice.id === v);

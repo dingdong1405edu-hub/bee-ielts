@@ -11,7 +11,10 @@ export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const contentType = req.headers.get("content-type") || "audio/webm";
+  // Strip any codec parameter — `audio/webm;codecs=opus` confuses Deepgram's
+  // demuxer in some cases; the base mime is enough.
+  const rawCt = req.headers.get("content-type") || "audio/webm";
+  const contentType = rawCt.split(";")[0].trim() || "audio/webm";
   const audio = await req.arrayBuffer();
   if (audio.byteLength < 1000) {
     return NextResponse.json({ error: "Bản ghi quá ngắn" }, { status: 400 });
@@ -25,7 +28,13 @@ export async function POST(req: Request) {
     return NextResponse.json(result);
   } catch (e) {
     console.error("[speaking/transcribe]", e);
-    return NextResponse.json({ error: "Không nhận dạng được giọng nói" }, { status: 502 });
+    // Surface the underlying Deepgram message so the client toast tells the
+    // user (and us) what actually went wrong, instead of a generic message.
+    const detail = e instanceof Error ? e.message : "Lỗi không xác định";
+    return NextResponse.json(
+      { error: `Không nhận dạng được giọng nói: ${detail}` },
+      { status: 502 },
+    );
   }
 }
 

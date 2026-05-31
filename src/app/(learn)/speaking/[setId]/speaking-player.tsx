@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { formatDuration, cn, personalize } from "@/lib/utils";
 import { TipsCard } from "@/components/learn/tips-card";
-import { VoicePicker, useTtsVoice } from "@/components/learn/voice-picker";
+import { useTtsVoice } from "@/components/learn/voice-picker";
 import { VocabSuggestions, type VocabItem } from "@/components/learn/writing-feedback";
 import { playExaminerLine, playStartBeep, timeOfDayGreeting, resetTtsPathLock } from "@/lib/tts";
 
@@ -102,7 +102,7 @@ export function SpeakingPlayer({
   const part3Questions = rawPart3.slice(0, 1);
   const router = useRouter();
   const startedAtRef = useRef<number>(Date.now());
-  const [voice, setVoice] = useTtsVoice();
+  const [voice] = useTtsVoice();
 
   const presetSinglePart = initialParts && initialParts.length === 1 ? initialParts[0] : null;
   const initialPhase: Phase = presetSinglePart
@@ -348,7 +348,7 @@ export function SpeakingPlayer({
         (m) => m === "" || (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(m)),
       );
       const mr = supported
-        ? new MediaRecorder(liveStream, supported ? { mimeType: supported } : undefined)
+        ? new MediaRecorder(liveStream, { mimeType: supported })
         : new MediaRecorder(liveStream);
       chunksRef.current = [];
       mr.ondataavailable = (e) => {
@@ -359,9 +359,13 @@ export function SpeakingPlayer({
         toast.error("Lỗi MediaRecorder — thử bấm 'Ghi âm lại'.");
       };
       mr.onstop = async () => {
-        const blob = new Blob(chunksRef.current, { type: mr.mimeType || "audio/webm" });
-        if (blob.size === 0) {
-          console.warn("[recorder] empty blob on stop — skipping transcribe");
+        // Strip the codec parameter — Deepgram STT's parser is picky and
+        // sometimes rejects `audio/webm;codecs=opus`. The base type is
+        // enough for it to demux.
+        const baseType = (mr.mimeType || "audio/webm").split(";")[0];
+        const blob = new Blob(chunksRef.current, { type: baseType });
+        if (blob.size < 1200) {
+          console.warn("[recorder] tiny blob on stop:", blob.size);
           toast.error("Không thu được tiếng — kiểm tra micro và thử lại.");
           return;
         }
@@ -374,10 +378,10 @@ export function SpeakingPlayer({
         await transcribe(blob);
       };
       recordingKeyRef.current = keyForCurrent();
-      // Request a dataavailable event every 1s so a fast-stop still has
-      // chunks queued up (some browsers withhold the final chunk if stop()
-      // is called before any timeslice tick).
-      mr.start(1000);
+      // No timeslice — produce a single contiguous EBML container on stop.
+      // Earlier `mr.start(1000)` emitted incremental chunks that some
+      // browsers concatenate into a malformed webm, which Deepgram rejected.
+      mr.start();
       recorderRef.current = mr;
       setRecording(true);
       setRecElapsed(0);
@@ -698,7 +702,7 @@ export function SpeakingPlayer({
                 <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                   Giọng giám khảo
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 rounded-xl border bg-card px-3 py-2">
                   <button
                     type="button"
                     onClick={() =>
@@ -706,12 +710,16 @@ export function SpeakingPlayer({
                     }
                     disabled={ttsBusy}
                     aria-label="Nghe thử giọng"
-                    className="grid h-9 w-9 place-items-center rounded-full bg-primary/10 text-primary hover:bg-primary/20 disabled:opacity-50"
+                    className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/10 text-primary hover:bg-primary/20 disabled:opacity-50"
                   >
-                    {ttsBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4 fill-current" />}
+                    {ttsBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5 fill-current" />}
                   </button>
-                  <VoicePicker voice={voice} onChange={setVoice} className="flex-1" />
+                  <div className="flex-1 text-sm">
+                    <span className="font-extrabold">Aurora</span>
+                    <span className="text-xs text-muted-foreground ml-1.5">(Female · American)</span>
+                  </div>
                 </div>
+                <p className="text-[11px] text-muted-foreground">Giọng cố định cho cả phiên thi.</p>
               </div>
 
               {selectedParts[1] && (

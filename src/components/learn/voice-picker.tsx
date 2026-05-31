@@ -3,7 +3,9 @@ import { useEffect, useState } from "react";
 import { Volume2 } from "lucide-react";
 import { TTS_VOICES, DEFAULT_VOICE } from "@/lib/tts-voices";
 
-const STORAGE_KEY = "bee-tts-voice";
+// New storage key — old `bee-tts-voice` is ignored so existing users get the
+// new Aurora default instead of an out-of-date Asteria saved choice.
+const STORAGE_KEY = "bee-tts-voice-v2";
 
 /** Voice choice persisted in localStorage. Returns [voice, setVoice]. */
 export function useTtsVoice(): [string, (v: string) => void] {
