@@ -60,6 +60,54 @@ function pickBrowserVoice(gender?: "Nữ" | "Nam"): SpeechSynthesisVoice | null 
  * `audioRef` is mutated so callers can pause an in-flight Deepgram audio
  * tag when the phase changes (`audioRef.current.pause()`).
  */
+// Once we successfully play one line via Deepgram we LOCK to that path for the
+// rest of the session. Without this, an intermittent Deepgram failure (timeout,
+// rate-limit) would silently fall back to SpeechSynthesis and the candidate
+// would hear a different voice — sometimes even a different gender. Locking
+// keeps the examiner voice consistent from greeting to last question.
+type TtsPath = "auto" | "deepgram" | "fallback";
+let ttsPathLock: TtsPath = "auto";
+
+async function tryDeepgram(
+  text: string,
+  voice: string,
+  audioRef: { current: HTMLAudioElement | null },
+): Promise<boolean> {
+  const res = await fetch("/api/speaking/tts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, voice }),
+  });
+  if (!res.ok) throw new Error(`tts ${res.status}`);
+  const url = URL.createObjectURL(await res.blob());
+  if (audioRef.current) {
+    try {
+      audioRef.current.pause();
+    } catch {
+      /* ignore */
+    }
+  }
+  const audio = new Audio(url);
+  audioRef.current = audio;
+  await new Promise<void>((resolve) => {
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      URL.revokeObjectURL(url);
+      resolve();
+    };
+    audio.onended = done;
+    audio.onerror = done;
+    audio.onpause = () => {
+      if (audio.ended || audio.currentTime === 0) return;
+      done();
+    };
+    audio.play().catch(done);
+  });
+  return true;
+}
+
 export async function playExaminerLine(
   text: string,
   voice: string,
@@ -68,49 +116,53 @@ export async function playExaminerLine(
   const trimmed = text.trim();
   if (!trimmed) return;
 
-  // ---- Path 1: Deepgram TTS proxy ----
-  try {
-    const res = await fetch("/api/speaking/tts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: trimmed, voice }),
-    });
-    if (!res.ok) throw new Error(`tts ${res.status}`);
-    const url = URL.createObjectURL(await res.blob());
-    if (audioRef.current) audioRef.current.pause();
-    const audio = new Audio(url);
-    audioRef.current = audio;
-    await new Promise<void>((resolve) => {
-      let settled = false;
-      const done = () => {
-        if (settled) return;
-        settled = true;
-        URL.revokeObjectURL(url);
-        resolve();
-      };
-      audio.onended = done;
-      audio.onerror = done;
-      // Resolve on pause too — caller may pause via audioRef.current.pause()
-      // when the phase changes; without this the promise hangs forever and
-      // the auto-record flow would never reach the countdown.
-      audio.onpause = () => {
-        if (audio.ended || audio.currentTime === 0) return;
-        // Treat user-triggered pause as cancellation.
-        done();
-      };
-      audio.play().catch(done);
-    });
+  // Path is locked → only use that one, no cross-fallback.
+  if (ttsPathLock === "deepgram") {
+    try {
+      // One retry only — if Deepgram is briefly flaky we keep the same voice.
+      try {
+        await tryDeepgram(trimmed, voice, audioRef);
+      } catch {
+        await new Promise((r) => setTimeout(r, 250));
+        await tryDeepgram(trimmed, voice, audioRef);
+      }
+    } catch (e) {
+      console.warn("[playExaminerLine] Deepgram retry exhausted (locked path):", e);
+    }
     return;
-  } catch (e) {
-    console.warn("[playExaminerLine] Deepgram failed, falling back to SpeechSynthesis:", e);
+  }
+  if (ttsPathLock === "fallback") {
+    try {
+      await speakText(trimmed, { rate: 0.95, gender: genderForVoiceId(voice) });
+    } catch (e) {
+      console.warn("[playExaminerLine] SpeechSynthesis failed (locked path):", e);
+    }
+    return;
   }
 
-  // ---- Path 2: browser SpeechSynthesis fallback (gender-matched) ----
+  // Path == "auto" → decide on this first call.
+  try {
+    await tryDeepgram(trimmed, voice, audioRef);
+    ttsPathLock = "deepgram";
+    return;
+  } catch (e) {
+    console.warn("[playExaminerLine] Deepgram failed first call, locking fallback:", e);
+  }
+
+  // Fall back to SpeechSynthesis once and LOCK there — never re-attempt
+  // Deepgram in this session so the voice (and gender) stays consistent.
   try {
     await speakText(trimmed, { rate: 0.95, gender: genderForVoiceId(voice) });
+    ttsPathLock = "fallback";
   } catch (e) {
     console.warn("[playExaminerLine] SpeechSynthesis also failed:", e);
   }
+}
+
+/** Reset the TTS path lock — call when the user starts a new speaking session
+ *  so a new voice/gender choice gets a fresh chance at the Deepgram path. */
+export function resetTtsPathLock() {
+  ttsPathLock = "auto";
 }
 
 /** Stop any in-flight examiner audio: pause the Deepgram tag + cancel SpeechSynthesis. */

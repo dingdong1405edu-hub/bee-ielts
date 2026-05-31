@@ -12,7 +12,7 @@ import { formatDuration, cn, personalize } from "@/lib/utils";
 import { TipsCard } from "@/components/learn/tips-card";
 import { VoicePicker, useTtsVoice } from "@/components/learn/voice-picker";
 import { VocabSuggestions, type VocabItem } from "@/components/learn/writing-feedback";
-import { playExaminerLine, playStartBeep, timeOfDayGreeting } from "@/lib/tts";
+import { playExaminerLine, playStartBeep, timeOfDayGreeting, resetTtsPathLock } from "@/lib/tts";
 
 interface DGWord {
   word: string;
@@ -314,17 +314,57 @@ export function SpeakingPlayer({
 
   // ---- Recording (MediaRecorder) + transcription via Deepgram ----
   const startRecording = async () => {
+    // Defensive: tear down any leftover recorder before opening a new one.
+    // Otherwise two MediaRecorders can race on the same stream and the new
+    // recording silently drops all chunks.
+    if (recorderRef.current) {
+      try {
+        if (recorderRef.current.state !== "inactive") recorderRef.current.stop();
+      } catch {
+        /* ignore */
+      }
+      recorderRef.current = null;
+    }
     const ok = await ensureMicrophone();
     if (!ok || !streamRef.current) return;
     try {
       const stream = streamRef.current;
-      const mr = new MediaRecorder(stream);
+      // If a previous track was somehow ended, request a fresh stream.
+      if (!stream.getAudioTracks().some((t) => t.readyState === "live")) {
+        streamRef.current = null;
+        const got = await ensureMicrophone();
+        if (!got || !streamRef.current) return;
+      }
+      const liveStream = streamRef.current!;
+      // Prefer webm/opus when available — Deepgram STT handles it best and
+      // chunks come through reliably; otherwise let the browser pick.
+      const mimeCandidates = [
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/ogg;codecs=opus",
+        "",
+      ];
+      const supported = mimeCandidates.find(
+        (m) => m === "" || (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(m)),
+      );
+      const mr = supported
+        ? new MediaRecorder(liveStream, supported ? { mimeType: supported } : undefined)
+        : new MediaRecorder(liveStream);
       chunksRef.current = [];
       mr.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
+      mr.onerror = (e) => {
+        console.error("[recorder] error event", e);
+        toast.error("Lỗi MediaRecorder — thử bấm 'Ghi âm lại'.");
+      };
       mr.onstop = async () => {
         const blob = new Blob(chunksRef.current, { type: mr.mimeType || "audio/webm" });
+        if (blob.size === 0) {
+          console.warn("[recorder] empty blob on stop — skipping transcribe");
+          toast.error("Không thu được tiếng — kiểm tra micro và thử lại.");
+          return;
+        }
         // Save the blob keyed by whichever question we were on when recording
         // started — so the review view can play this exact take back. The
         // mic stream itself stays alive for the rest of the session.
@@ -334,7 +374,10 @@ export function SpeakingPlayer({
         await transcribe(blob);
       };
       recordingKeyRef.current = keyForCurrent();
-      mr.start();
+      // Request a dataavailable event every 1s so a fast-stop still has
+      // chunks queued up (some browsers withhold the final chunk if stop()
+      // is called before any timeslice tick).
+      mr.start(1000);
       recorderRef.current = mr;
       setRecording(true);
       setRecElapsed(0);
@@ -538,6 +581,10 @@ export function SpeakingPlayer({
       setSelectedParts((prev) => ({ ...prev, [p]: !prev[p] }));
     const startSession = async () => {
       if (noneSelected) return;
+      // New session → reset the TTS path lock so the new voice/gender choice
+      // gets a fresh shot at Deepgram (otherwise an old session's fallback
+      // lock would force browser TTS for everyone).
+      resetTtsPathLock();
       // Pre-warm the microphone while we still have a fresh user gesture —
       // this is what makes the auto-record at countdown=0 reliable.
       await ensureMicrophone();
@@ -1121,12 +1168,50 @@ export function SpeakingPlayer({
             </div>
           )}
 
+          {/* Question text — visible at all times so the candidate can refer
+              back to it while speaking (matches luyennoi.com's behaviour of
+              keeping the question on-screen during the answer). */}
+          <div className="w-full">
+            <div className="rounded-2xl border-2 border-primary/20 bg-primary/[0.04] dark:bg-primary/[0.08] p-5 md:p-6 text-center">
+              <div className="text-[11px] font-extrabold uppercase tracking-wider text-primary/80 mb-2">
+                Câu hỏi
+              </div>
+              <p className="text-lg md:text-xl font-bold leading-snug text-foreground">
+                {phase === "part2-speak" ? part2CueCard.topic : currentQ}
+              </p>
+              {phase === "part2-speak" && part2CueCard.points.length > 0 && (
+                <ul className="mt-3 inline-block text-left list-disc pl-5 text-sm text-zinc-600 dark:text-zinc-400">
+                  {part2CueCard.points.map((p, i) => (
+                    <li key={i}>{p}</li>
+                  ))}
+                </ul>
+              )}
+              <div className="mt-3">
+                <button
+                  type="button"
+                  onClick={() =>
+                    playTTS(phase === "part2-speak" ? part2CueCard.topic : currentQ)
+                  }
+                  disabled={ttsBusy}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-white hover:bg-zinc-50 dark:bg-zinc-800 dark:hover:bg-zinc-700 border px-4 py-1.5 text-sm font-semibold disabled:opacity-50"
+                >
+                  {ttsBusy ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Volume2 className="h-4 w-4" />
+                  )}
+                  Nghe lại
+                </button>
+              </div>
+            </div>
+          </div>
+
           {countdown > 0 && !recording ? (
-            <div className="flex flex-col items-center gap-2">
+            <div className="flex flex-col items-center gap-1">
               <div className="text-xs font-extrabold uppercase tracking-wider text-primary">
                 Sẵn sàng nói trong...
               </div>
-              <div className="text-7xl font-extrabold text-primary tabular-nums animate-pulse">
+              <div className="text-6xl font-extrabold text-primary tabular-nums animate-pulse leading-none">
                 {countdown}
               </div>
               <div className="text-xs text-muted-foreground">
@@ -1134,28 +1219,11 @@ export function SpeakingPlayer({
               </div>
             </div>
           ) : (
-            <>
-              <p className="text-sm text-zinc-500 max-w-md leading-relaxed">
-                <span className="text-zinc-400">*</span>Trả lời câu hỏi, sau đó nhấn{" "}
-                <span className="font-bold text-primary">Ghi nhận câu trả lời</span> để sang câu
-                tiếp theo.
-              </p>
-              <button
-                type="button"
-                onClick={() =>
-                  playTTS(phase === "part2-speak" ? part2CueCard.topic : currentQ)
-                }
-                disabled={ttsBusy}
-                className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 px-4 py-2 text-sm font-semibold disabled:opacity-50"
-              >
-                {ttsBusy ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Volume2 className="h-4 w-4" />
-                )}
-                Nghe lại
-              </button>
-            </>
+            <p className="text-sm text-zinc-500 max-w-md leading-relaxed">
+              <span className="text-zinc-400">*</span>Trả lời câu hỏi, sau đó nhấn{" "}
+              <span className="font-bold text-primary">Ghi nhận câu trả lời</span> để sang câu
+              tiếp theo.
+            </p>
           )}
         </div>
 
