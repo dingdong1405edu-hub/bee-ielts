@@ -60,25 +60,35 @@ function pickBrowserVoice(gender?: "Nữ" | "Nam"): SpeechSynthesisVoice | null 
  * `audioRef` is mutated so callers can pause an in-flight Deepgram audio
  * tag when the phase changes (`audioRef.current.pause()`).
  */
-// Once we successfully play one line via Deepgram we LOCK to that path for the
-// rest of the session. Without this, an intermittent Deepgram failure (timeout,
-// rate-limit) would silently fall back to SpeechSynthesis and the candidate
-// would hear a different voice — sometimes even a different gender. Locking
-// keeps the examiner voice consistent from greeting to last question.
-type TtsPath = "auto" | "deepgram" | "fallback";
-let ttsPathLock: TtsPath = "auto";
-
+/**
+ * Examiner TTS — ALWAYS Deepgram (Aurora by default, server-side fallback to
+ * Asteria handled inside /api/speaking/tts). No SpeechSynthesis fallback —
+ * the candidate must hear the SAME voice from greeting to last question, and
+ * browser TTS sounds completely different (different gender, robotic).
+ *
+ * If Deepgram is genuinely down we'd rather play nothing than mix voices —
+ * the on-screen question text remains readable.
+ */
 async function tryDeepgram(
   text: string,
   voice: string,
   audioRef: { current: HTMLAudioElement | null },
-): Promise<boolean> {
+): Promise<void> {
   const res = await fetch("/api/speaking/tts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text, voice }),
   });
-  if (!res.ok) throw new Error(`tts ${res.status}`);
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`tts ${res.status} ${detail.slice(0, 200)}`);
+  }
+  // Log which voice the server actually used (Aurora vs server-side
+  // Asteria fallback) so we can spot voice ID issues in the console.
+  const usedVoice = res.headers.get("X-Tts-Voice");
+  if (usedVoice && usedVoice !== voice) {
+    console.warn(`[tts] requested ${voice} but server fell back to ${usedVoice}`);
+  }
   const url = URL.createObjectURL(await res.blob());
   if (audioRef.current) {
     try {
@@ -105,7 +115,6 @@ async function tryDeepgram(
     };
     audio.play().catch(done);
   });
-  return true;
 }
 
 export async function playExaminerLine(
@@ -116,53 +125,25 @@ export async function playExaminerLine(
   const trimmed = text.trim();
   if (!trimmed) return;
 
-  // Path is locked → only use that one, no cross-fallback.
-  if (ttsPathLock === "deepgram") {
-    try {
-      // One retry only — if Deepgram is briefly flaky we keep the same voice.
-      try {
-        await tryDeepgram(trimmed, voice, audioRef);
-      } catch {
-        await new Promise((r) => setTimeout(r, 250));
-        await tryDeepgram(trimmed, voice, audioRef);
-      }
-    } catch (e) {
-      console.warn("[playExaminerLine] Deepgram retry exhausted (locked path):", e);
-    }
-    return;
-  }
-  if (ttsPathLock === "fallback") {
-    try {
-      await speakText(trimmed, { rate: 0.95, gender: genderForVoiceId(voice) });
-    } catch (e) {
-      console.warn("[playExaminerLine] SpeechSynthesis failed (locked path):", e);
-    }
-    return;
-  }
-
-  // Path == "auto" → decide on this first call.
+  // Up to 2 attempts — same Deepgram path, no cross-fallback.
   try {
     await tryDeepgram(trimmed, voice, audioRef);
-    ttsPathLock = "deepgram";
     return;
   } catch (e) {
-    console.warn("[playExaminerLine] Deepgram failed first call, locking fallback:", e);
+    console.warn("[playExaminerLine] Deepgram attempt 1 failed, retrying:", e);
   }
-
-  // Fall back to SpeechSynthesis once and LOCK there — never re-attempt
-  // Deepgram in this session so the voice (and gender) stays consistent.
+  await new Promise((r) => setTimeout(r, 300));
   try {
-    await speakText(trimmed, { rate: 0.95, gender: genderForVoiceId(voice) });
-    ttsPathLock = "fallback";
+    await tryDeepgram(trimmed, voice, audioRef);
   } catch (e) {
-    console.warn("[playExaminerLine] SpeechSynthesis also failed:", e);
+    console.error("[playExaminerLine] Deepgram exhausted — staying silent:", e);
   }
 }
 
-/** Reset the TTS path lock — call when the user starts a new speaking session
- *  so a new voice/gender choice gets a fresh chance at the Deepgram path. */
+/** Kept for API compatibility — TTS path is no longer locked, every call
+ *  goes through Deepgram. Calling this is a no-op. */
 export function resetTtsPathLock() {
-  ttsPathLock = "auto";
+  /* no-op */
 }
 
 /** Stop any in-flight examiner audio: pause the Deepgram tag + cancel SpeechSynthesis. */
