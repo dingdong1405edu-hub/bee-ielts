@@ -13,6 +13,7 @@ import { TipsCard } from "@/components/learn/tips-card";
 import { useTtsVoice } from "@/components/learn/voice-picker";
 import { VocabSuggestions, type VocabItem } from "@/components/learn/writing-feedback";
 import { playExaminerLine, playStartBeep, timeOfDayGreeting, resetTtsPathLock } from "@/lib/tts";
+import { startWebSpeech, isWebSpeechSupported, type WebSpeechSession } from "@/lib/web-speech";
 
 interface DGWord {
   word: string;
@@ -162,6 +163,11 @@ export function SpeakingPlayer({
   // Web Audio analyser for the 3-bar visualiser in the active phase.
   const analyserRef = useRef<AnalyserNode | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
+  // Live in-browser STT (Web Speech API) — primary transcription path so the
+  // candidate's words always show up even when Deepgram STT can't be reached.
+  const webSpeechRef = useRef<WebSpeechSession | null>(null);
+  // Live transcript shown under the question while the candidate is talking.
+  const [liveTranscript, setLiveTranscript] = useState("");
 
   const keyForCurrent = (): string => {
     if (phase === "part1") return `p1-${qIdx}`;
@@ -350,29 +356,49 @@ export function SpeakingPlayer({
         toast.error("Lỗi MediaRecorder — thử bấm 'Ghi âm lại'.");
       };
       mr.onstop = async () => {
-        // Keep the full mimeType (codec param included) — Deepgram uses it
-        // to pick the right demuxer and the previous strip-codec attempt
-        // was a misdiagnosis.
         const blobType = mr.mimeType || "audio/webm";
         const blob = new Blob(chunksRef.current, { type: blobType });
         console.log(`[recorder] stop — blob type=${blobType} size=${blob.size}`);
+        const key = recordingKeyRef.current ?? keyForCurrent();
+        if (blob.size >= 1200) {
+          audioBlobsRef.current.set(key, blob);
+        }
+        recordingKeyRef.current = null;
+
+        // Grab whatever Web Speech captured first — instant, in-browser.
+        const browserTranscript = webSpeechRef.current?.getTranscript() ?? "";
+        webSpeechRef.current?.stop();
+        webSpeechRef.current = null;
+
+        if (browserTranscript.trim().length > 0) {
+          console.log("[transcribe] using Web Speech transcript:", browserTranscript);
+          applyTranscript(browserTranscript, []);
+          return;
+        }
+        // Web Speech gave nothing — fall back to Deepgram STT with the blob.
         if (blob.size < 1200) {
-          console.warn("[recorder] tiny blob on stop:", blob.size);
           toast.error("Không thu được tiếng — kiểm tra micro và thử lại.");
           return;
         }
-        // Save the blob keyed by whichever question we were on when recording
-        // started — so the review view can play this exact take back. The
-        // mic stream itself stays alive for the rest of the session.
-        const key = recordingKeyRef.current ?? keyForCurrent();
-        audioBlobsRef.current.set(key, blob);
-        recordingKeyRef.current = null;
         await transcribe(blob);
       };
       recordingKeyRef.current = keyForCurrent();
-      // No timeslice — produce a single contiguous EBML container on stop.
-      // Earlier `mr.start(1000)` emitted incremental chunks that some
-      // browsers concatenate into a malformed webm, which Deepgram rejected.
+      // Start Web Speech alongside MediaRecorder. Live transcript shows up in
+      // the UI as the candidate speaks.
+      setLiveTranscript("");
+      if (isWebSpeechSupported()) {
+        webSpeechRef.current = startWebSpeech({
+          lang: "en-US",
+          onInterim: (t) => setLiveTranscript(t),
+          onError: (err) => console.warn("[web-speech]", err),
+        });
+        if (!webSpeechRef.current) {
+          console.warn("[web-speech] failed to start — Deepgram STT will handle it");
+        }
+      } else {
+        console.warn("[web-speech] not supported in this browser");
+      }
+      // No timeslice — single contiguous EBML container on stop.
       mr.start();
       recorderRef.current = mr;
       setRecording(true);
@@ -415,6 +441,8 @@ export function SpeakingPlayer({
   // unmounts, so the browser's recording indicator disappears.
   useEffect(() => {
     return () => {
+      webSpeechRef.current?.stop();
+      webSpeechRef.current = null;
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
       audioCtxRef.current?.close().catch(() => undefined);
@@ -422,6 +450,26 @@ export function SpeakingPlayer({
       analyserRef.current = null;
     };
   }, []);
+
+  // Slot a finished transcript into ans for the current question. Shared by
+  // both the Web Speech and Deepgram paths so the resulting state shape is
+  // identical regardless of which engine produced the text.
+  const applyTranscript = (transcript: string, words: DGWord[]) => {
+    const qr: QResult = { transcript, words };
+    setAns((prev) => {
+      if (phase === "part1") {
+        const arr = [...prev[1]];
+        arr[qIdx] = qr;
+        return { ...prev, 1: arr };
+      }
+      if (phase === "part3") {
+        const arr = [...prev[3]];
+        arr[qIdx] = qr;
+        return { ...prev, 3: arr };
+      }
+      return { ...prev, 2: qr };
+    });
+  };
 
   const transcribe = async (blob: Blob) => {
     setTranscribing(true);
@@ -438,23 +486,10 @@ export function SpeakingPlayer({
         throw new Error(data.error || `Lỗi ${res.status}`);
       }
       console.log(`[transcribe] got transcript: "${data.transcript ?? ""}"`);
-      const qr: QResult = { transcript: data.transcript || "", words: data.words || [] };
-      if (!qr.transcript.trim()) {
+      if (!data.transcript || !data.transcript.trim()) {
         toast.error("Không nghe được gì — thử nói to và rõ hơn.");
       }
-      setAns((prev) => {
-        if (phase === "part1") {
-          const arr = [...prev[1]];
-          arr[qIdx] = qr;
-          return { ...prev, 1: arr };
-        }
-        if (phase === "part3") {
-          const arr = [...prev[3]];
-          arr[qIdx] = qr;
-          return { ...prev, 3: arr };
-        }
-        return { ...prev, 2: qr };
-      });
+      applyTranscript(data.transcript || "", data.words || []);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Nhận dạng giọng nói thất bại");
     } finally {
@@ -1223,6 +1258,20 @@ export function SpeakingPlayer({
                 Sẽ có tiếng bíp khi bắt đầu ghi âm
               </div>
             </div>
+          ) : recording && liveTranscript ? (
+            // Live caption while the candidate speaks — Web Speech updates
+            // this in real-time so they SEE their words being captured.
+            <div className="w-full max-w-2xl rounded-2xl border-2 border-sky-200 bg-sky-50 dark:bg-sky-950/20 dark:border-sky-900 p-4 text-left">
+              <div className="text-[11px] font-extrabold uppercase tracking-wider text-sky-600 mb-1">
+                Bạn đang nói (live)
+              </div>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">{liveTranscript}</p>
+            </div>
+          ) : recording ? (
+            <p className="text-sm text-sky-600 max-w-md leading-relaxed animate-pulse">
+              Đang nghe bạn nói... cứ trả lời tự nhiên rồi nhấn{" "}
+              <span className="font-bold">Ghi nhận câu trả lời</span>.
+            </p>
           ) : (
             <p className="text-sm text-zinc-500 max-w-md leading-relaxed">
               <span className="text-zinc-400">*</span>Trả lời câu hỏi, sau đó nhấn{" "}
