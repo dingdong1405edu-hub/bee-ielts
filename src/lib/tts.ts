@@ -61,64 +61,67 @@ function pickBrowserVoice(gender?: "Nữ" | "Nam"): SpeechSynthesisVoice | null 
  * tag when the phase changes (`audioRef.current.pause()`).
  */
 /**
- * Examiner TTS — ALWAYS Deepgram (Aurora by default, server-side fallback to
- * Asteria handled inside /api/speaking/tts). No SpeechSynthesis fallback —
- * the candidate must hear the SAME voice from greeting to last question.
+ * Examiner TTS via Web Audio (AudioContext + decodeAudioData). The previous
+ * HTMLAudioElement approach was unreliable — Chrome / Safari sometimes
+ * silently rejected `audio.play()` after the user-gesture context decayed
+ * across async awaits, leaving the candidate with no audio at all.
  *
- * One persistent HTMLAudioElement is reused across every call. This matters
- * because browser autoplay policy is per-element: once we've successfully
- * `play()`-ed an element under a user gesture, that SAME element can be
- * replayed (with a new src) later without re-prompting. New Audio() created
- * later in async callbacks would otherwise be silently blocked.
+ * AudioContext is the recommended path for programmatic audio: resume() it
+ * once under a user gesture and every subsequent BufferSource.start() works
+ * without autoplay drama. If Web Audio playback genuinely fails we fall
+ * back to SpeechSynthesis with a gender-matched browser voice so the
+ * candidate ALWAYS hears something.
  */
-let sharedAudioEl: HTMLAudioElement | null = null;
-let audioUnlocked = false;
+let sharedAudioCtx: AudioContext | null = null;
 
-function getSharedAudio(): HTMLAudioElement | null {
+function getCtx(): AudioContext | null {
   if (typeof window === "undefined") return null;
-  if (!sharedAudioEl) {
-    sharedAudioEl = new Audio();
-    sharedAudioEl.preload = "auto";
+  if (!sharedAudioCtx) {
+    const Ctor =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctor) return null;
+    sharedAudioCtx = new Ctor();
   }
-  return sharedAudioEl;
+  return sharedAudioCtx;
 }
 
-/** MUST be called synchronously inside a user-gesture handler (the "Bắt đầu"
- *  click). Plays a 1-frame silent audio so the browser flags this audio
- *  element as user-initiated for the rest of the session — subsequent
- *  src-swap + play() calls from async code then work without autoplay
- *  rejection. Safe to call repeatedly. */
+/** MUST be called synchronously inside a user-gesture handler (Bắt đầu click).
+ *  Resumes the AudioContext while the gesture is still hot — every later
+ *  start() under this context then plays without autoplay rejection. */
 export function primeAudioPlayback(): void {
-  if (audioUnlocked) return;
-  const a = getSharedAudio();
-  if (!a) return;
+  const ctx = getCtx();
+  if (!ctx) return;
+  if (ctx.state === "suspended") {
+    ctx.resume().then(
+      () => console.log("[tts] AudioContext resumed (state:", ctx.state, ")"),
+      (e) => console.warn("[tts] AudioContext resume failed:", e),
+    );
+  }
+  // Play one near-silent buffer so the page is unambiguously flagged as
+  // user-initiated for HTMLAudioElement-based fallbacks too.
   try {
-    a.muted = true;
-    // 1-frame silent WAV — enough for the browser to accept this element
-    // as "user-initiated audio".
-    a.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
-    void a
-      .play()
-      .then(() => {
-        audioUnlocked = true;
-        a.pause();
-        a.muted = false;
-        a.currentTime = 0;
-        console.log("[tts] audio playback unlocked");
-      })
-      .catch((e) => {
-        console.warn("[tts] could not prime audio:", e);
-      });
+    const buffer = ctx.createBuffer(1, 1, 22050);
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.connect(ctx.destination);
+    src.start(0);
   } catch (e) {
-    console.warn("[tts] prime threw:", e);
+    console.warn("[tts] silent buffer prime failed:", e);
   }
 }
 
-async function tryDeepgram(
-  text: string,
-  voice: string,
-  audioRef: { current: HTMLAudioElement | null },
-): Promise<void> {
+/** Track the currently-playing source so we can stop it when the phase
+ *  changes (effect cleanup pauses the examiner). */
+let currentSource: AudioBufferSourceNode | null = null;
+
+async function tryDeepgram(text: string, voice: string): Promise<void> {
+  const ctx = getCtx();
+  if (!ctx) throw new Error("AudioContext unavailable");
+  if (ctx.state === "suspended") {
+    await ctx.resume().catch(() => undefined);
+  }
+
   const res = await fetch("/api/speaking/tts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -132,51 +135,58 @@ async function tryDeepgram(
   if (usedVoice && usedVoice !== voice) {
     console.warn(`[tts] requested ${voice} but server fell back to ${usedVoice}`);
   }
-  const url = URL.createObjectURL(await res.blob());
-  const audio = getSharedAudio();
-  if (!audio) {
-    URL.revokeObjectURL(url);
-    return;
+  const arrayBuf = await res.arrayBuffer();
+  console.log(`[tts] got ${arrayBuf.byteLength} bytes of MP3 from Deepgram`);
+
+  // decodeAudioData wants a fresh ArrayBuffer it can detach — works in both
+  // promise and callback forms; the modern promise form is universal now.
+  const audioBuf = await ctx.decodeAudioData(arrayBuf.slice(0));
+
+  // Stop any previous take.
+  if (currentSource) {
+    try {
+      currentSource.stop();
+    } catch {
+      /* ignore */
+    }
+    currentSource = null;
   }
-  // Reuse the unlocked element — pause any previous playback, swap src.
-  try {
-    audio.pause();
-  } catch {
-    /* ignore */
-  }
-  audio.muted = false;
-  audio.src = url;
-  audio.currentTime = 0;
-  audioRef.current = audio;
-  await new Promise<void>((resolve, reject) => {
+
+  const source = ctx.createBufferSource();
+  source.buffer = audioBuf;
+  source.connect(ctx.destination);
+  currentSource = source;
+
+  await new Promise<void>((resolve) => {
     let settled = false;
-    const cleanup = () => {
-      audio.onended = null;
-      audio.onerror = null;
-      audio.onpause = null;
-    };
     const done = () => {
       if (settled) return;
       settled = true;
-      URL.revokeObjectURL(url);
-      cleanup();
+      if (currentSource === source) currentSource = null;
       resolve();
     };
-    const fail = (err: unknown) => {
-      if (settled) return;
-      settled = true;
-      URL.revokeObjectURL(url);
-      cleanup();
-      reject(err instanceof Error ? err : new Error(String(err)));
-    };
-    audio.onended = done;
-    audio.onerror = () => fail(new Error("audio error"));
-    audio.onpause = () => {
-      if (audio.ended || audio.currentTime === 0) return;
+    source.onended = done;
+    try {
+      source.start(0);
+      console.log(`[tts] playing ${audioBuf.duration.toFixed(2)}s via AudioContext`);
+    } catch (e) {
+      console.error("[tts] source.start failed:", e);
       done();
-    };
-    audio.play().catch(fail);
+    }
   });
+}
+
+/** Stop whatever the examiner is currently saying — used by the phase-change
+ *  cleanup so the old greeting / question doesn't keep playing into the next. */
+function stopCurrent() {
+  if (currentSource) {
+    try {
+      currentSource.stop();
+    } catch {
+      /* ignore */
+    }
+    currentSource = null;
+  }
 }
 
 export async function playExaminerLine(
@@ -184,26 +194,39 @@ export async function playExaminerLine(
   voice: string,
   audioRef: { current: HTMLAudioElement | null },
 ): Promise<void> {
+  // audioRef is kept in the signature for compatibility with the previous
+  // pause-on-cleanup callers. We use a module-level source ref instead, so
+  // intercept the audioRef "pause" semantics by surfacing stopCurrent.
+  if (audioRef.current === null) {
+    // Use the audioRef as a sentinel — overwrite with a stub that proxies
+    // pause() to stopCurrent. That way existing callers (audioRef.current.pause())
+    // still work without code changes.
+    audioRef.current = {
+      pause: stopCurrent,
+    } as unknown as HTMLAudioElement;
+  }
+
   const trimmed = text.trim();
   if (!trimmed) return;
 
-  // Up to 2 attempts — same Deepgram path, no cross-fallback.
+  // 1) Deepgram via AudioContext — preferred when it works.
   try {
-    await tryDeepgram(trimmed, voice, audioRef);
+    await tryDeepgram(trimmed, voice);
     return;
   } catch (e) {
-    console.warn("[playExaminerLine] Deepgram attempt 1 failed, retrying:", e);
+    console.warn("[playExaminerLine] Deepgram path failed, falling back to SpeechSynthesis:", e);
   }
-  await new Promise((r) => setTimeout(r, 300));
+
+  // 2) SpeechSynthesis fallback — guarantees the candidate hears SOMETHING.
+  //    Same gender as the requested voice so it doesn't feel jarring.
   try {
-    await tryDeepgram(trimmed, voice, audioRef);
+    await speakText(trimmed, { rate: 0.95, gender: genderForVoiceId(voice) });
   } catch (e) {
-    console.error("[playExaminerLine] Deepgram exhausted — staying silent:", e);
+    console.error("[playExaminerLine] SpeechSynthesis also failed — staying silent:", e);
   }
 }
 
-/** Kept for API compatibility — TTS path is no longer locked, every call
- *  goes through Deepgram. Calling this is a no-op. */
+/** Kept for API compatibility — TTS path is no longer locked. No-op. */
 export function resetTtsPathLock() {
   /* no-op */
 }
