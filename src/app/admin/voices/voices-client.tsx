@@ -1,13 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { Fragment, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Plus, Play, Trash2, Loader2, Star, Eye, EyeOff, Volume2 } from "lucide-react";
-import { primeAudioPlayback } from "@/lib/tts";
 
 interface Voice {
   id: string;
@@ -28,6 +27,11 @@ export function VoicesAdminClient({ initialVoices }: { initialVoices: Voice[] })
   const [adding, setAdding] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [testingId, setTestingId] = useState<string | null>(null);
+  // Per-voice native <audio controls> source URL. Set after fetch completes
+  // so the admin sees a native player they can click play on — that click
+  // is a fresh gesture and is NEVER blocked by autoplay policy.
+  const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
+  const [previewError, setPreviewError] = useState<Record<string, string>>({});
 
   // New voice form state
   const [newVoiceId, setNewVoiceId] = useState("");
@@ -109,52 +113,30 @@ export function VoicesAdminClient({ initialVoices }: { initialVoices: Voice[] })
     }
   };
 
-  // Use a single HTMLAudioElement that's been "unlocked" via a sync play()
-  // on mount-equivalent gesture. The element gets reused for every test, so
-  // the autoplay-policy state persists between calls.
-  const audioElRef = useRef<HTMLAudioElement | null>(null);
-
-  const ensureAudioEl = () => {
-    if (typeof window === "undefined") return null;
-    if (!audioElRef.current) {
-      audioElRef.current = new Audio();
-      audioElRef.current.preload = "auto";
-    }
-    return audioElRef.current;
-  };
-
-  // Strategy: do EVERYTHING with the HTMLAudioElement, primed inside the
-  // click handler. We assign the blob URL after fetch and call play() —
-  // the prior muted play() inside the same gesture handler keeps the
-  // element flagged as "user-initiated audio" for the swap-and-play later.
+  /** Fetch the TTS MP3 and surface a native <audio controls> player in the
+   *  row. The admin then clicks the native play button — that click is a
+   *  fresh gesture, so the browser plays without ANY autoplay issues. We
+   *  don't try to auto-play ourselves anymore. */
   const testVoice = async (voice: Voice) => {
     if (testingId) return;
-    console.log("[test-voice] click for voice", voice.voiceId);
+    console.log("[test-voice] preparing preview for", voice.voiceId);
     setTestingId(voice.id);
+    setPreviewError((prev) => {
+      const n = { ...prev };
+      delete n[voice.id];
+      return n;
+    });
 
-    // SYNC, inside gesture: prime both the global AudioContext (for any
-    // other code that uses it) AND a local element with a 1-frame silent
-    // WAV so this element gets the "user-initiated" flag.
-    primeAudioPlayback();
-    const audio = ensureAudioEl();
-    if (!audio) {
-      toast.error("Không khởi tạo được phát thanh.");
-      setTestingId(null);
-      return;
-    }
-    try {
-      audio.muted = true;
-      audio.src =
-        "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
-      // Fire and forget — start the play during gesture; we'll swap src next.
-      void audio.play().catch((e) => console.warn("[test-voice] silent prime warned:", e));
-    } catch (e) {
-      console.warn("[test-voice] prime threw:", e);
-    }
+    // Revoke any previous URL for this voice before replacing.
+    setPreviewUrls((prev) => {
+      const old = prev[voice.id];
+      if (old) URL.revokeObjectURL(old);
+      const n = { ...prev };
+      delete n[voice.id];
+      return n;
+    });
 
-    let blobUrl: string | null = null;
     try {
-      console.log("[test-voice] fetching /api/speaking/tts");
       const res = await fetch("/api/speaking/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -166,7 +148,7 @@ export function VoicesAdminClient({ initialVoices }: { initialVoices: Voice[] })
       console.log("[test-voice] tts response", res.status, res.headers.get("X-Tts-Voice"));
       if (!res.ok) {
         const detail = await res.text().catch(() => "");
-        throw new Error(`${res.status}: ${detail.slice(0, 150)}`);
+        throw new Error(`${res.status}: ${detail.slice(0, 200)}`);
       }
       const usedVoice = res.headers.get("X-Tts-Voice");
       if (usedVoice && usedVoice !== voice.voiceId) {
@@ -175,54 +157,19 @@ export function VoicesAdminClient({ initialVoices }: { initialVoices: Voice[] })
         );
       }
       const blob = await res.blob();
-      console.log(`[test-voice] got MP3 blob size=${blob.size} type=${blob.type}`);
-      blobUrl = URL.createObjectURL(blob);
-
-      try {
-        audio.pause();
-      } catch {
-        /* ignore */
+      console.log(`[test-voice] MP3 blob size=${blob.size} type=${blob.type}`);
+      if (blob.size < 500) {
+        throw new Error(`File audio quá nhỏ (${blob.size} bytes) — có thể server trả lỗi`);
       }
-      audio.muted = false;
-      audio.volume = 1;
-      audio.src = blobUrl;
-      audio.currentTime = 0;
-
-      await new Promise<void>((resolve) => {
-        let settled = false;
-        const finish = (reason: string) => {
-          if (settled) return;
-          settled = true;
-          console.log("[test-voice] playback finished:", reason);
-          resolve();
-        };
-        audio.onended = () => finish("ended");
-        audio.onerror = () => {
-          console.error("[test-voice] audio error event");
-          finish("error");
-        };
-        audio
-          .play()
-          .then(() => {
-            console.log(
-              `[test-voice] audio.play() resolved — duration=${audio.duration}s`,
-            );
-          })
-          .catch((e) => {
-            console.error("[test-voice] audio.play() rejected:", e);
-            toast.error(
-              "Trình duyệt chặn phát âm thanh — thử bấm vào trang trước khi nhấn Phát thử.",
-            );
-            finish("rejected");
-          });
-      });
+      const url = URL.createObjectURL(blob);
+      setPreviewUrls((prev) => ({ ...prev, [voice.id]: url }));
+      toast.success(`Đã tải audio cho ${voice.name}. Nhấn ▶ trong bảng để nghe.`);
     } catch (e) {
       console.error("[test-voice]", e);
-      toast.error(e instanceof Error ? e.message : "Phát thử thất bại");
+      const msg = e instanceof Error ? e.message : "Phát thử thất bại";
+      setPreviewError((prev) => ({ ...prev, [voice.id]: msg }));
+      toast.error(msg);
     } finally {
-      if (blobUrl) URL.revokeObjectURL(blobUrl);
-      audio.onended = null;
-      audio.onerror = null;
       setTestingId(null);
     }
   };
@@ -231,21 +178,17 @@ export function VoicesAdminClient({ initialVoices }: { initialVoices: Voice[] })
 
   return (
     <div className="space-y-4">
-      {/* Live playback indicator — confirms audio is actually flowing */}
+      {/* Fetch progress indicator — visible while the MP3 is downloading */}
       {currentlyTesting && (
         <div className="sticky top-2 z-10 rounded-2xl border-2 border-primary bg-primary/10 px-4 py-3 flex items-center gap-3 shadow-md">
-          <span className="relative flex h-3 w-3 shrink-0">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
-            <span className="relative inline-flex h-3 w-3 rounded-full bg-primary" />
-          </span>
-          <Volume2 className="h-5 w-5 text-primary shrink-0" />
+          <Loader2 className="h-5 w-5 text-primary animate-spin shrink-0" />
           <div className="flex-1 text-sm">
-            <span className="font-extrabold">Đang phát {currentlyTesting.name}</span>
+            <span className="font-extrabold">Đang tải audio cho {currentlyTesting.name}...</span>
             <span className="text-muted-foreground ml-1.5">
               ({currentlyTesting.voiceId})
             </span>
           </div>
-          <span className="text-xs text-muted-foreground">Nếu không nghe: kiểm tra loa/volume</span>
+          <span className="text-xs text-muted-foreground">Player sẽ hiện ở dòng giọng đọc</span>
         </div>
       )}
 
@@ -338,7 +281,8 @@ export function VoicesAdminClient({ initialVoices }: { initialVoices: Voice[] })
                 </tr>
               )}
               {voices.map((v) => (
-                <tr key={v.id} className="border-b last:border-b-0 hover:bg-muted/30">
+                <Fragment key={v.id}>
+                <tr className="border-b last:border-b-0 hover:bg-muted/30">
                   <td className="px-3 py-2 font-mono text-xs">{v.voiceId}</td>
                   <td className="px-3 py-2 font-semibold">{v.name}</td>
                   <td className="px-3 py-2">{v.accent}</td>
@@ -388,7 +332,7 @@ export function VoicesAdminClient({ initialVoices }: { initialVoices: Voice[] })
                         ) : (
                           <Play className="h-3.5 w-3.5" />
                         )}
-                        Phát thử
+                        {previewUrls[v.id] ? "Tải lại" : "Phát thử"}
                       </Button>
                       <Button
                         size="sm"
@@ -403,6 +347,34 @@ export function VoicesAdminClient({ initialVoices }: { initialVoices: Voice[] })
                     </div>
                   </td>
                 </tr>
+                {/* Native audio player row — appears after "Phát thử" finishes
+                    fetching. Admin clicks the browser's play button which is
+                    a fresh gesture so playback is never blocked. */}
+                {(previewUrls[v.id] || previewError[v.id]) && (
+                  <tr className="border-b last:border-b-0 bg-primary/[0.04]">
+                    <td colSpan={7} className="px-3 py-2">
+                      {previewUrls[v.id] ? (
+                        <div className="flex items-center gap-3">
+                          <Volume2 className="h-4 w-4 text-primary shrink-0" />
+                          <span className="text-xs font-semibold text-muted-foreground shrink-0">
+                            {v.name} ({v.voiceId}):
+                          </span>
+                          <audio
+                            controls
+                            autoPlay
+                            src={previewUrls[v.id]}
+                            className="h-9 flex-1 min-w-0"
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 text-sm text-rose-600">
+                          <span className="font-bold">Lỗi:</span> {previewError[v.id]}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               ))}
             </tbody>
           </table>
