@@ -187,6 +187,34 @@ async function main() {
     console.log("Speaking: skipped (đã có dữ liệu).");
   }
 
+  // Speaking voices — seed the catalogue once. Admin can then add / remove
+  // entries from /admin/voices. Idempotent: if the table already has data
+  // (even partial), we leave it alone so admin curation isn't overwritten.
+  if ((await prisma.speakingVoice.count()) === 0) {
+    const seedVoices = [
+      { voiceId: "aura-2-aurora-en", name: "Aurora", accent: "Anh - Mỹ", gender: "Nữ", isDefault: true, order: 0 },
+      { voiceId: "aura-asteria-en", name: "Asteria", accent: "Anh - Mỹ", gender: "Nữ", order: 1 },
+      { voiceId: "aura-luna-en", name: "Luna", accent: "Anh - Mỹ", gender: "Nữ", order: 2 },
+      { voiceId: "aura-stella-en", name: "Stella", accent: "Anh - Mỹ", gender: "Nữ", order: 3 },
+      { voiceId: "aura-orion-en", name: "Orion", accent: "Anh - Mỹ", gender: "Nam", order: 4 },
+      { voiceId: "aura-arcas-en", name: "Arcas", accent: "Anh - Mỹ", gender: "Nam", order: 5 },
+      { voiceId: "aura-perseus-en", name: "Perseus", accent: "Anh - Mỹ", gender: "Nam", order: 6 },
+      { voiceId: "aura-athena-en", name: "Athena", accent: "Anh - Anh", gender: "Nữ", order: 7 },
+      { voiceId: "aura-2-pandora-en", name: "Pandora", accent: "Anh - Anh", gender: "Nữ", order: 8 },
+      { voiceId: "aura-helios-en", name: "Helios", accent: "Anh - Anh", gender: "Nam", order: 9 },
+      { voiceId: "aura-2-draco-en", name: "Draco", accent: "Anh - Anh", gender: "Nam", order: 10 },
+      { voiceId: "aura-angus-en", name: "Angus", accent: "Anh - Ireland", gender: "Nam", order: 11 },
+      { voiceId: "aura-2-theia-en", name: "Theia", accent: "Anh - Úc", gender: "Nữ", order: 12 },
+      { voiceId: "aura-2-hyperion-en", name: "Hyperion", accent: "Anh - Úc", gender: "Nam", order: 13 },
+    ];
+    for (const v of seedVoices) {
+      await prisma.speakingVoice.create({ data: v });
+    }
+    console.log(`Speaking voices: seeded ${seedVoices.length} entries.`);
+  } else {
+    console.log("Speaking voices: skipped (đã có dữ liệu).");
+  }
+
   console.log(`Seed done. Admin: ${admin.email}`);
   console.log(
     `Source data: vocab=${VOCAB_UNITS.length}, grammar=${GRAMMAR_UNITS.length}, reading legacy=${READING_TESTS.length}, listening=${LISTENING_TESTS.length}, writing=${WRITING_TASKS.length}, speaking=${SPEAKING_SETS.length}`,

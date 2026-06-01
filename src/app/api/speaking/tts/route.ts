@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { deepgramSpeak } from "@/lib/deepgram";
-import { DEFAULT_VOICE, isValidVoice } from "@/lib/tts-voices";
+import { DEFAULT_VOICE } from "@/lib/tts-voices";
+
+// Validate voiceId against the format Deepgram expects. We DELIBERATELY don't
+// look up the catalogue here — admin may have just added a brand-new voiceId
+// and the TTS proxy must let it through immediately. If Deepgram rejects it
+// the SAFE_FALLBACK below covers the candidate.
+function looksLikeAuraVoice(v: string | undefined): v is string {
+  return !!v && /^aura(-2)?-[a-z0-9-]+-en$/i.test(v);
+}
 
 // Known-good Deepgram voice used as a last-ditch fallback. Asteria is the
 // original Aura-1 voice that has been live since launch — if even the
@@ -22,7 +30,7 @@ export async function POST(req: Request) {
   try {
     const body = (await req.json()) as { text?: string; voice?: string };
     text = (body.text ?? "").trim();
-    if (isValidVoice(body.voice)) voice = body.voice;
+    if (looksLikeAuraVoice(body.voice)) voice = body.voice;
   } catch {
     return NextResponse.json({ error: "Bad input" }, { status: 400 });
   }

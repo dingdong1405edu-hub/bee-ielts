@@ -447,3 +447,21 @@ model Attempt {
 
   @@index([userId, skill])
 }
+
+// Examiner voices the Speaking module offers learners. Admin can add/remove
+// entries on /admin/voices so the catalogue isn't pinned to a hard-coded
+// list. voiceId is the Deepgram Aura identifier (e.g. aura-2-aurora-en).
+model SpeakingVoice {
+  id        String   @id @default(cuid())
+  voiceId   String   @unique
+  name      String
+  accent    String
+  gender    String
+  enabled   Boolean  @default(true)
+  isDefault Boolean  @default(false)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([enabled, order])
+}
