@@ -109,37 +109,73 @@ export function VoicesAdminClient({ initialVoices }: { initialVoices: Voice[] })
   };
 
   // Quick test plays a sample line through the existing /api/speaking/tts proxy.
-  // If the requested voiceId is invalid, the server already retries with
-  // aura-asteria-en so admin will at least HEAR something — the response
-  // header X-Tts-Voice surfaces which voice actually played.
+  // Uses Web Audio (AudioContext + decodeAudioData) instead of HTMLAudioElement
+  // — HTMLAudioElement.play() was being silently blocked after the await fetch
+  // ate the user-gesture context. AudioContext only needs to be resume()-ed
+  // once under a gesture, then every BufferSource.start() works.
   const testVoice = async (voice: Voice) => {
+    if (testingId) return; // one at a time
     setTestingId(voice.id);
+
+    // Acquire + resume AudioContext SYNCHRONOUSLY inside the click handler.
+    let ctx: AudioContext | null = null;
+    try {
+      const Ctor =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!Ctor) throw new Error("AudioContext không khả dụng trong trình duyệt này");
+      ctx = new Ctor();
+      if (ctx.state === "suspended") {
+        await ctx.resume();
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Không khởi tạo được AudioContext");
+      setTestingId(null);
+      return;
+    }
+
     try {
       const res = await fetch("/api/speaking/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          text: `Hi, this is ${voice.name} speaking. Today I want to ask you some questions.`,
+          text: `Hi, this is ${voice.name}. Today I want to ask you some questions.`,
           voice: voice.voiceId,
         }),
       });
       if (!res.ok) {
         const detail = await res.text().catch(() => "");
-        throw new Error(`${res.status}: ${detail.slice(0, 120)}`);
+        throw new Error(`${res.status}: ${detail.slice(0, 150)}`);
       }
       const usedVoice = res.headers.get("X-Tts-Voice");
       if (usedVoice && usedVoice !== voice.voiceId) {
         toast.warning(
-          `Voice ID không hợp lệ — server đã thay bằng ${usedVoice}. Sửa lại voiceId nhé.`,
+          `Voice ID "${voice.voiceId}" không hợp lệ — Deepgram đã thay bằng ${usedVoice}. Sửa lại voiceId nhé.`,
         );
       }
-      const url = URL.createObjectURL(await res.blob());
-      const audio = new Audio(url);
-      audio.onended = () => URL.revokeObjectURL(url);
-      await audio.play();
+      const buf = await res.arrayBuffer();
+      const audioBuf = await ctx.decodeAudioData(buf.slice(0));
+      const source = ctx.createBufferSource();
+      source.buffer = audioBuf;
+      source.connect(ctx.destination);
+      await new Promise<void>((resolve) => {
+        source.onended = () => resolve();
+        try {
+          source.start(0);
+        } catch (e) {
+          console.error("[test-voice] source.start failed", e);
+          resolve();
+        }
+      });
     } catch (e) {
+      console.error("[test-voice]", e);
       toast.error(e instanceof Error ? e.message : "Phát thử thất bại");
     } finally {
+      try {
+        await ctx?.close();
+      } catch {
+        /* ignore */
+      }
       setTestingId(null);
     }
   };

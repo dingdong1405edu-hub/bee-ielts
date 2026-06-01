@@ -215,6 +215,28 @@ async function main() {
     console.log("Speaking voices: skipped (đã có dữ liệu).");
   }
 
+  // Idempotent upserts — add NEW voices to existing prod DBs without
+  // touching anything the admin has tweaked. `update: {}` means existing
+  // rows are left alone, only missing voiceIds get inserted.
+  const ensureVoices = [
+    // Energetic, conversational Aura-2 female voice — the "fun Aurora" variant.
+    {
+      voiceId: "aura-2-asteria-en",
+      name: "Aurora Vui",
+      accent: "Anh - Mỹ",
+      gender: "Nữ",
+      order: 100,
+    },
+  ];
+  for (const v of ensureVoices) {
+    await prisma.speakingVoice.upsert({
+      where: { voiceId: v.voiceId },
+      update: {},
+      create: { ...v, enabled: true, isDefault: false },
+    });
+  }
+  console.log(`Speaking voices: ensured ${ensureVoices.length} extra voices.`);
+
   console.log(`Seed done. Admin: ${admin.email}`);
   console.log(
     `Source data: vocab=${VOCAB_UNITS.length}, grammar=${GRAMMAR_UNITS.length}, reading legacy=${READING_TESTS.length}, listening=${LISTENING_TESTS.length}, writing=${WRITING_TASKS.length}, speaking=${SPEAKING_SETS.length}`,
