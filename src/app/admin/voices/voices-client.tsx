@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Play, Trash2, Loader2, Star, Eye, EyeOff } from "lucide-react";
+import { Plus, Play, Trash2, Loader2, Star, Eye, EyeOff, Volume2 } from "lucide-react";
+import { primeAudioPlayback } from "@/lib/tts";
 
 interface Voice {
   id: string;
@@ -108,33 +109,52 @@ export function VoicesAdminClient({ initialVoices }: { initialVoices: Voice[] })
     }
   };
 
-  // Quick test plays a sample line through the existing /api/speaking/tts proxy.
-  // Uses Web Audio (AudioContext + decodeAudioData) instead of HTMLAudioElement
-  // — HTMLAudioElement.play() was being silently blocked after the await fetch
-  // ate the user-gesture context. AudioContext only needs to be resume()-ed
-  // once under a gesture, then every BufferSource.start() works.
+  // Use a single HTMLAudioElement that's been "unlocked" via a sync play()
+  // on mount-equivalent gesture. The element gets reused for every test, so
+  // the autoplay-policy state persists between calls.
+  const audioElRef = useRef<HTMLAudioElement | null>(null);
+
+  const ensureAudioEl = () => {
+    if (typeof window === "undefined") return null;
+    if (!audioElRef.current) {
+      audioElRef.current = new Audio();
+      audioElRef.current.preload = "auto";
+    }
+    return audioElRef.current;
+  };
+
+  // Strategy: do EVERYTHING with the HTMLAudioElement, primed inside the
+  // click handler. We assign the blob URL after fetch and call play() —
+  // the prior muted play() inside the same gesture handler keeps the
+  // element flagged as "user-initiated audio" for the swap-and-play later.
   const testVoice = async (voice: Voice) => {
-    if (testingId) return; // one at a time
+    if (testingId) return;
+    console.log("[test-voice] click for voice", voice.voiceId);
     setTestingId(voice.id);
 
-    // Acquire + resume AudioContext SYNCHRONOUSLY inside the click handler.
-    let ctx: AudioContext | null = null;
-    try {
-      const Ctor =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (!Ctor) throw new Error("AudioContext không khả dụng trong trình duyệt này");
-      ctx = new Ctor();
-      if (ctx.state === "suspended") {
-        await ctx.resume();
-      }
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Không khởi tạo được AudioContext");
+    // SYNC, inside gesture: prime both the global AudioContext (for any
+    // other code that uses it) AND a local element with a 1-frame silent
+    // WAV so this element gets the "user-initiated" flag.
+    primeAudioPlayback();
+    const audio = ensureAudioEl();
+    if (!audio) {
+      toast.error("Không khởi tạo được phát thanh.");
       setTestingId(null);
       return;
     }
-
     try {
+      audio.muted = true;
+      audio.src =
+        "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
+      // Fire and forget — start the play during gesture; we'll swap src next.
+      void audio.play().catch((e) => console.warn("[test-voice] silent prime warned:", e));
+    } catch (e) {
+      console.warn("[test-voice] prime threw:", e);
+    }
+
+    let blobUrl: string | null = null;
+    try {
+      console.log("[test-voice] fetching /api/speaking/tts");
       const res = await fetch("/api/speaking/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -143,6 +163,7 @@ export function VoicesAdminClient({ initialVoices }: { initialVoices: Voice[] })
           voice: voice.voiceId,
         }),
       });
+      console.log("[test-voice] tts response", res.status, res.headers.get("X-Tts-Voice"));
       if (!res.ok) {
         const detail = await res.text().catch(() => "");
         throw new Error(`${res.status}: ${detail.slice(0, 150)}`);
@@ -153,35 +174,81 @@ export function VoicesAdminClient({ initialVoices }: { initialVoices: Voice[] })
           `Voice ID "${voice.voiceId}" không hợp lệ — Deepgram đã thay bằng ${usedVoice}. Sửa lại voiceId nhé.`,
         );
       }
-      const buf = await res.arrayBuffer();
-      const audioBuf = await ctx.decodeAudioData(buf.slice(0));
-      const source = ctx.createBufferSource();
-      source.buffer = audioBuf;
-      source.connect(ctx.destination);
+      const blob = await res.blob();
+      console.log(`[test-voice] got MP3 blob size=${blob.size} type=${blob.type}`);
+      blobUrl = URL.createObjectURL(blob);
+
+      try {
+        audio.pause();
+      } catch {
+        /* ignore */
+      }
+      audio.muted = false;
+      audio.volume = 1;
+      audio.src = blobUrl;
+      audio.currentTime = 0;
+
       await new Promise<void>((resolve) => {
-        source.onended = () => resolve();
-        try {
-          source.start(0);
-        } catch (e) {
-          console.error("[test-voice] source.start failed", e);
+        let settled = false;
+        const finish = (reason: string) => {
+          if (settled) return;
+          settled = true;
+          console.log("[test-voice] playback finished:", reason);
           resolve();
-        }
+        };
+        audio.onended = () => finish("ended");
+        audio.onerror = () => {
+          console.error("[test-voice] audio error event");
+          finish("error");
+        };
+        audio
+          .play()
+          .then(() => {
+            console.log(
+              `[test-voice] audio.play() resolved — duration=${audio.duration}s`,
+            );
+          })
+          .catch((e) => {
+            console.error("[test-voice] audio.play() rejected:", e);
+            toast.error(
+              "Trình duyệt chặn phát âm thanh — thử bấm vào trang trước khi nhấn Phát thử.",
+            );
+            finish("rejected");
+          });
       });
     } catch (e) {
       console.error("[test-voice]", e);
       toast.error(e instanceof Error ? e.message : "Phát thử thất bại");
     } finally {
-      try {
-        await ctx?.close();
-      } catch {
-        /* ignore */
-      }
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+      audio.onended = null;
+      audio.onerror = null;
       setTestingId(null);
     }
   };
 
+  const currentlyTesting = voices.find((v) => v.id === testingId);
+
   return (
     <div className="space-y-4">
+      {/* Live playback indicator — confirms audio is actually flowing */}
+      {currentlyTesting && (
+        <div className="sticky top-2 z-10 rounded-2xl border-2 border-primary bg-primary/10 px-4 py-3 flex items-center gap-3 shadow-md">
+          <span className="relative flex h-3 w-3 shrink-0">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
+            <span className="relative inline-flex h-3 w-3 rounded-full bg-primary" />
+          </span>
+          <Volume2 className="h-5 w-5 text-primary shrink-0" />
+          <div className="flex-1 text-sm">
+            <span className="font-extrabold">Đang phát {currentlyTesting.name}</span>
+            <span className="text-muted-foreground ml-1.5">
+              ({currentlyTesting.voiceId})
+            </span>
+          </div>
+          <span className="text-xs text-muted-foreground">Nếu không nghe: kiểm tra loa/volume</span>
+        </div>
+      )}
+
       {/* Add new voice form */}
       <Card>
         <CardContent className="p-5 space-y-3">
