@@ -63,12 +63,57 @@ function pickBrowserVoice(gender?: "Nữ" | "Nam"): SpeechSynthesisVoice | null 
 /**
  * Examiner TTS — ALWAYS Deepgram (Aurora by default, server-side fallback to
  * Asteria handled inside /api/speaking/tts). No SpeechSynthesis fallback —
- * the candidate must hear the SAME voice from greeting to last question, and
- * browser TTS sounds completely different (different gender, robotic).
+ * the candidate must hear the SAME voice from greeting to last question.
  *
- * If Deepgram is genuinely down we'd rather play nothing than mix voices —
- * the on-screen question text remains readable.
+ * One persistent HTMLAudioElement is reused across every call. This matters
+ * because browser autoplay policy is per-element: once we've successfully
+ * `play()`-ed an element under a user gesture, that SAME element can be
+ * replayed (with a new src) later without re-prompting. New Audio() created
+ * later in async callbacks would otherwise be silently blocked.
  */
+let sharedAudioEl: HTMLAudioElement | null = null;
+let audioUnlocked = false;
+
+function getSharedAudio(): HTMLAudioElement | null {
+  if (typeof window === "undefined") return null;
+  if (!sharedAudioEl) {
+    sharedAudioEl = new Audio();
+    sharedAudioEl.preload = "auto";
+  }
+  return sharedAudioEl;
+}
+
+/** MUST be called synchronously inside a user-gesture handler (the "Bắt đầu"
+ *  click). Plays a 1-frame silent audio so the browser flags this audio
+ *  element as user-initiated for the rest of the session — subsequent
+ *  src-swap + play() calls from async code then work without autoplay
+ *  rejection. Safe to call repeatedly. */
+export function primeAudioPlayback(): void {
+  if (audioUnlocked) return;
+  const a = getSharedAudio();
+  if (!a) return;
+  try {
+    a.muted = true;
+    // 1-frame silent WAV — enough for the browser to accept this element
+    // as "user-initiated audio".
+    a.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
+    void a
+      .play()
+      .then(() => {
+        audioUnlocked = true;
+        a.pause();
+        a.muted = false;
+        a.currentTime = 0;
+        console.log("[tts] audio playback unlocked");
+      })
+      .catch((e) => {
+        console.warn("[tts] could not prime audio:", e);
+      });
+  } catch (e) {
+    console.warn("[tts] prime threw:", e);
+  }
+}
+
 async function tryDeepgram(
   text: string,
   voice: string,
@@ -83,37 +128,54 @@ async function tryDeepgram(
     const detail = await res.text().catch(() => "");
     throw new Error(`tts ${res.status} ${detail.slice(0, 200)}`);
   }
-  // Log which voice the server actually used (Aurora vs server-side
-  // Asteria fallback) so we can spot voice ID issues in the console.
   const usedVoice = res.headers.get("X-Tts-Voice");
   if (usedVoice && usedVoice !== voice) {
     console.warn(`[tts] requested ${voice} but server fell back to ${usedVoice}`);
   }
   const url = URL.createObjectURL(await res.blob());
-  if (audioRef.current) {
-    try {
-      audioRef.current.pause();
-    } catch {
-      /* ignore */
-    }
+  const audio = getSharedAudio();
+  if (!audio) {
+    URL.revokeObjectURL(url);
+    return;
   }
-  const audio = new Audio(url);
+  // Reuse the unlocked element — pause any previous playback, swap src.
+  try {
+    audio.pause();
+  } catch {
+    /* ignore */
+  }
+  audio.muted = false;
+  audio.src = url;
+  audio.currentTime = 0;
   audioRef.current = audio;
-  await new Promise<void>((resolve) => {
+  await new Promise<void>((resolve, reject) => {
     let settled = false;
+    const cleanup = () => {
+      audio.onended = null;
+      audio.onerror = null;
+      audio.onpause = null;
+    };
     const done = () => {
       if (settled) return;
       settled = true;
       URL.revokeObjectURL(url);
+      cleanup();
       resolve();
     };
+    const fail = (err: unknown) => {
+      if (settled) return;
+      settled = true;
+      URL.revokeObjectURL(url);
+      cleanup();
+      reject(err instanceof Error ? err : new Error(String(err)));
+    };
     audio.onended = done;
-    audio.onerror = done;
+    audio.onerror = () => fail(new Error("audio error"));
     audio.onpause = () => {
       if (audio.ended || audio.currentTime === 0) return;
       done();
     };
-    audio.play().catch(done);
+    audio.play().catch(fail);
   });
 }
 

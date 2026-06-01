@@ -12,7 +12,7 @@ import { formatDuration, cn, personalize } from "@/lib/utils";
 import { TipsCard } from "@/components/learn/tips-card";
 import { useTtsVoice } from "@/components/learn/voice-picker";
 import { VocabSuggestions, type VocabItem } from "@/components/learn/writing-feedback";
-import { playExaminerLine, playStartBeep, timeOfDayGreeting, resetTtsPathLock } from "@/lib/tts";
+import { playExaminerLine, playStartBeep, timeOfDayGreeting, resetTtsPathLock, primeAudioPlayback } from "@/lib/tts";
 import { startWebSpeech, isWebSpeechSupported, type WebSpeechSession } from "@/lib/web-speech";
 
 interface DGWord {
@@ -617,9 +617,13 @@ export function SpeakingPlayer({
       setSelectedParts((prev) => ({ ...prev, [p]: !prev[p] }));
     const startSession = async () => {
       if (noneSelected) return;
+      // CRITICAL: prime audio playback synchronously inside this gesture
+      // before any `await` — otherwise the autoplay policy blocks every
+      // subsequent audio.play() in the auto-read effect and the candidate
+      // hears nothing.
+      primeAudioPlayback();
       // New session → reset the TTS path lock so the new voice/gender choice
-      // gets a fresh shot at Deepgram (otherwise an old session's fallback
-      // lock would force browser TTS for everyone).
+      // gets a fresh shot at Deepgram.
       resetTtsPathLock();
       // Pre-warm the microphone while we still have a fresh user gesture —
       // this is what makes the auto-record at countdown=0 reliable.
