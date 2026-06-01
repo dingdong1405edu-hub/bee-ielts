@@ -50,48 +50,6 @@ interface TestPayload {
   questions: Q[];
 }
 
-/** Steps used for the 4→5 sample. Order matches the tip order in the brief. */
-const TOUR_STEPS: TourStep[] = [
-  {
-    target: "center",
-    title: "Chào! Mình là Bee 🐝",
-    body:
-      "Trước khi vào làm bài Reading vượt band 4→5, mình chỉ bạn 2 mẹo siêu quan trọng.\n\nLàm theo là điểm tăng thấy rõ — không cần đọc hết cả bài!",
-    ctaLabel: "OK, chỉ mình",
-  },
-  {
-    target: "passage",
-    title: "Mẹo 1 — Săn từ neo cứng",
-    body:
-      "Đừng cố dịch cả đoạn. Quét mắt theo đường ziczac trong bài đọc, chỉ tìm các \"từ neo\" không thể paraphrase. Đáp án luôn nằm sát các từ này 1-2 câu.",
-    highlights: [
-      {
-        label: "Ví dụ từ neo trong bài này",
-        items: ["60,000", "1851", "9 millimetres", "Karl von Frisch", "1973", "Australia", "1822", "“waggle dance”", "2006"],
-      },
-    ],
-  },
-  {
-    target: "questions",
-    title: "Mẹo 2 — Làm dạng theo thứ tự trước",
-    body:
-      "Câu hỏi T/F/Not Given, Fill the blank và Short Answer luôn xuất hiện theo thứ tự bài đọc. Đây là 'kho điểm dễ' — ăn trước!",
-  },
-  {
-    target: "matching",
-    title: "Cảnh báo — Matching Headings để CUỐI",
-    body:
-      "Dạng Nối tiêu đề ngốn nhiều thời gian vì câu hỏi không đi tuần tự. Mẹo: bỏ qua, làm hết các dạng order-based, rồi quay lại.\n\nTrong đề này có 2 câu Matching ở cuối — đúng thứ tự bạn nên làm.",
-  },
-  {
-    target: "center",
-    title: "Sẵn sàng bay chưa?",
-    body:
-      "Bấm 'Bắt đầu' và áp dụng 2 mẹo trên. Sau khi nộp bài, mình sẽ phân tích từng câu sai và chỉ rõ 'từ neo' bạn lẽ ra nên thấy.",
-    ctaLabel: "Bắt đầu",
-  },
-];
-
 export function BandClimbReadingPractice({
   stage,
   test,
@@ -101,11 +59,15 @@ export function BandClimbReadingPractice({
   stage: Stage;
   test: TestPayload;
   bandClimbContext: string;
-  /** Admin-authored tour from DB. Falls back to TOUR_STEPS when null. */
+  /** Admin-authored tour from DB. When null/empty no bee is shown — the
+   *  reading test loads straight away. */
   customTour: TourStep[] | null;
 }) {
   const router = useRouter();
-  const [tourOpen, setTourOpen] = useState(true);
+  // Tour open by default ONLY when admin authored one. Otherwise we go
+  // straight into the reading test — no bee, timer starts immediately.
+  const hasTour = !!customTour && customTour.length > 0;
+  const [tourOpen, setTourOpen] = useState(hasTour);
   const startedAtRef = useRef<number>(Date.now());
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [elapsed, setElapsed] = useState(0);
@@ -167,8 +129,11 @@ export function BandClimbReadingPractice({
 
   return (
     <div className="max-w-7xl mx-auto space-y-4">
-      {tourOpen && (
-        <BeeGuide steps={customTour ?? TOUR_STEPS} onFinish={() => setTourOpen(false)} />
+      {/* Bee tour only renders when admin has authored a tour for THIS
+          specific test (bandClimbTips JSON field). Empty/missing tips ->
+          no bee at all, no default-script bleed-over. */}
+      {tourOpen && customTour && customTour.length > 0 && (
+        <BeeGuide steps={customTour} onFinish={() => setTourOpen(false)} />
       )}
 
       <Card className="bg-gradient-to-br from-primary/10 to-accent border-2 border-primary/20">

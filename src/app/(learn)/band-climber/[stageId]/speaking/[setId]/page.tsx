@@ -3,7 +3,6 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { SpeakingPlayer } from "@/app/(learn)/speaking/[setId]/speaking-player";
 import { BandClimbIntro } from "@/components/learn/band-climb-intro";
-import { SPEAKING_DEFAULT_TOUR } from "@/lib/band-climb-tours";
 import type { TourStep } from "@/components/learn/bee-guide";
 
 export const dynamic = "force-dynamic";
@@ -23,14 +22,12 @@ export default async function BandClimbSpeakingPage({
   ]);
   if (!set) notFound();
 
-  const customTour = set.bandClimbTips as TourStep[] | null;
-  const steps =
-    customTour && Array.isArray(customTour) && customTour.length > 0
-      ? customTour
-      : SPEAKING_DEFAULT_TOUR;
+  // Only show bee when admin has authored a tour for THIS specific set.
+  const rawTour = set.bandClimbTips as TourStep[] | null;
+  const customTour = Array.isArray(rawTour) && rawTour.length > 0 ? rawTour : null;
 
   return (
-    <BandClimbIntro steps={steps}>
+    <BandClimbIntro steps={customTour}>
       <SpeakingPlayer
         setId={set.id}
         topic={set.topic}

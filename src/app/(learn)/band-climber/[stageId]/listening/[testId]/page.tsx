@@ -3,7 +3,6 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { ListeningPlayer } from "@/app/(learn)/listening/[testId]/listening-player";
 import { BandClimbIntro } from "@/components/learn/band-climb-intro";
-import { LISTENING_DEFAULT_TOUR } from "@/lib/band-climb-tours";
 import type { TourStep } from "@/components/learn/bee-guide";
 
 export const dynamic = "force-dynamic";
@@ -23,14 +22,13 @@ export default async function BandClimbListeningPage({
   });
   if (!test) notFound();
 
-  const customTour = test.bandClimbTips as TourStep[] | null;
-  const steps =
-    customTour && Array.isArray(customTour) && customTour.length > 0
-      ? customTour
-      : LISTENING_DEFAULT_TOUR;
+  // Only show bee when admin has authored a tour for THIS specific test.
+  // No tour authored -> no bee at all (no fallback to a default script).
+  const rawTour = test.bandClimbTips as TourStep[] | null;
+  const customTour = Array.isArray(rawTour) && rawTour.length > 0 ? rawTour : null;
 
   return (
-    <BandClimbIntro steps={steps}>
+    <BandClimbIntro steps={customTour}>
       <ListeningPlayer
         testId={test.id}
         title={test.title}
