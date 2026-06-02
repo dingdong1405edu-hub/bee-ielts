@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { BandStageForm } from "@/components/admin/band-stage-form";
-import { SkillHubsClient, SKILL_ICONS } from "./skill-hubs-client";
+import { SkillHubsClient } from "./skill-hubs-client";
 
 type SkillKey = "READING" | "LISTENING" | "WRITING" | "SPEAKING";
 
@@ -105,7 +105,6 @@ export default async function EditBandStagePage({
             {
               skill: "READING",
               title: "Reading",
-              icon: SKILL_ICONS.READING,
               gradFrom: "from-emerald-500",
               gradTo: "to-teal-500",
               border: "border-emerald-200",
@@ -122,7 +121,6 @@ export default async function EditBandStagePage({
             {
               skill: "LISTENING",
               title: "Listening",
-              icon: SKILL_ICONS.LISTENING,
               gradFrom: "from-amber-500",
               gradTo: "to-orange-500",
               border: "border-amber-200",
@@ -139,7 +137,6 @@ export default async function EditBandStagePage({
             {
               skill: "WRITING",
               title: "Writing",
-              icon: SKILL_ICONS.WRITING,
               gradFrom: "from-rose-500",
               gradTo: "to-pink-500",
               border: "border-rose-200",
@@ -156,7 +153,6 @@ export default async function EditBandStagePage({
             {
               skill: "SPEAKING",
               title: "Speaking",
-              icon: SKILL_ICONS.SPEAKING,
               gradFrom: "from-indigo-500",
               gradTo: "to-violet-500",
               border: "border-indigo-200",

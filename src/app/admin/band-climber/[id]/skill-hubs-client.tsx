@@ -41,7 +41,6 @@ interface QuizItem {
 interface SkillHubData {
   skill: Skill;
   title: string;
-  icon: React.ElementType;
   gradFrom: string;
   gradTo: string;
   border: string;
@@ -49,6 +48,16 @@ interface SkillHubData {
   items: TestItem[];
   quizzes: QuizItem[];
 }
+
+// Icon lookup table lives in the client bundle so the parent server
+// component never has to ship React function components across the
+// server/client boundary (which Next.js can't serialize).
+const SKILL_ICON_MAP: Record<Skill, React.ElementType> = {
+  READING: BookOpen,
+  LISTENING: Headphones,
+  WRITING: PenLine,
+  SPEAKING: Mic,
+};
 
 /** State + modal host for the 4 ExerciseHubs on a band-stage admin page.
  *  Clicking "+ Quiz" or "Sửa" on a quiz row opens an inline modal so the
@@ -123,7 +132,7 @@ function SkillHubCard({
   onAddQuiz: () => void;
   onEditQuiz: (q: QuizItem) => void;
 }) {
-  const Icon = hub.icon;
+  const Icon = SKILL_ICON_MAP[hub.skill];
   const totalCount = hub.items.length + hub.quizzes.length;
   return (
     <Card className={`border-2 ${hub.border}`}>
@@ -293,10 +302,3 @@ function QuizModal({
   );
 }
 
-// Re-export the skill metadata icons so the page can build the hubs prop.
-export const SKILL_ICONS: Record<Skill, React.ElementType> = {
-  READING: BookOpen,
-  LISTENING: Headphones,
-  WRITING: PenLine,
-  SPEAKING: Mic,
-};
