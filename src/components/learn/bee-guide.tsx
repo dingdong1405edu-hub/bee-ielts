@@ -37,6 +37,37 @@ interface Rect {
 
 const SPOTLIGHT_PAD = 12;
 
+/**
+ * Build a regex pattern string that matches each anchor word the admin
+ * authored, with one critical accommodation: for "number-like" keywords
+ * (e.g. `60000`) the pattern matches the same digits with ANY thousand
+ * separator (`60,000`, `60.000`, `60 000`). IELTS passages routinely use
+ * comma/period thousand-separators that admins rarely type when listing
+ * từ neo — without this, "60000" would silently fail to highlight even
+ * though "60,000" sits in the passage.
+ *
+ * Returns null when no usable keywords remain. The pattern is wrapped by
+ * the caller as `(${pattern})` and used with the `gi` flag.
+ */
+function buildAnchorPattern(rawWords: string[]): string | null {
+  const words = rawWords.map((w) => w.trim()).filter((w) => w.length > 0);
+  if (!words.length) return null;
+  const patterns = words
+    .map((w) => {
+      // Number-like: digits possibly with separators (`,` `.` or space).
+      // Strip separators and rebuild a pattern that allows any of them
+      // (or none) between every digit. Min 2 digits so single digits
+      // don't match wildly inside other numbers.
+      const stripped = w.replace(/[,.\s]/g, "");
+      if (/^\d+$/.test(stripped) && stripped.length >= 2) {
+        return stripped.split("").join("[,.\\s]?");
+      }
+      return w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    })
+    .sort((a, b) => b.length - a.length); // longer first so multi-word phrases beat substrings
+  return patterns.join("|");
+}
+
 export function BeeGuide({
   steps,
   onFinish,
@@ -69,17 +100,20 @@ export function BeeGuide({
     const words = (step.highlights ?? []).flatMap((h) => h.items).filter((w) => w.trim().length > 0);
     if (words.length === 0) return;
 
+    // Falls back to document.body so anchor words still surface even if the
+    // admin picked a target that doesn't exist on the current page (e.g.
+    // "passage" while previewing a Writing test). Without this fallback the
+    // 🐝 từ-neo chip was being shown but the actual word in the passage
+    // wasn't being highlighted — the bug screenshot the user pointed out.
     const root = step.targetQuestionId
       ? document.querySelector<HTMLElement>(`[data-question-id="${step.targetQuestionId}"]`)
       : step.target && step.target !== "center"
-        ? document.querySelector<HTMLElement>(`[data-tour="${step.target}"]`)
+        ? (document.querySelector<HTMLElement>(`[data-tour="${step.target}"]`) ?? document.body)
         : document.body;
     if (!root) return;
 
-    const escaped = words
-      .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-      .sort((a, b) => b.length - a.length);
-    const re = new RegExp(`(${escaped.join("|")})`, "gi");
+    const pattern = buildAnchorPattern(words);
+    if (!pattern) return;
 
     // Walk text nodes inside `root`, skipping any already-marked nodes and
     // anything inside the BeeGuide overlay itself.
@@ -94,9 +128,7 @@ export function BeeGuide({
         // Skip <script>/<style>/inputs and any control element.
         const tag = parent.tagName;
         if (["SCRIPT", "STYLE", "INPUT", "TEXTAREA"].includes(tag)) return NodeFilter.FILTER_REJECT;
-        return node.nodeValue && re.test(node.nodeValue)
-          ? NodeFilter.FILTER_ACCEPT
-          : NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
       },
     });
     // Collect candidate nodes first — mutating during traversal breaks the walker.
@@ -108,8 +140,10 @@ export function BeeGuide({
     }
     for (const textNode of targets) {
       const text = textNode.nodeValue ?? "";
-      // Reset lastIndex by recreating the regex on each pass.
-      const localRe = new RegExp(`(${escaped.join("|")})`, "gi");
+      const localRe = new RegExp(`(${pattern})`, "gi");
+      // Fast reject — most text nodes don't contain anchor words.
+      if (!localRe.test(text)) continue;
+      localRe.lastIndex = 0;
       const frag = document.createDocumentFragment();
       let last = 0;
       let m: RegExpExecArray | null;
@@ -123,6 +157,9 @@ export function BeeGuide({
         frag.appendChild(mark);
         created.push(mark);
         last = m.index + m[0].length;
+        // Avoid infinite loop on zero-width matches (shouldn't happen for
+        // our patterns, but a defensive guard).
+        if (m[0].length === 0) localRe.lastIndex++;
       }
       const after = text.slice(last);
       if (after) frag.appendChild(document.createTextNode(after));
@@ -540,21 +577,24 @@ function TypewriterText({
   );
 }
 
-/** Replace whole-word, case-insensitive matches of any `words` entry inside
- *  `text` with a bold + amber span. Empty `words` returns the raw text. */
+/** Replace case-insensitive matches of any `words` entry inside `text` with
+ *  a bold + amber span. Reuses the same number-flexible pattern builder as
+ *  the passage walker, so a "60000" keyword highlights "60,000" inside the
+ *  bubble text too — keeping bubble + passage emphasis perfectly aligned. */
 function BoldedText({ text, words }: { text: string; words: string[] }) {
   if (!words.length || !text) return <>{text}</>;
-  const escaped = words
-    .filter((w) => w.trim().length > 0)
-    .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-    .sort((a, b) => b.length - a.length); // longer first to avoid partial overlap
-  if (!escaped.length) return <>{text}</>;
-  const re = new RegExp(`(${escaped.join("|")})`, "gi");
+  const pattern = buildAnchorPattern(words);
+  if (!pattern) return <>{text}</>;
+  // String.split with a capturing group keeps the matches as alternating
+  // entries in the resulting array.
+  const re = new RegExp(`(${pattern})`, "gi");
   const parts = text.split(re);
+  // Build a non-global test regex so per-part testing stays stateless.
+  const testRe = new RegExp(`^(?:${pattern})$`, "i");
   return (
     <>
       {parts.map((p, i) =>
-        words.some((w) => p.toLowerCase() === w.toLowerCase()) ? (
+        p && testRe.test(p) ? (
           <strong
             key={i}
             className="font-extrabold text-amber-700 bg-amber-100 rounded px-1 py-0.5"

@@ -181,15 +181,24 @@ export function BandClimbToursEditor({
               />
             </div>
             <div>
-              <Label className="text-xs">Các từ khoá (cách nhau bởi dấu phẩy)</Label>
-              <Input
-                value={s.highlights?.[0]?.items?.join(", ") ?? ""}
+              <Label className="text-xs">
+                Các từ khoá (mỗi dòng 1 từ — số viết liền không dấu phẩy)
+              </Label>
+              <Textarea
+                value={s.highlights?.[0]?.items?.join("\n") ?? ""}
                 onChange={(e) => {
-                  const items = e.target.value.split(",").map((x) => x.trim()).filter(Boolean);
+                  // Newline-separated so admin can paste numbers like "60,000"
+                  // without the comma splitting them into two keywords. The
+                  // bee-guide regex handles thousand-separators on its side.
+                  const items = e.target.value
+                    .split("\n")
+                    .map((x) => x.trim())
+                    .filter(Boolean);
                   const label = s.highlights?.[0]?.label ?? "Từ neo";
                   updateAt(i, { highlights: items.length ? [{ label, items }] : [] });
                 }}
-                placeholder="VD: 1851, Lorenzo, England"
+                placeholder={"VD (mỗi dòng 1 từ):\n1851\nLorenzo\n60000"}
+                className="min-h-[80px] font-mono text-xs"
               />
             </div>
           </div>
