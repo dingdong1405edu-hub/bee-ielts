@@ -2,8 +2,21 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { X, Heart, Check, XCircle, Flag, Trophy, Volume2 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import {
+  X, Heart, Check, XCircle, Flag, Trophy, Volume2,
+  ListChecks, BookOpen, Headphones, PenLine, Mic,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+
+type Skill = "READING" | "LISTENING" | "WRITING" | "SPEAKING";
+
+const SKILL_META: Record<Skill, { label: string; icon: React.ElementType; grad: string }> = {
+  READING: { label: "Reading", icon: BookOpen, grad: "from-emerald-500 to-teal-600" },
+  LISTENING: { label: "Listening", icon: Headphones, grad: "from-amber-500 to-orange-600" },
+  WRITING: { label: "Writing", icon: PenLine, grad: "from-rose-500 to-pink-600" },
+  SPEAKING: { label: "Speaking", icon: Mic, grad: "from-indigo-500 to-violet-600" },
+};
 
 interface Q {
   id: string;
@@ -19,9 +32,18 @@ const normalize = (s: string) => s.trim().toLowerCase();
 
 export function MiniQuizPlayer({
   stageId,
+  stageTitle,
+  skill,
+  tipMarkdown,
   quiz,
 }: {
   stageId: string;
+  // Parent band stage's title + skill — used in the HƯỚNG DẪN drawer header.
+  stageTitle: string;
+  skill: Skill;
+  // Markdown tips authored by admin for this skill at the stage level.
+  // Empty string means admin hasn't written any.
+  tipMarkdown: string;
   quiz: { id: string; title: string; questions: Q[] };
 }) {
   const router = useRouter();
@@ -35,6 +57,7 @@ export function MiniQuizPlayer({
   const [verdict, setVerdict] = useState<"none" | "correct" | "wrong">("none");
   const [hearts, setHearts] = useState(5);
   const [correctCount, setCorrectCount] = useState(0);
+  const [showTips, setShowTips] = useState(false);
 
   const q = step < total ? quiz.questions[step] : null;
 
@@ -112,10 +135,12 @@ export function MiniQuizPlayer({
 
   if (!q) return null;
 
+  const hasTips = tipMarkdown.trim().length > 0;
+
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col">
-      {/* Top bar: X + progress + hearts (Duolingo) */}
-      <div className="flex items-center gap-4 px-4 md:px-8 py-4">
+      {/* Top bar: X + progress + hướng dẫn + hearts (Duolingo) */}
+      <div className="flex items-center gap-3 px-4 md:px-8 py-4">
         <button
           onClick={exit}
           aria-label="Thoát"
@@ -129,6 +154,23 @@ export function MiniQuizPlayer({
             style={{ width: `${progressPct}%` }}
           />
         </div>
+        {hasTips && (
+          <button
+            onClick={() => setShowTips(true)}
+            className="hidden sm:inline-flex items-center gap-1.5 rounded-full border-2 border-violet-300 bg-violet-50 text-violet-700 px-3 py-1.5 text-xs font-extrabold uppercase tracking-wider hover:bg-violet-100 transition-all"
+          >
+            <ListChecks className="h-3.5 w-3.5" /> Hướng dẫn
+          </button>
+        )}
+        {hasTips && (
+          <button
+            onClick={() => setShowTips(true)}
+            aria-label="Hướng dẫn"
+            className="sm:hidden grid h-9 w-9 place-items-center rounded-full border-2 border-violet-300 bg-violet-50 text-violet-700"
+          >
+            <ListChecks className="h-4 w-4" />
+          </button>
+        )}
         <div className="flex items-center gap-1.5 text-rose-500 font-bold">
           <Heart className="h-5 w-5 fill-rose-500" />
           <span>{hearts}</span>
@@ -334,6 +376,81 @@ export function MiniQuizPlayer({
               </button>
             </>
           )}
+        </div>
+      </div>
+
+      {showTips && (
+        <TipsDrawer
+          skill={skill}
+          stageTitle={stageTitle}
+          quizTitle={quiz.title}
+          markdown={tipMarkdown}
+          onClose={() => setShowTips(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Slide-up drawer that surfaces the admin-authored markdown tips for the
+ * skill this mini-quiz belongs to. Mirrors the TipsDrawer in the stage
+ * path-view so learners get the same guidance no matter where they open
+ * a Vượt band exercise from.
+ */
+function TipsDrawer({
+  skill,
+  stageTitle,
+  quizTitle,
+  markdown,
+  onClose,
+}: {
+  skill: Skill;
+  stageTitle: string;
+  quizTitle: string;
+  markdown: string;
+  onClose: () => void;
+}) {
+  const meta = SKILL_META[skill];
+  const Icon = meta.icon;
+  return (
+    <div
+      className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-6"
+      onClick={onClose}
+    >
+      <div
+        className="relative bg-card w-full sm:max-w-2xl max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          className={cn(
+            "sticky top-0 z-10 bg-gradient-to-r text-white px-5 py-4 flex items-center justify-between rounded-t-3xl",
+            meta.grad,
+          )}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="grid h-10 w-10 place-items-center rounded-xl bg-white/20 shrink-0">
+              <Icon className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-[10px] uppercase tracking-widest opacity-80 font-bold">
+                Hướng dẫn {meta.label} · {stageTitle}
+              </div>
+              <h2 className="font-extrabold text-lg leading-tight truncate">{quizTitle}</h2>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/20 hover:bg-white/30 text-white"
+            aria-label="Đóng"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="p-5">
+          <div className="prose prose-sm md:prose-base max-w-none dark:prose-invert prose-headings:font-extrabold prose-headings:tracking-tight">
+            <ReactMarkdown>{markdown}</ReactMarkdown>
+          </div>
         </div>
       </div>
     </div>
