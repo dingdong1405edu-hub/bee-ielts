@@ -10,6 +10,9 @@ export interface TTSOptions {
   lang?: string;
   /** Force a specific gender for the SpeechSynthesis fallback. */
   gender?: "Nữ" | "Nam";
+  /** Abort the in-progress utterance early — used by the player so a
+   *  phase change cancels the fallback voice along with the Deepgram one. */
+  signal?: AbortSignal;
 }
 
 /**
@@ -111,21 +114,54 @@ export function primeAudioPlayback(): void {
   }
 }
 
-/** Track the currently-playing source so we can stop it when the phase
- *  changes (effect cleanup pauses the examiner). */
-let currentSource: AudioBufferSourceNode | null = null;
+/** Every Deepgram source that has been started but not yet finished. Tracking
+ *  a SET (not a single var) is critical: when the player's question-reading
+ *  useEffect fires twice in rapid succession (React Strict Mode in dev, or a
+ *  fast phase→qIdx change) two parallel fetches race, and BOTH eventually
+ *  start their own BufferSource. With a single-slot ref the older source
+ *  would keep playing while the newer one overwrote the reference — the bug
+ *  that produced "2 examiner voices at once" in the Speaking practice. */
+const activeSources = new Set<AudioBufferSourceNode>();
 
-async function tryDeepgram(text: string, voice: string): Promise<void> {
+function stopAllSources(): void {
+  for (const s of activeSources) {
+    try {
+      s.stop();
+    } catch {
+      /* ignore — already finished */
+    }
+  }
+  activeSources.clear();
+}
+
+function cancelBrowserSpeech(): void {
+  if (typeof window !== "undefined" && "speechSynthesis" in window) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+async function tryDeepgram(
+  text: string,
+  voice: string,
+  signal?: AbortSignal,
+): Promise<void> {
   const ctx = getCtx();
   if (!ctx) throw new Error("AudioContext unavailable");
   if (ctx.state === "suspended") {
     await ctx.resume().catch(() => undefined);
   }
 
+  if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+
   const res = await fetch("/api/speaking/tts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text, voice }),
+    signal,
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
@@ -136,36 +172,46 @@ async function tryDeepgram(text: string, voice: string): Promise<void> {
     console.warn(`[tts] requested ${voice} but server fell back to ${usedVoice}`);
   }
   const arrayBuf = await res.arrayBuffer();
-  console.log(`[tts] got ${arrayBuf.byteLength} bytes of MP3 from Deepgram`);
+  if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 
-  // decodeAudioData wants a fresh ArrayBuffer it can detach — works in both
-  // promise and callback forms; the modern promise form is universal now.
   const audioBuf = await ctx.decodeAudioData(arrayBuf.slice(0));
+  if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 
-  // Stop any previous take.
-  if (currentSource) {
-    try {
-      currentSource.stop();
-    } catch {
-      /* ignore */
-    }
-    currentSource = null;
-  }
+  // Drop every other examiner line that might still be playing before we
+  // start a new one — the player is strictly one-line-at-a-time.
+  stopAllSources();
+  cancelBrowserSpeech();
 
   const source = ctx.createBufferSource();
   source.buffer = audioBuf;
   source.connect(ctx.destination);
-  currentSource = source;
+  activeSources.add(source);
 
   await new Promise<void>((resolve) => {
     let settled = false;
     const done = () => {
       if (settled) return;
       settled = true;
-      if (currentSource === source) currentSource = null;
+      activeSources.delete(source);
       resolve();
     };
     source.onended = done;
+    // If the caller aborts AFTER playback started, kill the source so the
+    // next line can take over immediately.
+    if (signal) {
+      signal.addEventListener(
+        "abort",
+        () => {
+          try {
+            source.stop();
+          } catch {
+            /* ignore */
+          }
+          done();
+        },
+        { once: true },
+      );
+    }
     try {
       source.start(0);
       console.log(`[tts] playing ${audioBuf.duration.toFixed(2)}s via AudioContext`);
@@ -176,52 +222,48 @@ async function tryDeepgram(text: string, voice: string): Promise<void> {
   });
 }
 
-/** Stop whatever the examiner is currently saying — used by the phase-change
- *  cleanup so the old greeting / question doesn't keep playing into the next. */
-function stopCurrent() {
-  if (currentSource) {
-    try {
-      currentSource.stop();
-    } catch {
-      /* ignore */
-    }
-    currentSource = null;
-  }
-}
-
 export async function playExaminerLine(
   text: string,
   voice: string,
   audioRef: { current: HTMLAudioElement | null },
+  signal?: AbortSignal,
 ): Promise<void> {
-  // audioRef is kept in the signature for compatibility with the previous
-  // pause-on-cleanup callers. We use a module-level source ref instead, so
-  // intercept the audioRef "pause" semantics by surfacing stopCurrent.
+  // audioRef stays in the signature for backwards compatibility with
+  // pause-on-cleanup callers — we expose stopAll* via the stub so existing
+  // `audioRef.current?.pause()` invocations still work.
   if (audioRef.current === null) {
-    // Use the audioRef as a sentinel — overwrite with a stub that proxies
-    // pause() to stopCurrent. That way existing callers (audioRef.current.pause())
-    // still work without code changes.
     audioRef.current = {
-      pause: stopCurrent,
+      pause: () => {
+        stopAllSources();
+        cancelBrowserSpeech();
+      },
     } as unknown as HTMLAudioElement;
   }
 
   const trimmed = text.trim();
   if (!trimmed) return;
+  if (signal?.aborted) return;
 
   // 1) Deepgram via AudioContext — preferred when it works.
   try {
-    await tryDeepgram(trimmed, voice);
+    await tryDeepgram(trimmed, voice, signal);
     return;
   } catch (e) {
+    if (signal?.aborted) return;
+    if (e instanceof DOMException && e.name === "AbortError") return;
     console.warn("[playExaminerLine] Deepgram path failed, falling back to SpeechSynthesis:", e);
   }
 
+  if (signal?.aborted) return;
+
   // 2) SpeechSynthesis fallback — guarantees the candidate hears SOMETHING.
-  //    Same gender as the requested voice so it doesn't feel jarring.
+  //    Cancel any in-flight utterance first so the fallback can't stack on
+  //    top of a still-speaking previous line.
   try {
-    await speakText(trimmed, { rate: 0.95, gender: genderForVoiceId(voice) });
+    cancelBrowserSpeech();
+    await speakText(trimmed, { rate: 0.95, gender: genderForVoiceId(voice), signal });
   } catch (e) {
+    if (signal?.aborted) return;
     console.error("[playExaminerLine] SpeechSynthesis also failed — staying silent:", e);
   }
 }
@@ -231,7 +273,9 @@ export function resetTtsPathLock() {
   /* no-op */
 }
 
-/** Stop any in-flight examiner audio: pause the Deepgram tag + cancel SpeechSynthesis. */
+/** Stop EVERY in-flight examiner audio: all active Deepgram sources +
+ *  SpeechSynthesis. Safe to call multiple times. Used by the phase-change
+ *  cleanup so the previous line can't bleed into the next. */
 export function stopExaminerLine(audioRef: { current: HTMLAudioElement | null }) {
   if (audioRef.current) {
     try {
@@ -241,19 +285,18 @@ export function stopExaminerLine(audioRef: { current: HTMLAudioElement | null })
     }
     audioRef.current = null;
   }
-  if (typeof window !== "undefined" && "speechSynthesis" in window) {
-    try {
-      window.speechSynthesis.cancel();
-    } catch {
-      /* ignore */
-    }
-  }
+  stopAllSources();
+  cancelBrowserSpeech();
 }
 
 export function speakText(text: string, opts: TTSOptions = {}): Promise<void> {
   return new Promise((resolve, reject) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) {
       reject(new Error("Speech synthesis not supported"));
+      return;
+    }
+    if (opts.signal?.aborted) {
+      resolve();
       return;
     }
     const utter = new SpeechSynthesisUtterance(text);
@@ -270,6 +313,20 @@ export function speakText(text: string, opts: TTSOptions = {}): Promise<void> {
     }
     utter.onend = () => resolve();
     utter.onerror = (e) => reject(e);
+    if (opts.signal) {
+      opts.signal.addEventListener(
+        "abort",
+        () => {
+          try {
+            speechSynthesis.cancel();
+          } catch {
+            /* ignore */
+          }
+          resolve();
+        },
+        { once: true },
+      );
+    }
     speechSynthesis.speak(utter);
   });
 }

@@ -10,9 +10,8 @@ import {
 } from "lucide-react";
 import { formatDuration, cn, personalize } from "@/lib/utils";
 import { TipsCard } from "@/components/learn/tips-card";
-import { useTtsVoice } from "@/components/learn/voice-picker";
 import { VocabSuggestions, type VocabItem } from "@/components/learn/writing-feedback";
-import { playExaminerLine, playStartBeep, timeOfDayGreeting, resetTtsPathLock, primeAudioPlayback } from "@/lib/tts";
+import { playExaminerLine, playStartBeep, timeOfDayGreeting, resetTtsPathLock, primeAudioPlayback, stopExaminerLine } from "@/lib/tts";
 import { startWebSpeech, isWebSpeechSupported, type WebSpeechSession } from "@/lib/web-speech";
 
 interface DGWord {
@@ -103,7 +102,10 @@ export function SpeakingPlayer({
   const part3Questions = rawPart3.slice(0, 1);
   const router = useRouter();
   const startedAtRef = useRef<number>(Date.now());
-  const [voice] = useTtsVoice();
+  // Pin the examiner voice to Aurora (Aura 2). Hard-coded — bypassing the
+  // localStorage-backed picker — so every learner hears the same energetic
+  // female voice and old saved choices can't drift the session mid-test.
+  const voice = "aura-2-aurora-en";
 
   const presetSinglePart = initialParts && initialParts.length === 1 ? initialParts[0] : null;
   const initialPhase: Phase = presetSinglePart
@@ -204,12 +206,15 @@ export function SpeakingPlayer({
   }, [phase]);
 
   // ---- Examiner TTS: Deepgram with SpeechSynthesis fallback ----
-  const playTTS = async (text: string) => {
+  // The optional `signal` lets the question-reading useEffect abort an
+  // in-flight line on cleanup, so a fast phase / qIdx change can't leave
+  // two examiner voices playing simultaneously.
+  const playTTS = async (text: string, signal?: AbortSignal) => {
     setTtsBusy(true);
     try {
-      await playExaminerLine(text, voice, audioRef);
+      await playExaminerLine(text, voice, audioRef, signal);
     } finally {
-      setTtsBusy(false);
+      if (!signal?.aborted) setTtsBusy(false);
     }
   };
 
@@ -217,8 +222,20 @@ export function SpeakingPlayer({
   // → beep → auto-start recording. Modelled after luyennoi.com / the real
   // IELTS Speaking test so the candidate doesn't have to remember to press
   // the record button after every question.
+  //
+  // CRITICAL: the AbortController is what prevents "2 voices at once". React
+  // Strict Mode runs effects twice and a fast qIdx change re-fires this — if
+  // we only used a `cancelled` flag, both invocations of playTTS would race
+  // their /api/speaking/tts fetches and BOTH would eventually start audio.
+  // Aborting the signal kills the in-flight fetch + stops any source that
+  // already started, so only the latest effect run actually plays.
   useEffect(() => {
-    let cancelled = false;
+    const ac = new AbortController();
+    const { signal } = ac;
+    // Stop any leftover line from a previous phase before kicking off a new
+    // one — extra belt-and-braces beyond the new tts.ts source tracking.
+    stopExaminerLine(audioRef);
+
     (async () => {
       // Part 1 opens with a friendly greeting tailored to the candidate's
       // local time of day — only on the very first Part 1 question.
@@ -226,16 +243,18 @@ export function SpeakingPlayer({
         greetedRef.current.part1 = true;
         await playTTS(
           `Hi, ${timeOfDayGreeting()}. Today I want to ask you some questions.`,
+          signal,
         );
-        if (cancelled) return;
+        if (signal.aborted) return;
       }
       // Part 2 prep opens by setting expectations about prep time + notes.
       if (phase === "part2-prep" && !greetedRef.current.part2) {
         greetedRef.current.part2 = true;
         await playTTS(
           "Now I will give you a topic, and you will have one to two minutes to prepare and take notes.",
+          signal,
         );
-        if (cancelled) return;
+        if (signal.aborted) return;
       }
 
       // Read the question / cue card. Skip part2-speak because the cue was
@@ -245,8 +264,8 @@ export function SpeakingPlayer({
       else if (phase === "part3") q = part3Questions[qIdx] || "";
       else if (phase === "part2-prep") q = part2CueCard.topic;
       if (q) {
-        await playTTS(q);
-        if (cancelled) return;
+        await playTTS(q, signal);
+        if (signal.aborted) return;
       }
 
       // Auto-record handshake — only for live answering phases, and only if
@@ -263,21 +282,21 @@ export function SpeakingPlayer({
       if (existing?.transcript) return;
 
       for (let n = 2; n > 0; n--) {
-        if (cancelled) return;
+        if (signal.aborted) return;
         setCountdown(n);
         await new Promise((r) => setTimeout(r, 1000));
       }
-      if (cancelled) return;
+      if (signal.aborted) return;
       setCountdown(0);
       await playStartBeep();
-      if (cancelled) return;
+      if (signal.aborted) return;
       startRecording();
     })();
 
     return () => {
-      cancelled = true;
+      ac.abort();
       setCountdown(0);
-      if (audioRef.current) audioRef.current.pause();
+      stopExaminerLine(audioRef);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, qIdx]);
