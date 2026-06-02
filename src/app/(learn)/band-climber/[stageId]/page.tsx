@@ -69,11 +69,14 @@ export default async function BandStagePage({
         kind: "quiz" as const,
       }));
 
+  // Order: mini-quiz first (warm-up), then long tests — matches the
+  // Duolingo intuition of doing short bites before tackling a full passage.
   const allGroups: PathGroup[] = [
     {
       skill: "reading",
       label: "Reading",
       exercises: [
+        ...miniBySkill("READING"),
         ...stage.readingTests.map((t) => ({
           id: t.id,
           title: t.title,
@@ -81,13 +84,13 @@ export default async function BandStagePage({
           href: `/band-climber/${stage.id}/reading/${t.id}`,
           kind: "test" as const,
         })),
-        ...miniBySkill("READING"),
       ],
     },
     {
       skill: "listening",
       label: "Listening",
       exercises: [
+        ...miniBySkill("LISTENING"),
         ...stage.listeningTests.map((t) => ({
           id: t.id,
           title: t.title,
@@ -95,13 +98,13 @@ export default async function BandStagePage({
           href: `/band-climber/${stage.id}/listening/${t.id}`,
           kind: "test" as const,
         })),
-        ...miniBySkill("LISTENING"),
       ],
     },
     {
       skill: "writing",
       label: "Writing",
       exercises: [
+        ...miniBySkill("WRITING"),
         ...stage.writingTasks.map((t) => ({
           id: t.id,
           title: `Task ${t.taskType} — ${t.prompt.split("\n")[0].slice(0, 60)}`,
@@ -109,13 +112,13 @@ export default async function BandStagePage({
           href: `/band-climber/${stage.id}/writing/${t.id}`,
           kind: "test" as const,
         })),
-        ...miniBySkill("WRITING"),
       ],
     },
     {
       skill: "speaking",
       label: "Speaking",
       exercises: [
+        ...miniBySkill("SPEAKING"),
         ...stage.speakingSets.map((s) => ({
           id: s.id,
           title: s.topic,
@@ -123,7 +126,6 @@ export default async function BandStagePage({
           href: `/band-climber/${stage.id}/speaking/${s.id}`,
           kind: "test" as const,
         })),
-        ...miniBySkill("SPEAKING"),
       ],
     },
   ];
