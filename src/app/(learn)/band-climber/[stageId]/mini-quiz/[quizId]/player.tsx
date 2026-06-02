@@ -7,12 +7,15 @@ import { cn } from "@/lib/utils";
 
 interface Q {
   id: string;
-  type: "IMAGE_CHOICE" | "TEXT_CHOICE";
+  type: "IMAGE_CHOICE" | "TEXT_CHOICE" | "FILL_BLANK";
   prompt: string;
   audioUrl?: string | null;
   options: { label: string; imageUrl?: string }[];
   correctIndex: number;
 }
+
+const BLANK_MARK = "___";
+const normalize = (s: string) => s.trim().toLowerCase();
 
 export function MiniQuizPlayer({
   stageId,
@@ -27,6 +30,8 @@ export function MiniQuizPlayer({
   // `total` when the user has finished and is on the summary screen.
   const [step, setStep] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
+  // FILL_BLANK text input value; reset on every step change.
+  const [blankInput, setBlankInput] = useState("");
   const [verdict, setVerdict] = useState<"none" | "correct" | "wrong">("none");
   const [hearts, setHearts] = useState(5);
   const [correctCount, setCorrectCount] = useState(0);
@@ -38,8 +43,26 @@ export function MiniQuizPlayer({
   const answered = verdict === "none" ? step : step + 1;
   const progressPct = (answered / total) * 100;
 
+  // For FILL_BLANK the "selected" notion doesn't apply — we check the
+  // typed text against every option label instead.
+  const canCheck =
+    q != null && (q.type === "FILL_BLANK" ? blankInput.trim().length > 0 : selected != null);
+
   const check = () => {
-    if (q == null || selected == null) return;
+    if (q == null) return;
+    if (q.type === "FILL_BLANK") {
+      const user = normalize(blankInput);
+      const ok = q.options.some((o) => normalize(o.label) === user);
+      if (ok) {
+        setVerdict("correct");
+        setCorrectCount((c) => c + 1);
+      } else {
+        setVerdict("wrong");
+        setHearts((h) => Math.max(0, h - 1));
+      }
+      return;
+    }
+    if (selected == null) return;
     if (selected === q.correctIndex) {
       setVerdict("correct");
       setCorrectCount((c) => c + 1);
@@ -56,6 +79,7 @@ export function MiniQuizPlayer({
     }
     setStep((s) => s + 1);
     setSelected(null);
+    setBlankInput("");
     setVerdict("none");
   };
 
@@ -120,11 +144,49 @@ export function MiniQuizPlayer({
             </span>
             Câu {step + 1}/{total}
           </div>
-          <h2 className="text-2xl md:text-3xl font-extrabold leading-tight">{q.prompt}</h2>
+          {q.type === "FILL_BLANK" && q.prompt.includes(BLANK_MARK) ? (
+            <FillBlankInlinePrompt
+              prompt={q.prompt}
+              value={blankInput}
+              onChange={setBlankInput}
+              onEnter={check}
+              locked={verdict !== "none"}
+              verdict={verdict}
+            />
+          ) : (
+            <h2 className="text-2xl md:text-3xl font-extrabold leading-tight">{q.prompt}</h2>
+          )}
           {q.audioUrl ? <AudioButton key={q.id} url={q.audioUrl} /> : null}
         </div>
 
-        {q.type === "IMAGE_CHOICE" ? (
+        {q.type === "FILL_BLANK" ? (
+          q.prompt.includes(BLANK_MARK) ? null : (
+            <div className="w-full max-w-xl">
+              <input
+                type="text"
+                value={blankInput}
+                onChange={(e) => setBlankInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && canCheck) {
+                    e.preventDefault();
+                    check();
+                  }
+                }}
+                disabled={verdict !== "none"}
+                autoFocus
+                placeholder="Gõ đáp án rồi nhấn Enter..."
+                className={cn(
+                  "w-full rounded-2xl border-2 px-5 py-4 text-xl font-bold text-center transition-all outline-none",
+                  verdict === "correct"
+                    ? "border-emerald-400 bg-emerald-50 text-emerald-700"
+                    : verdict === "wrong"
+                      ? "border-rose-400 bg-rose-50 text-rose-700"
+                      : "border-sky-300 bg-sky-50 focus:border-sky-500 focus:ring-2 focus:ring-sky-200",
+                )}
+              />
+            </div>
+          )
+        ) : q.type === "IMAGE_CHOICE" ? (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 w-full">
             {q.options.map((opt, i) => {
               const isSelected = selected === i;
@@ -260,10 +322,10 @@ export function MiniQuizPlayer({
               <div className="flex-1" />
               <button
                 onClick={check}
-                disabled={selected == null}
+                disabled={!canCheck}
                 className={cn(
                   "rounded-full px-8 py-3 font-extrabold uppercase tracking-wider shadow transition-all",
-                  selected != null
+                  canCheck
                     ? "bg-emerald-500 hover:bg-emerald-600 text-white"
                     : "bg-zinc-200 text-zinc-400 cursor-not-allowed",
                 )}
@@ -275,6 +337,70 @@ export function MiniQuizPlayer({
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * FILL_BLANK prompt with the blank rendered as an inline text input.
+ * Splits the admin's prompt on the BLANK_MARK sentinel ("___") and weaves
+ * an `<input>` between the segments so the user types right where the
+ * blank is. Multiple blanks reuse the same `value` (single-answer model).
+ */
+function FillBlankInlinePrompt({
+  prompt,
+  value,
+  onChange,
+  onEnter,
+  locked,
+  verdict,
+}: {
+  prompt: string;
+  value: string;
+  onChange: (v: string) => void;
+  onEnter: () => void;
+  locked: boolean;
+  verdict: "none" | "correct" | "wrong";
+}) {
+  const parts = prompt.split(BLANK_MARK);
+  const inputTone =
+    verdict === "correct"
+      ? "border-emerald-400 bg-emerald-50 text-emerald-700"
+      : verdict === "wrong"
+        ? "border-rose-400 bg-rose-50 text-rose-700"
+        : "border-sky-300 bg-sky-50 focus:border-sky-500 focus:ring-2 focus:ring-sky-200";
+  return (
+    <h2 className="text-xl md:text-2xl font-extrabold leading-snug flex flex-wrap items-center justify-center gap-x-2 gap-y-3">
+      {parts.flatMap((seg, i) => {
+        const nodes: React.ReactNode[] = [
+          <span key={`seg-${i}`}>{seg}</span>,
+        ];
+        if (i < parts.length - 1) {
+          nodes.push(
+            <input
+              key={`blank-${i}`}
+              type="text"
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && value.trim().length > 0) {
+                  e.preventDefault();
+                  onEnter();
+                }
+              }}
+              disabled={locked}
+              autoFocus={i === 0}
+              placeholder="..."
+              className={cn(
+                "inline-block min-w-[6ch] max-w-[16ch] rounded-lg border-2 px-2 py-1 text-center font-extrabold outline-none transition-all",
+                inputTone,
+              )}
+              size={Math.max(value.length, 6)}
+            />,
+          );
+        }
+        return nodes;
+      })}
+    </h2>
   );
 }
 

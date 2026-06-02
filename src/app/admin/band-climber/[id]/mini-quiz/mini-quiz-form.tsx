@@ -7,10 +7,10 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, ArrowLeft, ImageIcon, Type, CheckCircle2, Volume2 } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, ImageIcon, Type, CheckCircle2, Volume2, Pencil } from "lucide-react";
 
 type Skill = "READING" | "LISTENING" | "WRITING" | "SPEAKING";
-type QType = "IMAGE_CHOICE" | "TEXT_CHOICE";
+type QType = "IMAGE_CHOICE" | "TEXT_CHOICE" | "FILL_BLANK";
 
 interface OptionDraft {
   label: string;
@@ -25,15 +25,33 @@ interface QuestionDraft {
   correctIndex: number;
 }
 
-const blankQuestion = (type: QType = "TEXT_CHOICE"): QuestionDraft => ({
-  type,
-  prompt: "",
-  audioUrl: "",
-  options: type === "IMAGE_CHOICE"
-    ? [{ label: "", imageUrl: "" }, { label: "", imageUrl: "" }, { label: "", imageUrl: "" }]
-    : [{ label: "" }, { label: "" }, { label: "" }],
-  correctIndex: 0,
-});
+const blankQuestion = (type: QType = "TEXT_CHOICE"): QuestionDraft => {
+  if (type === "FILL_BLANK") {
+    // FILL_BLANK reuses `options` to store the acceptable answers:
+    // options[0] = primary answer, options[1..] = optional alt-spellings.
+    return { type, prompt: "", audioUrl: "", options: [{ label: "" }], correctIndex: 0 };
+  }
+  if (type === "IMAGE_CHOICE") {
+    return {
+      type,
+      prompt: "",
+      audioUrl: "",
+      options: [
+        { label: "", imageUrl: "" },
+        { label: "", imageUrl: "" },
+        { label: "", imageUrl: "" },
+      ],
+      correctIndex: 0,
+    };
+  }
+  return {
+    type,
+    prompt: "",
+    audioUrl: "",
+    options: [{ label: "" }, { label: "" }, { label: "" }],
+    correctIndex: 0,
+  };
+};
 
 interface FormProps {
   stage: { id: string; title: string; fromBand: number; toBand: number };
@@ -115,8 +133,15 @@ export function MiniQuizForm({ stage, mode, initial, defaultSkill }: FormProps) 
         toast.error(`Câu ${i + 1} chưa có đề.`);
         return;
       }
-      if (q.options.length < 2) {
-        toast.error(`Câu ${i + 1} cần ≥ 2 đáp án.`);
+      // FILL_BLANK accepts ≥ 1 valid answer (primary + optional variants);
+      // choice-type questions still need ≥ 2 options to be answerable.
+      const minOpts = q.type === "FILL_BLANK" ? 1 : 2;
+      if (q.options.length < minOpts) {
+        toast.error(
+          q.type === "FILL_BLANK"
+            ? `Câu ${i + 1} chưa nhập đáp án.`
+            : `Câu ${i + 1} cần ≥ 2 đáp án.`,
+        );
         return;
       }
       for (let j = 0; j < q.options.length; j++) {
@@ -226,7 +251,11 @@ export function MiniQuizForm({ stage, mode, initial, defaultSkill }: FormProps) 
                   </span>
                   Câu {idx + 1}
                   <span className="text-xs font-normal text-muted-foreground">
-                    ({q.type === "IMAGE_CHOICE" ? "Ảnh" : "Văn bản"})
+                    ({q.type === "IMAGE_CHOICE"
+                      ? "Ảnh"
+                      : q.type === "FILL_BLANK"
+                        ? "Điền chỗ trống"
+                        : "Văn bản"})
                   </span>
                 </CardTitle>
                 <Button
@@ -243,11 +272,22 @@ export function MiniQuizForm({ stage, mode, initial, defaultSkill }: FormProps) 
               <label className="block">
                 <span className="text-xs font-bold uppercase text-muted-foreground">
                   Đề câu hỏi
+                  {q.type === "FILL_BLANK" && (
+                    <span className="ml-1 normal-case text-[10px] font-normal text-amber-600">
+                      — dùng <code>___</code> (3 underscores) để đánh dấu chỗ điền
+                    </span>
+                  )}
                 </span>
                 <Input
                   value={q.prompt}
                   onChange={(e) => updateQuestion(idx, { prompt: e.target.value })}
-                  placeholder={q.type === "IMAGE_CHOICE" ? 'VD: Đâu là "cà phê"?' : 'VD: Chọn nghĩa đúng của "coffee"'}
+                  placeholder={
+                    q.type === "IMAGE_CHOICE"
+                      ? 'VD: Đâu là "cà phê"?'
+                      : q.type === "FILL_BLANK"
+                        ? "VD: He ___ to school every day."
+                        : 'VD: Chọn nghĩa đúng của "coffee"'
+                  }
                 />
               </label>
 
@@ -267,60 +307,67 @@ export function MiniQuizForm({ stage, mode, initial, defaultSkill }: FormProps) 
                 )}
               </label>
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase text-muted-foreground">
-                    Các đáp án (chọn ⭐ cho đáp án ĐÚNG)
-                  </span>
-                  <Button size="sm" variant="outline" onClick={() => addOption(idx)}>
-                    <Plus className="h-3 w-3" /> Thêm đáp án
-                  </Button>
-                </div>
-                {q.options.map((o, oIdx) => {
-                  const isCorrect = q.correctIndex === oIdx;
-                  return (
-                    <div
-                      key={oIdx}
-                      className={`flex items-center gap-2 rounded-lg border-2 p-2 ${
-                        isCorrect ? "border-emerald-400 bg-emerald-50" : "border-input"
-                      }`}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => updateQuestion(idx, { correctIndex: oIdx })}
-                        className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${
-                          isCorrect ? "bg-emerald-500 text-white" : "bg-zinc-200 text-zinc-500"
+              {q.type === "FILL_BLANK" ? (
+                <FillBlankAnswers
+                  options={q.options}
+                  onChange={(opts) => updateQuestion(idx, { options: opts })}
+                />
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase text-muted-foreground">
+                      Các đáp án (chọn ⭐ cho đáp án ĐÚNG)
+                    </span>
+                    <Button size="sm" variant="outline" onClick={() => addOption(idx)}>
+                      <Plus className="h-3 w-3" /> Thêm đáp án
+                    </Button>
+                  </div>
+                  {q.options.map((o, oIdx) => {
+                    const isCorrect = q.correctIndex === oIdx;
+                    return (
+                      <div
+                        key={oIdx}
+                        className={`flex items-center gap-2 rounded-lg border-2 p-2 ${
+                          isCorrect ? "border-emerald-400 bg-emerald-50" : "border-input"
                         }`}
-                        title="Đặt làm đáp án đúng"
                       >
-                        <CheckCircle2 className="h-4 w-4" />
-                      </button>
-                      <Input
-                        value={o.label}
-                        onChange={(e) => updateOption(idx, oIdx, { label: e.target.value })}
-                        placeholder={`Đáp án ${oIdx + 1}`}
-                      />
-                      {q.type === "IMAGE_CHOICE" && (
+                        <button
+                          type="button"
+                          onClick={() => updateQuestion(idx, { correctIndex: oIdx })}
+                          className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${
+                            isCorrect ? "bg-emerald-500 text-white" : "bg-zinc-200 text-zinc-500"
+                          }`}
+                          title="Đặt làm đáp án đúng"
+                        >
+                          <CheckCircle2 className="h-4 w-4" />
+                        </button>
                         <Input
-                          value={o.imageUrl ?? ""}
-                          onChange={(e) => updateOption(idx, oIdx, { imageUrl: e.target.value })}
-                          placeholder="URL ảnh (https://...)"
-                          className="max-w-[260px]"
+                          value={o.label}
+                          onChange={(e) => updateOption(idx, oIdx, { label: e.target.value })}
+                          placeholder={`Đáp án ${oIdx + 1}`}
                         />
-                      )}
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-rose-600 shrink-0"
-                        onClick={() => removeOption(idx, oIdx)}
-                        disabled={q.options.length <= 2}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  );
-                })}
-              </div>
+                        {q.type === "IMAGE_CHOICE" && (
+                          <Input
+                            value={o.imageUrl ?? ""}
+                            onChange={(e) => updateOption(idx, oIdx, { imageUrl: e.target.value })}
+                            placeholder="URL ảnh (https://...)"
+                            className="max-w-[260px]"
+                          />
+                        )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-rose-600 shrink-0"
+                          onClick={() => removeOption(idx, oIdx)}
+                          disabled={q.options.length <= 2}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}
@@ -334,6 +381,9 @@ export function MiniQuizForm({ stage, mode, initial, defaultSkill }: FormProps) 
         <Button variant="outline" onClick={() => addQuestion("IMAGE_CHOICE")}>
           <ImageIcon className="h-4 w-4" /> Thêm câu — ảnh
         </Button>
+        <Button variant="outline" onClick={() => addQuestion("FILL_BLANK")}>
+          <Pencil className="h-4 w-4" /> Thêm câu — điền chỗ trống
+        </Button>
       </div>
 
       {/* Save */}
@@ -345,6 +395,65 @@ export function MiniQuizForm({ stage, mode, initial, defaultSkill }: FormProps) 
           {saving ? "Đang lưu..." : mode === "create" ? "Tạo mini-quiz" : "Lưu thay đổi"}
         </Button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * FILL_BLANK answer editor: options[0] is the primary correct answer; the
+ * comma-separated textarea below lets admin add accepted alt-spellings
+ * (e.g. "color, colour" or "30, thirty"). All variants are stored as
+ * additional option rows so the API stays uniform.
+ */
+function FillBlankAnswers({
+  options,
+  onChange,
+}: {
+  options: OptionDraft[];
+  onChange: (opts: OptionDraft[]) => void;
+}) {
+  const primary = options[0]?.label ?? "";
+  const alts = options.slice(1).map((o) => o.label).join(", ");
+
+  return (
+    <div className="space-y-2 rounded-xl border-2 border-emerald-200 bg-emerald-50/30 p-3">
+      <label className="block">
+        <span className="text-xs font-bold uppercase text-emerald-700 flex items-center gap-1.5">
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          Đáp án chính
+        </span>
+        <Input
+          value={primary}
+          onChange={(e) => {
+            const next = [...options];
+            if (next.length === 0) next.push({ label: e.target.value });
+            else next[0] = { ...next[0], label: e.target.value };
+            onChange(next);
+          }}
+          placeholder="VD: goes"
+        />
+      </label>
+      <label className="block">
+        <span className="text-xs font-bold uppercase text-muted-foreground">
+          Đáp án khác chấp nhận (tùy chọn)
+        </span>
+        <Input
+          value={alts}
+          onChange={(e) => {
+            const variants = e.target.value
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean)
+              .map((label) => ({ label }));
+            const head = options[0] ?? { label: "" };
+            onChange([head, ...variants]);
+          }}
+          placeholder='VD: "go, Goes" — cách nhau dấu phẩy'
+        />
+        <p className="text-[10px] text-muted-foreground mt-1">
+          So sánh không phân biệt hoa/thường và khoảng trắng đầu/cuối.
+        </p>
+      </label>
     </div>
   );
 }

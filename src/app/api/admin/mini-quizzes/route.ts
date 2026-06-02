@@ -7,14 +7,19 @@ const optionSchema = z.object({
   label: z.string().min(1).max(80),
   imageUrl: z.string().url().optional().or(z.literal("")),
 });
-const questionSchema = z.object({
-  type: z.enum(["IMAGE_CHOICE", "TEXT_CHOICE"]),
-  prompt: z.string().min(1).max(400),
-  // Optional mp3/ogg URL — player shows a Listen button when present.
-  audioUrl: z.string().url().optional().or(z.literal("")),
-  options: z.array(optionSchema).min(2).max(6),
-  correctIndex: z.number().int().min(0),
-});
+const questionSchema = z
+  .object({
+    type: z.enum(["IMAGE_CHOICE", "TEXT_CHOICE", "FILL_BLANK"]),
+    prompt: z.string().min(1).max(400),
+    // Optional mp3/ogg URL — player shows a Listen button when present.
+    audioUrl: z.string().url().optional().or(z.literal("")),
+    options: z.array(optionSchema).min(1).max(8),
+    correctIndex: z.number().int().min(0),
+  })
+  .refine((q) => q.type === "FILL_BLANK" || q.options.length >= 2, {
+    message: "Choice-type questions need at least 2 options",
+    path: ["options"],
+  });
 const createSchema = z.object({
   bandStageId: z.string(),
   skill: z.enum(["READING", "LISTENING", "WRITING", "SPEAKING"]),
