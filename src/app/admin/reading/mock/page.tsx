@@ -7,8 +7,11 @@ import { Plus, Pencil, BookOpen, GraduationCap } from "lucide-react";
 import { DeleteTestButton } from "@/components/admin/delete-test-button";
 
 export default async function AdminReadingMockPage() {
+  // Kho thi thử is strictly separate from kho Vượt band — exclude any
+  // accidentally-attached band-stage tests so they only appear under
+  // /admin/band-climber/[id].
   const tests = await prisma.readingTest.findMany({
-    where: { bank: "MOCK" },
+    where: { bank: "MOCK", bandStageId: null },
     orderBy: { createdAt: "desc" },
     include: { _count: { select: { questions: true } } },
   });

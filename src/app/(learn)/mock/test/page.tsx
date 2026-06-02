@@ -32,11 +32,18 @@ export default async function MockTestPage() {
   const [readingTests, listeningTests, writingT1, writingT2, speakingSets, recent] =
     await Promise.all([
       // Reading & Listening dùng kho MOCK riêng; Writing & Speaking dùng chung kho practice.
-      prisma.readingTest.findMany({ where: { bank: "MOCK" }, include: { questions: { orderBy: { order: "asc" } } } }),
-      prisma.listeningTest.findMany({ where: { bank: "MOCK" }, include: { questions: { orderBy: { order: "asc" } } } }),
-      prisma.writingTask.findMany({ where: { taskType: 1 } }),
-      prisma.writingTask.findMany({ where: { taskType: 2 } }),
-      prisma.speakingSet.findMany(),
+      // bandStageId: null filter prevents Vượt band items from leaking into the mock pool.
+      prisma.readingTest.findMany({
+        where: { bank: "MOCK", bandStageId: null },
+        include: { questions: { orderBy: { order: "asc" } } },
+      }),
+      prisma.listeningTest.findMany({
+        where: { bank: "MOCK", bandStageId: null },
+        include: { questions: { orderBy: { order: "asc" } } },
+      }),
+      prisma.writingTask.findMany({ where: { taskType: 1, bandStageId: null } }),
+      prisma.writingTask.findMany({ where: { taskType: 2, bandStageId: null } }),
+      prisma.speakingSet.findMany({ where: { bandStageId: null } }),
       prisma.attempt.findMany({
         where: { userId: session.user.id },
         orderBy: { createdAt: "desc" },

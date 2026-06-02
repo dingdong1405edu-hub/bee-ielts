@@ -8,8 +8,9 @@ import { DeleteTestButton } from "@/components/admin/delete-test-button";
 import { audioSourceLabel } from "@/lib/utils";
 
 export default async function AdminListeningMockPage() {
+  // Same separation as Reading: band-stage tests stay in /admin/band-climber.
   const tests = await prisma.listeningTest.findMany({
-    where: { bank: "MOCK" },
+    where: { bank: "MOCK", bandStageId: null },
     orderBy: { createdAt: "desc" },
     include: { _count: { select: { questions: true } } },
   });
