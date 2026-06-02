@@ -30,6 +30,7 @@ export default async function MiniQuizPage({
         writing: true,
         speaking: true,
         title: true,
+        tipsShowOnMiniQuiz: true,
       },
     }),
   ]);
@@ -57,7 +58,7 @@ export default async function MiniQuizPage({
       stageId={stageId}
       stageTitle={stage.title}
       skill={skill}
-      tipMarkdown={tipMarkdown}
+      tipMarkdown={stage.tipsShowOnMiniQuiz ? tipMarkdown : ""}
       quiz={{
         id: quiz.id,
         title: quiz.title,

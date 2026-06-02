@@ -148,6 +148,7 @@ export default async function BandStagePage({
         writing: stage.writing,
         speaking: stage.speaking,
       }}
+      showTipsButton={stage.tipsShowOnTest}
     />
   );
 }

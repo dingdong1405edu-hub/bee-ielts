@@ -79,6 +79,8 @@ export default async function EditBandStagePage({
           listening: stage.listening,
           writing: stage.writing,
           speaking: stage.speaking,
+          tipsShowOnTest: stage.tipsShowOnTest,
+          tipsShowOnMiniQuiz: stage.tipsShowOnMiniQuiz,
         }}
       />
 

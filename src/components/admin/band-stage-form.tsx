@@ -31,6 +31,8 @@ export interface BandStageInitial {
   listening: string;
   writing: string;
   speaking: string;
+  tipsShowOnTest: boolean;
+  tipsShowOnMiniQuiz: boolean;
 }
 
 export function BandStageForm({ initial }: { initial?: BandStageInitial }) {
@@ -48,6 +50,10 @@ export function BandStageForm({ initial }: { initial?: BandStageInitial }) {
   const [listening, setListening] = useState(initial?.listening ?? "");
   const [writing, setWriting] = useState(initial?.writing ?? "");
   const [speaking, setSpeaking] = useState(initial?.speaking ?? "");
+  const [tipsShowOnTest, setTipsShowOnTest] = useState(initial?.tipsShowOnTest ?? true);
+  const [tipsShowOnMiniQuiz, setTipsShowOnMiniQuiz] = useState(
+    initial?.tipsShowOnMiniQuiz ?? true,
+  );
   const [activeSkill, setActiveSkill] = useState<Skill>("reading");
   const [preview, setPreview] = useState(false);
 
@@ -78,6 +84,8 @@ export function BandStageForm({ initial }: { initial?: BandStageInitial }) {
       listening,
       writing,
       speaking,
+      tipsShowOnTest,
+      tipsShowOnMiniQuiz,
     };
 
     setLoading(true);
@@ -202,6 +210,41 @@ export function BandStageForm({ initial }: { initial?: BandStageInitial }) {
             Mỗi tab là một kỹ năng. Hỗ trợ markdown — dùng <code>##</code>, <code>**đậm**</code>,{" "}
             <code>- gạch đầu dòng</code>, <code>1. ...</code>.
           </p>
+
+          {/* Visibility toggles: control where the HƯỚNG DẪN drawer surfaces
+              the markdown tips to the learner. Both on by default. */}
+          <div className="mt-2 rounded-xl border-2 border-violet-200 bg-violet-50/30 p-3 space-y-2">
+            <div className="text-xs font-extrabold uppercase tracking-wider text-violet-700">
+              Hiện HƯỚNG DẪN ở
+            </div>
+            <div className="flex flex-wrap gap-4">
+              <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={tipsShowOnTest}
+                  onChange={(e) => setTipsShowOnTest(e.target.checked)}
+                  className="h-4 w-4 rounded accent-violet-600"
+                />
+                <span className="text-sm font-semibold">
+                  Bài dài (long test) — nút trên trang chặng
+                </span>
+              </label>
+              <label className="inline-flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={tipsShowOnMiniQuiz}
+                  onChange={(e) => setTipsShowOnMiniQuiz(e.target.checked)}
+                  className="h-4 w-4 rounded accent-violet-600"
+                />
+                <span className="text-sm font-semibold">
+                  Mini-quiz — nút trong player Duolingo
+                </span>
+              </label>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Tắt cả hai = nội dung markdown bên dưới sẽ không hiện cho user. Mặc định bật cả 2.
+            </p>
+          </div>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">

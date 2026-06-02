@@ -14,6 +14,8 @@ const bodySchema = z.object({
   listening: z.string().default(""),
   writing: z.string().default(""),
   speaking: z.string().default(""),
+  tipsShowOnTest: z.boolean().default(true),
+  tipsShowOnMiniQuiz: z.boolean().default(true),
 });
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -46,6 +48,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         listening: data.listening,
         writing: data.writing,
         speaking: data.speaking,
+        tipsShowOnTest: data.tipsShowOnTest,
+        tipsShowOnMiniQuiz: data.tipsShowOnMiniQuiz,
       },
     });
     return NextResponse.json({ ok: true });

@@ -14,6 +14,8 @@ const bodySchema = z.object({
   listening: z.string().default(""),
   writing: z.string().default(""),
   speaking: z.string().default(""),
+  tipsShowOnTest: z.boolean().default(true),
+  tipsShowOnMiniQuiz: z.boolean().default(true),
 });
 
 /** Used by admin exercise forms to populate the "Gắn vào chặng" dropdown. */
@@ -55,6 +57,8 @@ export async function POST(req: Request) {
         listening: data.listening,
         writing: data.writing,
         speaking: data.speaking,
+        tipsShowOnTest: data.tipsShowOnTest,
+        tipsShowOnMiniQuiz: data.tipsShowOnMiniQuiz,
       },
     });
     return NextResponse.json({ id: stage.id });

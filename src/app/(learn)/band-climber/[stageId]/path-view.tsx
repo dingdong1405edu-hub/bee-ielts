@@ -106,10 +106,14 @@ export function PathView({
   stage,
   groups,
   tips,
+  showTipsButton = true,
 }: {
   stage: Stage;
   groups: PathGroup[];
   tips: TipsMd;
+  // Admin can hide the HƯỚNG DẪN button on the hero (BandStage.tipsShowOnTest).
+  // Defaults true so existing stages keep their behavior.
+  showTipsButton?: boolean;
 }) {
   const [showTips, setShowTips] = useState(false);
   const flat = groups.flatMap((g) =>
@@ -121,7 +125,7 @@ export function PathView({
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-50/60 via-card to-card -mx-4 md:-mx-8 -mt-4 md:-mt-8 pb-20">
-      <Hero stage={stage} onShowTips={() => setShowTips(true)} />
+      <Hero stage={stage} onShowTips={showTipsButton ? () => setShowTips(true) : null} />
 
       {stage.description && (
         <div className="max-w-md mx-auto px-4 pt-5">
@@ -138,14 +142,20 @@ export function PathView({
           </div>
           <p className="font-bold text-lg">Chặng chưa có bài tập</p>
           <p className="text-sm text-muted-foreground mt-1">
-            Admin chưa gắn đề Reading / Listening / Writing / Speaking vào chặng này. Quay lại sau nhé — hoặc bấm{" "}
-            <button
-              onClick={() => setShowTips(true)}
-              className="font-bold text-primary underline"
-            >
-              HƯỚNG DẪN
-            </button>{" "}
-            xem mẹo trước.
+            Admin chưa gắn đề Reading / Listening / Writing / Speaking vào chặng này. Quay lại sau nhé
+            {showTipsButton && (
+              <>
+                {" "}— hoặc bấm{" "}
+                <button
+                  onClick={() => setShowTips(true)}
+                  className="font-bold text-primary underline"
+                >
+                  HƯỚNG DẪN
+                </button>{" "}
+                xem mẹo trước
+              </>
+            )}
+            .
           </p>
         </div>
       ) : (
@@ -169,7 +179,15 @@ export function PathView({
   );
 }
 
-function Hero({ stage, onShowTips }: { stage: Stage; onShowTips: () => void }) {
+function Hero({
+  stage,
+  onShowTips,
+}: {
+  stage: Stage;
+  // null = admin disabled the HƯỚNG DẪN drawer on long-test surfaces, so we
+  // don't render the button at all.
+  onShowTips: (() => void) | null;
+}) {
   return (
     <div className="sticky top-0 z-20 bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md">
       <div className="max-w-md mx-auto px-4 py-3.5 flex items-center justify-between gap-3">
@@ -185,12 +203,14 @@ function Hero({ stage, onShowTips }: { stage: Stage; onShowTips: () => void }) {
             {stage.title}
           </h1>
         </div>
-        <button
-          onClick={onShowTips}
-          className="shrink-0 inline-flex items-center gap-1.5 rounded-2xl bg-white text-emerald-700 px-3.5 py-2 shadow-md font-extrabold text-sm hover:bg-emerald-50 active:translate-y-0.5"
-        >
-          <ListChecks className="h-4 w-4" /> HƯỚNG DẪN
-        </button>
+        {onShowTips && (
+          <button
+            onClick={onShowTips}
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-2xl bg-white text-emerald-700 px-3.5 py-2 shadow-md font-extrabold text-sm hover:bg-emerald-50 active:translate-y-0.5"
+          >
+            <ListChecks className="h-4 w-4" /> HƯỚNG DẪN
+          </button>
+        )}
       </div>
     </div>
   );
