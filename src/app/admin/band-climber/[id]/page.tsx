@@ -85,10 +85,11 @@ export default async function EditBandStagePage({
       />
 
       <div className="max-w-4xl space-y-3">
-        <h2 className="text-xl font-extrabold">Bài tập gắn vào chặng</h2>
+        <h2 className="text-xl font-extrabold">Câu hỏi gắn vào chặng</h2>
         <p className="text-sm text-muted-foreground">
-          Bấm "Thêm" để tạo đề mới và tự gắn vào chặng này. Mỗi card kỹ năng có
-          phần "Mini-quiz" riêng — câu hỏi ngắn kiểu Duolingo. User sẽ thấy ngay trong{" "}
+          Mỗi card kỹ năng nhận 2 dạng câu hỏi gộp chung 1 danh sách:{" "}
+          <strong className="text-foreground">Bài dài</strong> (IELTS đầy đủ) và{" "}
+          <strong className="text-foreground">Quiz</strong> (Duolingo ngắn). User sẽ thấy ngay trong{" "}
           <code>/band-climber/{stage.id}</code>.
         </p>
 
@@ -212,6 +213,7 @@ function ExerciseHub({
     rose: "border-rose-200",
     indigo: "border-indigo-200",
   }[accent];
+  const totalCount = items.length + quizzes.length;
   return (
     <Card className={`border-2 ${borderClass}`}>
       <CardHeader>
@@ -223,29 +225,47 @@ function ExerciseHub({
               <Icon className="h-4 w-4" />
             </div>
             <span>
-              {title} <span className="text-sm font-normal text-muted-foreground">({items.length})</span>
+              {title}{" "}
+              <span className="text-sm font-normal text-muted-foreground">({totalCount})</span>
             </span>
           </CardTitle>
-          <Button asChild size="sm">
-            <Link href={newHref}>
-              <Plus className="h-4 w-4" /> Thêm {title}
-            </Link>
-          </Button>
+          {/* Two side-by-side add buttons — long test and quiz both create
+              "câu hỏi" for the same chặng, just in different forms. They
+              share one unified list below. */}
+          <div className="flex gap-1.5">
+            <Button asChild size="sm">
+              <Link href={newHref}>
+                <Plus className="h-4 w-4" /> Bài dài
+              </Link>
+            </Button>
+            <Button
+              asChild
+              size="sm"
+              variant="outline"
+              className="border-violet-300 text-violet-700 hover:bg-violet-100"
+            >
+              <Link href={`/admin/band-climber/${stageId}/mini-quiz/new?skill=${skill}`}>
+                <Brain className="h-4 w-4" /> Quiz
+              </Link>
+            </Button>
+          </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-5">
-        {/* Long-form exercises */}
-        {items.length === 0 ? (
+      <CardContent>
+        {totalCount === 0 ? (
           <div className="rounded-lg border border-dashed bg-muted/30 p-4 text-center text-xs text-muted-foreground">
-            Chưa có đề {title} nào — bấm "Thêm" để tạo bài đầu tiên.
+            Chưa có câu hỏi nào cho {title} — bấm "Bài dài" hoặc "Quiz" để tạo bài đầu tiên.
           </div>
         ) : (
           <ul className="space-y-2">
             {items.map((it) => (
               <li
-                key={it.id}
+                key={`test-${it.id}`}
                 className="flex items-center gap-2 rounded-lg border bg-card p-2.5"
               >
+                <span className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider bg-gradient-to-br ${gradFrom} ${gradTo} text-white`}>
+                  Bài dài
+                </span>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold truncate">{it.label}</div>
                   {it.sub && (
@@ -268,63 +288,36 @@ function ExerciseHub({
                 />
               </li>
             ))}
+            {quizzes.map((q) => (
+              <li
+                key={`quiz-${q.id}`}
+                className="flex items-center gap-2 rounded-lg border bg-card p-2.5"
+              >
+                <span className="shrink-0 inline-flex items-center gap-1 rounded-md bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider">
+                  <Brain className="h-3 w-3" /> Quiz
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold truncate">{q.title}</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {q.questionCount} câu hỏi
+                  </div>
+                </div>
+                <Button asChild size="sm" variant="outline">
+                  <Link href={q.editHref}>
+                    <Pencil className="h-3.5 w-3.5" /> Sửa
+                  </Link>
+                </Button>
+                <DeleteTestButton
+                  endpoint={q.deleteEndpoint}
+                  name={q.title}
+                  kind="mini-quiz"
+                  size="sm"
+                  label=""
+                />
+              </li>
+            ))}
           </ul>
         )}
-
-        {/* Mini-quiz sub-section — Duolingo-style short questions for this skill */}
-        <div className="rounded-xl border-2 border-dashed border-violet-200 bg-violet-50/30 p-3 space-y-2">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex items-center gap-2">
-              <div className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white">
-                <Brain className="h-3.5 w-3.5" />
-              </div>
-              <span className="text-sm font-extrabold">
-                Mini-quiz {title}
-                <span className="ml-1 text-xs font-normal text-muted-foreground">
-                  ({quizzes.length})
-                </span>
-              </span>
-            </div>
-            <Button asChild size="sm" variant="outline" className="border-violet-300 text-violet-700 hover:bg-violet-100">
-              <Link href={`/admin/band-climber/${stageId}/mini-quiz/new?skill=${skill}`}>
-                <Plus className="h-3.5 w-3.5" /> Thêm mini-quiz
-              </Link>
-            </Button>
-          </div>
-          {quizzes.length === 0 ? (
-            <p className="text-[11px] text-muted-foreground italic px-1">
-              Chưa có mini-quiz {title} nào — câu hỏi ngắn kiểu Duolingo (chọn ảnh hoặc text).
-            </p>
-          ) : (
-            <ul className="space-y-1.5">
-              {quizzes.map((q) => (
-                <li
-                  key={q.id}
-                  className="flex items-center gap-2 rounded-lg border border-violet-200 bg-card p-2"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold truncate">{q.title}</div>
-                    <div className="text-[11px] text-muted-foreground">
-                      {q.questionCount} câu hỏi
-                    </div>
-                  </div>
-                  <Button asChild size="sm" variant="outline">
-                    <Link href={q.editHref}>
-                      <Pencil className="h-3.5 w-3.5" /> Sửa
-                    </Link>
-                  </Button>
-                  <DeleteTestButton
-                    endpoint={q.deleteEndpoint}
-                    name={q.title}
-                    kind="mini-quiz"
-                    size="sm"
-                    label=""
-                  />
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
       </CardContent>
     </Card>
   );
