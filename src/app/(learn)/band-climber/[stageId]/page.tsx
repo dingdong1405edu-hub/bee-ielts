@@ -55,9 +55,9 @@ export default async function BandStagePage({
   });
   if (!stage) notFound();
 
-  // Mini-quizzes get rendered as a distinct "Quiz nhanh" sub-section UNDER
-  // the long tests within each skill column — not mixed in. Keep them in
-  // their own field so path-view can place a divider between the two.
+  // Mini-quizzes are part of the chặng — flowed inline with the long tests
+  // in their skill column, distinguished only by node size/color. Each
+  // entry carries a `kind` so path-view can pick the right node renderer.
   const miniBySkill = (s: "READING" | "LISTENING" | "WRITING" | "SPEAKING") =>
     stage.miniQuizzes
       .filter((q) => q.skill === s)
@@ -66,58 +66,68 @@ export default async function BandStagePage({
         title: q.title,
         subtitle: `${q._count.questions} câu`,
         href: `/band-climber/${stage.id}/mini-quiz/${q.id}`,
+        kind: "quiz" as const,
       }));
 
   const allGroups: PathGroup[] = [
     {
       skill: "reading",
       label: "Reading",
-      exercises: stage.readingTests.map((t) => ({
-        id: t.id,
-        title: t.title,
-        subtitle: `${t.level} · ${t._count.questions} câu`,
-        href: `/band-climber/${stage.id}/reading/${t.id}`,
-      })),
-      quizExercises: miniBySkill("READING"),
+      exercises: [
+        ...stage.readingTests.map((t) => ({
+          id: t.id,
+          title: t.title,
+          subtitle: `${t.level} · ${t._count.questions} câu`,
+          href: `/band-climber/${stage.id}/reading/${t.id}`,
+          kind: "test" as const,
+        })),
+        ...miniBySkill("READING"),
+      ],
     },
     {
       skill: "listening",
       label: "Listening",
-      exercises: stage.listeningTests.map((t) => ({
-        id: t.id,
-        title: t.title,
-        subtitle: `${t._count.questions} câu`,
-        href: `/band-climber/${stage.id}/listening/${t.id}`,
-      })),
-      quizExercises: miniBySkill("LISTENING"),
+      exercises: [
+        ...stage.listeningTests.map((t) => ({
+          id: t.id,
+          title: t.title,
+          subtitle: `${t._count.questions} câu`,
+          href: `/band-climber/${stage.id}/listening/${t.id}`,
+          kind: "test" as const,
+        })),
+        ...miniBySkill("LISTENING"),
+      ],
     },
     {
       skill: "writing",
       label: "Writing",
-      exercises: stage.writingTasks.map((t) => ({
-        id: t.id,
-        title: `Task ${t.taskType} — ${t.prompt.split("\n")[0].slice(0, 60)}`,
-        subtitle: `Tối thiểu ${t.minWords} từ`,
-        href: `/band-climber/${stage.id}/writing/${t.id}`,
-      })),
-      quizExercises: miniBySkill("WRITING"),
+      exercises: [
+        ...stage.writingTasks.map((t) => ({
+          id: t.id,
+          title: `Task ${t.taskType} — ${t.prompt.split("\n")[0].slice(0, 60)}`,
+          subtitle: `Tối thiểu ${t.minWords} từ`,
+          href: `/band-climber/${stage.id}/writing/${t.id}`,
+          kind: "test" as const,
+        })),
+        ...miniBySkill("WRITING"),
+      ],
     },
     {
       skill: "speaking",
       label: "Speaking",
-      exercises: stage.speakingSets.map((s) => ({
-        id: s.id,
-        title: s.topic,
-        subtitle: "Speaking Part 1 + 2 + 3",
-        href: `/band-climber/${stage.id}/speaking/${s.id}`,
-      })),
-      quizExercises: miniBySkill("SPEAKING"),
+      exercises: [
+        ...stage.speakingSets.map((s) => ({
+          id: s.id,
+          title: s.topic,
+          subtitle: "Speaking Part 1 + 2 + 3",
+          href: `/band-climber/${stage.id}/speaking/${s.id}`,
+          kind: "test" as const,
+        })),
+        ...miniBySkill("SPEAKING"),
+      ],
     },
   ];
-  // Hide a skill column only when it has NEITHER long tests NOR mini-quizzes.
-  const groups = allGroups.filter(
-    (g) => g.exercises.length > 0 || g.quizExercises.length > 0,
-  );
+  const groups = allGroups.filter((g) => g.exercises.length > 0);
 
   return (
     <PathView

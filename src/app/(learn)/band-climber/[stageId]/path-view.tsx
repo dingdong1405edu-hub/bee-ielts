@@ -26,16 +26,19 @@ export interface PathExercise {
   title: string;
   subtitle: string;
   href: string;
+  // "quiz" = small violet Duolingo-style mini-quiz; "test" = full-size
+  // skill-colored long test. Both flow inline in the same path column —
+  // no sub-section divider — so the stage feels like one continuous chặng.
+  kind?: "test" | "quiz";
 }
 
 export interface PathGroup {
   skill: SkillKey;
   label: string;
-  // Long-form exercises (reading tests, listening tests, etc.) shown first.
+  // All exercises for this skill, ORDERED as the path-view should display
+  // them top-to-bottom. Mini-quizzes are interleaved here (with kind:"quiz")
+  // rather than living in a separate bucket.
   exercises: PathExercise[];
-  // Duolingo-style mini-quizzes for this skill, rendered as a distinct
-  // "QUIZ NHANH" sub-section under the long tests with smaller violet nodes.
-  quizExercises: PathExercise[];
 }
 
 const SKILL_META: Record<
@@ -110,7 +113,7 @@ export function PathView({
 }) {
   const [showTips, setShowTips] = useState(false);
   const flat = groups.flatMap((g) =>
-    [...g.exercises, ...g.quizExercises].map((e) => ({ ...e, skill: g.skill })),
+    g.exercises.map((e) => ({ ...e, skill: g.skill })),
   );
   const currentId = flat[0]?.id;
 
@@ -202,8 +205,6 @@ function PathSection({
 }) {
   const meta = SKILL_META[group.skill];
   const Icon = meta.icon;
-  const hasQuizzes = group.quizExercises.length > 0;
-  const hasLongTests = group.exercises.length > 0;
   return (
     <div className="space-y-1">
       {/* Skill divider */}
@@ -221,10 +222,20 @@ function PathSection({
         <div className="flex-1 h-px bg-zinc-300/70" />
       </div>
 
-      {/* Long-form tests — full-size skill-colored nodes */}
-      {hasLongTests && (
-        <div className="flex flex-col items-center gap-2 py-2">
-          {group.exercises.map((ex, i) => (
+      {/* All exercises (long tests + mini-quizzes) flow inline in the same
+          column. Each renders as PathNode (full size) or QuizNode (small
+          violet) based on its `kind`. */}
+      <div className="flex flex-col items-center gap-2 py-2">
+        {group.exercises.map((ex, i) =>
+          ex.kind === "quiz" ? (
+            <QuizNode
+              key={ex.id}
+              ex={ex}
+              indexInGroup={i}
+              isCurrent={ex.id === currentId}
+              isLastInGroup={i === group.exercises.length - 1}
+            />
+          ) : (
             <PathNode
               key={ex.id}
               ex={ex}
@@ -233,33 +244,9 @@ function PathSection({
               isCurrent={ex.id === currentId}
               isLastInGroup={i === group.exercises.length - 1}
             />
-          ))}
-        </div>
-      )}
-
-      {/* Mini-quiz sub-section — smaller violet nodes under a "Quiz nhanh" pill */}
-      {hasQuizzes && (
-        <>
-          <div className="flex items-center gap-3 pt-4 pb-1">
-            <div className="flex-1 h-px bg-violet-200/70" />
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-violet-100 text-violet-700 px-3 py-1 text-[10px] font-extrabold uppercase tracking-widest border border-violet-200">
-              <Brain className="h-3 w-3" /> Quiz nhanh
-            </div>
-            <div className="flex-1 h-px bg-violet-200/70" />
-          </div>
-          <div className="flex flex-col items-center gap-1 pb-2">
-            {group.quizExercises.map((ex, i) => (
-              <QuizNode
-                key={ex.id}
-                ex={ex}
-                indexInGroup={i}
-                isCurrent={ex.id === currentId}
-                isLastInGroup={i === group.quizExercises.length - 1}
-              />
-            ))}
-          </div>
-        </>
-      )}
+          ),
+        )}
+      </div>
     </div>
   );
 }
