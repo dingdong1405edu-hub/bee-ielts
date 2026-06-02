@@ -12,6 +12,7 @@ import { formatDuration, cn, personalize } from "@/lib/utils";
 import { TipsCard } from "@/components/learn/tips-card";
 import { VocabSuggestions, type VocabItem } from "@/components/learn/writing-feedback";
 import { playExaminerLine, playStartBeep, timeOfDayGreeting, resetTtsPathLock, primeAudioPlayback, stopExaminerLine } from "@/lib/tts";
+import { SPEAKING_EXAMINER_VOICES, TTS_VOICES } from "@/lib/tts-voices";
 import { startWebSpeech, isWebSpeechSupported, type WebSpeechSession } from "@/lib/web-speech";
 
 interface DGWord {
@@ -102,10 +103,16 @@ export function SpeakingPlayer({
   const part3Questions = rawPart3.slice(0, 1);
   const router = useRouter();
   const startedAtRef = useRef<number>(Date.now());
-  // Pin the examiner voice to Aurora (Aura 2). Hard-coded — bypassing the
-  // localStorage-backed picker — so every learner hears the same energetic
-  // female voice and old saved choices can't drift the session mid-test.
-  const voice = "aura-2-aurora-en";
+  // Examiner voice — picked ONCE when the player mounts and locked for the
+  // whole session. Rotates between Andromeda + Helena (Aura 2, natural &
+  // energetic) so different sessions feel like different examiners but no
+  // session ever switches voice mid-test. useRef on initial mount so a
+  // re-render doesn't roll a new voice halfway through Part 2.
+  const voiceRef = useRef<string>(
+    SPEAKING_EXAMINER_VOICES[Math.floor(Math.random() * SPEAKING_EXAMINER_VOICES.length)],
+  );
+  const voice = voiceRef.current;
+  const voiceMeta = TTS_VOICES.find((v) => v.id === voice);
 
   const presetSinglePart = initialParts && initialParts.length === 1 ? initialParts[0] : null;
   const initialPhase: Phase = presetSinglePart
@@ -770,11 +777,15 @@ export function SpeakingPlayer({
                     {ttsBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5 fill-current" />}
                   </button>
                   <div className="flex-1 text-sm">
-                    <span className="font-extrabold">Aurora</span>
-                    <span className="text-xs text-muted-foreground ml-1.5">(Female · American)</span>
+                    <span className="font-extrabold">{voiceMeta?.name ?? "Examiner"}</span>
+                    <span className="text-xs text-muted-foreground ml-1.5">
+                      ({voiceMeta?.gender === "Nam" ? "Male" : "Female"} · {voiceMeta?.accent ?? "American"})
+                    </span>
                   </div>
                 </div>
-                <p className="text-[11px] text-muted-foreground">Giọng cố định cho cả phiên thi.</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Giọng cố định cho phiên này — đổi ngẫu nhiên giữa Andromeda &amp; Helena ở phiên kế tiếp.
+                </p>
               </div>
 
               {selectedParts[1] && (

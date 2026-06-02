@@ -10,7 +10,12 @@ export interface TtsVoice {
 }
 
 export const TTS_VOICES: TtsVoice[] = [
-  // Anh - Mỹ — Aurora (aura-2) is the default IELTS examiner voice
+  // Anh - Mỹ — Andromeda + Helena are the IELTS Speaking examiner voices.
+  // Both sit at the very top of the list because they're the most natural /
+  // energetic Aura 2 female American voices and the player rotates between
+  // them per session.
+  { id: "aura-2-andromeda-en", name: "Andromeda", accent: "Anh - Mỹ", gender: "Nữ" },
+  { id: "aura-2-helena-en", name: "Helena", accent: "Anh - Mỹ", gender: "Nữ" },
   { id: "aura-2-aurora-en", name: "Aurora", accent: "Anh - Mỹ", gender: "Nữ" },
   { id: "aura-asteria-en", name: "Asteria", accent: "Anh - Mỹ", gender: "Nữ" },
   { id: "aura-luna-en", name: "Luna", accent: "Anh - Mỹ", gender: "Nữ" },
@@ -30,7 +35,16 @@ export const TTS_VOICES: TtsVoice[] = [
   { id: "aura-2-hyperion-en", name: "Hyperion", accent: "Anh - Úc", gender: "Nam" },
 ];
 
-export const DEFAULT_VOICE = "aura-2-aurora-en";
+export const DEFAULT_VOICE = "aura-2-andromeda-en";
+
+/** Voice IDs the Speaking player rotates between for each new session.
+ *  Kept tiny on purpose — the user only wants the natural / energetic
+ *  examiner pair, NOT the full catalog. Picked uniformly at random when
+ *  the candidate taps "Bắt đầu", then locked for the whole session. */
+export const SPEAKING_EXAMINER_VOICES = [
+  "aura-2-andromeda-en",
+  "aura-2-helena-en",
+] as const;
 
 export function isValidVoice(v: string | undefined | null): v is string {
   return !!v && TTS_VOICES.some((voice) => voice.id === v);
