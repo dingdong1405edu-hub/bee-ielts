@@ -110,10 +110,22 @@ export function BandClimbToursEditor({
                 className="h-9 w-full rounded-md border bg-background px-2 text-sm"
               >
                 <option value="center">Giữa màn hình (lời chào / outro)</option>
-                <option value="passage">Vùng đoạn văn</option>
-                <option value="questions">Vùng câu hỏi</option>
-                <option value="prompt">Đề bài Writing</option>
-                <option value="cuecard">Cue card Speaking</option>
+                <optgroup label="Reading">
+                  <option value="passage">Vùng đoạn văn</option>
+                  <option value="questions">Vùng câu hỏi</option>
+                </optgroup>
+                <optgroup label="Listening">
+                  <option value="audio">Trình phát audio</option>
+                  <option value="content-image">Hình ảnh đề bài</option>
+                  <option value="questions">Vùng câu hỏi (Listening)</option>
+                </optgroup>
+                <optgroup label="Writing">
+                  <option value="prompt">Đề bài Writing</option>
+                  <option value="writing-area">Vùng viết bài</option>
+                </optgroup>
+                <optgroup label="Speaking">
+                  <option value="cuecard">Cue card Speaking</option>
+                </optgroup>
                 {questionChoices && questionChoices.length > 0 && (
                   <option value="__q">Chỉ vào một câu hỏi cụ thể…</option>
                 )}

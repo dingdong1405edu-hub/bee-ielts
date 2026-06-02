@@ -132,7 +132,10 @@ export function WritingPlayer({
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
+        {/* data-tour="prompt" lets the band-climb Bee 🐝 tour spotlight this
+            card AND wrap matching admin-authored anchor words (`highlights`)
+            with <mark class="bee-anchor"> directly inside the đề bài text. */}
+        <Card data-tour="prompt">
           <CardContent className="p-5 space-y-3">
             <h3 className="font-semibold">Đề bài</h3>
             <div className="whitespace-pre-wrap text-sm">{prompt}</div>
@@ -150,7 +153,9 @@ export function WritingPlayer({
           </CardContent>
         </Card>
 
-        <Card>
+        {/* data-tour="writing-area" — Bee can stop here on a separate step
+            to explain how to use the textarea / word counter / submit flow. */}
+        <Card data-tour="writing-area">
           <CardContent className="p-5 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold">Bài viết của bạn</h3>

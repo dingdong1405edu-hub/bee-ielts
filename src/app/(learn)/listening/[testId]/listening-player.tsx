@@ -87,7 +87,9 @@ export function ListeningPlayer({
         </Badge>
       </div>
 
-      <AudioPlayer audioUrl={audioUrl} transcript={transcript} />
+      <div data-tour="audio">
+        <AudioPlayer audioUrl={audioUrl} transcript={transcript} />
+      </div>
 
       {imageUrl && (
         // eslint-disable-next-line @next/next/no-img-element
@@ -95,7 +97,7 @@ export function ListeningPlayer({
       )}
 
       {contentImageUrl && (
-        <Card>
+        <Card data-tour="content-image">
           <CardContent className="p-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -107,13 +109,19 @@ export function ListeningPlayer({
         </Card>
       )}
 
-      <div className="space-y-3">
+      {/* data-tour="questions" — Bee 🐝 spotlights the whole questions
+          column when admin picks "Vùng câu hỏi". Per-question highlight
+          uses [data-question-id="..."] on each Card below. */}
+      <div data-tour="questions" className="space-y-3">
         {groupQuestions(questions).map((unit) => {
           if (unit.kind === "form") {
             const end = unit.startNum + unit.items.length - 1;
             const Block = unit.layout === "table" ? TableBlanks : FormBlanks;
             return (
-              <Card key={`form-${unit.items[0].id}`}>
+              <Card
+                key={`form-${unit.items[0].id}`}
+                data-question-id={unit.items[0].id}
+              >
                 <CardContent className="p-5 space-y-2">
                   <div className="text-xs font-extrabold uppercase tracking-wider text-primary">
                     Câu {unit.startNum}–{end} · {unit.layout === "table" ? "Hoàn thành bảng" : "Điền vào chỗ trống"}
@@ -135,7 +143,11 @@ export function ListeningPlayer({
           const isCorrect = isAnswerCorrect(userAns, q.correctAnswer, q.type);
           const num = q.displayNumber ?? unit.num;
           return (
-            <Card key={q.id} className={cn(submitted && (isCorrect ? "border-success" : "border-destructive"))}>
+            <Card
+              key={q.id}
+              data-question-id={q.id}
+              className={cn(submitted && (isCorrect ? "border-success" : "border-destructive"))}
+            >
               <CardContent className="p-5 space-y-3">
                 <div className="flex items-start gap-2">
                   <span className="font-semibold text-primary">{num}.</span>
