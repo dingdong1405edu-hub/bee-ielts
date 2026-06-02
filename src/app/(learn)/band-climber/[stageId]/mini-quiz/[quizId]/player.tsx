@@ -232,12 +232,16 @@ export function MiniQuizPlayer({
                 autoFocus
                 placeholder="Gõ đáp án rồi nhấn Enter..."
                 className={cn(
-                  "w-full rounded-2xl border-2 px-5 py-4 text-xl font-bold text-center transition-all outline-none",
+                  // Always pin text/placeholder colors to dark — the input
+                  // backgrounds are hard-coded light tints, so without this
+                  // dark-mode would render white-on-white and the user's
+                  // typed answer becomes invisible.
+                  "w-full rounded-2xl border-2 px-5 py-4 text-xl font-bold text-center transition-all outline-none placeholder:text-sky-400/70",
                   verdict === "correct"
-                    ? "border-emerald-400 bg-emerald-50 text-emerald-700"
+                    ? "border-emerald-400 bg-emerald-50 text-emerald-800"
                     : verdict === "wrong"
-                      ? "border-rose-400 bg-rose-50 text-rose-700"
-                      : "border-sky-300 bg-sky-50 focus:border-sky-500 focus:ring-2 focus:ring-sky-200",
+                      ? "border-rose-400 bg-rose-50 text-rose-800"
+                      : "border-sky-300 bg-sky-50 text-sky-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-200",
                 )}
               />
             </div>
@@ -493,12 +497,15 @@ function FillBlankInlinePrompt({
   verdict: "none" | "correct" | "wrong";
 }) {
   const parts = prompt.split(BLANK_MARK);
+  // Same dark-mode fix as the standalone FILL_BLANK input — backgrounds are
+  // light tints, so pin the typed text colour explicitly to avoid invisible
+  // white-on-white in dark theme.
   const inputTone =
     verdict === "correct"
-      ? "border-emerald-400 bg-emerald-50 text-emerald-700"
+      ? "border-emerald-400 bg-emerald-50 text-emerald-800"
       : verdict === "wrong"
-        ? "border-rose-400 bg-rose-50 text-rose-700"
-        : "border-sky-300 bg-sky-50 focus:border-sky-500 focus:ring-2 focus:ring-sky-200";
+        ? "border-rose-400 bg-rose-50 text-rose-800"
+        : "border-sky-300 bg-sky-50 text-sky-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-200";
   return (
     <h2 className="text-xl md:text-2xl font-extrabold leading-snug flex flex-wrap items-center justify-center gap-x-2 gap-y-3">
       {parts.flatMap((seg, i) => {
