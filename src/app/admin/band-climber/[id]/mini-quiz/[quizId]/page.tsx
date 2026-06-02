@@ -35,6 +35,7 @@ export default async function EditMiniQuizPage({
         id: quiz.id,
         title: quiz.title,
         skill: quiz.skill as "READING" | "LISTENING" | "WRITING" | "SPEAKING",
+        tour: (quiz.bandClimbTips as { target: string; title: string; body: string }[] | null) ?? [],
         questions: quiz.questions.map((q) => ({
           type: q.type as "IMAGE_CHOICE" | "TEXT_CHOICE",
           prompt: q.prompt,

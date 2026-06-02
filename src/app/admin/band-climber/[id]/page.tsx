@@ -54,6 +54,9 @@ export default async function EditBandStagePage({
       title: q.title,
       questionCount: q._count.questions,
       skill: q.skill as SkillKey,
+      tour: (q.bandClimbTips as
+        | { target: string; title: string; body: string }[]
+        | null) ?? [],
       questions: q.questions.map((qq) => ({
         type: qq.type as "IMAGE_CHOICE" | "TEXT_CHOICE" | "FILL_BLANK",
         prompt: qq.prompt,

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 
@@ -19,10 +20,22 @@ const questionSchema = z
     message: "Choice-type questions need at least 2 options",
     path: ["options"],
   });
+const tourStepSchema = z.object({
+  target: z.string(),
+  targetQuestionId: z.string().nullable().optional(),
+  title: z.string(),
+  body: z.string(),
+  highlights: z
+    .array(z.object({ label: z.string(), items: z.array(z.string()) }))
+    .optional(),
+  ctaLabel: z.string().optional(),
+});
+
 const patchSchema = z.object({
   title: z.string().min(1).max(120).optional(),
   skill: z.enum(["READING", "LISTENING", "WRITING", "SPEAKING"]).optional(),
   questions: z.array(questionSchema).optional(),
+  bandClimbTips: z.array(tourStepSchema).nullable().optional(),
 });
 
 async function requireAdmin() {
@@ -67,10 +80,21 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         })),
       });
     }
-    const { questions: _drop, ...rest } = parsed.data;
+    const { questions: _drop, bandClimbTips, ...rest } = parsed.data;
     const quiz = await prisma.bandClimbMiniQuiz.update({
       where: { id },
-      data: rest,
+      data: {
+        ...rest,
+        // undefined = keep existing tour; empty/null = clear via JsonNull.
+        ...(bandClimbTips !== undefined
+          ? {
+              bandClimbTips:
+                bandClimbTips && bandClimbTips.length > 0
+                  ? (bandClimbTips as Prisma.InputJsonValue)
+                  : Prisma.JsonNull,
+            }
+          : {}),
+      },
       include: { questions: { orderBy: { order: "asc" } } },
     });
     return NextResponse.json({ quiz });

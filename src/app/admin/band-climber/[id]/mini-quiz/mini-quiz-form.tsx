@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Plus, Trash2, ArrowLeft, ImageIcon, Type, CheckCircle2, Volume2, Pencil } from "lucide-react";
+import { BandClimbToursEditor, type TourStepDraft } from "@/components/admin/band-climb-tours-editor";
 
 type Skill = "READING" | "LISTENING" | "WRITING" | "SPEAKING";
 type QType = "IMAGE_CHOICE" | "TEXT_CHOICE" | "FILL_BLANK";
@@ -61,6 +62,7 @@ interface FormProps {
     title: string;
     skill: Skill;
     questions: QuestionDraft[];
+    tour?: TourStepDraft[] | null;
   };
   // Used in create-mode when admin clicks "Thêm mini-quiz" from inside a
   // specific skill hub — pre-selects the dropdown to that skill.
@@ -90,6 +92,7 @@ export function MiniQuizForm({
   const [questions, setQuestions] = useState<QuestionDraft[]>(
     initial?.questions ?? [blankQuestion("TEXT_CHOICE")],
   );
+  const [tour, setTour] = useState<TourStepDraft[]>(initial?.tour ?? []);
   const [saving, setSaving] = useState(false);
 
   const addQuestion = (type: QType) => {
@@ -174,6 +177,7 @@ export function MiniQuizForm({
         bandStageId: stage.id,
         skill,
         title,
+        bandClimbTips: tour.length > 0 ? tour : null,
         questions: questions.map((q) => ({
           type: q.type,
           prompt: q.prompt,
@@ -193,7 +197,11 @@ export function MiniQuizForm({
       const res = await fetch(endpoint, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(mode === "create" ? body : { title, skill, questions: body.questions }),
+        body: JSON.stringify(
+          mode === "create"
+            ? body
+            : { title, skill, questions: body.questions, bandClimbTips: body.bandClimbTips },
+        ),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Lỗi");
@@ -260,6 +268,17 @@ export function MiniQuizForm({
               <option value="SPEAKING">Speaking</option>
             </select>
           </label>
+        </CardContent>
+      </Card>
+
+      {/* Bee tour editor — admin authors the 🐝 hướng dẫn shown before the
+          quiz starts. Empty list = no overlay, quiz launches straight away. */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Bee tour — hướng dẫn trước khi làm quiz</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <BandClimbToursEditor steps={tour} onChange={setTour} />
         </CardContent>
       </Card>
 

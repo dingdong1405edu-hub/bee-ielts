@@ -172,6 +172,10 @@ model BandClimbMiniQuiz {
   skill       Skill    // READING | LISTENING | WRITING | SPEAKING
   title       String
   order       Int      @default(0)
+  // Admin-authored Bee 🐝 tour steps shown before the quiz starts — same
+  // JSON shape as ReadingTest.bandClimbTips (TourStep[]). Null/empty =
+  // no bee overlay, quiz starts immediately.
+  bandClimbTips Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   questions   MiniQuestion[]

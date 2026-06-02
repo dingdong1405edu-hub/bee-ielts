@@ -8,6 +8,7 @@ import {
   ListChecks, BookOpen, Headphones, PenLine, Mic,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BeeGuide, type TourStep } from "@/components/learn/bee-guide";
 
 type Skill = "READING" | "LISTENING" | "WRITING" | "SPEAKING";
 
@@ -35,6 +36,7 @@ export function MiniQuizPlayer({
   stageTitle,
   skill,
   tipMarkdown,
+  customTour,
   quiz,
 }: {
   stageId: string;
@@ -44,6 +46,8 @@ export function MiniQuizPlayer({
   // Markdown tips authored by admin for this skill at the stage level.
   // Empty string means admin hasn't written any.
   tipMarkdown: string;
+  // Admin-authored Bee 🐝 tour for this quiz. Null = no overlay shown.
+  customTour: TourStep[] | null;
   quiz: { id: string; title: string; questions: Q[] };
 }) {
   const router = useRouter();
@@ -58,6 +62,11 @@ export function MiniQuizPlayer({
   const [hearts, setHearts] = useState(5);
   const [correctCount, setCorrectCount] = useState(0);
   const [showTips, setShowTips] = useState(false);
+  // Bee tour opens by default ONLY when admin authored one. Tap "Bỏ qua
+  // hướng dẫn" or finish the tour to dismiss it and start the quiz.
+  const [tourOpen, setTourOpen] = useState(
+    !!customTour && customTour.length > 0,
+  );
 
   const q = step < total ? quiz.questions[step] : null;
 
@@ -139,6 +148,11 @@ export function MiniQuizPlayer({
 
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col">
+      {/* Bee tour overlay — only renders when admin authored one for THIS
+          quiz. Empty tour = no overlay (consistent with long-test rule). */}
+      {tourOpen && customTour && customTour.length > 0 && (
+        <BeeGuide steps={customTour} onFinish={() => setTourOpen(false)} />
+      )}
       {/* Top bar: X + progress + hướng dẫn + hearts (Duolingo) */}
       <div className="flex items-center gap-3 px-4 md:px-8 py-4">
         <button

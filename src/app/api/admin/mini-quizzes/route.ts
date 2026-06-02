@@ -20,11 +20,25 @@ const questionSchema = z
     message: "Choice-type questions need at least 2 options",
     path: ["options"],
   });
+// Tour shape mirrors what BeeGuide consumes — kept permissive so admin
+// can add/remove keys as the BandClimbToursEditor evolves.
+const tourStepSchema = z.object({
+  target: z.string(),
+  targetQuestionId: z.string().nullable().optional(),
+  title: z.string(),
+  body: z.string(),
+  highlights: z
+    .array(z.object({ label: z.string(), items: z.array(z.string()) }))
+    .optional(),
+  ctaLabel: z.string().optional(),
+});
+
 const createSchema = z.object({
   bandStageId: z.string(),
   skill: z.enum(["READING", "LISTENING", "WRITING", "SPEAKING"]),
   title: z.string().min(1).max(120),
   questions: z.array(questionSchema).min(1),
+  bandClimbTips: z.array(tourStepSchema).nullable().optional(),
 });
 
 async function requireAdmin() {
@@ -65,6 +79,9 @@ export async function POST(req: Request) {
         skill: data.skill,
         title: data.title,
         order: (last?.order ?? -1) + 1,
+        bandClimbTips: data.bandClimbTips && data.bandClimbTips.length > 0
+          ? data.bandClimbTips
+          : undefined,
         questions: {
           create: data.questions.map((q, i) => ({
             type: q.type,

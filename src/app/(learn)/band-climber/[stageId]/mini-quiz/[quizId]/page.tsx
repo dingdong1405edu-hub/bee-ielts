@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { MiniQuizPlayer } from "./player";
+import type { TourStep } from "@/components/learn/bee-guide";
 
 export const dynamic = "force-dynamic";
 
@@ -53,12 +54,18 @@ export default async function MiniQuizPage({
           ? stage.writing
           : stage.speaking;
 
+  // Admin-authored 🐝 tour for this specific quiz. Null/empty = no overlay,
+  // quiz launches immediately (matches the long-test BeeGuide rule).
+  const rawTour = quiz.bandClimbTips as TourStep[] | null;
+  const customTour = rawTour && Array.isArray(rawTour) && rawTour.length > 0 ? rawTour : null;
+
   return (
     <MiniQuizPlayer
       stageId={stageId}
       stageTitle={stage.title}
       skill={skill}
       tipMarkdown={stage.tipsShowOnMiniQuiz ? tipMarkdown : ""}
+      customTour={customTour}
       quiz={{
         id: quiz.id,
         title: quiz.title,

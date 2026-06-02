@@ -20,6 +20,15 @@ interface TestItem {
   deleteEndpoint: string;
 }
 
+interface TourStepLite {
+  target: string;
+  targetQuestionId?: string | null;
+  title: string;
+  body: string;
+  highlights?: { label: string; items: string[] }[];
+  ctaLabel?: string;
+}
+
 interface QuizItem {
   id: string;
   title: string;
@@ -28,6 +37,7 @@ interface QuizItem {
   // a second fetch. Mirrors what /admin/band-climber/[id]/mini-quiz/[quizId]
   // already returns.
   skill: Skill;
+  tour: TourStepLite[];
   questions: {
     type: QType;
     prompt: string;
@@ -101,6 +111,7 @@ export function SkillHubsClient({
                   id: editing.quiz.id,
                   title: editing.quiz.title,
                   skill: editing.quiz.skill,
+                  tour: editing.quiz.tour,
                   questions: editing.quiz.questions.map((q) => ({
                     type: q.type,
                     prompt: q.prompt,
@@ -248,6 +259,7 @@ function QuizModal({
     id: string;
     title: string;
     skill: Skill;
+    tour?: TourStepLite[] | null;
     questions: {
       type: QType;
       prompt: string;
