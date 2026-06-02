@@ -65,9 +65,25 @@ interface FormProps {
   // Used in create-mode when admin clicks "Thêm mini-quiz" from inside a
   // specific skill hub — pre-selects the dropdown to that skill.
   defaultSkill?: Skill;
+  // When true, suppress page-level chrome (back link, page header, sticky
+  // save bar) — render only the form innards so the host can embed this
+  // inside a modal on the chặng admin page.
+  embedded?: boolean;
+  // Callbacks the modal host listens to instead of letting the form
+  // navigate away on save/cancel.
+  onSaved?: () => void;
+  onCancel?: () => void;
 }
 
-export function MiniQuizForm({ stage, mode, initial, defaultSkill }: FormProps) {
+export function MiniQuizForm({
+  stage,
+  mode,
+  initial,
+  defaultSkill,
+  embedded = false,
+  onSaved,
+  onCancel,
+}: FormProps) {
   const router = useRouter();
   const [title, setTitle] = useState(initial?.title ?? "");
   const [skill, setSkill] = useState<Skill>(initial?.skill ?? defaultSkill ?? "READING");
@@ -182,7 +198,11 @@ export function MiniQuizForm({ stage, mode, initial, defaultSkill }: FormProps) 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Lỗi");
       toast.success(mode === "create" ? "Đã tạo mini-quiz." : "Đã lưu.");
-      router.push(`/admin/band-climber/${stage.id}`);
+      if (embedded && onSaved) {
+        onSaved();
+      } else {
+        router.push(`/admin/band-climber/${stage.id}`);
+      }
       router.refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Lưu thất bại");
@@ -192,22 +212,26 @@ export function MiniQuizForm({ stage, mode, initial, defaultSkill }: FormProps) 
   };
 
   return (
-    <div className="max-w-4xl space-y-4">
-      <div className="flex items-center gap-2">
-        <Button asChild variant="ghost" size="sm">
-          <Link href={`/admin/band-climber/${stage.id}`}>
-            <ArrowLeft className="h-4 w-4" /> Quay lại chặng
-          </Link>
-        </Button>
-      </div>
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold">
-          {mode === "create" ? "Tạo mini-quiz mới" : "Sửa mini-quiz"}
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          Chặng {stage.fromBand} → {stage.toBand} · {stage.title}
-        </p>
-      </div>
+    <div className={embedded ? "space-y-4" : "max-w-4xl space-y-4"}>
+      {!embedded && (
+        <>
+          <div className="flex items-center gap-2">
+            <Button asChild variant="ghost" size="sm">
+              <Link href={`/admin/band-climber/${stage.id}`}>
+                <ArrowLeft className="h-4 w-4" /> Quay lại chặng
+              </Link>
+            </Button>
+          </div>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold">
+              {mode === "create" ? "Tạo mini-quiz mới" : "Sửa mini-quiz"}
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              Chặng {stage.fromBand} → {stage.toBand} · {stage.title}
+            </p>
+          </div>
+        </>
+      )}
 
       {/* Quiz meta */}
       <Card>
@@ -387,10 +411,22 @@ export function MiniQuizForm({ stage, mode, initial, defaultSkill }: FormProps) 
       </div>
 
       {/* Save */}
-      <div className="sticky bottom-2 z-10 flex justify-end gap-2 rounded-2xl border bg-card p-3 shadow-md">
-        <Button asChild variant="outline">
-          <Link href={`/admin/band-climber/${stage.id}`}>Hủy</Link>
-        </Button>
+      <div
+        className={
+          embedded
+            ? "flex justify-end gap-2 pt-2"
+            : "sticky bottom-2 z-10 flex justify-end gap-2 rounded-2xl border bg-card p-3 shadow-md"
+        }
+      >
+        {embedded ? (
+          <Button variant="outline" onClick={() => onCancel?.()} disabled={saving}>
+            Hủy
+          </Button>
+        ) : (
+          <Button asChild variant="outline">
+            <Link href={`/admin/band-climber/${stage.id}`}>Hủy</Link>
+          </Button>
+        )}
         <Button onClick={save} disabled={saving} variant="brand">
           {saving ? "Đang lưu..." : mode === "create" ? "Tạo mini-quiz" : "Lưu thay đổi"}
         </Button>
