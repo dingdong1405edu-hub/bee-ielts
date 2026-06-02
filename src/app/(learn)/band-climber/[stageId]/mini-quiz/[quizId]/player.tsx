@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BeeGuide, type TourStep } from "@/components/learn/bee-guide";
+import { playCorrectSfx, playWrongSfx } from "@/lib/quiz-sfx";
 
 type Skill = "READING" | "LISTENING" | "WRITING" | "SPEAKING";
 
@@ -88,9 +89,11 @@ export function MiniQuizPlayer({
       if (ok) {
         setVerdict("correct");
         setCorrectCount((c) => c + 1);
+        playCorrectSfx();
       } else {
         setVerdict("wrong");
         setHearts((h) => Math.max(0, h - 1));
+        playWrongSfx();
       }
       return;
     }
@@ -98,9 +101,11 @@ export function MiniQuizPlayer({
     if (selected === q.correctIndex) {
       setVerdict("correct");
       setCorrectCount((c) => c + 1);
+      playCorrectSfx();
     } else {
       setVerdict("wrong");
       setHearts((h) => Math.max(0, h - 1));
+      playWrongSfx();
     }
   };
 
@@ -153,6 +158,10 @@ export function MiniQuizPlayer({
       {tourOpen && customTour && customTour.length > 0 && (
         <BeeGuide steps={customTour} onFinish={() => setTourOpen(false)} />
       )}
+      {/* Duolingo-style burst when verdict transitions to "correct". Keyed
+          by the question id so React remounts it and replays the CSS
+          animation on every new correct answer. */}
+      {verdict === "correct" && <CorrectBurst key={`burst-${q.id}`} />}
       {/* Top bar: X + progress + hướng dẫn + hearts (Duolingo) */}
       <div className="flex items-center gap-3 px-4 md:px-8 py-4">
         <button
@@ -240,7 +249,7 @@ export function MiniQuizPlayer({
                   verdict === "correct"
                     ? "border-emerald-400 bg-emerald-50 text-emerald-800"
                     : verdict === "wrong"
-                      ? "border-rose-400 bg-rose-50 text-rose-800"
+                      ? "border-rose-400 bg-rose-50 text-rose-800 quiz-shake"
                       : "border-sky-300 bg-sky-50 text-sky-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-200",
                 )}
               />
@@ -261,6 +270,7 @@ export function MiniQuizPlayer({
                 : isSelected
                   ? "border-sky-400 bg-sky-50 ring-2 ring-sky-200"
                   : "border-input bg-card hover:border-zinc-300";
+              const wrong = verdict === "wrong" && isSelected;
               return (
                 <button
                   key={i}
@@ -270,6 +280,7 @@ export function MiniQuizPlayer({
                   className={cn(
                     "relative overflow-hidden rounded-2xl border-2 p-3 transition-all flex flex-col items-center gap-2",
                     tone,
+                    wrong && "quiz-shake",
                   )}
                 >
                   <div className="aspect-square w-full grid place-items-center bg-muted/30 rounded-lg">
@@ -305,6 +316,7 @@ export function MiniQuizPlayer({
                 : isSelected
                   ? "border-sky-400 bg-sky-50 ring-2 ring-sky-200 text-sky-700"
                   : "border-input bg-card hover:border-zinc-300";
+              const wrong = verdict === "wrong" && isSelected;
               return (
                 <button
                   key={i}
@@ -314,6 +326,7 @@ export function MiniQuizPlayer({
                   className={cn(
                     "flex items-center gap-3 rounded-xl border-2 px-4 py-3 text-left font-semibold transition-all",
                     tone,
+                    wrong && "quiz-shake",
                   )}
                 >
                   <span className="grid h-7 w-7 shrink-0 place-items-center rounded-md border text-xs font-bold">
@@ -504,7 +517,7 @@ function FillBlankInlinePrompt({
     verdict === "correct"
       ? "border-emerald-400 bg-emerald-50 text-emerald-800"
       : verdict === "wrong"
-        ? "border-rose-400 bg-rose-50 text-rose-800"
+        ? "border-rose-400 bg-rose-50 text-rose-800 quiz-shake"
         : "border-sky-300 bg-sky-50 text-sky-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-200";
   return (
     <h2 className="text-xl md:text-2xl font-extrabold leading-snug flex flex-wrap items-center justify-center gap-x-2 gap-y-3">
@@ -539,6 +552,54 @@ function FillBlankInlinePrompt({
         return nodes;
       })}
     </h2>
+  );
+}
+
+/**
+ * Full-screen Duolingo-style celebration when the learner answers correctly.
+ * Mounts on verdict→"correct" (keyed by question id so it replays each round)
+ * and self-removes after the longest animation (~1.1s). pointer-events:none
+ * so it never blocks the "Tiếp tục" button underneath.
+ */
+const BURST_EMOJI = ["🎉", "✨", "⭐", "💫", "🌟", "🎊", "✨", "⭐", "🎉", "💫", "🌟", "🎊"];
+
+function CorrectBurst() {
+  return (
+    <div className="pointer-events-none fixed inset-0 z-[70] overflow-hidden">
+      {/* Tinted flash — gives a satisfying screen pulse on correct. */}
+      <div className="absolute inset-0 bg-emerald-300/25 quiz-flash-green" />
+      {/* Central trophy emoji pops in/out from the middle of the screen. */}
+      <div
+        className="absolute top-1/2 left-1/2 text-7xl md:text-8xl drop-shadow-[0_4px_12px_rgba(16,185,129,0.4)] quiz-pop-in"
+        aria-hidden
+      >
+        🎉
+      </div>
+      {/* 12 emoji particles fly outward in evenly spaced directions. */}
+      {BURST_EMOJI.map((emoji, i) => {
+        const angle = (i / BURST_EMOJI.length) * Math.PI * 2;
+        // Mix two radii so the burst doesn't look ring-shaped.
+        const radius = 180 + (i % 3) * 60;
+        const dx = Math.cos(angle) * radius;
+        const dy = Math.sin(angle) * radius;
+        return (
+          <div
+            key={i}
+            className="absolute top-1/2 left-1/2 text-3xl md:text-4xl quiz-burst"
+            style={
+              {
+                "--qx": `${dx.toFixed(1)}px`,
+                "--qy": `${dy.toFixed(1)}px`,
+                animationDelay: `${i * 20}ms`,
+              } as React.CSSProperties
+            }
+            aria-hidden
+          >
+            {emoji}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
