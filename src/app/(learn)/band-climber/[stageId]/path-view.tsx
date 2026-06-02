@@ -14,6 +14,7 @@ import {
   Trophy,
   Package,
   X,
+  Brain,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StageView } from "./stage-view";
@@ -30,7 +31,11 @@ export interface PathExercise {
 export interface PathGroup {
   skill: SkillKey;
   label: string;
+  // Long-form exercises (reading tests, listening tests, etc.) shown first.
   exercises: PathExercise[];
+  // Duolingo-style mini-quizzes for this skill, rendered as a distinct
+  // "QUIZ NHANH" sub-section under the long tests with smaller violet nodes.
+  quizExercises: PathExercise[];
 }
 
 const SKILL_META: Record<
@@ -104,7 +109,9 @@ export function PathView({
   tips: TipsMd;
 }) {
   const [showTips, setShowTips] = useState(false);
-  const flat = groups.flatMap((g) => g.exercises.map((e) => ({ ...e, skill: g.skill })));
+  const flat = groups.flatMap((g) =>
+    [...g.exercises, ...g.quizExercises].map((e) => ({ ...e, skill: g.skill })),
+  );
   const currentId = flat[0]?.id;
 
   const hasAny = flat.length > 0;
@@ -195,9 +202,11 @@ function PathSection({
 }) {
   const meta = SKILL_META[group.skill];
   const Icon = meta.icon;
+  const hasQuizzes = group.quizExercises.length > 0;
+  const hasLongTests = group.exercises.length > 0;
   return (
     <div className="space-y-1">
-      {/* Section divider */}
+      {/* Skill divider */}
       <div className="flex items-center gap-3 py-3">
         <div className="flex-1 h-px bg-zinc-300/70" />
         <div
@@ -212,18 +221,114 @@ function PathSection({
         <div className="flex-1 h-px bg-zinc-300/70" />
       </div>
 
-      <div className="flex flex-col items-center gap-2 py-2">
-        {group.exercises.map((ex, i) => (
-          <PathNode
-            key={ex.id}
-            ex={ex}
-            skill={group.skill}
-            indexInGroup={i}
-            isCurrent={ex.id === currentId}
-            isLastInGroup={i === group.exercises.length - 1}
-          />
-        ))}
-      </div>
+      {/* Long-form tests — full-size skill-colored nodes */}
+      {hasLongTests && (
+        <div className="flex flex-col items-center gap-2 py-2">
+          {group.exercises.map((ex, i) => (
+            <PathNode
+              key={ex.id}
+              ex={ex}
+              skill={group.skill}
+              indexInGroup={i}
+              isCurrent={ex.id === currentId}
+              isLastInGroup={i === group.exercises.length - 1}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Mini-quiz sub-section — smaller violet nodes under a "Quiz nhanh" pill */}
+      {hasQuizzes && (
+        <>
+          <div className="flex items-center gap-3 pt-4 pb-1">
+            <div className="flex-1 h-px bg-violet-200/70" />
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-violet-100 text-violet-700 px-3 py-1 text-[10px] font-extrabold uppercase tracking-widest border border-violet-200">
+              <Brain className="h-3 w-3" /> Quiz nhanh
+            </div>
+            <div className="flex-1 h-px bg-violet-200/70" />
+          </div>
+          <div className="flex flex-col items-center gap-1 pb-2">
+            {group.quizExercises.map((ex, i) => (
+              <QuizNode
+                key={ex.id}
+                ex={ex}
+                indexInGroup={i}
+                isCurrent={ex.id === currentId}
+                isLastInGroup={i === group.quizExercises.length - 1}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Smaller violet node used for mini-quizzes — same zigzag layout idea as the
+ * long-test PathNode but visually distinct (size, color, icon) so learners
+ * immediately tell quick quizzes apart from the longer skill tests.
+ */
+function QuizNode({
+  ex,
+  indexInGroup,
+  isCurrent,
+  isLastInGroup,
+}: {
+  ex: PathExercise;
+  indexInGroup: number;
+  isCurrent: boolean;
+  isLastInGroup: boolean;
+}) {
+  const offsetTable = [0, 48, 0, -48];
+  const offsetX = offsetTable[indexInGroup % 4];
+  return (
+    <div
+      className="relative my-2 flex flex-col items-center"
+      style={{ marginLeft: offsetX }}
+    >
+      {isCurrent && <CurrentBubble />}
+      <Link
+        href={ex.href}
+        title={ex.title}
+        className="block focus:outline-none focus-visible:ring-4 focus-visible:ring-violet-300/40 rounded-full"
+      >
+        <motion.div
+          animate={
+            isCurrent
+              ? { y: [0, -6, 0], scale: [1, 1.04, 1] }
+              : { y: 0, scale: 1 }
+          }
+          transition={
+            isCurrent
+              ? { duration: 1.4, repeat: Infinity, ease: "easeInOut" }
+              : { duration: 0.2 }
+          }
+          className="relative"
+        >
+          <div
+            className={cn(
+              "grid h-14 w-14 place-items-center rounded-full border-[4px] border-white shadow-[0_6px_0_rgba(0,0,0,0.08)] transition-transform hover:scale-105 active:scale-100",
+              "bg-gradient-to-br from-violet-500 to-fuchsia-600",
+            )}
+          >
+            {isCurrent ? (
+              <Play className="h-6 w-6 text-white fill-white" />
+            ) : (
+              <Brain className="h-6 w-6 text-white drop-shadow-sm" />
+            )}
+          </div>
+        </motion.div>
+      </Link>
+      <span className="mt-1.5 max-w-[140px] text-center text-[10px] font-bold text-muted-foreground line-clamp-2">
+        {ex.title}
+        {ex.subtitle && (
+          <span className="block text-violet-500 text-[9px] font-extrabold mt-0.5">
+            {ex.subtitle}
+          </span>
+        )}
+      </span>
+      {!isLastInGroup && <div className="mt-1.5 h-2 w-1 rounded-full bg-violet-200" />}
     </div>
   );
 }
