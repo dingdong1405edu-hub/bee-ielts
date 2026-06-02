@@ -41,12 +41,15 @@ interface FormProps {
     skill: Skill;
     questions: QuestionDraft[];
   };
+  // Used in create-mode when admin clicks "Thêm mini-quiz" from inside a
+  // specific skill hub — pre-selects the dropdown to that skill.
+  defaultSkill?: Skill;
 }
 
-export function MiniQuizForm({ stage, mode, initial }: FormProps) {
+export function MiniQuizForm({ stage, mode, initial, defaultSkill }: FormProps) {
   const router = useRouter();
   const [title, setTitle] = useState(initial?.title ?? "");
-  const [skill, setSkill] = useState<Skill>(initial?.skill ?? "READING");
+  const [skill, setSkill] = useState<Skill>(initial?.skill ?? defaultSkill ?? "READING");
   const [questions, setQuestions] = useState<QuestionDraft[]>(
     initial?.questions ?? [blankQuestion("TEXT_CHOICE")],
   );
