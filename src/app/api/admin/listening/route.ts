@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { toNullableJsonArray } from "@/lib/prisma-json";
+import { logAdminActivity } from "@/lib/admin-activity";
 
 const schema = z.object({
   title: z.string().min(1),
@@ -64,6 +65,13 @@ export async function POST(req: Request) {
         })),
       },
     },
+  });
+
+  await logAdminActivity({
+    action: "CREATE",
+    entityType: "LISTENING_TEST",
+    entityId: test.id,
+    entityTitle: test.title,
   });
 
   return NextResponse.json({ id: test.id });

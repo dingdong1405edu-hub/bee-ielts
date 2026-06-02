@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { toNullableJsonArray } from "@/lib/prisma-json";
+import { logAdminActivity } from "@/lib/admin-activity";
 
 const schema = z.object({
   taskType: z.union([z.literal(1), z.literal(2)]),
@@ -26,6 +27,12 @@ export async function POST(req: Request) {
       bandStageId: rest.bandStageId ?? null,
       bandClimbTips: toNullableJsonArray(bandClimbTips),
     },
+  });
+  await logAdminActivity({
+    action: "CREATE",
+    entityType: "WRITING_TASK",
+    entityId: task.id,
+    entityTitle: `Task ${task.taskType} · ${task.prompt.slice(0, 80)}`,
   });
   return NextResponse.json({ id: task.id });
 }

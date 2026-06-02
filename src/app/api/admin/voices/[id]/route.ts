@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { logAdminActivity } from "@/lib/admin-activity";
 
 const patchSchema = z.object({
   voiceId: z.string().min(3).max(80).optional(),
@@ -43,6 +44,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       where: { id },
       data: parsed.data,
     });
+    await logAdminActivity({
+      action: "UPDATE",
+      entityType: "SPEAKING_VOICE",
+      entityId: voice.id,
+      entityTitle: `${voice.name} (${voice.voiceId})`,
+    });
     return NextResponse.json({ voice });
   } catch (e) {
     console.error("[admin/voices PATCH]", e);
@@ -56,7 +63,20 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   try {
+    const existing = await prisma.speakingVoice.findUnique({
+      where: { id },
+      select: { name: true, voiceId: true },
+    });
     await prisma.speakingVoice.delete({ where: { id } });
+    if (existing) {
+      await logAdminActivity({
+        action: "DELETE",
+        entityType: "SPEAKING_VOICE",
+        entityId: id,
+        entityTitle: `${existing.name} (${existing.voiceId})`,
+        entityHref: null,
+      });
+    }
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("[admin/voices DELETE]", e);

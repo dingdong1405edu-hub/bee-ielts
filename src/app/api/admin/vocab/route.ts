@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { logAdminActivity } from "@/lib/admin-activity";
 
 const exerciseSchema = z.discriminatedUnion("type", [
   z.object({
@@ -74,6 +75,12 @@ export async function POST(req: Request) {
           },
         },
       });
+      await logAdminActivity({
+        action: "CREATE",
+        entityType: "VOCAB_UNIT",
+        entityId: unit.id,
+        entityTitle: `[${unit.level}] ${unit.title} (+${data.lessons.length} lessons)`,
+      });
       return NextResponse.json({ id: unit.id });
     }
 
@@ -87,6 +94,12 @@ export async function POST(req: Request) {
         }),
       ),
     );
+    await logAdminActivity({
+      action: "CREATE",
+      entityType: "VOCAB_LESSON",
+      entityId: data.unitId,
+      entityTitle: `${data.lessons.length} lesson(s) → ${unit.title}`,
+    });
     return NextResponse.json({ id: data.unitId });
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {

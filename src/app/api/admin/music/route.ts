@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { MUSIC_SCOPES } from "@/lib/music-scopes";
+import { logAdminActivity } from "@/lib/admin-activity";
 
 const scopeValues = MUSIC_SCOPES.map((s) => s.value) as [string, ...string[]];
 
@@ -48,6 +49,12 @@ export async function POST(req: Request) {
     });
     const track = await prisma.backgroundMusic.create({
       data: { ...data, order: (lastOrder?.order ?? -1) + 1 },
+    });
+    await logAdminActivity({
+      action: "CREATE",
+      entityType: "BACKGROUND_MUSIC",
+      entityId: track.id,
+      entityTitle: track.name,
     });
     return NextResponse.json({ track });
   } catch (e) {

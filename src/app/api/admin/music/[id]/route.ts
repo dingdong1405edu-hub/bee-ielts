@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { MUSIC_SCOPES } from "@/lib/music-scopes";
+import { logAdminActivity } from "@/lib/admin-activity";
 
 const scopeValues = MUSIC_SCOPES.map((s) => s.value) as [string, ...string[]];
 
@@ -37,6 +38,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       where: { id },
       data: parsed.data,
     });
+    await logAdminActivity({
+      action: "UPDATE",
+      entityType: "BACKGROUND_MUSIC",
+      entityId: track.id,
+      entityTitle: track.name,
+    });
     return NextResponse.json({ track });
   } catch (e) {
     console.error("[admin/music PATCH]", e);
@@ -50,7 +57,20 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   try {
+    const existing = await prisma.backgroundMusic.findUnique({
+      where: { id },
+      select: { name: true },
+    });
     await prisma.backgroundMusic.delete({ where: { id } });
+    if (existing) {
+      await logAdminActivity({
+        action: "DELETE",
+        entityType: "BACKGROUND_MUSIC",
+        entityId: id,
+        entityTitle: existing.name,
+        entityHref: null,
+      });
+    }
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("[admin/music DELETE]", e);

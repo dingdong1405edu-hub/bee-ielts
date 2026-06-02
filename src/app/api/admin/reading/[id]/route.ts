@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { toNullableJsonArray } from "@/lib/prisma-json";
+import { logAdminActivity } from "@/lib/admin-activity";
 
 const schema = z.object({
   title: z.string().min(1),
@@ -70,6 +71,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }),
   ]);
 
+  await logAdminActivity({
+    action: "UPDATE",
+    entityType: "READING_TEST",
+    entityId: id,
+    entityTitle: title,
+  });
+
   return NextResponse.json({ id });
 }
 
@@ -82,5 +90,12 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const existing = await prisma.readingTest.findUnique({ where: { id } });
   if (!existing) return NextResponse.json({ error: "Không tìm thấy bài" }, { status: 404 });
   await prisma.readingTest.delete({ where: { id } });
+  await logAdminActivity({
+    action: "DELETE",
+    entityType: "READING_TEST",
+    entityId: id,
+    entityTitle: existing.title,
+    entityHref: null,
+  });
   return NextResponse.json({ ok: true });
 }

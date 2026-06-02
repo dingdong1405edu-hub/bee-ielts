@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { toNullableJsonArray } from "@/lib/prisma-json";
+import { logAdminActivity } from "@/lib/admin-activity";
 
 const schema = z.object({
   topic: z.string().trim().min(1),
@@ -37,6 +38,12 @@ export async function POST(req: Request) {
       bandStageId: bandStageId ?? null,
       bandClimbTips: toNullableJsonArray(bandClimbTips),
     },
+  });
+  await logAdminActivity({
+    action: "CREATE",
+    entityType: "SPEAKING_SET",
+    entityId: set.id,
+    entityTitle: set.topic,
   });
   return NextResponse.json({ id: set.id });
 }

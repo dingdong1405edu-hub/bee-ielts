@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { toNullableJsonArray } from "@/lib/prisma-json";
+import { logAdminActivity } from "@/lib/admin-activity";
 
 const schema = z.object({
   topic: z.string().trim().min(1),
@@ -43,6 +44,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       bandClimbTips: toNullableJsonArray(bandClimbTips),
     },
   });
+  await logAdminActivity({
+    action: "UPDATE",
+    entityType: "SPEAKING_SET",
+    entityId: id,
+    entityTitle: topic,
+  });
   return NextResponse.json({ id });
 }
 
@@ -55,5 +62,12 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const existing = await prisma.speakingSet.findUnique({ where: { id } });
   if (!existing) return NextResponse.json({ error: "Không tìm thấy set" }, { status: 404 });
   await prisma.speakingSet.delete({ where: { id } });
+  await logAdminActivity({
+    action: "DELETE",
+    entityType: "SPEAKING_SET",
+    entityId: id,
+    entityTitle: existing.topic,
+    entityHref: null,
+  });
   return NextResponse.json({ ok: true });
 }

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { isOwner } from "@/lib/admin";
-import { Shield, BookOpen, PenLine, Mic, Sparkles, BookOpenText, Headphones, Users, KeyRound, ExternalLink, GraduationCap, TrendingUp, Volume2, Music } from "lucide-react";
+import { Shield, BookOpen, PenLine, Mic, Sparkles, BookOpenText, Headphones, Users, KeyRound, ExternalLink, GraduationCap, TrendingUp, Volume2, Music, Activity } from "lucide-react";
 
 const nav = [
   { href: "/admin", label: "Tổng quan", icon: Shield },
@@ -18,6 +18,7 @@ const nav = [
   { href: "/admin/grammar", label: "Grammar", icon: BookOpenText },
   { href: "/admin/band-climber", label: "Vượt band", icon: TrendingUp },
   { href: "/admin/users", label: "Users", icon: Users },
+  { href: "/admin/activity", label: "Hoạt động", icon: Activity },
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

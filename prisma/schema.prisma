@@ -520,6 +520,28 @@ model BackgroundMusic {
   @@index([enabled, order])
 }
 
+// Audit log of admin content actions (create/update/delete). Snapshots
+// entityTitle so the timeline still reads correctly even after the
+// underlying bài/đề/quiz is deleted. userId is nullable because the
+// referenced admin may be deleted later — we keep email + name snapshots
+// so attribution survives.
+model AdminActivity {
+  id          String   @id @default(cuid())
+  userId      String?
+  userEmail   String
+  userName    String?
+  action      String   // "CREATE" | "UPDATE" | "DELETE"
+  entityType  String   // "READING_TEST" | "LISTENING_TEST" | "WRITING_TASK" | "SPEAKING_SET" | "BAND_STAGE" | "MINI_QUIZ" | "VOCAB_UNIT" | "VOCAB_LESSON" | "GRAMMAR_UNIT" | "GRAMMAR_LESSON" | "BACKGROUND_MUSIC" | "SPEAKING_VOICE"
+  entityId    String
+  entityTitle String   @db.Text
+  entityHref  String?  @db.Text
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entityType, createdAt])
+  @@index([userId, createdAt])
+}
+
 // Examiner voices the Speaking module offers learners. Admin can add/remove
 // entries on /admin/voices so the catalogue isn't pinned to a hard-coded
 // list. voiceId is the Deepgram Aura identifier (e.g. aura-2-aurora-en).

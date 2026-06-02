@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { logAdminActivity } from "@/lib/admin-activity";
 
 const optionSchema = z.object({
   label: z.string().min(1).max(80),
@@ -97,6 +98,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       },
       include: { questions: { orderBy: { order: "asc" } } },
     });
+    await logAdminActivity({
+      action: "UPDATE",
+      entityType: "MINI_QUIZ",
+      entityId: quiz.id,
+      entityTitle: `[${quiz.skill}] ${quiz.title}`,
+      entityHref: `/admin/band-climber/${quiz.bandStageId}`,
+    });
     return NextResponse.json({ quiz });
   } catch (e) {
     console.error("[admin/mini-quizzes PATCH]", e);
@@ -110,7 +118,20 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   try {
+    const existing = await prisma.bandClimbMiniQuiz.findUnique({
+      where: { id },
+      select: { title: true, skill: true },
+    });
     await prisma.bandClimbMiniQuiz.delete({ where: { id } });
+    if (existing) {
+      await logAdminActivity({
+        action: "DELETE",
+        entityType: "MINI_QUIZ",
+        entityId: id,
+        entityTitle: `[${existing.skill}] ${existing.title}`,
+        entityHref: null,
+      });
+    }
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("[admin/mini-quizzes DELETE]", e);

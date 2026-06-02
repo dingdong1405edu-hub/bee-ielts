@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { logAdminActivity } from "@/lib/admin-activity";
 
 const bodySchema = z.object({
   fromBand: z.number().min(0).max(9),
@@ -52,6 +53,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         tipsShowOnMiniQuiz: data.tipsShowOnMiniQuiz,
       },
     });
+    await logAdminActivity({
+      action: "UPDATE",
+      entityType: "BAND_STAGE",
+      entityId: id,
+      entityTitle: `${data.fromBand} → ${data.toBand} · ${data.title.trim()}`,
+    });
     return NextResponse.json({ ok: true });
   } catch (e) {
     if (typeof e === "object" && e && (e as { code?: string }).code === "P2002") {
@@ -73,5 +80,12 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const existing = await prisma.bandStage.findUnique({ where: { id } });
   if (!existing) return NextResponse.json({ error: "Không tìm thấy chặng" }, { status: 404 });
   await prisma.bandStage.delete({ where: { id } });
+  await logAdminActivity({
+    action: "DELETE",
+    entityType: "BAND_STAGE",
+    entityId: id,
+    entityTitle: `${existing.fromBand} → ${existing.toBand} · ${existing.title}`,
+    entityHref: null,
+  });
   return NextResponse.json({ ok: true });
 }

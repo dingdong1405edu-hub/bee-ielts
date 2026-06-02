@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { logAdminActivity } from "@/lib/admin-activity";
 
 const lessonSchema = z.object({
   title: z.string().min(1),
@@ -63,6 +64,12 @@ export async function POST(req: Request) {
           },
         },
       });
+      await logAdminActivity({
+        action: "CREATE",
+        entityType: "GRAMMAR_UNIT",
+        entityId: unit.id,
+        entityTitle: `[${unit.level}] ${unit.title} (+${data.lessons.length} lessons)`,
+      });
       return NextResponse.json({ id: unit.id });
     }
 
@@ -82,6 +89,12 @@ export async function POST(req: Request) {
         }),
       ),
     );
+    await logAdminActivity({
+      action: "CREATE",
+      entityType: "GRAMMAR_LESSON",
+      entityId: data.unitId,
+      entityTitle: `${data.lessons.length} lesson(s) → ${unit.title}`,
+    });
     return NextResponse.json({ id: data.unitId });
   } catch (e) {
     console.error("[admin/grammar]", e);

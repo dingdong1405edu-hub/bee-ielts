@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { logAdminActivity } from "@/lib/admin-activity";
 
 const createSchema = z.object({
   voiceId: z.string().min(3).max(80),
@@ -53,6 +54,12 @@ export async function POST(req: Request) {
     });
     const voice = await prisma.speakingVoice.create({
       data: { ...data, order: (lastOrder?.order ?? -1) + 1 },
+    });
+    await logAdminActivity({
+      action: "CREATE",
+      entityType: "SPEAKING_VOICE",
+      entityId: voice.id,
+      entityTitle: `${voice.name} (${voice.voiceId})`,
     });
     return NextResponse.json({ voice });
   } catch (e) {

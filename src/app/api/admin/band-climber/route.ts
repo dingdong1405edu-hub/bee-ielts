@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { logAdminActivity } from "@/lib/admin-activity";
 
 const bodySchema = z.object({
   fromBand: z.number().min(0).max(9),
@@ -60,6 +61,12 @@ export async function POST(req: Request) {
         tipsShowOnTest: data.tipsShowOnTest,
         tipsShowOnMiniQuiz: data.tipsShowOnMiniQuiz,
       },
+    });
+    await logAdminActivity({
+      action: "CREATE",
+      entityType: "BAND_STAGE",
+      entityId: stage.id,
+      entityTitle: `${stage.fromBand} → ${stage.toBand} · ${stage.title}`,
     });
     return NextResponse.json({ id: stage.id });
   } catch (e) {

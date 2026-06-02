@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { toNullableJsonArray } from "@/lib/prisma-json";
+import { logAdminActivity } from "@/lib/admin-activity";
 
 const schema = z.object({
   taskType: z.union([z.literal(1), z.literal(2)]),
@@ -28,13 +29,19 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!parsed.success) return NextResponse.json({ error: parsed.error.message }, { status: 400 });
 
   const { bandClimbTips, ...rest } = parsed.data;
-  await prisma.writingTask.update({
+  const updated = await prisma.writingTask.update({
     where: { id },
     data: {
       ...rest,
       bandStageId: rest.bandStageId ?? null,
       bandClimbTips: toNullableJsonArray(bandClimbTips),
     },
+  });
+  await logAdminActivity({
+    action: "UPDATE",
+    entityType: "WRITING_TASK",
+    entityId: id,
+    entityTitle: `Task ${updated.taskType} · ${updated.prompt.slice(0, 80)}`,
   });
   return NextResponse.json({ id });
 }
@@ -48,5 +55,12 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const existing = await prisma.writingTask.findUnique({ where: { id } });
   if (!existing) return NextResponse.json({ error: "Không tìm thấy task" }, { status: 404 });
   await prisma.writingTask.delete({ where: { id } });
+  await logAdminActivity({
+    action: "DELETE",
+    entityType: "WRITING_TASK",
+    entityId: id,
+    entityTitle: `Task ${existing.taskType} · ${existing.prompt.slice(0, 80)}`,
+    entityHref: null,
+  });
   return NextResponse.json({ ok: true });
 }

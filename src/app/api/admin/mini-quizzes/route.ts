@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { logAdminActivity } from "@/lib/admin-activity";
 
 const optionSchema = z.object({
   label: z.string().min(1).max(80),
@@ -97,6 +98,13 @@ export async function POST(req: Request) {
         },
       },
       include: { questions: true },
+    });
+    await logAdminActivity({
+      action: "CREATE",
+      entityType: "MINI_QUIZ",
+      entityId: quiz.id,
+      entityTitle: `[${quiz.skill}] ${quiz.title}`,
+      entityHref: `/admin/band-climber/${quiz.bandStageId}`,
     });
     return NextResponse.json({ quiz });
   } catch (e) {
