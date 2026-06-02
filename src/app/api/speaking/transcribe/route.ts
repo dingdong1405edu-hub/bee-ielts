@@ -30,10 +30,15 @@ export async function POST(req: Request) {
     const result = await deepgramTranscribe(audio, rawCt);
     return NextResponse.json(result);
   } catch (e) {
+    // Keep the raw detail in server logs for debugging but don't surface
+    // 401 / API-key payloads to the candidate — the message they see should
+    // be actionable, not a stack trace.
     console.error("[speaking/transcribe]", e);
-    const detail = e instanceof Error ? e.message : "Lỗi không xác định";
     return NextResponse.json(
-      { error: `Không nhận dạng được giọng nói: ${detail}` },
+      {
+        error:
+          "Hệ thống nhận dạng giọng nói tạm thời gián đoạn. Hãy thử ghi âm lại — nói to và rõ hơn.",
+      },
       { status: 502 },
     );
   }
