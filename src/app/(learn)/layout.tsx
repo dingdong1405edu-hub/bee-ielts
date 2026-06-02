@@ -8,6 +8,7 @@ import { StatsBar } from "@/components/learn/stats-bar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LearnBackground } from "@/components/learn/learn-background";
 import { FloatingHelpers } from "@/components/learn/floating-helpers";
+import { BackgroundMusicPlayer } from "@/components/learn/background-music";
 
 export default async function LearnLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -41,6 +42,7 @@ export default async function LearnLayout({ children }: { children: React.ReactN
         <Suspense fallback={null}>
           <FloatingHelpersGate userId={userId} />
         </Suspense>
+        <BackgroundMusicPlayer />
       </div>
     </div>
   );
