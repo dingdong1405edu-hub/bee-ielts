@@ -16,9 +16,14 @@ interface Q {
 export function MiniQuizPlayer({
   stageId,
   quiz,
+  backHref,
 }: {
   stageId: string;
   quiz: { id: string; title: string; questions: Q[] };
+  // Where to send the user when they tap X or finish — defaults to the
+  // band-climber stage path-view but section pages override it with /reading,
+  // /listening, /writing, /speaking so the user returns where they came from.
+  backHref?: string;
 }) {
   const router = useRouter();
   const total = quiz.questions.length;
@@ -59,7 +64,7 @@ export function MiniQuizPlayer({
   };
 
   const exit = () => {
-    router.push(`/band-climber/${stageId}`);
+    router.push(backHref ?? `/band-climber/${stageId}`);
   };
 
   // ============================ FINISHED SUMMARY ============================

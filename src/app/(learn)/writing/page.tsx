@@ -4,6 +4,7 @@ import { PenLine, Clock, BarChart3, FileText, Trophy, History, ChevronRight } fr
 import { SkillIntro } from "@/components/learn/skill-intro";
 import { TestPicker } from "@/components/learn/test-picker";
 import { TestPickerSkeleton } from "@/components/learn/test-picker-skeleton";
+import { MiniQuizList } from "@/components/learn/mini-quiz-list";
 import { attemptCounts } from "@/lib/attempt-counts";
 import { Card, CardContent } from "@/components/ui/card";
 import { DeleteAttemptButton } from "@/components/learn/delete-attempt-button";
@@ -32,6 +33,10 @@ export default function WritingIntroPage() {
 
       <Suspense fallback={<TestPickerSkeleton />}>
         <WritingTaskList />
+      </Suspense>
+
+      <Suspense fallback={null}>
+        <MiniQuizList skill="WRITING" />
       </Suspense>
     </div>
   );
