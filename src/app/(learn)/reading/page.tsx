@@ -4,7 +4,6 @@ import { CEFRLevel } from "@prisma/client";
 import { SkillIntro } from "@/components/learn/skill-intro";
 import { TestPicker, questionTypeLabel, type PillColor } from "@/components/learn/test-picker";
 import { TestPickerSkeleton } from "@/components/learn/test-picker-skeleton";
-import { MiniQuizList } from "@/components/learn/mini-quiz-list";
 import { attemptCounts } from "@/lib/attempt-counts";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
@@ -40,10 +39,6 @@ export default function ReadingIntroPage() {
 
       <Suspense fallback={<TestPickerSkeleton />}>
         <ReadingTestList />
-      </Suspense>
-
-      <Suspense fallback={null}>
-        <MiniQuizList skill="READING" />
       </Suspense>
     </div>
   );

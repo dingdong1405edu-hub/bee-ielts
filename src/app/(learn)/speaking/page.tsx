@@ -4,7 +4,6 @@ import { Mic, Clock, Volume2, Brain, Trophy, MessageCircle, ClipboardList, Messa
 import { SkillIntro } from "@/components/learn/skill-intro";
 import { TestPicker } from "@/components/learn/test-picker";
 import { TestPickerSkeleton } from "@/components/learn/test-picker-skeleton";
-import { MiniQuizList } from "@/components/learn/mini-quiz-list";
 import { attemptCounts } from "@/lib/attempt-counts";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
@@ -97,10 +96,6 @@ export default function SpeakingIntroPage() {
 
       <Suspense fallback={<TestPickerSkeleton />}>
         <SpeakingSetList />
-      </Suspense>
-
-      <Suspense fallback={null}>
-        <MiniQuizList skill="SPEAKING" />
       </Suspense>
     </div>
   );

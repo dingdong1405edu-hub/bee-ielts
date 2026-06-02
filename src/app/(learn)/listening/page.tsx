@@ -3,7 +3,6 @@ import { Headphones, Clock, Volume2, Brain, Trophy } from "lucide-react";
 import { SkillIntro } from "@/components/learn/skill-intro";
 import { TestPicker, questionTypeLabel } from "@/components/learn/test-picker";
 import { TestPickerSkeleton } from "@/components/learn/test-picker-skeleton";
-import { MiniQuizList } from "@/components/learn/mini-quiz-list";
 import { attemptCounts } from "@/lib/attempt-counts";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
@@ -30,10 +29,6 @@ export default function ListeningIntroPage() {
 
       <Suspense fallback={<TestPickerSkeleton />}>
         <ListeningTestList />
-      </Suspense>
-
-      <Suspense fallback={null}>
-        <MiniQuizList skill="LISTENING" />
       </Suspense>
     </div>
   );
