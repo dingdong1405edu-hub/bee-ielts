@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, ArrowLeft, ImageIcon, Type, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, ImageIcon, Type, CheckCircle2, Volume2 } from "lucide-react";
 
 type Skill = "READING" | "LISTENING" | "WRITING" | "SPEAKING";
 type QType = "IMAGE_CHOICE" | "TEXT_CHOICE";
@@ -19,6 +19,8 @@ interface OptionDraft {
 interface QuestionDraft {
   type: QType;
   prompt: string;
+  // Optional mp3/ogg URL — player shows a "Nghe" button above the prompt.
+  audioUrl?: string;
   options: OptionDraft[];
   correctIndex: number;
 }
@@ -26,6 +28,7 @@ interface QuestionDraft {
 const blankQuestion = (type: QType = "TEXT_CHOICE"): QuestionDraft => ({
   type,
   prompt: "",
+  audioUrl: "",
   options: type === "IMAGE_CHOICE"
     ? [{ label: "", imageUrl: "" }, { label: "", imageUrl: "" }, { label: "", imageUrl: "" }]
     : [{ label: "" }, { label: "" }, { label: "" }],
@@ -133,6 +136,7 @@ export function MiniQuizForm({ stage, mode, initial, defaultSkill }: FormProps) 
         questions: questions.map((q) => ({
           type: q.type,
           prompt: q.prompt,
+          audioUrl: q.audioUrl?.trim() || undefined,
           options: q.options.map((o) => ({
             label: o.label,
             imageUrl: o.imageUrl?.trim() || undefined,
@@ -245,6 +249,22 @@ export function MiniQuizForm({ stage, mode, initial, defaultSkill }: FormProps) 
                   onChange={(e) => updateQuestion(idx, { prompt: e.target.value })}
                   placeholder={q.type === "IMAGE_CHOICE" ? 'VD: Đâu là "cà phê"?' : 'VD: Chọn nghĩa đúng của "coffee"'}
                 />
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1.5">
+                  <Volume2 className="h-3.5 w-3.5 text-amber-500" />
+                  Audio URL (Listening — tùy chọn)
+                </span>
+                <Input
+                  value={q.audioUrl ?? ""}
+                  onChange={(e) => updateQuestion(idx, { audioUrl: e.target.value })}
+                  placeholder="https://.../audio.mp3 — để trống nếu không cần audio"
+                  type="url"
+                />
+                {q.audioUrl && (
+                  <audio controls src={q.audioUrl} className="mt-1.5 h-9 w-full" />
+                )}
               </label>
 
               <div className="space-y-2">

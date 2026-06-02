@@ -10,6 +10,8 @@ const optionSchema = z.object({
 const questionSchema = z.object({
   type: z.enum(["IMAGE_CHOICE", "TEXT_CHOICE"]),
   prompt: z.string().min(1).max(400),
+  // Optional mp3/ogg URL — player shows a Listen button when present.
+  audioUrl: z.string().url().optional().or(z.literal("")),
   options: z.array(optionSchema).min(2).max(6),
   correctIndex: z.number().int().min(0),
 });
@@ -62,6 +64,7 @@ export async function POST(req: Request) {
           create: data.questions.map((q, i) => ({
             type: q.type,
             prompt: q.prompt,
+            audioUrl: q.audioUrl ? q.audioUrl : null,
             options: q.options.map((o) => ({
               label: o.label,
               ...(o.imageUrl ? { imageUrl: o.imageUrl } : {}),

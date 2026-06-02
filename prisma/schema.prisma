@@ -183,6 +183,10 @@ model MiniQuestion {
   miniQuiz     BandClimbMiniQuiz @relation(fields: [miniQuizId], references: [id], onDelete: Cascade)
   type         String   // "IMAGE_CHOICE" | "TEXT_CHOICE"
   prompt       String   @db.Text
+  // Optional audio URL the player surfaces with a play button above the
+  // prompt — useful for Listening-style mini-quizzes where admin wants the
+  // learner to hear a sentence before answering.
+  audioUrl     String?  @db.Text
   options      Json     // [{ label, imageUrl? }, ...]
   correctIndex Int
   order        Int      @default(0)

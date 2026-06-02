@@ -37,6 +37,7 @@ export default async function MiniQuizPage({
           id: q.id,
           type: q.type as "IMAGE_CHOICE" | "TEXT_CHOICE",
           prompt: q.prompt,
+          audioUrl: q.audioUrl,
           options: q.options as { label: string; imageUrl?: string }[],
           correctIndex: q.correctIndex,
         })),

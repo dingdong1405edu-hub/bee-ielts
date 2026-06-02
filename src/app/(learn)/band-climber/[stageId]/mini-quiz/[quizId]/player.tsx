@@ -1,14 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { X, Heart, Check, CheckCircle2, XCircle, Flag, Trophy } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { X, Heart, Check, XCircle, Flag, Trophy, Volume2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Q {
   id: string;
   type: "IMAGE_CHOICE" | "TEXT_CHOICE";
   prompt: string;
+  audioUrl?: string | null;
   options: { label: string; imageUrl?: string }[];
   correctIndex: number;
 }
@@ -120,6 +121,7 @@ export function MiniQuizPlayer({
             Câu {step + 1}/{total}
           </div>
           <h2 className="text-2xl md:text-3xl font-extrabold leading-tight">{q.prompt}</h2>
+          {q.audioUrl ? <AudioButton key={q.id} url={q.audioUrl} /> : null}
         </div>
 
         {q.type === "IMAGE_CHOICE" ? (
@@ -272,6 +274,61 @@ export function MiniQuizPlayer({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Big Duolingo-style listen button. Plays the question's audio on tap and
+ * highlights while playing. New key per question id resets the element when
+ * the learner advances, so the previous track can't keep playing.
+ */
+function AudioButton({ url }: { url: string }) {
+  const ref = useRef<HTMLAudioElement | null>(null);
+  const [playing, setPlaying] = useState(false);
+
+  // Auto-stop the audio when this component unmounts (route change / next q).
+  useEffect(() => {
+    const a = ref.current;
+    return () => {
+      if (a && !a.paused) a.pause();
+    };
+  }, []);
+
+  const toggle = () => {
+    const a = ref.current;
+    if (!a) return;
+    if (a.paused) {
+      a.currentTime = 0;
+      a.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+    } else {
+      a.pause();
+      setPlaying(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-center gap-3 mt-1">
+      <button
+        type="button"
+        onClick={toggle}
+        className={cn(
+          "inline-flex items-center gap-2 rounded-full border-2 px-5 py-2.5 font-bold shadow-sm transition-all",
+          playing
+            ? "bg-sky-500 text-white border-sky-600 animate-pulse"
+            : "bg-sky-50 text-sky-700 border-sky-300 hover:bg-sky-100",
+        )}
+      >
+        <Volume2 className="h-5 w-5" />
+        {playing ? "Đang phát..." : "Nghe"}
+      </button>
+      <audio
+        ref={ref}
+        src={url}
+        onEnded={() => setPlaying(false)}
+        onError={() => setPlaying(false)}
+        hidden
+      />
     </div>
   );
 }

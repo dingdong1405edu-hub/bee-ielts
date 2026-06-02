@@ -10,6 +10,7 @@ const optionSchema = z.object({
 const questionSchema = z.object({
   type: z.enum(["IMAGE_CHOICE", "TEXT_CHOICE"]),
   prompt: z.string().min(1).max(400),
+  audioUrl: z.string().url().optional().or(z.literal("")),
   options: z.array(optionSchema).min(2).max(6),
   correctIndex: z.number().int().min(0),
 });
@@ -51,6 +52,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
           miniQuizId: id,
           type: q.type,
           prompt: q.prompt,
+          audioUrl: q.audioUrl ? q.audioUrl : null,
           options: q.options.map((o) => ({
             label: o.label,
             ...(o.imageUrl ? { imageUrl: o.imageUrl } : {}),
