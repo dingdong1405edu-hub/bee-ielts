@@ -62,6 +62,83 @@ export function BeeGuide({
     };
   }, []);
 
+  // Highlight matching anchor words inside the spotlight target (or whole
+  // document when no target) by wrapping each match in <mark class="bee-anchor">.
+  // Cleanup on step change so the previous step's marks don't leak.
+  useEffect(() => {
+    const words = (step.highlights ?? []).flatMap((h) => h.items).filter((w) => w.trim().length > 0);
+    if (words.length === 0) return;
+
+    const root = step.targetQuestionId
+      ? document.querySelector<HTMLElement>(`[data-question-id="${step.targetQuestionId}"]`)
+      : step.target && step.target !== "center"
+        ? document.querySelector<HTMLElement>(`[data-tour="${step.target}"]`)
+        : document.body;
+    if (!root) return;
+
+    const escaped = words
+      .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+      .sort((a, b) => b.length - a.length);
+    const re = new RegExp(`(${escaped.join("|")})`, "gi");
+
+    // Walk text nodes inside `root`, skipping any already-marked nodes and
+    // anything inside the BeeGuide overlay itself.
+    const overlay = containerRef.current;
+    const created: HTMLElement[] = [];
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        const parent = node.parentElement;
+        if (!parent) return NodeFilter.FILTER_REJECT;
+        if (overlay && overlay.contains(parent)) return NodeFilter.FILTER_REJECT;
+        if (parent.closest("mark.bee-anchor")) return NodeFilter.FILTER_REJECT;
+        // Skip <script>/<style>/inputs and any control element.
+        const tag = parent.tagName;
+        if (["SCRIPT", "STYLE", "INPUT", "TEXTAREA"].includes(tag)) return NodeFilter.FILTER_REJECT;
+        return node.nodeValue && re.test(node.nodeValue)
+          ? NodeFilter.FILTER_ACCEPT
+          : NodeFilter.FILTER_REJECT;
+      },
+    });
+    // Collect candidate nodes first — mutating during traversal breaks the walker.
+    const targets: Text[] = [];
+    let n: Node | null = walker.nextNode();
+    while (n) {
+      targets.push(n as Text);
+      n = walker.nextNode();
+    }
+    for (const textNode of targets) {
+      const text = textNode.nodeValue ?? "";
+      // Reset lastIndex by recreating the regex on each pass.
+      const localRe = new RegExp(`(${escaped.join("|")})`, "gi");
+      const frag = document.createDocumentFragment();
+      let last = 0;
+      let m: RegExpExecArray | null;
+      while ((m = localRe.exec(text))) {
+        const before = text.slice(last, m.index);
+        if (before) frag.appendChild(document.createTextNode(before));
+        const mark = document.createElement("mark");
+        mark.className =
+          "bee-anchor rounded px-1 py-0.5 bg-amber-200/90 text-amber-900 font-extrabold ring-1 ring-amber-400/60 shadow-sm";
+        mark.textContent = m[0];
+        frag.appendChild(mark);
+        created.push(mark);
+        last = m.index + m[0].length;
+      }
+      const after = text.slice(last);
+      if (after) frag.appendChild(document.createTextNode(after));
+      textNode.parentNode?.replaceChild(frag, textNode);
+    }
+
+    return () => {
+      // Unwrap each mark we created — replace with a plain text node.
+      for (const mark of created) {
+        if (!mark.parentNode) continue;
+        const text = document.createTextNode(mark.textContent ?? "");
+        mark.parentNode.replaceChild(text, mark);
+      }
+    };
+  }, [idx, step.target, step.targetQuestionId, step.highlights]);
+
   // Resolve target element rect on every step change + window resize.
   useLayoutEffect(() => {
     const measure = () => {
@@ -237,11 +314,14 @@ export function BeeGuide({
                   <div className="text-[11px] font-bold uppercase tracking-wider text-primary inline-flex items-center gap-1">
                     <Sparkles className="h-3 w-3" /> Bước {idx + 1} / {steps.length}
                   </div>
-                  <h3 className="text-base md:text-lg font-extrabold tracking-tight mt-0.5 text-zinc-900">
+                  <h3 className="text-lg md:text-xl font-extrabold tracking-tight mt-0.5 text-zinc-900">
                     {step.title}
                   </h3>
-                  <p className="text-sm leading-relaxed text-zinc-800 mt-1 whitespace-pre-line min-h-[3em]">
-                    <TypewriterText text={step.body} />
+                  <p className="text-[15px] md:text-base leading-relaxed text-zinc-800 mt-1.5 whitespace-pre-line min-h-[3em]">
+                    <TypewriterText
+                      text={step.body}
+                      boldWords={(step.highlights ?? []).flatMap((h) => h.items)}
+                    />
                   </p>
                   {step.highlights?.map((h, i) => (
                     <div
@@ -417,7 +497,17 @@ function SpeechBubble({ children }: { children: React.ReactNode }) {
  * the bug where a parent-level state reset blanked out the exiting
  * bubble during its fade-out.
  */
-function TypewriterText({ text, speed = 22 }: { text: string; speed?: number }) {
+function TypewriterText({
+  text,
+  speed = 22,
+  boldWords = [],
+}: {
+  text: string;
+  speed?: number;
+  /** Words/phrases to render with bold + amber emphasis inside the bubble.
+   *  Matches are whole-word, case-insensitive. */
+  boldWords?: string[];
+}) {
   const [shown, setShown] = useState("");
   const [done, setDone] = useState(false);
 
@@ -442,9 +532,38 @@ function TypewriterText({ text, speed = 22 }: { text: string; speed?: number }) 
 
   return (
     <>
-      {shown}
+      <BoldedText text={shown} words={boldWords} />
       {!done && (
         <span className="inline-block w-[2px] h-[1em] ml-0.5 bg-zinc-700 align-text-bottom animate-pulse" />
+      )}
+    </>
+  );
+}
+
+/** Replace whole-word, case-insensitive matches of any `words` entry inside
+ *  `text` with a bold + amber span. Empty `words` returns the raw text. */
+function BoldedText({ text, words }: { text: string; words: string[] }) {
+  if (!words.length || !text) return <>{text}</>;
+  const escaped = words
+    .filter((w) => w.trim().length > 0)
+    .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .sort((a, b) => b.length - a.length); // longer first to avoid partial overlap
+  if (!escaped.length) return <>{text}</>;
+  const re = new RegExp(`(${escaped.join("|")})`, "gi");
+  const parts = text.split(re);
+  return (
+    <>
+      {parts.map((p, i) =>
+        words.some((w) => p.toLowerCase() === w.toLowerCase()) ? (
+          <strong
+            key={i}
+            className="font-extrabold text-amber-700 bg-amber-100 rounded px-1 py-0.5"
+          >
+            {p}
+          </strong>
+        ) : (
+          <span key={i}>{p}</span>
+        ),
       )}
     </>
   );
