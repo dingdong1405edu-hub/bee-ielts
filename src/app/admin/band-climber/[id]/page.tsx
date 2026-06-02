@@ -31,6 +31,10 @@ export default async function EditBandStagePage({
       listeningTests: { select: { id: true, title: true } },
       writingTasks: { select: { id: true, taskType: true, prompt: true } },
       speakingSets: { select: { id: true, topic: true } },
+      miniQuizzes: {
+        orderBy: [{ skill: "asc" }, { order: "asc" }],
+        include: { _count: { select: { questions: true } } },
+      },
     },
   });
   if (!stage) notFound();
@@ -124,6 +128,70 @@ export default async function EditBandStagePage({
             deleteEndpoint: `/api/admin/speaking/${s.id}`,
           }))}
         />
+
+        {/* Duolingo-style mini-quizzes — short questions inside a band stage.
+            Each has N image/text-choice questions with progress bar + green/red
+            feedback. Admin can create them per skill. */}
+        <Card className="border-2 border-violet-200">
+          <CardHeader>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <CardTitle className="flex items-center gap-2">
+                <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white">
+                  <Plus className="h-4 w-4" />
+                </div>
+                <span>
+                  Mini-quiz (Duolingo style){" "}
+                  <span className="text-sm font-normal text-muted-foreground">
+                    ({stage.miniQuizzes.length})
+                  </span>
+                </span>
+              </CardTitle>
+              <Button asChild size="sm">
+                <Link href={`/admin/band-climber/${stage.id}/mini-quiz/new`}>
+                  <Plus className="h-4 w-4" /> Thêm mini-quiz
+                </Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {stage.miniQuizzes.length === 0 ? (
+              <div className="rounded-lg border border-dashed bg-muted/30 p-4 text-center text-xs text-muted-foreground">
+                Chưa có mini-quiz nào — bấm "Thêm" để tạo các câu hỏi ngắn kiểu Duolingo.
+              </div>
+            ) : (
+              <ul className="space-y-2">
+                {stage.miniQuizzes.map((q) => (
+                  <li
+                    key={q.id}
+                    className="flex items-center gap-2 rounded-lg border bg-card p-2.5"
+                  >
+                    <span className="rounded-full bg-violet-100 text-violet-700 px-2 py-0.5 text-[10px] font-bold uppercase">
+                      {q.skill}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold truncate">{q.title}</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {q._count.questions} câu hỏi
+                      </div>
+                    </div>
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/admin/band-climber/${stage.id}/mini-quiz/${q.id}`}>
+                        <Pencil className="h-3.5 w-3.5" /> Sửa
+                      </Link>
+                    </Button>
+                    <DeleteTestButton
+                      endpoint={`/api/admin/mini-quizzes/${q.id}`}
+                      name={q.title}
+                      kind="mini-quiz"
+                      size="sm"
+                      label=""
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

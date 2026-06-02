@@ -149,8 +149,45 @@ model BandStage {
   listeningTests ListeningTest[]
   writingTasks   WritingTask[]
   speakingSets   SpeakingSet[]
+  miniQuizzes    BandClimbMiniQuiz[]
 
   @@unique([fromBand, toBand])
+}
+
+// Duolingo-style short quizzes inside a band-climb stage. Each holds a list
+// of small image/text-choice questions; learners walk through them one by
+// one with a progress bar and a green/red feedback bar (luyennoi/duolingo
+// pattern). Skill: which of the 4 IELTS skills this mini-quiz belongs to.
+model BandClimbMiniQuiz {
+  id          String   @id @default(cuid())
+  bandStageId String
+  bandStage   BandStage @relation(fields: [bandStageId], references: [id], onDelete: Cascade)
+  skill       Skill    // READING | LISTENING | WRITING | SPEAKING
+  title       String
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  questions   MiniQuestion[]
+
+  @@index([bandStageId, skill])
+}
+
+// Single short question inside a BandClimbMiniQuiz. `type` decides how the
+// options are rendered: IMAGE_CHOICE = 3-4 picture cards (each option has
+// optional imageUrl + label), TEXT_CHOICE = list of text answers.
+// `options` is JSON: [{ label: string, imageUrl?: string }, ...]
+// `correctIndex` is the 0-based index of the right option.
+model MiniQuestion {
+  id           String   @id @default(cuid())
+  miniQuizId   String
+  miniQuiz     BandClimbMiniQuiz @relation(fields: [miniQuizId], references: [id], onDelete: Cascade)
+  type         String   // "IMAGE_CHOICE" | "TEXT_CHOICE"
+  prompt       String   @db.Text
+  options      Json     // [{ label, imageUrl? }, ...]
+  correctIndex Int
+  order        Int      @default(0)
+
+  @@index([miniQuizId])
 }
 
 // PayOS order — one per attempted checkout. orderCode is the integer ID
