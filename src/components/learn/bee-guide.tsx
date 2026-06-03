@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, ArrowLeft, Sparkles, X, Play } from "lucide-react";
+import { ArrowRight, ArrowLeft, Sparkles, X, Play, Plus, Check, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -365,21 +366,21 @@ export function BeeGuide({
                       key={i}
                       className="mt-3 rounded-xl border-2 border-amber-400 bg-gradient-to-br from-amber-50 to-yellow-100 px-3.5 py-2.5 shadow-md shadow-amber-200/60"
                     >
-                      <div className="text-xs font-extrabold uppercase tracking-wider text-amber-700 inline-flex items-center gap-1">
-                        <Sparkles className="h-3.5 w-3.5 text-amber-600" /> {h.label}
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="text-xs font-extrabold uppercase tracking-wider text-amber-700 inline-flex items-center gap-1">
+                          <Sparkles className="h-3.5 w-3.5 text-amber-600" /> {h.label}
+                        </div>
+                        <div className="text-[10px] font-bold text-amber-700/70 inline-flex items-center gap-1">
+                          <Plus className="h-3 w-3" /> Bấm để thêm vào từ vựng
+                        </div>
                       </div>
                       <div className="mt-2 flex flex-wrap gap-2">
                         {h.items.map((it, k) => (
-                          <motion.span
+                          <AnchorChip
                             key={it}
-                            initial={{ scale: 0.6, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            transition={{ delay: 0.08 * k, type: "spring", stiffness: 320, damping: 18 }}
-                            className="inline-flex items-center rounded-lg bg-gradient-to-br from-yellow-300 to-amber-400 px-2.5 py-1 text-sm font-extrabold text-amber-950 shadow-sm shadow-amber-400/40 ring-1 ring-amber-500/40"
-                            style={{ animation: "bee-keyword-pulse 2.4s ease-in-out infinite" }}
-                          >
-                            {it}
-                          </motion.span>
+                            term={it}
+                            delayIndex={k}
+                          />
                         ))}
                       </div>
                     </div>
@@ -606,5 +607,98 @@ function BoldedText({ text, words }: { text: string; words: string[] }) {
         ),
       )}
     </>
+  );
+}
+
+/**
+ * Clickable từ-neo chip — taps once to push the word into the learner's
+ * personal vocabulary deck via /api/words/quick-add. Self-contained state
+ * machine: idle → loading → added (terminal). The terminal state stays so
+ * the learner sees a green check on every chip they already saved without
+ * us having to roundtrip state up to the BeeGuide parent.
+ *
+ * stopPropagation is critical because the BeeGuide overlay swallows clicks
+ * to advance the tour — without it, tapping a chip would also flip to the
+ * next step.
+ */
+function AnchorChip({ term, delayIndex }: { term: string; delayIndex: number }) {
+  const [state, setState] = useState<"idle" | "loading" | "added">("idle");
+
+  const add = async () => {
+    if (state !== "idle") return;
+    setState("loading");
+    try {
+      const res = await fetch("/api/words/quick-add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ term }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Lưu thất bại");
+      setState("added");
+      const linkLabel = data.existed ? "Mở bộ thẻ" : "Mở bộ thẻ";
+      toast.success(
+        data.existed
+          ? `"${term}" đã có sẵn trong "${data.deckTitle}".`
+          : `Đã thêm "${term}" vào "${data.deckTitle}".`,
+        {
+          action: data.deckId
+            ? {
+                label: linkLabel,
+                onClick: () => {
+                  window.location.href = `/words/${data.deckId}`;
+                },
+              }
+            : undefined,
+        },
+      );
+    } catch (e) {
+      setState("idle");
+      toast.error(e instanceof Error ? e.message : "Thêm từ thất bại");
+    }
+  };
+
+  return (
+    <motion.button
+      type="button"
+      initial={{ scale: 0.6, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ delay: 0.08 * delayIndex, type: "spring", stiffness: 320, damping: 18 }}
+      onClick={(e) => {
+        e.stopPropagation();
+        void add();
+      }}
+      disabled={state === "loading"}
+      title={state === "added" ? "Đã thêm vào từ vựng" : `Thêm "${term}" vào học từ`}
+      className={`group inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-extrabold shadow-sm ring-1 transition-all ${
+        state === "added"
+          ? "bg-gradient-to-br from-emerald-300 to-emerald-400 text-emerald-950 shadow-emerald-400/40 ring-emerald-500/40"
+          : "bg-gradient-to-br from-yellow-300 to-amber-400 text-amber-950 shadow-amber-400/40 ring-amber-500/40 hover:scale-105 active:scale-95"
+      }`}
+      style={
+        state === "added"
+          ? undefined
+          : { animation: "bee-keyword-pulse 2.4s ease-in-out infinite" }
+      }
+    >
+      <span>{term}</span>
+      <span
+        className={`inline-grid h-4 w-4 place-items-center rounded-md ${
+          state === "added"
+            ? "bg-emerald-700/20 text-emerald-900"
+            : state === "loading"
+              ? "bg-amber-700/20 text-amber-900"
+              : "bg-amber-700/20 text-amber-900 group-hover:bg-amber-700/40"
+        }`}
+      >
+        {state === "loading" ? (
+          <Loader2 className="h-2.5 w-2.5 animate-spin" />
+        ) : state === "added" ? (
+          <Check className="h-2.5 w-2.5" />
+        ) : (
+          <Plus className="h-2.5 w-2.5" />
+        )}
+      </span>
+    </motion.button>
   );
 }
