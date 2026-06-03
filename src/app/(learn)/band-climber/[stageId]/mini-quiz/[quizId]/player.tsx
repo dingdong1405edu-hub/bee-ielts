@@ -1510,21 +1510,47 @@ function SpeakingPart2Question({
       {/* Cue card — always visible across prep/speak/done so the candidate
           can keep the bullets in sight while talking. The data-tour="cuecard"
           anchor lets the admin's Bee 🐝 hướng dẫn spotlight this box at any
-          step of the tour (matches the option in BandClimbToursEditor). */}
-      <div
-        data-tour="cuecard"
-        className="rounded-2xl border-2 border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-4 space-y-2"
-      >
-        <div className="text-[10px] font-extrabold uppercase tracking-widest text-amber-700 dark:text-amber-300">
-          IELTS Speaking · Part 2 · Cue card
+          step of the tour (matches the option in BandClimbToursEditor).
+
+          A built-in bee mascot is always docked to the top-right corner so
+          even quizzes WITHOUT an authored bee tour get a visual hint that
+          this is the deal-with-this-now panel — fulfils the user's
+          "đứng gần phần đề bài màu vàng để hướng dẫn" requirement without
+          forcing admin to wire up a tour step. The amber glow underneath
+          keeps the eye locked on the cue card while the bee hovers. */}
+      <div className="relative">
+        <div
+          data-tour="cuecard"
+          className="cuecard-glow relative rounded-2xl border-2 border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-4 space-y-2"
+        >
+          <div className="text-[10px] font-extrabold uppercase tracking-widest text-amber-700 dark:text-amber-300 pr-12">
+            IELTS Speaking · Part 2 · Cue card
+          </div>
+          <div className="font-extrabold text-lg leading-snug pr-12">{cueCardTopic}</div>
+          <div className="text-xs font-bold text-amber-700 dark:text-amber-300">
+            You should say:
+          </div>
+          <ul className="list-disc pl-5 text-sm space-y-0.5">
+            {cueCardPoints.map((p, i) => (
+              <li key={i}>{p}</li>
+            ))}
+          </ul>
         </div>
-        <div className="font-extrabold text-lg leading-snug">{cueCardTopic}</div>
-        <div className="text-xs font-bold text-amber-700 dark:text-amber-300">You should say:</div>
-        <ul className="list-disc pl-5 text-sm space-y-0.5">
-          {cueCardPoints.map((p, i) => (
-            <li key={i}>{p}</li>
-          ))}
-        </ul>
+        {/* Floating bee mascot — sits half outside the top-right corner of
+            the cue card so it visually "lands" on the panel. A tiny speech
+            bubble points back at the topic. pointer-events:none so it never
+            blocks taps on the bullets behind it. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -top-4 -right-2 sm:-right-3 flex items-start gap-1"
+        >
+          <div className="cuecard-bee-bubble hidden sm:block rounded-2xl bg-amber-500 text-white text-[10px] font-extrabold uppercase tracking-widest px-2 py-1 shadow-lg shadow-amber-500/40">
+            Đề Part 2 ↓
+          </div>
+          <div className="cuecard-bee grid h-10 w-10 sm:h-11 sm:w-11 place-items-center rounded-full bg-gradient-to-br from-amber-300 to-yellow-400 text-2xl shadow-xl shadow-amber-500/40 ring-2 ring-amber-500/50">
+            🐝
+          </div>
+        </div>
       </div>
 
       {phase === "prep" && (

@@ -319,3 +319,28 @@ body.mock-exam [data-mock-pane] {
 }
 .quiz-shake { animation: quiz-shake 360ms ease-in-out; }
 
+/* Cue card glow — gentle amber pulse so the eye locks onto the Part-2
+ * "you should say" box as soon as the page lands. Pulses on the outer
+ * box-shadow only so it doesn't shift layout. */
+@keyframes cuecard-glow-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.0), 0 4px 14px -2px rgba(245, 158, 11, 0.15); }
+  50% { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.18), 0 8px 22px -2px rgba(245, 158, 11, 0.35); }
+}
+.cuecard-glow { animation: cuecard-glow-pulse 2400ms ease-in-out infinite; }
+
+/* Floating bee mascot bob — gentle up/down + slight rotation so the bee
+ * feels alive next to the cue card. */
+@keyframes cuecard-bee-bob {
+  0%, 100% { transform: translateY(0) rotate(-6deg); }
+  50% { transform: translateY(-6px) rotate(8deg); }
+}
+.cuecard-bee { animation: cuecard-bee-bob 2200ms ease-in-out infinite; }
+
+/* Tiny "Đề Part 2" speech-bubble — slow horizontal nudge so it doesn't
+ * feel static next to the bobbing bee. */
+@keyframes cuecard-bubble-nudge {
+  0%, 100% { transform: translateY(2px); opacity: 0.92; }
+  50% { transform: translateY(-2px); opacity: 1; }
+}
+.cuecard-bee-bubble { animation: cuecard-bubble-nudge 2200ms ease-in-out infinite; }
+
