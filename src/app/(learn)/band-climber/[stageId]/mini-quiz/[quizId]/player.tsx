@@ -1004,7 +1004,10 @@ function AudioButton({ url }: { url: string }) {
  * No grading / band score — speaking inside a mini-quiz is purely practice.
  * Auto-stops at 60 seconds so the loop doesn't stall.
  */
-const SPEAKING_MAX_SECONDS = 60;
+// Safety cap so a runaway recorder can't eat memory; UX-wise the timer just
+// counts up and the candidate decides when to stop. The user explicitly
+// asked: "chỉ đếm h thôi" — no forced auto-stop at a short limit.
+const SPEAKING_MAX_SECONDS = 300;
 
 function SpeakingQuestion({
   locked,
@@ -1211,14 +1214,14 @@ function SpeakingQuestion({
               <>
                 <div className="font-extrabold text-rose-700">Đang nghe bạn nói...</div>
                 <div className="text-xs text-muted-foreground tabular-nums">
-                  {formatDuration(elapsed)} / {formatDuration(SPEAKING_MAX_SECONDS)} — bấm để dừng
+                  Đã nói <span className="font-bold text-rose-700">{formatDuration(elapsed)}</span> — bấm để dừng
                 </div>
               </>
             ) : (
               <>
                 <div className="font-extrabold text-indigo-700">Bấm mic để bắt đầu nói</div>
                 <div className="text-xs text-muted-foreground">
-                  Trả lời bằng tiếng Anh, tối đa {SPEAKING_MAX_SECONDS} giây
+                  Trả lời bằng tiếng Anh — bấm dừng khi xong, không giới hạn thời gian
                 </div>
               </>
             )}
@@ -1291,7 +1294,14 @@ function SpeakingQuestion({
  * branch.
  */
 const PART2_PREP_SEC = 60;
-const PART2_SPEAK_SEC = 120;
+// Hint shown to the candidate as "mục tiêu IELTS" — NOT enforced. The user
+// explicitly asked: in Vượt-band Part 2 + Part 3 the timer should only
+// count, not auto-stop.
+const PART2_TARGET_SEC = 120;
+// Safety cap on the recorder — well above the 1-2 min IELTS target so it
+// never bites real candidates, but stops a stuck microphone from eating
+// memory if the page is left open.
+const PART2_SAFETY_CAP_SEC = 300;
 
 function SpeakingPart2Question({
   locked,
@@ -1313,7 +1323,9 @@ function SpeakingPart2Question({
   type Phase = "prep" | "speak" | "transcribing" | "done";
   const [phase, setPhase] = useState<Phase>("prep");
   const [prepRemaining, setPrepRemaining] = useState(PART2_PREP_SEC);
-  const [speakRemaining, setSpeakRemaining] = useState(PART2_SPEAK_SEC);
+  // Counts UP — the candidate sees how long they've been talking so they
+  // can self-pace against the IELTS 1-2 min target without being cut off.
+  const [speakElapsed, setSpeakElapsed] = useState(0);
   const [liveTranscript, setLiveTranscript] = useState("");
   const [permError, setPermError] = useState<string | null>(null);
 
@@ -1435,11 +1447,15 @@ function SpeakingPart2Question({
 
         mr.start();
         recorderRef.current = mr;
-        setSpeakRemaining(PART2_SPEAK_SEC);
+        setSpeakElapsed(0);
         if (speakTimerRef.current) clearInterval(speakTimerRef.current);
+        // Count UP — purely informational. The recorder keeps going until
+        // the candidate taps "Dừng" themselves; only the safety cap (5 min)
+        // can interrupt to stop a runaway take.
         speakTimerRef.current = setInterval(() => {
-          setSpeakRemaining((r) => {
-            if (r <= 1) {
+          setSpeakElapsed((s) => {
+            const next = s + 1;
+            if (next >= PART2_SAFETY_CAP_SEC) {
               if (speakTimerRef.current) clearInterval(speakTimerRef.current);
               try {
                 if (recorderRef.current && recorderRef.current.state !== "inactive") {
@@ -1448,9 +1464,9 @@ function SpeakingPart2Question({
               } catch {
                 /* ignore */
               }
-              return 0;
+              return PART2_SAFETY_CAP_SEC;
             }
-            return r - 1;
+            return next;
           });
         }, 1000);
       } catch (e) {
@@ -1531,15 +1547,17 @@ function SpeakingPart2Question({
       {phase === "speak" && (
         <div className="rounded-2xl border-2 border-rose-300 bg-rose-50 dark:bg-rose-950/20 dark:border-rose-900 p-4 space-y-2 text-center">
           <div className="text-[10px] font-extrabold uppercase tracking-widest text-rose-700 dark:text-rose-300">
-            Đang nói (tối đa 2 phút)
+            Đang nói (mục tiêu IELTS: {formatDuration(PART2_TARGET_SEC)})
           </div>
           <div className="text-4xl font-extrabold tabular-nums">
-            {formatDuration(speakRemaining)}
+            {formatDuration(speakElapsed)}
           </div>
           <div className="flex items-center justify-center gap-2">
             <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
             <span className="text-sm text-rose-700 dark:text-rose-200 font-semibold">
-              Đang ghi âm — cứ nói tự nhiên
+              {speakElapsed >= PART2_TARGET_SEC
+                ? "Đã vượt mốc 2 phút — bấm dừng khi xong"
+                : "Đang ghi âm — cứ nói tự nhiên, không bị cắt giờ"}
             </span>
           </div>
           <button
@@ -1547,7 +1565,7 @@ function SpeakingPart2Question({
             onClick={stopSpeakEarly}
             className="inline-flex items-center gap-1.5 rounded-full bg-rose-500 hover:bg-rose-600 px-5 py-2 text-white font-bold text-sm shadow"
           >
-            <Square className="h-4 w-4 fill-current" /> Dừng sớm
+            <Square className="h-4 w-4 fill-current" /> Dừng
           </button>
           {liveTranscript && (
             <div className="rounded-xl border-2 border-sky-200 bg-sky-50 dark:bg-sky-950/20 dark:border-sky-900 p-3 text-left">
