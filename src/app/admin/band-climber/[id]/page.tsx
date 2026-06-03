@@ -66,6 +66,7 @@ export default async function EditBandStagePage({
         audioUrl: qq.audioUrl ?? undefined,
         options: qq.options as { label: string; imageUrl?: string }[],
         correctIndex: qq.correctIndex,
+        explanation: qq.explanation ?? "",
       })),
       deleteEndpoint: `/api/admin/mini-quizzes/${q.id}`,
     }));

@@ -16,6 +16,7 @@ const questionSchema = z
     audioUrl: z.string().url().optional().or(z.literal("")),
     options: z.array(optionSchema).max(8).default([]),
     correctIndex: z.number().int().min(0).default(0),
+    explanation: z.string().max(1200).optional().or(z.literal("")),
   })
   .refine(
     (q) =>
@@ -96,6 +97,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
           })),
           correctIndex: q.correctIndex,
           order: i,
+          explanation: q.explanation ? q.explanation : null,
         })),
       });
     }

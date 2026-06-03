@@ -267,6 +267,74 @@ Score this essay and return JSON only.`;
   return extractJSON(text);
 }
 
+// Compact per-question grader for Vượt-band SPEAKING quiz items. The full
+// IELTS grader (gradeSpeakingGroq) is too heavy — and too noisy — for a single
+// quiz prompt. This grader returns just what the inline verdict card needs:
+// a quick band, a Vietnamese one-liner summary, pronunciation/grammar fixes,
+// and an upgraded phrasing example.
+const QUIZ_SPEAKING_QUESTION_SYS = `You are a STRICT, certified IELTS Speaking examiner reviewing ONE quiz answer (NOT a full speaking exam — just one short prompt + the candidate's spoken response).
+
+Inputs you receive:
+- the QUESTION the candidate had to answer
+- the candidate's TRANSCRIPT (English, from speech-to-text)
+- LOW_CONFIDENCE_WORDS — words the recogniser heard with low confidence (likely mispronunciation)
+- HINT (optional) — what the question author wants you to focus on
+
+Hard rules:
+- Empty / blank / single-word / gibberish transcript → quickBand 0.0, summary "Không nghe được câu trả lời rõ ràng — band 0.", all arrays = [], betterPhrasing = "".
+- If candidate clearly READ THE QUESTION BACK instead of answering → quickBand 2.0.
+- quickBand follows the official IELTS Speaking descriptors (0–9, 0.5 steps). Be honest — Cambridge raters are strict at band 5-6. Do not be charitable.
+- pronunciationFixes: include the IPA for EVERY low-confidence word plus any other clearly mispronounced word (max 5 items total).
+- grammarFixes: 2-4 items if there are real grammar/word-choice mistakes; [] only if the transcript is genuinely error-free.
+- betterPhrasing: one English sentence that takes the candidate's IDEA and rephrases it like a band-7+ speaker would. Skip when transcript is empty/parroting.
+- All feedback text MUST be in Vietnamese. English only for example phrases (the "original", "corrected", "word", "ipa", "betterPhrasing" fields).
+
+Return ONLY valid JSON in this exact shape:
+{
+  "quickBand": 5.5,
+  "summary": "<1-2 short Vietnamese sentences — headline assessment>",
+  "pronunciationFixes": [{ "word": "<word>", "ipa": "/.../", "tip": "<Vietnamese mẹo>" }],
+  "grammarFixes": [{ "original": "<exact phrase from transcript>", "corrected": "<fixed English>", "explanation": "<Vietnamese — why>" }],
+  "betterPhrasing": "<one English sentence — band-7+ rephrase>"
+}`;
+
+export interface QuizSpeakingQuestionGradeInput {
+  question: string;
+  transcript: string;
+  lowConfidenceWords?: string[];
+  hint?: string;
+}
+
+export async function gradeQuizSpeakingQuestionGroq(
+  input: QuizSpeakingQuestionGradeInput,
+): Promise<unknown> {
+  const lowConf = input.lowConfidenceWords?.length
+    ? input.lowConfidenceWords.join(", ")
+    : "(none detected)";
+  const hint = input.hint?.trim()
+    ? `HINT (from question author): ${input.hint.trim()}\n\n`
+    : "";
+  const userMessage = `${hint}QUESTION:
+${input.question}
+
+CANDIDATE TRANSCRIPT:
+${input.transcript || "(empty)"}
+
+LOW_CONFIDENCE_WORDS:
+${lowConf}
+
+Grade and return JSON only.`;
+
+  const text = await groqChat(
+    [
+      { role: "system", content: QUIZ_SPEAKING_QUESTION_SYS },
+      { role: "user", content: userMessage },
+    ],
+    { jsonMode: true, temperature: 0.3, maxTokens: 900 },
+  );
+  return extractJSON(text);
+}
+
 export async function gradeSpeakingGroq(input: SpeakingGradeInput): Promise<unknown> {
   const lowConf = input.lowConfidenceWords?.length
     ? input.lowConfidenceWords.join(", ")

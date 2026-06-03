@@ -206,6 +206,12 @@ model MiniQuestion {
   options      Json     // [{ label, imageUrl? }, ...]
   correctIndex Int
   order        Int      @default(0)
+  // Admin-authored explanation shown to the learner after they check the
+  // question — surfaces WHY the correct option is right (and why the
+  // distractors are wrong). Rendered in the verdict bar of the mini-quiz
+  // player for both correct and wrong outcomes. Empty / null = no
+  // explanation rendered.
+  explanation  String?  @db.Text
 
   @@index([miniQuizId])
 }

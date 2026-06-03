@@ -24,6 +24,11 @@ interface QuestionDraft {
   audioUrl?: string;
   options: OptionDraft[];
   correctIndex: number;
+  // Admin-authored "tại sao đáp án này đúng" — surfaced in the player
+  // verdict bar after the learner checks. Empty = no explanation row.
+  // For SPEAKING the field doubles as guidance for the inline pronunciation
+  // grader prompt (e.g. "target band 6.0, focus on past tense").
+  explanation?: string;
 }
 interface VocabItemDraft {
   term: string;
@@ -35,7 +40,7 @@ const blankQuestion = (type: QType = "TEXT_CHOICE"): QuestionDraft => {
   if (type === "FILL_BLANK") {
     // FILL_BLANK reuses `options` to store the acceptable answers:
     // options[0] = primary answer, options[1..] = optional alt-spellings.
-    return { type, prompt: "", audioUrl: "", options: [{ label: "" }], correctIndex: 0 };
+    return { type, prompt: "", audioUrl: "", options: [{ label: "" }], correctIndex: 0, explanation: "" };
   }
   if (type === "IMAGE_CHOICE") {
     return {
@@ -48,12 +53,13 @@ const blankQuestion = (type: QType = "TEXT_CHOICE"): QuestionDraft => {
         { label: "", imageUrl: "" },
       ],
       correctIndex: 0,
+      explanation: "",
     };
   }
   if (type === "SPEAKING") {
     // SPEAKING needs no options — learner records themselves answering the
     // prompt. correctIndex stays 0 as a no-op placeholder.
-    return { type, prompt: "", audioUrl: "", options: [], correctIndex: 0 };
+    return { type, prompt: "", audioUrl: "", options: [], correctIndex: 0, explanation: "" };
   }
   return {
     type,
@@ -61,6 +67,7 @@ const blankQuestion = (type: QType = "TEXT_CHOICE"): QuestionDraft => {
     audioUrl: "",
     options: [{ label: "" }, { label: "" }, { label: "" }],
     correctIndex: 0,
+    explanation: "",
   };
 };
 
@@ -211,6 +218,7 @@ export function MiniQuizForm({
             imageUrl: o.imageUrl?.trim() || undefined,
           })),
           correctIndex: q.correctIndex,
+          explanation: q.explanation?.trim() || undefined,
         })),
       };
       const endpoint =
@@ -412,9 +420,9 @@ export function MiniQuizForm({
                     <Mic className="h-4 w-4" /> Dạng ghi âm
                   </div>
                   <p className="text-xs text-indigo-700 mt-1">
-                    User sẽ thấy đề bài + nút Bắt đầu ghi âm. Sau khi nói xong, lời nói được chuyển
-                    thành văn bản (Deepgram / Whisper) và hiển thị lại. Câu này luôn tính là "hoàn
-                    thành" khi user nộp — không có đáp án đúng/sai.
+                    User ghi âm trả lời — AI sẽ chấm pronunciation + grammar ngay sau khi user
+                    nói xong. Khi kết thúc cả quiz, user nghe lại được audio từng câu và được
+                    chấm điểm tổng IELTS y chang phần Speaking luyện tập.
                   </p>
                 </div>
               ) : q.type === "FILL_BLANK" ? (
@@ -478,6 +486,35 @@ export function MiniQuizForm({
                   })}
                 </div>
               )}
+
+              {/* Explanation — shown to learners in the verdict bar after they
+                  check. Especially valuable for wrong answers so they walk
+                  away knowing WHY, not just what. For SPEAKING this doubles
+                  as a target-band/focus hint for the inline grader. */}
+              <label className="block">
+                <span className="text-xs font-bold uppercase text-amber-700 flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {q.type === "SPEAKING"
+                    ? "Gợi ý chấm điểm cho AI (tùy chọn)"
+                    : "Giải thích đáp án (tùy chọn)"}
+                </span>
+                <textarea
+                  value={q.explanation ?? ""}
+                  onChange={(e) => updateQuestion(idx, { explanation: e.target.value })}
+                  placeholder={
+                    q.type === "SPEAKING"
+                      ? 'VD: "Mục tiêu band 5.5, tập trung kiểm tra thì quá khứ + từ vựng về du lịch."'
+                      : 'VD: "Sai vì \'goes\' chỉ dùng cho ngôi thứ 3 số ít. Đúng phải là \'go\' với chủ ngữ \'they\'."'
+                  }
+                  rows={2}
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y min-h-[60px]"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  {q.type === "SPEAKING"
+                    ? "Hint này được nhét vào prompt khi AI chấm câu speaking — giúp AI biết câu hỏi đang test cái gì."
+                    : "Hiện ngay khi user kiểm tra — giúp user hiểu vì sao sai/đúng để học sâu hơn."}
+                </p>
+              </label>
             </CardContent>
           </Card>
         ))}

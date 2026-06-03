@@ -51,6 +51,7 @@ interface QuizItem {
     audioUrl?: string;
     options: { label: string; imageUrl?: string }[];
     correctIndex: number;
+    explanation?: string;
   }[];
   deleteEndpoint: string;
 }
@@ -126,6 +127,7 @@ export function SkillHubsClient({
                     audioUrl: q.audioUrl ?? "",
                     options: q.options,
                     correctIndex: q.correctIndex,
+                    explanation: q.explanation ?? "",
                   })),
                 }
               : undefined
@@ -275,6 +277,7 @@ function QuizModal({
       audioUrl?: string;
       options: { label: string; imageUrl?: string }[];
       correctIndex: number;
+      explanation?: string;
     }[];
   };
   defaultSkill?: Skill;

@@ -84,6 +84,10 @@ export default async function MiniQuizPage({
           audioUrl: q.audioUrl,
           options: q.options as { label: string; imageUrl?: string }[],
           correctIndex: q.correctIndex,
+          // Admin-authored explanation. Player surfaces it in the verdict
+          // bar after the learner checks each non-SPEAKING question. For
+          // SPEAKING it's forwarded to the inline grader as a focus hint.
+          explanation: q.explanation ?? null,
         })),
       }}
     />

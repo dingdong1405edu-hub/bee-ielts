@@ -20,6 +20,10 @@ const questionSchema = z
     audioUrl: z.string().url().optional().or(z.literal("")),
     options: z.array(optionSchema).max(8).default([]),
     correctIndex: z.number().int().min(0).default(0),
+    // Admin's reasoning surfaced in the player verdict bar after the
+    // learner answers — explains why the correct option is right + why
+    // distractors are wrong. Empty / undefined = no explanation row.
+    explanation: z.string().max(1200).optional().or(z.literal("")),
   })
   .refine(
     (q) =>
@@ -120,6 +124,7 @@ export async function POST(req: Request) {
             })),
             correctIndex: q.correctIndex,
             order: i,
+            explanation: q.explanation ? q.explanation : null,
           })),
         },
       },
