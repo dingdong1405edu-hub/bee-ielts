@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { isOwner } from "@/lib/admin";
+import { prisma } from "@/lib/db";
 import { Shield, BookOpen, PenLine, Mic, Sparkles, BookOpenText, Headphones, Users, KeyRound, ExternalLink, GraduationCap, TrendingUp, Music, Activity } from "lucide-react";
 
 const nav = [
@@ -22,9 +23,17 @@ const nav = [
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") redirect("/dashboard");
+  if (!session?.user?.id) redirect("/login");
+  // Verify role against DB (not JWT). When OWNER grants ADMIN to another
+  // user, their JWT still says LEARNER — so this gate has to consult the
+  // source of truth or the new admin would bounce back to /dashboard.
+  const dbUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { role: true, email: true },
+  });
+  if (!dbUser || dbUser.role !== "ADMIN") redirect("/dashboard");
 
-  const items = isOwner(session.user.email)
+  const items = isOwner(dbUser.email)
     ? [...nav, { href: "/admin/access", label: "Phân quyền", icon: KeyRound }]
     : nav;
 

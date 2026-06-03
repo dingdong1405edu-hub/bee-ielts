@@ -5,12 +5,10 @@ import { authConfig } from "@/auth.config";
 const { auth } = NextAuth(authConfig);
 
 const PROTECTED = ["/dashboard", "/vocab", "/grammar", "/reading", "/listening", "/writing", "/speaking", "/admin"];
-const ADMIN_ONLY = ["/admin"];
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
   const isProtected = PROTECTED.some((p) => pathname.startsWith(p));
-  const isAdmin = ADMIN_ONLY.some((p) => pathname.startsWith(p));
 
   if (!isProtected) return NextResponse.next();
 
@@ -21,11 +19,12 @@ export default auth((req) => {
     url.searchParams.set("from", pathname);
     return NextResponse.redirect(url);
   }
-  if (isAdmin && (user as { role?: string }).role !== "ADMIN") {
-    const url = req.nextUrl.clone();
-    url.pathname = "/dashboard";
-    return NextResponse.redirect(url);
-  }
+  // The /admin role gate lives in the admin layout (Node runtime) instead
+  // of here — middleware runs on the Edge and can't query Prisma to get
+  // the user's CURRENT role from DB. If we trusted the JWT role here, a
+  // freshly-promoted admin would be bounced back to /dashboard until
+  // their token re-issues (up to 30 days). Letting them through to the
+  // layout, which validates against the DB, keeps the UX immediate.
   return NextResponse.next();
 });
 

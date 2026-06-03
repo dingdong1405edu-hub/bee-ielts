@@ -41,4 +41,41 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
     }),
   ],
+  callbacks: {
+    ...authConfig.callbacks,
+    // Server-side jwt callback (Node runtime only). The edge-safe variant
+    // in auth.config.ts can't query Prisma, so it only copies role from
+    // the sign-in payload — that's why a freshly-promoted admin was stuck
+    // with a stale LEARNER role until they logged out and back in.
+    //
+    // Here we refresh role from the DB whenever auth() is called on the
+    // server: re-issued tokens propagate immediately to every protected
+    // route (admin pages, admin APIs, sidebar gate). The lookup is cached
+    // on `roleSyncedAt` so we don't hammer the DB on bursty traffic —
+    // 30 s is plenty fresh for an authoring app.
+    jwt: async ({ token, user }) => {
+      // Sign-in path: copy id+role from credentials authorize() return.
+      if (user) {
+        token.id = (user as { id: string }).id;
+        token.role = (user as { role: string }).role;
+        (token as { roleSyncedAt?: number }).roleSyncedAt = Date.now();
+        return token;
+      }
+      // Subsequent request: refresh role from DB if cache is stale.
+      const id = token.id as string | undefined;
+      if (!id) return token;
+      const lastSync = (token as { roleSyncedAt?: number }).roleSyncedAt ?? 0;
+      if (Date.now() - lastSync > 30_000) {
+        const fresh = await prisma.user.findUnique({
+          where: { id },
+          select: { role: true },
+        });
+        if (fresh) {
+          token.role = fresh.role;
+          (token as { roleSyncedAt?: number }).roleSyncedAt = Date.now();
+        }
+      }
+      return token;
+    },
+  },
 });

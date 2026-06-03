@@ -65,7 +65,7 @@ export function AccessManager({ users }: { users: U[] }) {
             Cấp quyền
           </Button>
           <p className="text-xs text-muted-foreground">
-            Người dùng cần đăng xuất rồi đăng nhập lại để quyền mới có hiệu lực.
+            Quyền mới có hiệu lực trong vòng ~30 giây — người dùng chỉ cần tải lại trang.
           </p>
         </CardContent>
       </Card>

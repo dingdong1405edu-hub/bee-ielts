@@ -18,6 +18,10 @@ export const getCurrentUserChrome = cache(async (userId: string) => {
       avatarUrl: true,
       email: true,
       popQuizOn: true,
+      // Role is sourced from DB (not JWT) so that the OWNER promoting another
+      // user to ADMIN takes effect on their next page load — JWT carries the
+      // role from sign-in time and stays stale otherwise.
+      role: true,
     },
   });
 });

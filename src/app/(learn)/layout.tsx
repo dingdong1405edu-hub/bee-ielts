@@ -13,8 +13,11 @@ import { BackgroundMusicPlayer } from "@/components/learn/background-music";
 export default async function LearnLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
-  const isAdmin = (session.user as { role?: string }).role === "ADMIN";
   const userId = session.user.id;
+  // `session.user.role` is refreshed from DB by the jwt callback in auth.ts
+  // (at most every 30 s) — so a freshly-promoted admin sees the Admin
+  // sidebar link on their next page load without having to log out.
+  const isAdmin = (session.user as { role?: string }).role === "ADMIN";
 
   return (
     <div className="flex min-h-screen">
