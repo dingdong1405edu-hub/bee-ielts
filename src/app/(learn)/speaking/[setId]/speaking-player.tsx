@@ -41,6 +41,16 @@ interface PronFix {
   ipa: string;
   tip: string;
 }
+interface ParaphraseExample {
+  question: string;
+  candidateSaid: string;
+  comment: string;
+}
+interface Paraphrasing {
+  level: "verbatim" | "minimal" | "partial" | "strong";
+  examples: ParaphraseExample[];
+  impact: string;
+}
 interface SpeakingResult {
   overallBand: number;
   criteria: {
@@ -49,6 +59,7 @@ interface SpeakingResult {
     grammaticalRange: { band: number; feedback: string };
     pronunciation: { band: number; feedback: string; note?: string };
   };
+  paraphrasing?: Paraphrasing;
   observations: string[];
   corrections?: Correction[];
   pronunciationFixes?: PronFix[];
@@ -898,6 +909,10 @@ export function SpeakingPlayer({
           ))}
         </div>
 
+        {result.paraphrasing && (
+          <ParaphrasingCard data={result.paraphrasing} />
+        )}
+
         {/* Transcript review — each question shows a native HTML5 audio
             player for the user's own recording PLUS the transcript with
             mispronounced words underlined. Same affordance as luyennoi.com. */}
@@ -1528,4 +1543,77 @@ function labelOf(k: string) {
     default:
       return k;
   }
+}
+
+/** Paraphrasing analysis — surfaces the level (verbatim/minimal/partial/strong)
+ *  Groq's grader assigned, the actual paraphrases the candidate produced (or
+ *  the verbatim moments they should fix), and the impact on Lexical Resource
+ *  / Grammatical Range bands. */
+function ParaphrasingCard({ data }: { data: NonNullable<SpeakingResult["paraphrasing"]> }) {
+  const LEVEL_META: Record<
+    Paraphrasing["level"],
+    { label: string; tone: string; emoji: string }
+  > = {
+    verbatim: {
+      label: "Đọc nguyên xi câu hỏi",
+      tone: "bg-rose-100 text-rose-700 border-rose-300",
+      emoji: "🚫",
+    },
+    minimal: {
+      label: "Paraphrase rất ít",
+      tone: "bg-amber-100 text-amber-700 border-amber-300",
+      emoji: "⚠️",
+    },
+    partial: {
+      label: "Paraphrase một phần",
+      tone: "bg-sky-100 text-sky-700 border-sky-300",
+      emoji: "👍",
+    },
+    strong: {
+      label: "Paraphrase tốt",
+      tone: "bg-emerald-100 text-emerald-700 border-emerald-300",
+      emoji: "⭐",
+    },
+  };
+  const meta = LEVEL_META[data.level] ?? LEVEL_META.minimal;
+  return (
+    <Card className="border-2 border-violet-200 bg-violet-50/30 dark:bg-violet-950/20">
+      <CardContent className="p-5 space-y-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <h3 className="font-extrabold flex items-center gap-2">
+            <Wand2 className="h-5 w-5 text-violet-600" /> Paraphrasing câu hỏi
+          </h3>
+          <span
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border-2 px-3 py-1 text-xs font-extrabold uppercase tracking-wider",
+              meta.tone,
+            )}
+          >
+            <span>{meta.emoji}</span> {meta.label}
+          </span>
+        </div>
+        <p className="text-sm text-muted-foreground leading-relaxed">{data.impact}</p>
+        {data.examples.length > 0 && (
+          <div className="space-y-2">
+            {data.examples.map((ex, i) => (
+              <div key={i} className="rounded-lg border bg-card p-3 space-y-1.5">
+                <div className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">
+                  Câu hỏi gốc
+                </div>
+                <p className="text-sm italic">{ex.question}</p>
+                <div className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-700 mt-2">
+                  Bạn đã nói
+                </div>
+                <p className="text-sm font-semibold">&ldquo;{ex.candidateSaid}&rdquo;</p>
+                <div className="text-[11px] font-extrabold uppercase tracking-wider text-violet-700 mt-2">
+                  Nhận xét
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">{ex.comment}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 }

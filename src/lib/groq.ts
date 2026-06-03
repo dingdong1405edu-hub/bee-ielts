@@ -159,6 +159,14 @@ Tight band rubric you MUST follow:
 - Band 6: responses are extended with some flexibility; uses some complex structures with mistakes; some range of vocabulary including a few less common items; coherence is maintained even if hesitation appears.
 - Band 7+: speaks at length without obvious effort; uses a range of complex structures accurately most of the time; uses vocabulary flexibly with some less common and idiomatic items.
 
+PARAPHRASING — CRITICAL CRITERION:
+Cambridge raters reward candidates who PARAPHRASE the question instead of parroting it. Strong paraphrasing demonstrates active lexical control and earns BONUS toward Lexical Resource and Grammatical Range. You MUST evaluate paraphrasing explicitly:
+- "verbatim" — candidate repeated key words / phrasing of the question with no transformation. CAP Lexical Resource at band 5 and Grammatical Range at band 5. This is the SAME signal as "the candidate clearly read out the question".
+- "minimal" — candidate replaced only 1-2 surface words (synonyms) but kept the original structure. No bonus, no penalty.
+- "partial" — candidate kept some original words but restructured the sentence OR swapped key terms for clear synonyms. +0.5 toward Lexical Resource.
+- "strong" — candidate restructured the entire question into their own words while keeping the meaning, often combining synonyms + grammar transformation (active↔passive, noun↔verb form, condition↔question form). +1.0 toward Lexical Resource AND +0.5 toward Grammatical Range.
+Cite the actual paraphrase examples (verbatim from transcript) in the paraphrasing.examples field — these are PROOF of the score you assigned.
+
 The transcript comes from a speech-recognition system; words it heard with LOW confidence are listed separately as likely mispronunciations — use them for the Pronunciation score. Mispronunciation evidence is REAL evidence — penalise Pronunciation accordingly, do not give a default 6.
 
 All feedback text MUST be in Vietnamese (English only for example phrases).
@@ -169,9 +177,16 @@ Return ONLY valid JSON:
   "overallBand": 6.5,
   "criteria": {
     "fluencyCoherence": { "band": 6, "feedback": "<tiếng Việt>" },
-    "lexicalResource": { "band": 7, "feedback": "<tiếng Việt>" },
-    "grammaticalRange": { "band": 6, "feedback": "<tiếng Việt>" },
+    "lexicalResource": { "band": 7, "feedback": "<tiếng Việt — nếu paraphrasing là strong/partial, NÓI RÕ nó đã cộng điểm cho LR>" },
+    "grammaticalRange": { "band": 6, "feedback": "<tiếng Việt — nếu paraphrasing là strong, NÓI RÕ nó đã cộng điểm GR>" },
     "pronunciation": { "band": 6, "feedback": "<tiếng Việt — nhận xét phát âm, nhắc tới các từ phát âm chưa rõ>", "note": "Đánh giá từ transcript + độ tin cậy nhận dạng giọng nói." }
+  },
+  "paraphrasing": {
+    "level": "<one of: verbatim | minimal | partial | strong>",
+    "examples": [
+      { "question": "<copy 1 câu hỏi nguyên văn>", "candidateSaid": "<phần candidate nói khi paraphrase câu đó — trích từ transcript>", "comment": "<tiếng Việt — chỉ rõ candidate đã transform thế nào: đổi từ nào, đổi cấu trúc nào>" }
+    ],
+    "impact": "<tiếng Việt — paraphrasing này đã ảnh hưởng band Lexical Resource và Grammatical Range như thế nào (cộng/trừ bao nhiêu, vì sao)>"
   },
   "observations": ["<nhận xét cụ thể — tiếng Việt>"],
   "corrections": [
@@ -202,7 +217,7 @@ Return ONLY valid JSON:
   "summary": "<nhận xét tổng quan ngắn — tiếng Việt>"
 }
 
-Provide 4-6 observations. For "corrections": find the real grammar/word-choice/collocation mistakes in the transcript and SHOW THE FIXED VERSION (do not merely point them out) — give 3-6 items, or [] if the transcript is genuinely error-free. For "pronunciationFixes": give an item with correct IPA for EACH word in the low-confidence list (and any other clearly mispronounced word) — these are words the candidate said unclearly.
+Provide 4-6 observations. For "paraphrasing.examples": include 1-3 examples — for "strong"/"partial" levels show the WINNING paraphrases the candidate produced; for "minimal"/"verbatim" show the verbatim/near-verbatim moments so the candidate sees what to avoid; if there is genuinely no paraphrasing evidence (Part 2 cue card or candidate spoke too little), return []. For "corrections": find the real grammar/word-choice/collocation mistakes in the transcript and SHOW THE FIXED VERSION (do not merely point them out) — give 3-6 items, or [] if the transcript is genuinely error-free. For "pronunciationFixes": give an item with correct IPA for EACH word in the low-confidence list (and any other clearly mispronounced word) — these are words the candidate said unclearly.
 "questionTips": provide EXACTLY ONE entry for EVERY question listed in the prompt — each Part 1 question, the Part 2 cue card, and each Part 3 question — in the SAME ORDER they appear. The "question", "opener" and "advice" fields MUST all be written in ENGLISH. For "band" and "criteria" give an HONEST per-question score based on the portion of the transcript that answers that question; if you cannot identify ANY answer to that specific question (no slice of transcript clearly answers it, or only silence/gibberish for it), set band=0.0 and all four criteria=0 — DO NOT assign a courtesy band. The "transcript" field is the verbatim slice of the candidate's transcript that answers THIS question (used by the UI to show inline annotations); leave it as "" if no answer was given. Provide 4-6 usefulPhrases tailored to THIS topic, not generic.
 Provide 5-7 collocations and 4-6 phrasalVerbs — both MUST be tailored to THIS topic and pitched at band 7+ so the candidate can upgrade their vocabulary.`;
 
