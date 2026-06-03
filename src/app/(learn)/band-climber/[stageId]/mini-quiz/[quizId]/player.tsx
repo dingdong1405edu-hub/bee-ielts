@@ -3,13 +3,15 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import { toast } from "sonner";
 import {
   X, Heart, Check, XCircle, Flag, Trophy, Volume2,
-  ListChecks, BookOpen, Headphones, PenLine, Mic,
+  ListChecks, BookOpen, Headphones, PenLine, Mic, Loader2, Square,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatDuration } from "@/lib/utils";
 import { BeeGuide, type TourStep } from "@/components/learn/bee-guide";
 import { playCorrectSfx, playWrongSfx } from "@/lib/quiz-sfx";
+import { startWebSpeech, isWebSpeechSupported, type WebSpeechSession } from "@/lib/web-speech";
 
 type Skill = "READING" | "LISTENING" | "WRITING" | "SPEAKING";
 
@@ -22,7 +24,7 @@ const SKILL_META: Record<Skill, { label: string; icon: React.ElementType; grad: 
 
 interface Q {
   id: string;
-  type: "IMAGE_CHOICE" | "TEXT_CHOICE" | "FILL_BLANK";
+  type: "IMAGE_CHOICE" | "TEXT_CHOICE" | "FILL_BLANK" | "SPEAKING";
   prompt: string;
   audioUrl?: string | null;
   options: { label: string; imageUrl?: string }[];
@@ -59,6 +61,9 @@ export function MiniQuizPlayer({
   const [selected, setSelected] = useState<number | null>(null);
   // FILL_BLANK text input value; reset on every step change.
   const [blankInput, setBlankInput] = useState("");
+  // SPEAKING transcript — populated when /api/speaking/transcribe returns
+  // (or Web Speech fills it live). Reset on every step change.
+  const [speakingTranscript, setSpeakingTranscript] = useState("");
   const [verdict, setVerdict] = useState<"none" | "correct" | "wrong">("none");
   const [hearts, setHearts] = useState(5);
   const [correctCount, setCorrectCount] = useState(0);
@@ -76,13 +81,28 @@ export function MiniQuizPlayer({
   const answered = verdict === "none" ? step : step + 1;
   const progressPct = (answered / total) * 100;
 
-  // For FILL_BLANK the "selected" notion doesn't apply — we check the
-  // typed text against every option label instead.
+  // canCheck rules vary by question type:
+  //  - SPEAKING:    transcript must be non-empty (user finished recording)
+  //  - FILL_BLANK:  blank input must have content
+  //  - choice:      an option must be selected
   const canCheck =
-    q != null && (q.type === "FILL_BLANK" ? blankInput.trim().length > 0 : selected != null);
+    q != null &&
+    (q.type === "SPEAKING"
+      ? speakingTranscript.trim().length > 0
+      : q.type === "FILL_BLANK"
+        ? blankInput.trim().length > 0
+        : selected != null);
 
   const check = () => {
     if (q == null) return;
+    if (q.type === "SPEAKING") {
+      // No right/wrong — the act of recording counts as completing the
+      // question. Always green light + sfx so the loop feels rewarding.
+      setVerdict("correct");
+      setCorrectCount((c) => c + 1);
+      playCorrectSfx();
+      return;
+    }
     if (q.type === "FILL_BLANK") {
       const user = normalize(blankInput);
       const ok = q.options.some((o) => normalize(o.label) === user);
@@ -117,6 +137,7 @@ export function MiniQuizPlayer({
     setStep((s) => s + 1);
     setSelected(null);
     setBlankInput("");
+    setSpeakingTranscript("");
     setVerdict("none");
   };
 
@@ -224,7 +245,14 @@ export function MiniQuizPlayer({
           {q.audioUrl ? <AudioButton key={q.id} url={q.audioUrl} /> : null}
         </div>
 
-        {q.type === "FILL_BLANK" ? (
+        {q.type === "SPEAKING" ? (
+          <SpeakingQuestion
+            key={q.id}
+            locked={verdict !== "none"}
+            transcript={speakingTranscript}
+            onTranscript={setSpeakingTranscript}
+          />
+        ) : q.type === "FILL_BLANK" ? (
           q.prompt.includes(BLANK_MARK) ? null : (
             <div className="w-full max-w-xl">
               <input
@@ -377,7 +405,9 @@ export function MiniQuizPlayer({
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-extrabold text-lg text-rose-700">Đáp án đúng:</div>
-                <div className="text-sm text-rose-700">{q.options[q.correctIndex].label}</div>
+                <div className="text-sm text-rose-700">
+                  {q.options[q.correctIndex]?.label ?? "—"}
+                </div>
                 <button className="text-xs font-bold text-rose-700/70 inline-flex items-center gap-1 mt-0.5">
                   <Flag className="h-3 w-3" /> BÁO CÁO
                 </button>
@@ -403,7 +433,7 @@ export function MiniQuizPlayer({
                     : "bg-zinc-200 text-zinc-400 cursor-not-allowed",
                 )}
               >
-                Kiểm tra
+                {q.type === "SPEAKING" ? "Hoàn thành" : "Kiểm tra"}
               </button>
             </>
           )}
@@ -654,6 +684,254 @@ function AudioButton({ url }: { url: string }) {
         onError={() => setPlaying(false)}
         hidden
       />
+    </div>
+  );
+}
+
+/**
+ * Mini-quiz Speaking question — replicates the IELTS Speaking player UX in
+ * miniature: tap mic to record, live transcript via Web Speech API while
+ * recording, finalize with /api/speaking/transcribe (Deepgram → Groq Whisper
+ * fallback). Bubbles the final transcript up via onTranscript so the parent
+ * can enable the "Hoàn thành" button.
+ *
+ * No grading / band score — speaking inside a mini-quiz is purely practice.
+ * Auto-stops at 60 seconds so the loop doesn't stall.
+ */
+const SPEAKING_MAX_SECONDS = 60;
+
+function SpeakingQuestion({
+  locked,
+  transcript,
+  onTranscript,
+}: {
+  locked: boolean;
+  transcript: string;
+  onTranscript: (t: string) => void;
+}) {
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [liveTranscript, setLiveTranscript] = useState("");
+  const [permError, setPermError] = useState<string | null>(null);
+
+  const streamRef = useRef<MediaStream | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const webSpeechRef = useRef<WebSpeechSession | null>(null);
+
+  // Release everything on unmount so the browser's mic indicator dies with
+  // the question. Without this, navigating away mid-record leaves the
+  // indicator stuck and looks like the page is still listening.
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      webSpeechRef.current?.stop();
+      webSpeechRef.current = null;
+      try {
+        if (recorderRef.current && recorderRef.current.state !== "inactive") {
+          recorderRef.current.stop();
+        }
+      } catch {
+        /* ignore */
+      }
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    };
+  }, []);
+
+  const start = async () => {
+    setPermError(null);
+    try {
+      // Acquire mic — needs a user gesture, which this click is.
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const mr = new MediaRecorder(stream);
+      chunksRef.current = [];
+      mr.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      mr.onstop = async () => {
+        const blobType = mr.mimeType || "audio/webm";
+        const blob = new Blob(chunksRef.current, { type: blobType });
+
+        // Web Speech preferred — instant, no network. Fall back to the
+        // server STT endpoint for browsers that don't support it.
+        const browserTranscript = webSpeechRef.current?.getTranscript() ?? "";
+        webSpeechRef.current?.stop();
+        webSpeechRef.current = null;
+        if (browserTranscript.trim().length > 0) {
+          onTranscript(browserTranscript.trim());
+          return;
+        }
+        if (blob.size < 1200) {
+          toast.error("Không thu được tiếng — kiểm tra micro và thử lại.");
+          return;
+        }
+        setTranscribing(true);
+        try {
+          const res = await fetch("/api/speaking/transcribe", {
+            method: "POST",
+            headers: { "Content-Type": blob.type || "audio/webm" },
+            body: blob,
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || `Lỗi ${res.status}`);
+          const text = (data.transcript ?? "").trim();
+          if (!text) {
+            toast.error("Không nghe được gì — thử nói to và rõ hơn.");
+          }
+          onTranscript(text);
+        } catch (e) {
+          toast.error(e instanceof Error ? e.message : "Nhận dạng giọng nói thất bại");
+        } finally {
+          setTranscribing(false);
+        }
+      };
+      // Start Web Speech for live captions alongside the recorder.
+      setLiveTranscript("");
+      if (isWebSpeechSupported()) {
+        webSpeechRef.current = startWebSpeech({
+          lang: "en-US",
+          onInterim: (t) => setLiveTranscript(t),
+          onError: (err) => console.warn("[mini-quiz/web-speech]", err),
+        });
+      }
+      mr.start();
+      recorderRef.current = mr;
+      setRecording(true);
+      setElapsed(0);
+      timerRef.current = setInterval(() => setElapsed((t) => t + 1), 1000);
+    } catch (e) {
+      console.error("[mini-quiz/speaking] getUserMedia failed", e);
+      setPermError(
+        "Không truy cập được micro. Hãy cấp quyền micro trong trình duyệt rồi bấm lại.",
+      );
+    }
+  };
+
+  const stop = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    setRecording(false);
+    try {
+      if (recorderRef.current && recorderRef.current.state !== "inactive") {
+        recorderRef.current.stop();
+      }
+    } catch {
+      /* ignore */
+    }
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+  };
+
+  // Hard cap at 60s so the question doesn't stall a long recording forever.
+  useEffect(() => {
+    if (!recording) return;
+    if (elapsed >= SPEAKING_MAX_SECONDS) stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recording, elapsed]);
+
+  const hasTranscript = transcript.trim().length > 0;
+
+  return (
+    <div className="w-full max-w-2xl space-y-3">
+      {/* Big mic / stop button */}
+      {!hasTranscript && !transcribing && (
+        <div className="flex flex-col items-center gap-3">
+          {recording ? (
+            <button
+              type="button"
+              onClick={stop}
+              className="group relative grid h-28 w-28 place-items-center rounded-full bg-rose-500 hover:bg-rose-600 text-white shadow-xl shadow-rose-500/30 transition-transform hover:scale-105"
+            >
+              <span className="absolute inset-0 rounded-full bg-rose-400/40 animate-ping" />
+              <Square className="h-10 w-10 fill-current" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={start}
+              disabled={locked || transcribing}
+              className="grid h-28 w-28 place-items-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white shadow-xl shadow-indigo-500/30 transition-transform hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed"
+              aria-label="Bắt đầu ghi âm"
+            >
+              <Mic className="h-12 w-12" />
+            </button>
+          )}
+          <div className="text-center">
+            {recording ? (
+              <>
+                <div className="font-extrabold text-rose-700">Đang nghe bạn nói...</div>
+                <div className="text-xs text-muted-foreground tabular-nums">
+                  {formatDuration(elapsed)} / {formatDuration(SPEAKING_MAX_SECONDS)} — bấm để dừng
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="font-extrabold text-indigo-700">Bấm mic để bắt đầu nói</div>
+                <div className="text-xs text-muted-foreground">
+                  Trả lời bằng tiếng Anh, tối đa {SPEAKING_MAX_SECONDS} giây
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {transcribing && (
+        <div className="flex flex-col items-center gap-2 py-4">
+          <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+          <div className="text-sm font-semibold text-indigo-700">
+            Đang chuyển giọng nói thành văn bản...
+          </div>
+        </div>
+      )}
+
+      {/* Live transcript while recording */}
+      {recording && liveTranscript && (
+        <div className="rounded-2xl border-2 border-sky-200 bg-sky-50 dark:bg-sky-950/20 dark:border-sky-900 p-4">
+          <div className="text-[11px] font-extrabold uppercase tracking-wider text-sky-600 mb-1">
+            Bạn đang nói (live)
+          </div>
+          <p className="text-sm leading-relaxed whitespace-pre-wrap text-sky-900 dark:text-sky-100">
+            {liveTranscript}
+          </p>
+        </div>
+      )}
+
+      {/* Final transcript */}
+      {hasTranscript && (
+        <div className="rounded-2xl border-2 border-emerald-300 bg-emerald-50 dark:bg-emerald-950/20 dark:border-emerald-900 p-4">
+          <div className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-600 mb-1 inline-flex items-center gap-1">
+            <Check className="h-3.5 w-3.5" /> Bạn đã nói
+          </div>
+          <p className="text-sm leading-relaxed whitespace-pre-wrap text-emerald-900 dark:text-emerald-100">
+            {transcript}
+          </p>
+          {!locked && (
+            <button
+              type="button"
+              onClick={() => {
+                onTranscript("");
+                setLiveTranscript("");
+              }}
+              className="mt-2 inline-flex items-center gap-1 rounded-full border border-emerald-400 px-3 py-1 text-xs font-bold text-emerald-700 hover:bg-emerald-100"
+            >
+              <Mic className="h-3 w-3" /> Ghi âm lại
+            </button>
+          )}
+        </div>
+      )}
+
+      {permError && (
+        <div className="rounded-xl border-2 border-rose-300 bg-rose-50 dark:bg-rose-950/20 p-3 text-sm text-rose-800 dark:text-rose-200">
+          {permError}
+        </div>
+      )}
     </div>
   );
 }

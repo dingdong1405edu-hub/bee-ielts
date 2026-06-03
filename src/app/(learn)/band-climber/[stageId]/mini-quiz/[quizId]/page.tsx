@@ -71,7 +71,7 @@ export default async function MiniQuizPage({
         title: quiz.title,
         questions: quiz.questions.map((q) => ({
           id: q.id,
-          type: q.type as "IMAGE_CHOICE" | "TEXT_CHOICE" | "FILL_BLANK",
+          type: q.type as "IMAGE_CHOICE" | "TEXT_CHOICE" | "FILL_BLANK" | "SPEAKING",
           prompt: q.prompt,
           audioUrl: q.audioUrl,
           options: q.options as { label: string; imageUrl?: string }[],

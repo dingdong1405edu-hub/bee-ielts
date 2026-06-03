@@ -7,11 +7,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, ArrowLeft, ImageIcon, Type, CheckCircle2, Volume2, Pencil } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, ImageIcon, Type, CheckCircle2, Volume2, Pencil, Mic } from "lucide-react";
 import { BandClimbToursEditor, type TourStepDraft } from "@/components/admin/band-climb-tours-editor";
 
 type Skill = "READING" | "LISTENING" | "WRITING" | "SPEAKING";
-type QType = "IMAGE_CHOICE" | "TEXT_CHOICE" | "FILL_BLANK";
+type QType = "IMAGE_CHOICE" | "TEXT_CHOICE" | "FILL_BLANK" | "SPEAKING";
 
 interface OptionDraft {
   label: string;
@@ -44,6 +44,11 @@ const blankQuestion = (type: QType = "TEXT_CHOICE"): QuestionDraft => {
       ],
       correctIndex: 0,
     };
+  }
+  if (type === "SPEAKING") {
+    // SPEAKING needs no options — learner records themselves answering the
+    // prompt. correctIndex stays 0 as a no-op placeholder.
+    return { type, prompt: "", audioUrl: "", options: [], correctIndex: 0 };
   }
   return {
     type,
@@ -152,6 +157,8 @@ export function MiniQuizForm({
         toast.error(`Câu ${i + 1} chưa có đề.`);
         return;
       }
+      // SPEAKING needs no options — learner records an answer instead.
+      if (q.type === "SPEAKING") continue;
       // FILL_BLANK accepts ≥ 1 valid answer (primary + optional variants);
       // choice-type questions still need ≥ 2 options to be answerable.
       const minOpts = q.type === "FILL_BLANK" ? 1 : 2;
@@ -298,7 +305,9 @@ export function MiniQuizForm({
                       ? "Ảnh"
                       : q.type === "FILL_BLANK"
                         ? "Điền chỗ trống"
-                        : "Văn bản"})
+                        : q.type === "SPEAKING"
+                          ? "Ghi âm"
+                          : "Văn bản"})
                   </span>
                 </CardTitle>
                 <Button
@@ -320,6 +329,11 @@ export function MiniQuizForm({
                       — dùng <code>___</code> (3 underscores) để đánh dấu chỗ điền
                     </span>
                   )}
+                  {q.type === "SPEAKING" && (
+                    <span className="ml-1 normal-case text-[10px] font-normal text-indigo-600">
+                      — user sẽ ghi âm trả lời, không có đáp án đúng/sai
+                    </span>
+                  )}
                 </span>
                 <Input
                   value={q.prompt}
@@ -329,7 +343,9 @@ export function MiniQuizForm({
                       ? 'VD: Đâu là "cà phê"?'
                       : q.type === "FILL_BLANK"
                         ? "VD: He ___ to school every day."
-                        : 'VD: Chọn nghĩa đúng của "coffee"'
+                        : q.type === "SPEAKING"
+                          ? "VD: Tell me about your hometown."
+                          : 'VD: Chọn nghĩa đúng của "coffee"'
                   }
                 />
               </label>
@@ -350,7 +366,18 @@ export function MiniQuizForm({
                 )}
               </label>
 
-              {q.type === "FILL_BLANK" ? (
+              {q.type === "SPEAKING" ? (
+                <div className="rounded-xl border-2 border-indigo-200 bg-indigo-50/30 p-3 text-sm text-indigo-900">
+                  <div className="font-bold text-indigo-700 inline-flex items-center gap-1.5">
+                    <Mic className="h-4 w-4" /> Dạng ghi âm
+                  </div>
+                  <p className="text-xs text-indigo-700 mt-1">
+                    User sẽ thấy đề bài + nút Bắt đầu ghi âm. Sau khi nói xong, lời nói được chuyển
+                    thành văn bản (Deepgram / Whisper) và hiển thị lại. Câu này luôn tính là "hoàn
+                    thành" khi user nộp — không có đáp án đúng/sai.
+                  </p>
+                </div>
+              ) : q.type === "FILL_BLANK" ? (
                 <FillBlankAnswers
                   options={q.options}
                   onChange={(opts) => updateQuestion(idx, { options: opts })}
@@ -426,6 +453,13 @@ export function MiniQuizForm({
         </Button>
         <Button variant="outline" onClick={() => addQuestion("FILL_BLANK")}>
           <Pencil className="h-4 w-4" /> Thêm câu — điền chỗ trống
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => addQuestion("SPEAKING")}
+          className="border-indigo-300 text-indigo-700 hover:bg-indigo-50"
+        >
+          <Mic className="h-4 w-4" /> Thêm câu — ghi âm (Speaking)
         </Button>
       </div>
 

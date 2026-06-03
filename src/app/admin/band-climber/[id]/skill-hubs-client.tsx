@@ -10,7 +10,7 @@ import { DeleteTestButton } from "@/components/admin/delete-test-button";
 import { MiniQuizForm } from "./mini-quiz/mini-quiz-form";
 
 type Skill = "READING" | "LISTENING" | "WRITING" | "SPEAKING";
-type QType = "IMAGE_CHOICE" | "TEXT_CHOICE" | "FILL_BLANK";
+type QType = "IMAGE_CHOICE" | "TEXT_CHOICE" | "FILL_BLANK" | "SPEAKING";
 
 interface TestItem {
   id: string;

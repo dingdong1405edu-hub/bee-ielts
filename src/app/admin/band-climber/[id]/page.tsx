@@ -58,7 +58,7 @@ export default async function EditBandStagePage({
         | { target: string; title: string; body: string }[]
         | null) ?? [],
       questions: q.questions.map((qq) => ({
-        type: qq.type as "IMAGE_CHOICE" | "TEXT_CHOICE" | "FILL_BLANK",
+        type: qq.type as "IMAGE_CHOICE" | "TEXT_CHOICE" | "FILL_BLANK" | "SPEAKING",
         prompt: qq.prompt,
         audioUrl: qq.audioUrl ?? undefined,
         options: qq.options as { label: string; imageUrl?: string }[],

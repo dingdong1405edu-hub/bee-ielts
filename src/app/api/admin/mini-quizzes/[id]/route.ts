@@ -11,14 +11,24 @@ const optionSchema = z.object({
 });
 const questionSchema = z
   .object({
-    type: z.enum(["IMAGE_CHOICE", "TEXT_CHOICE", "FILL_BLANK"]),
+    type: z.enum(["IMAGE_CHOICE", "TEXT_CHOICE", "FILL_BLANK", "SPEAKING"]),
     prompt: z.string().min(1).max(400),
     audioUrl: z.string().url().optional().or(z.literal("")),
-    options: z.array(optionSchema).min(1).max(8),
-    correctIndex: z.number().int().min(0),
+    options: z.array(optionSchema).max(8).default([]),
+    correctIndex: z.number().int().min(0).default(0),
   })
-  .refine((q) => q.type === "FILL_BLANK" || q.options.length >= 2, {
-    message: "Choice-type questions need at least 2 options",
+  .refine(
+    (q) =>
+      q.type === "SPEAKING" ||
+      q.type === "FILL_BLANK" ||
+      q.options.length >= 2,
+    {
+      message: "Choice-type questions need at least 2 options",
+      path: ["options"],
+    },
+  )
+  .refine((q) => q.type !== "FILL_BLANK" || q.options.length >= 1, {
+    message: "Fill-blank needs at least 1 accepted answer",
     path: ["options"],
   });
 const tourStepSchema = z.object({
@@ -58,6 +68,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     // for a quiz this size (admin edits are bulk, not per-question).
     if (parsed.data.questions) {
       for (const q of parsed.data.questions) {
+        if (q.type === "SPEAKING") continue;
         if (q.correctIndex < 0 || q.correctIndex >= q.options.length) {
           return NextResponse.json(
             { error: `correctIndex ngoài phạm vi: ${q.prompt.slice(0, 50)}` },

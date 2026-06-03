@@ -10,15 +10,29 @@ const optionSchema = z.object({
 });
 const questionSchema = z
   .object({
-    type: z.enum(["IMAGE_CHOICE", "TEXT_CHOICE", "FILL_BLANK"]),
+    // SPEAKING type asks the learner to record themselves answering the
+    // prompt — no options, no objectively-correct answer. The Whisper /
+    // Deepgram STT pipeline transcribes the take so the learner sees what
+    // they actually said.
+    type: z.enum(["IMAGE_CHOICE", "TEXT_CHOICE", "FILL_BLANK", "SPEAKING"]),
     prompt: z.string().min(1).max(400),
     // Optional mp3/ogg URL — player shows a Listen button when present.
     audioUrl: z.string().url().optional().or(z.literal("")),
-    options: z.array(optionSchema).min(1).max(8),
-    correctIndex: z.number().int().min(0),
+    options: z.array(optionSchema).max(8).default([]),
+    correctIndex: z.number().int().min(0).default(0),
   })
-  .refine((q) => q.type === "FILL_BLANK" || q.options.length >= 2, {
-    message: "Choice-type questions need at least 2 options",
+  .refine(
+    (q) =>
+      q.type === "SPEAKING" ||
+      q.type === "FILL_BLANK" ||
+      q.options.length >= 2,
+    {
+      message: "Choice-type questions need at least 2 options",
+      path: ["options"],
+    },
+  )
+  .refine((q) => q.type !== "FILL_BLANK" || q.options.length >= 1, {
+    message: "Fill-blank needs at least 1 accepted answer",
     path: ["options"],
   });
 // Tour shape mirrors what BeeGuide consumes — kept permissive so admin
@@ -58,8 +72,10 @@ export async function POST(req: Request) {
   }
   const data = parsed.data;
 
-  // Validate correctIndex falls within options for each question.
+  // Validate correctIndex falls within options for each question. SPEAKING
+  // questions don't have a "correct" option so the check is skipped.
   for (const q of data.questions) {
+    if (q.type === "SPEAKING") continue;
     if (q.correctIndex < 0 || q.correctIndex >= q.options.length) {
       return NextResponse.json(
         { error: `correctIndex ngoài phạm vi cho câu: ${q.prompt.slice(0, 50)}` },
