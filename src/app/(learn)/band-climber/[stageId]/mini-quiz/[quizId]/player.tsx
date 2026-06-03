@@ -12,6 +12,7 @@ import { cn, formatDuration } from "@/lib/utils";
 import { BeeGuide, type TourStep } from "@/components/learn/bee-guide";
 import { playCorrectSfx, playWrongSfx } from "@/lib/quiz-sfx";
 import { startWebSpeech, isWebSpeechSupported, type WebSpeechSession } from "@/lib/web-speech";
+import { playExaminerLine, stopExaminerLine, primeAudioPlayback } from "@/lib/tts";
 
 type Skill = "READING" | "LISTENING" | "WRITING" | "SPEAKING";
 
@@ -55,6 +56,10 @@ export function MiniQuizPlayer({
 }) {
   const router = useRouter();
   const total = quiz.questions.length;
+  // Shared audio ref for the Aurora examiner voice — same plumbing the
+  // Speaking practice player uses. Lives at the player level so a question
+  // change can pause the previous prompt's playback in one place.
+  const examinerAudioRef = useRef<HTMLAudioElement | null>(null);
   // `step` is the index of the question currently shown (0..total-1) OR
   // `total` when the user has finished and is on the summary screen.
   const [step, setStep] = useState(0);
@@ -130,6 +135,9 @@ export function MiniQuizPlayer({
   };
 
   const next = () => {
+    // Cut any examiner-voice playback before advancing — the new question's
+    // prompt audio will start on its own mount effect.
+    stopExaminerLine(examinerAudioRef);
     if (step + 1 >= total) {
       setStep(total);
       return;
@@ -142,8 +150,36 @@ export function MiniQuizPlayer({
   };
 
   const exit = () => {
+    stopExaminerLine(examinerAudioRef);
     router.push(`/band-climber/${stageId}`);
   };
+
+  // Auto-play the prompt with the Aurora voice on every SPEAKING question —
+  // same examiner pipeline the Speaking practice page uses (/api/speaking/tts
+  // → user's hosted Aurora endpoint). Fires once per step change; cleanup
+  // pauses playback so a fast next-tap can't leave two prompts overlapping.
+  // q is declared below — using ids inline keeps the dependency array stable
+  // and avoids re-firing on every render.
+  const currentQId = step < total ? quiz.questions[step]?.id : null;
+  const currentQType = step < total ? quiz.questions[step]?.type : null;
+  const currentQPrompt = step < total ? quiz.questions[step]?.prompt : null;
+  useEffect(() => {
+    if (!currentQId || currentQType !== "SPEAKING" || !currentQPrompt) return;
+    if (tourOpen) return;
+    const ac = new AbortController();
+    primeAudioPlayback();
+    void playExaminerLine(currentQPrompt, "aurora", examinerAudioRef, ac.signal);
+    return () => {
+      ac.abort();
+      stopExaminerLine(examinerAudioRef);
+    };
+  }, [currentQId, currentQType, currentQPrompt, tourOpen]);
+
+  // Belt-and-braces: kill any leftover examiner audio when the player
+  // unmounts (route change, tab close).
+  useEffect(() => {
+    return () => stopExaminerLine(examinerAudioRef);
+  }, []);
 
   // ============================ FINISHED SUMMARY ============================
   if (step >= total) {
@@ -243,6 +279,15 @@ export function MiniQuizPlayer({
             <h2 className="text-2xl md:text-3xl font-extrabold leading-tight">{q.prompt}</h2>
           )}
           {q.audioUrl ? <AudioButton key={q.id} url={q.audioUrl} /> : null}
+          {/* SPEAKING questions get a "Nghe lại đề" button so the candidate
+              can replay the Aurora-voiced prompt anytime before answering. */}
+          {q.type === "SPEAKING" && !q.audioUrl && (
+            <ExaminerReplayButton
+              key={`replay-${q.id}`}
+              text={q.prompt}
+              audioRef={examinerAudioRef}
+            />
+          )}
         </div>
 
         {q.type === "SPEAKING" ? (
@@ -251,6 +296,7 @@ export function MiniQuizPlayer({
             locked={verdict !== "none"}
             transcript={speakingTranscript}
             onTranscript={setSpeakingTranscript}
+            onBeforeRecord={() => stopExaminerLine(examinerAudioRef)}
           />
         ) : q.type === "FILL_BLANK" ? (
           q.prompt.includes(BLANK_MARK) ? null : (
@@ -704,10 +750,15 @@ function SpeakingQuestion({
   locked,
   transcript,
   onTranscript,
+  onBeforeRecord,
 }: {
   locked: boolean;
   transcript: string;
   onTranscript: (t: string) => void;
+  /** Fires just before the recorder starts — used by the parent to stop
+   *  any prompt audio that's still playing so it doesn't bleed into the
+   *  mic. */
+  onBeforeRecord?: () => void;
 }) {
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
@@ -743,6 +794,9 @@ function SpeakingQuestion({
 
   const start = async () => {
     setPermError(null);
+    // Kill any prompt audio still playing so the recorder doesn't capture
+    // the examiner reading the question.
+    onBeforeRecord?.();
     try {
       // Acquire mic — needs a user gesture, which this click is.
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -932,6 +986,60 @@ function SpeakingQuestion({
           {permError}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * "Nghe lại đề" button for SPEAKING questions — calls /api/speaking/tts
+ * (which proxies to the user's Aurora endpoint) with the prompt text and
+ * plays the result via the shared examiner AudioContext path. Same audio
+ * pipeline the Speaking practice page uses, so the candidate hears the
+ * same voice in both places.
+ */
+function ExaminerReplayButton({
+  text,
+  audioRef,
+}: {
+  text: string;
+  audioRef: React.MutableRefObject<HTMLAudioElement | null>;
+}) {
+  const [playing, setPlaying] = useState(false);
+
+  const replay = async () => {
+    if (playing) return;
+    setPlaying(true);
+    primeAudioPlayback();
+    try {
+      await playExaminerLine(text, "aurora", audioRef);
+    } finally {
+      setPlaying(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-center mt-1">
+      <button
+        type="button"
+        onClick={replay}
+        disabled={playing}
+        className={cn(
+          "inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 text-sm font-bold shadow-sm transition-all",
+          playing
+            ? "bg-indigo-500 text-white border-indigo-600 animate-pulse"
+            : "bg-indigo-50 text-indigo-700 border-indigo-300 hover:bg-indigo-100",
+        )}
+      >
+        {playing ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" /> Đang đọc...
+          </>
+        ) : (
+          <>
+            <Volume2 className="h-4 w-4" /> Nghe lại đề
+          </>
+        )}
+      </button>
     </div>
   );
 }
