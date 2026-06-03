@@ -1508,8 +1508,13 @@ function SpeakingPart2Question({
   return (
     <div className="w-full max-w-2xl space-y-3">
       {/* Cue card — always visible across prep/speak/done so the candidate
-          can keep the bullets in sight while talking. */}
-      <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-4 space-y-2">
+          can keep the bullets in sight while talking. The data-tour="cuecard"
+          anchor lets the admin's Bee 🐝 hướng dẫn spotlight this box at any
+          step of the tour (matches the option in BandClimbToursEditor). */}
+      <div
+        data-tour="cuecard"
+        className="rounded-2xl border-2 border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-4 space-y-2"
+      >
         <div className="text-[10px] font-extrabold uppercase tracking-widest text-amber-700 dark:text-amber-300">
           IELTS Speaking · Part 2 · Cue card
         </div>
