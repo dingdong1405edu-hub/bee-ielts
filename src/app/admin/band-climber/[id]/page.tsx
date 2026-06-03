@@ -57,6 +57,9 @@ export default async function EditBandStagePage({
       tour: (q.bandClimbTips as
         | { target: string; title: string; body: string }[]
         | null) ?? [],
+      vocabPack: (q.vocabPack as
+        | { term: string; definition: string; example?: string }[]
+        | null) ?? [],
       questions: q.questions.map((qq) => ({
         type: qq.type as "IMAGE_CHOICE" | "TEXT_CHOICE" | "FILL_BLANK" | "SPEAKING",
         prompt: qq.prompt,

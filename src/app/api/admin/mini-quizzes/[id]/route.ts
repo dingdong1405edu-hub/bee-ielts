@@ -42,11 +42,18 @@ const tourStepSchema = z.object({
   ctaLabel: z.string().optional(),
 });
 
+const vocabPackItemSchema = z.object({
+  term: z.string().min(1).max(120),
+  definition: z.string().min(1).max(500),
+  example: z.string().max(500).optional().or(z.literal("")),
+});
+
 const patchSchema = z.object({
   title: z.string().min(1).max(120).optional(),
   skill: z.enum(["READING", "LISTENING", "WRITING", "SPEAKING"]).optional(),
   questions: z.array(questionSchema).optional(),
   bandClimbTips: z.array(tourStepSchema).nullable().optional(),
+  vocabPack: z.array(vocabPackItemSchema).max(80).nullable().optional(),
 });
 
 async function requireAdmin() {
@@ -92,7 +99,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         })),
       });
     }
-    const { questions: _drop, bandClimbTips, ...rest } = parsed.data;
+    const { questions: _drop, bandClimbTips, vocabPack, ...rest } = parsed.data;
     const quiz = await prisma.bandClimbMiniQuiz.update({
       where: { id },
       data: {
@@ -103,6 +110,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
               bandClimbTips:
                 bandClimbTips && bandClimbTips.length > 0
                   ? (bandClimbTips as Prisma.InputJsonValue)
+                  : Prisma.JsonNull,
+            }
+          : {}),
+        ...(vocabPack !== undefined
+          ? {
+              vocabPack:
+                vocabPack && vocabPack.length > 0
+                  ? (vocabPack as Prisma.InputJsonValue)
                   : Prisma.JsonNull,
             }
           : {}),

@@ -59,6 +59,13 @@ export default async function MiniQuizPage({
   const rawTour = quiz.bandClimbTips as TourStep[] | null;
   const customTour = rawTour && Array.isArray(rawTour) && rawTour.length > 0 ? rawTour : null;
 
+  // Admin-curated vocab pack. Null/empty = no pre-quiz preview screen.
+  const rawVocab = quiz.vocabPack as
+    | { term: string; definition: string; example?: string }[]
+    | null;
+  const vocabPack =
+    rawVocab && Array.isArray(rawVocab) && rawVocab.length > 0 ? rawVocab : null;
+
   return (
     <MiniQuizPlayer
       stageId={stageId}
@@ -66,6 +73,7 @@ export default async function MiniQuizPage({
       skill={skill}
       tipMarkdown={stage.tipsShowOnMiniQuiz ? tipMarkdown : ""}
       customTour={customTour}
+      vocabPack={vocabPack}
       quiz={{
         id: quiz.id,
         title: quiz.title,

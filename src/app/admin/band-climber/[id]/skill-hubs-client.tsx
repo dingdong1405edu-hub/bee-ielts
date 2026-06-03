@@ -29,6 +29,12 @@ interface TourStepLite {
   ctaLabel?: string;
 }
 
+interface VocabItemLite {
+  term: string;
+  definition: string;
+  example?: string;
+}
+
 interface QuizItem {
   id: string;
   title: string;
@@ -38,6 +44,7 @@ interface QuizItem {
   // already returns.
   skill: Skill;
   tour: TourStepLite[];
+  vocabPack: VocabItemLite[];
   questions: {
     type: QType;
     prompt: string;
@@ -112,6 +119,7 @@ export function SkillHubsClient({
                   title: editing.quiz.title,
                   skill: editing.quiz.skill,
                   tour: editing.quiz.tour,
+                  vocabPack: editing.quiz.vocabPack,
                   questions: editing.quiz.questions.map((q) => ({
                     type: q.type,
                     prompt: q.prompt,
@@ -260,6 +268,7 @@ function QuizModal({
     title: string;
     skill: Skill;
     tour?: TourStepLite[] | null;
+    vocabPack?: VocabItemLite[] | null;
     questions: {
       type: QType;
       prompt: string;

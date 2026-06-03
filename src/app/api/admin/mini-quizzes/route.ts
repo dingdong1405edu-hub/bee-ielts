@@ -48,12 +48,19 @@ const tourStepSchema = z.object({
   ctaLabel: z.string().optional(),
 });
 
+const vocabPackItemSchema = z.object({
+  term: z.string().min(1).max(120),
+  definition: z.string().min(1).max(500),
+  example: z.string().max(500).optional().or(z.literal("")),
+});
+
 const createSchema = z.object({
   bandStageId: z.string(),
   skill: z.enum(["READING", "LISTENING", "WRITING", "SPEAKING"]),
   title: z.string().min(1).max(120),
   questions: z.array(questionSchema).min(1),
   bandClimbTips: z.array(tourStepSchema).nullable().optional(),
+  vocabPack: z.array(vocabPackItemSchema).max(80).nullable().optional(),
 });
 
 async function requireAdmin() {
@@ -98,6 +105,9 @@ export async function POST(req: Request) {
         order: (last?.order ?? -1) + 1,
         bandClimbTips: data.bandClimbTips && data.bandClimbTips.length > 0
           ? data.bandClimbTips
+          : undefined,
+        vocabPack: data.vocabPack && data.vocabPack.length > 0
+          ? data.vocabPack
           : undefined,
         questions: {
           create: data.questions.map((q, i) => ({

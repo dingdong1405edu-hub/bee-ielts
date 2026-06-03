@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, ArrowLeft, ImageIcon, Type, CheckCircle2, Volume2, Pencil, Mic } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, ImageIcon, Type, CheckCircle2, Volume2, Pencil, Mic, Sparkles } from "lucide-react";
 import { BandClimbToursEditor, type TourStepDraft } from "@/components/admin/band-climb-tours-editor";
 
 type Skill = "READING" | "LISTENING" | "WRITING" | "SPEAKING";
@@ -24,6 +24,11 @@ interface QuestionDraft {
   audioUrl?: string;
   options: OptionDraft[];
   correctIndex: number;
+}
+interface VocabItemDraft {
+  term: string;
+  definition: string;
+  example?: string;
 }
 
 const blankQuestion = (type: QType = "TEXT_CHOICE"): QuestionDraft => {
@@ -68,6 +73,7 @@ interface FormProps {
     skill: Skill;
     questions: QuestionDraft[];
     tour?: TourStepDraft[] | null;
+    vocabPack?: VocabItemDraft[] | null;
   };
   // Used in create-mode when admin clicks "Thêm mini-quiz" from inside a
   // specific skill hub — pre-selects the dropdown to that skill.
@@ -98,6 +104,7 @@ export function MiniQuizForm({
     initial?.questions ?? [blankQuestion("TEXT_CHOICE")],
   );
   const [tour, setTour] = useState<TourStepDraft[]>(initial?.tour ?? []);
+  const [vocabPack, setVocabPack] = useState<VocabItemDraft[]>(initial?.vocabPack ?? []);
   const [saving, setSaving] = useState(false);
 
   const addQuestion = (type: QType) => {
@@ -180,11 +187,21 @@ export function MiniQuizForm({
 
     setSaving(true);
     try {
+      // Strip empty rows from the vocab pack — admin may leave half-typed
+      // rows when navigating away.
+      const cleanedVocabPack = vocabPack
+        .map((v) => ({
+          term: v.term.trim(),
+          definition: v.definition.trim(),
+          example: v.example?.trim() || undefined,
+        }))
+        .filter((v) => v.term && v.definition);
       const body = {
         bandStageId: stage.id,
         skill,
         title,
         bandClimbTips: tour.length > 0 ? tour : null,
+        vocabPack: cleanedVocabPack.length > 0 ? cleanedVocabPack : null,
         questions: questions.map((q) => ({
           type: q.type,
           prompt: q.prompt,
@@ -207,7 +224,13 @@ export function MiniQuizForm({
         body: JSON.stringify(
           mode === "create"
             ? body
-            : { title, skill, questions: body.questions, bandClimbTips: body.bandClimbTips },
+            : {
+                title,
+                skill,
+                questions: body.questions,
+                bandClimbTips: body.bandClimbTips,
+                vocabPack: body.vocabPack,
+              },
         ),
       });
       const data = await res.json();
@@ -286,6 +309,23 @@ export function MiniQuizForm({
         </CardHeader>
         <CardContent>
           <BandClimbToursEditor steps={tour} onChange={setTour} />
+        </CardContent>
+      </Card>
+
+      {/* Vocab pack — admin curates a short word list shown to learners on
+          the pre-quiz preview screen. Empty list = no preview screen. */}
+      <Card className="border-2 border-emerald-200">
+        <CardHeader>
+          <CardTitle className="text-base inline-flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-emerald-600" /> File từ vựng cho bài này
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Hiện trước khi user vào quiz. Bấm 1 lần là user import được nguyên file vào "Học từ"
+            thành bộ flashcard riêng. Để trống = không có màn hình preview.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <VocabPackEditor items={vocabPack} onChange={setVocabPack} />
         </CardContent>
       </Card>
 
@@ -543,6 +583,138 @@ function FillBlankAnswers({
           So sánh không phân biệt hoa/thường và khoảng trắng đầu/cuối.
         </p>
       </label>
+    </div>
+  );
+}
+
+/**
+ * Vocab pack editor — admin adds a list of {term, definition, example}
+ * rows that learners can preview before the quiz starts and one-tap
+ * import into their personal flashcard library. Up to 80 items per pack.
+ */
+function VocabPackEditor({
+  items,
+  onChange,
+}: {
+  items: VocabItemDraft[];
+  onChange: (next: VocabItemDraft[]) => void;
+}) {
+  const updateAt = (i: number, patch: Partial<VocabItemDraft>) =>
+    onChange(items.map((it, j) => (j === i ? { ...it, ...patch } : it)));
+  const removeAt = (i: number) => onChange(items.filter((_, j) => j !== i));
+  const add = () =>
+    onChange([...items, { term: "", definition: "", example: "" }]);
+  const move = (from: number, to: number) => {
+    if (to < 0 || to >= items.length) return;
+    const next = items.slice();
+    [next[from], next[to]] = [next[to], next[from]];
+    onChange(next);
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="text-xs text-muted-foreground">
+          {items.length === 0
+            ? "Chưa có từ nào — bấm Thêm từ để bắt đầu, hoặc bỏ qua nếu bài này không cần file từ vựng."
+            : `${items.length} từ — tối đa 80.`}
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={add}
+          disabled={items.length >= 80}
+          className="border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+        >
+          <Plus className="h-4 w-4" /> Thêm từ
+        </Button>
+      </div>
+
+      {items.length === 0 ? (
+        <div className="rounded-lg border border-dashed bg-muted/30 p-4 text-center text-xs text-muted-foreground">
+          Chưa có từ vựng.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {items.map((it, i) => (
+            <div
+              key={i}
+              className="rounded-lg border bg-card p-3 space-y-2"
+            >
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Từ {i + 1}
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => move(i, i - 1)}
+                    disabled={i === 0}
+                    className="h-7 w-7 p-0"
+                  >
+                    ↑
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => move(i, i + 1)}
+                    disabled={i === items.length - 1}
+                    className="h-7 w-7 p-0"
+                  >
+                    ↓
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => removeAt(i)}
+                    className="h-7 w-7 p-0 text-rose-600"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-2">
+                <label className="block">
+                  <span className="text-[10px] font-bold uppercase text-muted-foreground">
+                    Từ / cụm tiếng Anh
+                  </span>
+                  <Input
+                    value={it.term}
+                    onChange={(e) => updateAt(i, { term: e.target.value })}
+                    placeholder="VD: pollinator"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-[10px] font-bold uppercase text-muted-foreground">
+                    Nghĩa tiếng Việt
+                  </span>
+                  <Input
+                    value={it.definition}
+                    onChange={(e) => updateAt(i, { definition: e.target.value })}
+                    placeholder="VD: loài thụ phấn (n)"
+                  />
+                </label>
+              </div>
+              <label className="block">
+                <span className="text-[10px] font-bold uppercase text-muted-foreground">
+                  Câu ví dụ tiếng Anh (tuỳ chọn)
+                </span>
+                <Input
+                  value={it.example ?? ""}
+                  onChange={(e) => updateAt(i, { example: e.target.value })}
+                  placeholder="VD: Bees are vital pollinators for many crops."
+                />
+              </label>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

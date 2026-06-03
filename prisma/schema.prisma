@@ -176,6 +176,11 @@ model BandClimbMiniQuiz {
   // JSON shape as ReadingTest.bandClimbTips (TourStep[]). Null/empty =
   // no bee overlay, quiz starts immediately.
   bandClimbTips Json?
+  // Optional vocab pack the learner can preview before the quiz starts and
+  // (one tap) import as a brand-new flashcard deck. JSON array shape:
+  //   [{ term, definition, example? }]
+  // Null / empty = no pre-quiz vocab screen is shown.
+  vocabPack   Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   questions   MiniQuestion[]

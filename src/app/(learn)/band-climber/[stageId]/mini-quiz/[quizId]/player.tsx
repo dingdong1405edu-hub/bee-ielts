@@ -6,7 +6,7 @@ import ReactMarkdown from "react-markdown";
 import { toast } from "sonner";
 import {
   X, Heart, Check, XCircle, Flag, Trophy, Volume2,
-  ListChecks, BookOpen, Headphones, PenLine, Mic, Loader2, Square,
+  ListChecks, BookOpen, Headphones, PenLine, Mic, Loader2, Square, Sparkles,
 } from "lucide-react";
 import { cn, formatDuration } from "@/lib/utils";
 import { BeeGuide, type TourStep } from "@/components/learn/bee-guide";
@@ -32,6 +32,12 @@ interface Q {
   correctIndex: number;
 }
 
+export interface VocabPackItem {
+  term: string;
+  definition: string;
+  example?: string;
+}
+
 const BLANK_MARK = "___";
 const normalize = (s: string) => s.trim().toLowerCase();
 
@@ -41,6 +47,7 @@ export function MiniQuizPlayer({
   skill,
   tipMarkdown,
   customTour,
+  vocabPack,
   quiz,
 }: {
   stageId: string;
@@ -52,6 +59,8 @@ export function MiniQuizPlayer({
   tipMarkdown: string;
   // Admin-authored Bee 🐝 tour for this quiz. Null = no overlay shown.
   customTour: TourStep[] | null;
+  // Admin-curated vocab pack. Null/empty = no pre-quiz preview screen.
+  vocabPack: VocabPackItem[] | null;
   quiz: { id: string; title: string; questions: Q[] };
 }) {
   const router = useRouter();
@@ -77,6 +86,12 @@ export function MiniQuizPlayer({
   // hướng dẫn" or finish the tour to dismiss it and start the quiz.
   const [tourOpen, setTourOpen] = useState(
     !!customTour && customTour.length > 0,
+  );
+  // Pre-quiz vocab preview: shown after the bee tour closes when admin
+  // attached a vocab pack to this quiz. Dismissing the preview (or
+  // importing it to /words) starts the quiz proper.
+  const [vocabOpen, setVocabOpen] = useState(
+    !!vocabPack && vocabPack.length > 0,
   );
 
   const q = step < total ? quiz.questions[step] : null;
@@ -165,7 +180,7 @@ export function MiniQuizPlayer({
   const currentQPrompt = step < total ? quiz.questions[step]?.prompt : null;
   useEffect(() => {
     if (!currentQId || currentQType !== "SPEAKING" || !currentQPrompt) return;
-    if (tourOpen) return;
+    if (tourOpen || vocabOpen) return;
     const ac = new AbortController();
     primeAudioPlayback();
     void playExaminerLine(currentQPrompt, "aurora", examinerAudioRef, ac.signal);
@@ -173,7 +188,7 @@ export function MiniQuizPlayer({
       ac.abort();
       stopExaminerLine(examinerAudioRef);
     };
-  }, [currentQId, currentQType, currentQPrompt, tourOpen]);
+  }, [currentQId, currentQType, currentQPrompt, tourOpen, vocabOpen]);
 
   // Belt-and-braces: kill any leftover examiner audio when the player
   // unmounts (route change, tab close).
@@ -214,6 +229,18 @@ export function MiniQuizPlayer({
           quiz. Empty tour = no overlay (consistent with long-test rule). */}
       {tourOpen && customTour && customTour.length > 0 && (
         <BeeGuide steps={customTour} onFinish={() => setTourOpen(false)} />
+      )}
+      {/* Pre-quiz vocab preview — shown after the bee tour (or immediately
+          if there's no tour). Dismissing it (skip or import-and-go) starts
+          the quiz proper. */}
+      {!tourOpen && vocabOpen && vocabPack && vocabPack.length > 0 && (
+        <VocabPreviewScreen
+          skill={skill}
+          quizTitle={quiz.title}
+          stageTitle={stageTitle}
+          pack={vocabPack}
+          onClose={() => setVocabOpen(false)}
+        />
       )}
       {/* Duolingo-style burst when verdict transitions to "correct". Keyed
           by the question id so React remounts it and replays the CSS
@@ -1040,6 +1067,189 @@ function ExaminerReplayButton({
           </>
         )}
       </button>
+    </div>
+  );
+}
+
+/**
+ * Pre-quiz vocab preview — shown after the bee tour closes and before
+ * the first question is rendered. The admin-curated vocab pack is laid
+ * out as a scrollable list (term / Vietnamese definition / optional
+ * example). The primary CTA imports the whole pack as a new flashcard
+ * deck in /words via /api/words/import-pack; "Bỏ qua" just dismisses
+ * the screen so the quiz can start.
+ */
+function VocabPreviewScreen({
+  skill,
+  quizTitle,
+  stageTitle,
+  pack,
+  onClose,
+}: {
+  skill: Skill;
+  quizTitle: string;
+  stageTitle: string;
+  pack: VocabPackItem[];
+  onClose: () => void;
+}) {
+  const router = useRouter();
+  const [importing, setImporting] = useState(false);
+  const [imported, setImported] = useState<{
+    deckId: string;
+    deckTitle: string;
+    cardCount: number;
+  } | null>(null);
+  const meta = SKILL_META[skill];
+  const Icon = meta.icon;
+
+  const importAndStart = async () => {
+    if (importing || imported) return;
+    setImporting(true);
+    try {
+      const res = await fetch("/api/words/import-pack", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: `${quizTitle} · ${stageTitle}`,
+          items: pack.map((p) => ({
+            term: p.term,
+            definition: p.definition,
+            example: p.example || undefined,
+          })),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Lưu thất bại");
+      setImported(data);
+      toast.success(
+        `Đã tạo bộ thẻ "${data.deckTitle}" với ${data.cardCount} từ.`,
+        {
+          action: {
+            label: "Mở bộ thẻ",
+            onClick: () => router.push(`/words/${data.deckId}`),
+          },
+        },
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Tạo bộ thẻ thất bại");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] bg-background flex flex-col">
+      {/* Header — same gradient style as TipsDrawer for visual consistency */}
+      <div
+        className={cn(
+          "sticky top-0 z-10 bg-gradient-to-r text-white px-5 py-4 flex items-center gap-3",
+          meta.grad,
+        )}
+      >
+        <div className="grid h-10 w-10 place-items-center rounded-xl bg-white/20 shrink-0">
+          <Icon className="h-5 w-5" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-[10px] uppercase tracking-widest opacity-80 font-bold">
+            Từ vựng cho bài này · {meta.label}
+          </div>
+          <h2 className="font-extrabold text-lg leading-tight truncate">
+            {quizTitle}
+          </h2>
+        </div>
+        <button
+          onClick={onClose}
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/20 hover:bg-white/30 text-white"
+          aria-label="Đóng"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+
+      {/* Scrollable word list */}
+      <div className="flex-1 overflow-y-auto px-4 md:px-8 py-5 max-w-3xl mx-auto w-full">
+        <div className="mb-4 flex items-center justify-between flex-wrap gap-2">
+          <p className="text-sm text-muted-foreground max-w-xl">
+            Admin đã chuẩn bị <strong className="text-foreground">{pack.length} từ</strong> mới
+            cho phần này. Bấm <strong className="text-emerald-700">Thêm vào học từ</strong> để
+            lưu cả file thành bộ thẻ flashcard trong "Từ vựng của tôi".
+          </p>
+        </div>
+        <div className="space-y-2">
+          {pack.map((item, i) => (
+            <div
+              key={i}
+              className="rounded-xl border bg-card p-4 shadow-sm hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-baseline justify-between gap-2 flex-wrap">
+                <div className="font-extrabold text-lg text-foreground">
+                  {item.term}
+                </div>
+                <div className="text-xs text-muted-foreground font-mono">
+                  #{i + 1}
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {item.definition}
+              </p>
+              {item.example && (
+                <p className="text-xs italic text-zinc-500 dark:text-zinc-400 mt-2 border-l-2 border-emerald-400 pl-2">
+                  &ldquo;{item.example}&rdquo;
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Bottom bar — sticky actions */}
+      <div className="border-t-2 bg-card px-4 md:px-8 py-4">
+        <div className="max-w-3xl mx-auto flex items-center justify-between gap-3 flex-wrap">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={importing}
+            className="rounded-full border-2 border-zinc-300 hover:border-zinc-400 text-zinc-700 dark:text-zinc-300 px-6 py-2.5 text-sm font-bold disabled:opacity-50"
+          >
+            Bỏ qua, vào làm bài
+          </button>
+          {imported ? (
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full bg-emerald-500 hover:bg-emerald-600 px-6 py-2.5 text-white font-extrabold uppercase tracking-wider shadow inline-flex items-center gap-2"
+            >
+              <Check className="h-4 w-4" /> Đã thêm — vào làm bài
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={async () => {
+                await importAndStart();
+                // Auto-close right after import — keeps the loop tight.
+                onClose();
+              }}
+              disabled={importing}
+              className={cn(
+                "rounded-full px-6 py-2.5 font-extrabold uppercase tracking-wider shadow inline-flex items-center gap-2 transition-all",
+                importing
+                  ? "bg-emerald-400 text-white cursor-wait"
+                  : "bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white",
+              )}
+            >
+              {importing ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Đang lưu...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4" /> Thêm vào học từ & làm bài
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
