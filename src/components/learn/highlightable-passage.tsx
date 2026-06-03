@@ -1,5 +1,6 @@
 "use client";
 import { createContext, useContext, useRef, type ReactNode } from "react";
+import { Eraser } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type HighlightColor = "yellow" | "green" | "pink";
@@ -34,6 +35,67 @@ function getOffsets(range: Range, container: HTMLElement): { start: number; end:
   }
   if (start < 0 || end < 0) return null;
   return start <= end ? { start, end } : { start: end, end: start };
+}
+
+/**
+ * Word-at-point fallback for the case where the user TAPS (no drag-select)
+ * with a highlight tool active. We resolve the caret position via
+ * caretRangeFromPoint / caretPositionFromPoint (cross-browser shim),
+ * expand to the word's whitespace boundaries inside the same text node,
+ * and translate to absolute offsets within the container — same offset
+ * model the drag-select path uses, so highlights compose cleanly.
+ */
+function getWordOffsetsAtPoint(
+  x: number,
+  y: number,
+  container: HTMLElement,
+): { start: number; end: number } | null {
+  // Webkit/Blink: document.caretRangeFromPoint. Firefox: caretPositionFromPoint.
+  // We probe both because there's no TS type for either on `document` directly.
+  type WithCaret = typeof document & {
+    caretRangeFromPoint?: (x: number, y: number) => Range | null;
+    caretPositionFromPoint?: (
+      x: number,
+      y: number,
+    ) => { offsetNode: Node; offset: number } | null;
+  };
+  const d = document as WithCaret;
+  let textNode: Text | null = null;
+  let localOffset = 0;
+  if (d.caretRangeFromPoint) {
+    const range = d.caretRangeFromPoint(x, y);
+    if (!range) return null;
+    if (range.startContainer.nodeType !== Node.TEXT_NODE) return null;
+    textNode = range.startContainer as Text;
+    localOffset = range.startOffset;
+  } else if (d.caretPositionFromPoint) {
+    const pos = d.caretPositionFromPoint(x, y);
+    if (!pos || pos.offsetNode.nodeType !== Node.TEXT_NODE) return null;
+    textNode = pos.offsetNode as Text;
+    localOffset = pos.offset;
+  } else {
+    return null;
+  }
+  if (!textNode || !container.contains(textNode)) return null;
+  const t = textNode.data;
+  if (t.length === 0) return null;
+  // Expand to word boundaries — whitespace stops the walk. Punctuation stays
+  // attached so e.g. clicking "world." highlights "world." not "world".
+  let s = Math.max(0, Math.min(localOffset, t.length));
+  let e = s;
+  while (s > 0 && /\S/.test(t[s - 1])) s--;
+  while (e < t.length && /\S/.test(t[e])) e++;
+  if (s === e) return null; // clicked on pure whitespace
+  // Translate to absolute offsets within the container.
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+  let abs = 0;
+  let node = walker.nextNode() as Text | null;
+  while (node) {
+    if (node === textNode) return { start: abs + s, end: abs + e };
+    abs += node.data.length;
+    node = walker.nextNode() as Text | null;
+  }
+  return null;
 }
 
 /** Merge overlapping highlights of the same color; keep separate-color ones. */
@@ -91,17 +153,8 @@ export function HighlightablePassage({
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
-  const handleMouseUp = () => {
-    if (tool === "none") return;
-    const sel = window.getSelection();
-    if (!sel || sel.isCollapsed || !ref.current) return;
-    const range = sel.getRangeAt(0);
-    if (!ref.current.contains(range.commonAncestorContainer)) return;
-    const off = getOffsets(range, ref.current);
-    if (!off || off.end === off.start) return;
-
+  const applyAtOffsets = (off: { start: number; end: number }) => {
     if (tool === "eraser") {
-      // Remove any highlight that fully overlaps the selection; also split partials.
       const next: Highlight[] = [];
       for (const h of highlights) {
         if (h.end <= off.start || h.start >= off.end) {
@@ -112,10 +165,42 @@ export function HighlightablePassage({
         }
       }
       onChangeHighlights(next);
-    } else {
-      onChangeHighlights(mergeHighlights([...highlights, { start: off.start, end: off.end, color: tool }]));
+    } else if (tool !== "none") {
+      onChangeHighlights(
+        mergeHighlights([...highlights, { start: off.start, end: off.end, color: tool }]),
+      );
     }
+  };
+
+  // Drag-select handler — keeps the original "select then release" behaviour
+  // for sentences/phrases. If the user just CLICKED (selection is collapsed)
+  // the click handler below covers the word-at-cursor case so the pen always
+  // does something on contact.
+  const handleMouseUp = () => {
+    if (tool === "none") return;
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || !ref.current) return;
+    const range = sel.getRangeAt(0);
+    if (!ref.current.contains(range.commonAncestorContainer)) return;
+    const off = getOffsets(range, ref.current);
+    if (!off || off.end === off.start) return;
+    applyAtOffsets(off);
     sel.removeAllRanges();
+  };
+
+  // Click handler — tap with a highlight tool active = mark the word under
+  // the cursor instantly. Solves the "bút highlight đang không dùng được"
+  // confusion where users expected click-to-mark, not drag-select.
+  const handleClick = (e: React.MouseEvent) => {
+    if (tool === "none") return;
+    if (!ref.current) return;
+    const sel = window.getSelection();
+    // Skip the click handler when the click is the tail of a drag-select —
+    // handleMouseUp already processed that range.
+    if (sel && !sel.isCollapsed) return;
+    const off = getWordOffsetsAtPoint(e.clientX, e.clientY, ref.current);
+    if (!off) return;
+    applyAtOffsets(off);
   };
 
   const segments = buildSegments(passage, highlights);
@@ -123,6 +208,7 @@ export function HighlightablePassage({
     <div
       ref={ref}
       onMouseUp={handleMouseUp}
+      onClick={handleClick}
       onTouchEnd={handleMouseUp}
       className={cn(
         "text-[15px] leading-relaxed whitespace-pre-wrap text-foreground",
@@ -209,15 +295,7 @@ export function HighlightableText({
   const ref = useRef<HTMLSpanElement>(null);
   const highlights = ctx.get(textKey);
 
-  const handleMouseUp = () => {
-    if (ctx.tool === "none") return;
-    const sel = window.getSelection();
-    if (!sel || sel.isCollapsed || !ref.current) return;
-    const range = sel.getRangeAt(0);
-    if (!ref.current.contains(range.commonAncestorContainer)) return;
-    const off = getOffsets(range, ref.current);
-    if (!off || off.end === off.start) return;
-
+  const applyAtOffsets = (off: { start: number; end: number }) => {
     if (ctx.tool === "eraser") {
       const next: Highlight[] = [];
       for (const h of highlights) {
@@ -229,10 +307,38 @@ export function HighlightableText({
         }
       }
       ctx.set(textKey, next);
-    } else {
-      ctx.set(textKey, mergeHighlights([...highlights, { start: off.start, end: off.end, color: ctx.tool }]));
+    } else if (ctx.tool !== "none") {
+      ctx.set(
+        textKey,
+        mergeHighlights([
+          ...highlights,
+          { start: off.start, end: off.end, color: ctx.tool },
+        ]),
+      );
     }
+  };
+
+  const handleMouseUp = () => {
+    if (ctx.tool === "none") return;
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || !ref.current) return;
+    const range = sel.getRangeAt(0);
+    if (!ref.current.contains(range.commonAncestorContainer)) return;
+    const off = getOffsets(range, ref.current);
+    if (!off || off.end === off.start) return;
+    applyAtOffsets(off);
     sel.removeAllRanges();
+  };
+
+  // Tap-to-mark for question prompts/options — same UX as the passage column.
+  const handleClick = (e: React.MouseEvent) => {
+    if (ctx.tool === "none") return;
+    if (!ref.current) return;
+    const sel = window.getSelection();
+    if (sel && !sel.isCollapsed) return;
+    const off = getWordOffsetsAtPoint(e.clientX, e.clientY, ref.current);
+    if (!off) return;
+    applyAtOffsets(off);
   };
 
   // Fast path: nothing to highlight and no tool — render plain text.
@@ -245,6 +351,7 @@ export function HighlightableText({
     <span
       ref={ref}
       onMouseUp={handleMouseUp}
+      onClick={handleClick}
       onTouchEnd={handleMouseUp}
       className={cn(
         ctx.tool !== "none" && ctx.tool !== "eraser" && "cursor-text",
@@ -279,29 +386,42 @@ export function HighlightToolbar({
   ];
   return (
     <div className="flex items-center gap-1 rounded-full border bg-card px-1.5 py-1 shadow-sm">
-      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-1 hidden md:inline">Bút</span>
+      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-1 hidden md:inline">
+        {tool === "none"
+          ? "Bút"
+          : tool === "eraser"
+            ? "Tẩy"
+            : `Bôi ${tool === "yellow" ? "vàng" : tool === "green" ? "xanh" : "hồng"}`}
+      </span>
       {colors.map((c) => (
         <button
           key={c.key}
+          type="button"
           onClick={() => setTool(tool === c.key ? "none" : c.key)}
           aria-label={`Highlight ${c.label}`}
-          title={`Bôi ${c.label}`}
+          title={`${tool === c.key ? "Tắt" : "Bật"} bút ${c.label.toLowerCase()} — click 1 từ hoặc kéo chọn để tô`}
           className={cn(
             "h-7 w-7 rounded-full border-2 transition-all",
             c.cls,
-            tool === c.key ? "border-foreground scale-110" : "border-transparent hover:scale-105",
+            tool === c.key
+              ? "border-foreground scale-110 ring-2 ring-foreground/30"
+              : "border-transparent hover:scale-105",
           )}
         />
       ))}
       <button
+        type="button"
         onClick={() => setTool(tool === "eraser" ? "none" : "eraser")}
-        title="Xóa bôi"
+        aria-label="Tẩy highlight"
+        title={tool === "eraser" ? "Tắt tẩy" : "Bật tẩy — click vào chỗ đã bôi để xóa"}
         className={cn(
-          "h-7 w-7 rounded-full border-2 grid place-items-center text-xs font-bold transition-all",
-          tool === "eraser" ? "border-foreground bg-muted scale-110" : "border-border hover:bg-muted",
+          "h-7 w-7 rounded-full border-2 grid place-items-center transition-all",
+          tool === "eraser"
+            ? "border-foreground bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 scale-110 ring-2 ring-foreground/30"
+            : "border-border hover:bg-muted text-muted-foreground",
         )}
       >
-        ⌫
+        <Eraser className="h-3.5 w-3.5" />
       </button>
     </div>
   );

@@ -33,11 +33,25 @@ const schema = z.object({
     setId: z.string(),
     topic: z.string(),
     transcripts: z.object({ "1": z.string(), "2": z.string(), "3": z.string() }),
+    // Words Deepgram flagged as low-confidence across all 3 parts — fed
+    // straight into gradeSpeakingGroq so the Pronunciation criterion has
+    // real evidence to penalise on, matching /api/grade/speaking exactly.
+    lowConfidenceWords: z.array(z.string()).optional(),
   }),
 });
 
-function scoreToBand(correct: number, total: number): number {
+/**
+ * Reading + Listening band mapping.
+ *
+ * Per the user's "0.0 hoặc 1.0" rule:
+ * - The candidate didn't attempt ANY question → band 0.0.
+ * - They attempted but got every answer wrong → band 1.0.
+ * - Otherwise fall through to the IELTS-percent ladder.
+ */
+function scoreToBand(correct: number, total: number, attempted: number): number {
   if (total === 0) return 0;
+  if (attempted === 0) return 0.0;
+  if (correct === 0) return 1.0;
   const pct = correct / total;
   if (pct >= 0.97) return 9.0;
   if (pct >= 0.9) return 8.5;
@@ -66,15 +80,23 @@ export async function POST(req: Request) {
   const { listening, reading, writing, speaking } = parsed.data;
   const userId = session.user.id;
 
-  // Listening + Reading: auto-grade
+  // Listening + Reading: auto-grade. `attempted` counts non-empty answers so
+  // we can distinguish "didn't try" (band 0.0) from "tried but all wrong"
+  // (band 1.0) per the user's request.
   const lCorrect = listening.questions.filter(
     (q) => isAnswerCorrect(listening.answers[q.id], q.correctAnswer, q.type),
+  ).length;
+  const lAttempted = listening.questions.filter(
+    (q) => (listening.answers[q.id] ?? "").trim().length > 0,
   ).length;
   const rCorrect = reading.questions.filter(
     (q) => isAnswerCorrect(reading.answers[q.id], q.correctAnswer, q.type),
   ).length;
-  const lBand = scoreToBand(lCorrect, listening.questions.length);
-  const rBand = scoreToBand(rCorrect, reading.questions.length);
+  const rAttempted = reading.questions.filter(
+    (q) => (reading.answers[q.id] ?? "").trim().length > 0,
+  ).length;
+  const lBand = scoreToBand(lCorrect, listening.questions.length, lAttempted);
+  const rBand = scoreToBand(rCorrect, reading.questions.length, rAttempted);
 
   // Writing — band-1.0 floor on AI failure / empty essay. Each task is graded
   // independently so a Task 1 failure doesn't void Task 2's score.
@@ -131,11 +153,21 @@ export async function POST(req: Request) {
   try {
     const combinedTranscript = `[Part 1]\n${speaking.transcripts["1"]}\n\n[Part 2]\n${speaking.transcripts["2"]}\n\n[Part 3]\n${speaking.transcripts["3"]}`;
     if (combinedTranscript.replace(/\[.*?\]/g, "").trim().length > 20) {
+      // Hand the SAME prompt-side payload the practice player builds — a
+      // single combined transcript + every question + the pooled set of
+      // low-confidence words so the Pronunciation criterion has actual
+      // evidence to score. This is what "y chang speaking luyện tập" means
+      // in code.
       const sResult = (await gradeSpeakingGroq({
         part: 1,
         topic: speaking.topic,
-        questions: ["Part 1 + Part 2 + Part 3 combined"],
+        questions: [
+          "Part 1: General introduction questions",
+          `Part 2 cue card: ${speaking.topic}`,
+          "Part 3: Discussion questions",
+        ],
         transcript: combinedTranscript,
+        lowConfidenceWords: speaking.lowConfidenceWords,
       })) as { overallBand: number; summary: string };
       sBand = Number.isFinite(sResult.overallBand) && sResult.overallBand >= 0 ? sResult.overallBand : 0.0;
       sFeedback = sResult.summary || "—";
@@ -326,14 +358,38 @@ export async function POST(req: Request) {
     }),
   ]);
 
+  // Per-question correctness arrays — the inline result view renders the
+  // full "thi thử" answer list immediately without a second fetch.
+  const listeningGrading = listening.questions.map((q) => ({
+    id: q.id,
+    correctAnswer: q.correctAnswer,
+    userAnswer: listening.answers[q.id] ?? "",
+    isCorrect: isAnswerCorrect(listening.answers[q.id], q.correctAnswer, q.type),
+  }));
+  const readingGrading = reading.questions.map((q) => ({
+    id: q.id,
+    correctAnswer: q.correctAnswer,
+    userAnswer: reading.answers[q.id] ?? "",
+    isCorrect: isAnswerCorrect(reading.answers[q.id], q.correctAnswer, q.type),
+  }));
+
   return NextResponse.json({
     attemptId: attempt.id,
     overallBand,
     perSkill: {
-      listening: { band: lBand, correct: lCorrect, total: listening.questions.length },
-      reading: { band: rBand, correct: rCorrect, total: reading.questions.length },
+      listening: { band: lBand, correct: lCorrect, total: listening.questions.length, attempted: lAttempted },
+      reading: { band: rBand, correct: rCorrect, total: reading.questions.length, attempted: rAttempted },
       writing: { band: wBand, feedback: wFeedback },
       speaking: { band: sBand, feedback: sFeedback },
+    },
+    grading: {
+      listening: listeningGrading,
+      reading: readingGrading,
+    },
+    ai: {
+      writing1: task1Result.full,
+      writing2: task2Result.full,
+      speaking: speakingFull,
     },
     summary,
   });

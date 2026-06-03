@@ -3,10 +3,11 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Mic, MicOff, Volume2 } from "lucide-react";
+import { Mic, MicOff, Volume2, Loader2 } from "lucide-react";
 import { formatDuration } from "@/lib/utils";
 import { VoicePicker, useTtsVoice } from "@/components/learn/voice-picker";
-import { playExaminerLine, stopExaminerLine } from "@/lib/tts";
+import { playExaminerLine, stopExaminerLine, primeAudioPlayback } from "@/lib/tts";
+import { startWebSpeech, isWebSpeechSupported, type WebSpeechSession } from "@/lib/web-speech";
 
 const INTRO_TEXT =
   "This is the speaking IELTS test for the International English Language Testing System.";
@@ -22,104 +23,215 @@ type Phase =
   | "part3"
   | "review";
 
+// Per-part recording bundle bubbled back up to MockRunner so the result
+// screen can replay each take and the AI grader gets pronunciation
+// evidence (low-confidence words) instead of only text.
+export interface MockSpeakingRecording {
+  transcript: string;
+  audioUrl: string;
+  lowConfWords: string[];
+}
+
+export type MockSpeakingResult = {
+  1: MockSpeakingRecording;
+  2: MockSpeakingRecording;
+  3: MockSpeakingRecording;
+};
+
 interface Props {
   topic: string;
   imageUrl?: string | null;
   part1Questions: string[];
   part2CueCard: { topic: string; points: string[] };
   part3Questions: string[];
-  onDone: (transcripts: { 1: string; 2: string; 3: string }) => void;
+  onDone: (recordings: MockSpeakingResult) => void;
 }
 
-export function MockSpeaking({ topic, imageUrl, part1Questions, part2CueCard, part3Questions, onDone }: Props) {
+const emptyRecording = (): MockSpeakingRecording => ({
+  transcript: "",
+  audioUrl: "",
+  lowConfWords: [],
+});
+
+export function MockSpeaking({
+  topic,
+  imageUrl,
+  part1Questions,
+  part2CueCard,
+  part3Questions,
+  onDone,
+}: Props) {
   const [phase, setPhase] = useState<Phase>("intro");
   const [questionIdx, setQuestionIdx] = useState(0);
   const [speaking, setSpeaking] = useState(false);
   const [recording, setRecording] = useState(false);
-  const [transcripts, setTranscripts] = useState<{ 1: string; 2: string; 3: string }>({ 1: "", 2: "", 3: "" });
-  const recRef = useRef<unknown>(null);
+  const [transcribing, setTranscribing] = useState(false);
+  const [liveTranscript, setLiveTranscript] = useState("");
+  const [recordings, setRecordings] = useState<MockSpeakingResult>({
+    1: emptyRecording(),
+    2: emptyRecording(),
+    3: emptyRecording(),
+  });
+  const recordingsRef = useRef(recordings);
+  recordingsRef.current = recordings;
+
+  // MediaRecorder + Web Speech state — Web Speech gives us live captions for
+  // free; MediaRecorder gives us the blob we replay on the result screen and
+  // the bytes we send to /api/speaking/transcribe for word-confidence
+  // analysis (used by the IELTS grader's pronunciation rubric).
+  const streamRef = useRef<MediaStream | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const webSpeechRef = useRef<WebSpeechSession | null>(null);
+  const activePartRef = useRef<1 | 2 | 3 | null>(null);
+
   const [part2Remaining, setPart2Remaining] = useState(PART2_PREP_SEC);
   const part2TimerRef = useRef<NodeJS.Timeout | null>(null);
   const [voice, setVoice] = useTtsVoice();
   const voiceRef = useRef(voice);
   voiceRef.current = voice;
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // AbortController tracks the currently-speaking examiner line — flipping
+  // phase, advancing question, or unmounting all abort the previous fetch so
+  // the next prompt starts INSTANTLY instead of stacking on top of a still-
+  // pending Deepgram round-trip. Solves the user's "delay" + "AI vẫn còn
+  // đọc sau khi kết thúc" complaints in one place.
+  const speakAbortRef = useRef<AbortController | null>(null);
 
   const stopSpeak = () => {
+    speakAbortRef.current?.abort();
+    speakAbortRef.current = null;
     stopExaminerLine(audioRef);
     setSpeaking(false);
   };
 
-  /**
-   * Read a prompt aloud. Uses Deepgram via the proxy; if that's unavailable
-   * (missing API key, network failure, …) the helper falls back to the
-   * browser's SpeechSynthesis so the candidate ALWAYS hears the examiner
-   * read each question.
-   */
-  const speak = async (text: string) => {
+  const speak = async (text: string): Promise<void> => {
+    // Always cancel the previous line first so phase/question changes don't
+    // pile up — the user wants the new voice to start IMMEDIATELY after they
+    // hit a button, not after the in-flight one finishes.
+    speakAbortRef.current?.abort();
+    stopExaminerLine(audioRef);
+    const ac = new AbortController();
+    speakAbortRef.current = ac;
     setSpeaking(true);
     try {
-      await playExaminerLine(text, voiceRef.current, audioRef);
+      primeAudioPlayback();
+      await playExaminerLine(text, voiceRef.current, audioRef, ac.signal);
     } finally {
+      if (speakAbortRef.current === ac) speakAbortRef.current = null;
       setSpeaking(false);
     }
   };
 
-  const startRecording = (part: 1 | 2 | 3) => {
-    const W = window as unknown as { SpeechRecognition?: new () => unknown; webkitSpeechRecognition?: new () => unknown };
-    const SR = W.SpeechRecognition || W.webkitSpeechRecognition;
-    if (!SR) {
-      alert("Trình duyệt không hỗ trợ recording. Dùng Chrome desktop nhé.");
-      return;
-    }
-    const r = new (SR as new () => {
-      lang: string;
-      continuous: boolean;
-      interimResults: boolean;
-      onresult: (e: { results: ArrayLike<{ 0: { transcript: string }; isFinal: boolean }>; resultIndex: number }) => void;
-      onerror: (e: unknown) => void;
-      onend: () => void;
-      start: () => void;
-      stop: () => void;
-    })();
-    r.lang = "en-US";
-    r.continuous = true;
-    r.interimResults = true;
-    let final = transcripts[part];
-    r.onresult = (e) => {
-      let interim = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const t = e.results[i][0].transcript;
-        if (e.results[i].isFinal) final += t + " ";
-        else interim += t;
-      }
-      setTranscripts((prev) => ({ ...prev, [part]: (final + interim).trim() }));
-    };
-    r.onerror = () => setRecording(false);
-    r.onend = () => setRecording(false);
-    r.start();
-    recRef.current = r;
-    setRecording(true);
-  };
-
   const stopRecording = () => {
-    if (recRef.current) {
-      (recRef.current as { stop: () => void }).stop();
-      recRef.current = null;
-    }
     setRecording(false);
+    try {
+      if (recorderRef.current && recorderRef.current.state !== "inactive") {
+        recorderRef.current.stop();
+      }
+    } catch {
+      /* ignore */
+    }
+    webSpeechRef.current?.stop();
+    webSpeechRef.current = null;
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
   };
 
-  // Intro flow
+  const startRecording = async (part: 1 | 2 | 3) => {
+    // Cut any examiner voice so it doesn't bleed into the mic.
+    stopSpeak();
+    activePartRef.current = part;
+    setLiveTranscript("");
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const mr = new MediaRecorder(stream);
+      chunksRef.current = [];
+      mr.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      mr.onstop = async () => {
+        const blobType = mr.mimeType || "audio/webm";
+        const blob = new Blob(chunksRef.current, { type: blobType });
+        const audioUrl = blob.size > 0 ? URL.createObjectURL(blob) : "";
+        const browserTranscript = webSpeechRef.current?.getTranscript() ?? "";
+
+        // Strategy: if MediaRecorder bytes are usable, hit Deepgram so we get
+        // word-confidence (powers IELTS Pronunciation grading). Web Speech is
+        // the fallback when Deepgram fails or the blob is too small.
+        let transcript = browserTranscript.trim();
+        let lowConfWords: string[] = [];
+        if (blob.size >= 1200) {
+          setTranscribing(true);
+          try {
+            const res = await fetch("/api/speaking/transcribe", {
+              method: "POST",
+              headers: { "Content-Type": blob.type || "audio/webm" },
+              body: blob,
+            });
+            const data = await res.json();
+            if (res.ok) {
+              const text = (data.transcript ?? "").trim();
+              const words = (data.words ?? []) as { word: string; confidence: number }[];
+              lowConfWords = Array.from(
+                new Set(words.filter((w) => w.confidence < 0.7).map((w) => w.word)),
+              );
+              if (text.length > 0) transcript = text;
+            }
+          } catch (e) {
+            console.warn("[mock/speaking transcribe]", e);
+          } finally {
+            setTranscribing(false);
+          }
+        }
+
+        // Persist the take — even when transcript is empty we still keep the
+        // audioUrl so the user can listen back and the grader sees there was
+        // an attempt at all.
+        setRecordings((prev) => ({
+          ...prev,
+          [part]: { transcript, audioUrl, lowConfWords },
+        }));
+      };
+
+      // Live captions — purely UI candy; the final transcript comes from
+      // Deepgram (or Web Speech fallback in onstop).
+      if (isWebSpeechSupported()) {
+        webSpeechRef.current = startWebSpeech({
+          lang: "en-US",
+          onInterim: (t) => setLiveTranscript(t),
+          onError: (err) => console.warn("[mock/speaking web-speech]", err),
+        });
+      }
+
+      mr.start();
+      recorderRef.current = mr;
+      setRecording(true);
+    } catch (e) {
+      console.error("[mock/speaking getUserMedia]", e);
+      alert(
+        "Không truy cập được micro. Hãy cấp quyền micro cho trình duyệt rồi thử lại.",
+      );
+    }
+  };
+
+  // ============================ AUTO-READ FLOWS ============================
+  // Intro: hand off to part1 the instant the welcome line ends — no padding.
   useEffect(() => {
     if (phase !== "intro") return;
+    let cancelled = false;
     (async () => {
       await speak(INTRO_TEXT);
-      await new Promise((r) => setTimeout(r, 500));
+      if (cancelled) return;
       setPhase("part1");
       setQuestionIdx(0);
     })();
-    return () => stopSpeak();
+    return () => {
+      cancelled = true;
+      stopSpeak();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
@@ -128,9 +240,7 @@ export function MockSpeaking({ topic, imageUrl, part1Questions, part2CueCard, pa
     if (phase !== "part1") return;
     const q = part1Questions[questionIdx];
     if (!q) return;
-    (async () => {
-      await speak(`Question ${questionIdx + 1}. ${q}`);
-    })();
+    void speak(`Question ${questionIdx + 1}. ${q}`);
     return () => stopSpeak();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, questionIdx]);
@@ -161,7 +271,7 @@ export function MockSpeaking({ topic, imageUrl, part1Questions, part2CueCard, pa
     if (phase !== "part2-speak") return;
     setPart2Remaining(PART2_SPEAK_SEC);
     if (part2TimerRef.current) clearInterval(part2TimerRef.current);
-    startRecording(2);
+    void startRecording(2);
     part2TimerRef.current = setInterval(() => {
       setPart2Remaining((r) => {
         if (r <= 1) {
@@ -185,21 +295,34 @@ export function MockSpeaking({ topic, imageUrl, part1Questions, part2CueCard, pa
     if (phase !== "part3") return;
     const q = part3Questions[questionIdx];
     if (!q) return;
-    (async () => {
-      await speak(`Question ${questionIdx + 1}. ${q}`);
-    })();
+    void speak(`Question ${questionIdx + 1}. ${q}`);
     return () => stopSpeak();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, questionIdx]);
+
+  // Belt-and-braces unmount cleanup — solves "AI vẫn còn đọc sau khi kết
+  // thúc bài thi": any in-flight Deepgram fetch, SpeechSynthesis utterance,
+  // MediaRecorder, or open mic dies with this component.
+  useEffect(() => {
+    return () => {
+      speakAbortRef.current?.abort();
+      stopExaminerLine(audioRef);
+      stopRecording();
+      // Don't revoke blob URLs here — MockResultView mounts AFTER and needs
+      // them. The runner-level "exit" path revokes them.
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const nextPart1 = () => {
     stopRecording();
     if (questionIdx + 1 < part1Questions.length) {
       setQuestionIdx(questionIdx + 1);
     } else {
-      stopSpeak();
       (async () => {
-        await speak("Thank you. Now let's move to part 2. I will give you a topic, and you have one minute to prepare. Then you will speak for one to two minutes.");
+        await speak(
+          "Thank you. Now let's move to part 2. I will give you a topic, and you have one minute to prepare. Then you will speak for one to two minutes.",
+        );
         await speak(`The topic is: ${part2CueCard.topic}`);
         setPhase("part2-prep");
       })();
@@ -211,11 +334,12 @@ export function MockSpeaking({ topic, imageUrl, part1Questions, part2CueCard, pa
     if (questionIdx + 1 < part3Questions.length) {
       setQuestionIdx(questionIdx + 1);
     } else {
-      stopSpeak();
-      (async () => {
-        await speak("Thank you. That is the end of the speaking test.");
-        setPhase("review");
-      })();
+      // Don't wait for the closing line to finish — phase changes to review
+      // straight away, and the speak() is aborted by the cleanup so it
+      // doesn't drone on under the review screen. Was the root cause of
+      // "AI vẫn còn đọc sau khi kết thúc bài thi" before this rewrite.
+      void speak("Thank you. That is the end of the speaking test.");
+      setPhase("review");
     }
   };
 
@@ -275,7 +399,11 @@ export function MockSpeaking({ topic, imageUrl, part1Questions, part2CueCard, pa
                 {questionIdx + 1 < part1Questions.length ? "Câu tiếp →" : "Sang Part 2 →"}
               </Button>
             </div>
-            <RecordingIndicator recording={recording} />
+            <RecordingIndicator
+              recording={recording}
+              transcribing={transcribing}
+              liveTranscript={liveTranscript}
+            />
           </CardContent>
         </Card>
       )}
@@ -373,7 +501,11 @@ export function MockSpeaking({ topic, imageUrl, part1Questions, part2CueCard, pa
                 {questionIdx + 1 < part3Questions.length ? "Câu tiếp →" : "Hoàn thành →"}
               </Button>
             </div>
-            <RecordingIndicator recording={recording} />
+            <RecordingIndicator
+              recording={recording}
+              transcribing={transcribing}
+              liveTranscript={liveTranscript}
+            />
           </CardContent>
         </Card>
       )}
@@ -384,11 +516,17 @@ export function MockSpeaking({ topic, imageUrl, part1Questions, part2CueCard, pa
             <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-indigo-100 text-indigo-600">
               <Mic className="h-7 w-7" />
             </div>
-            <h3 className="text-xl font-bold">Đã xong phần Speaking 🎉</h3>
+            <h3 className="text-xl font-bold">Đã xong phần Speaking</h3>
             <p className="text-sm text-muted-foreground">
-              Bài nói của bạn đã được ghi lại. AI giám khảo sẽ chấm điểm — bạn không xem transcript của mình theo chuẩn IELTS thi thật.
+              AI sẽ chấm 4 tiêu chí IELTS (Fluency, Lexical, Grammar, Pronunciation) và bạn
+              được nghe lại audio + đọc nhận xét từng phần ở màn kết quả.
             </p>
-            <Button onClick={() => onDone(transcripts)} variant="brand" size="lg" className="w-full rounded-full">
+            <Button
+              onClick={() => onDone(recordingsRef.current)}
+              variant="brand"
+              size="lg"
+              className="w-full rounded-full"
+            >
               Nộp & chấm điểm →
             </Button>
           </CardContent>
@@ -398,14 +536,38 @@ export function MockSpeaking({ topic, imageUrl, part1Questions, part2CueCard, pa
   );
 }
 
-/** Recording indicator — replaces the transcript textarea in mock mode. */
-function RecordingIndicator({ recording }: { recording: boolean }) {
+/** Recording indicator with optional live transcript captions. */
+function RecordingIndicator({
+  recording,
+  transcribing,
+  liveTranscript,
+}: {
+  recording: boolean;
+  transcribing: boolean;
+  liveTranscript: string;
+}) {
   return (
-    <div className="flex items-center justify-center gap-2 rounded-lg border bg-muted/30 p-3">
-      <div className={`h-2.5 w-2.5 rounded-full ${recording ? "bg-red-500 animate-pulse" : "bg-zinc-400"}`} />
-      <span className="text-sm text-muted-foreground">
-        {recording ? "Đang ghi âm — cứ nói thoải mái, AI sẽ chấm sau." : "Mic chưa bật. Bấm 'Bắt đầu trả lời' để ghi."}
-      </span>
+    <div className="space-y-2">
+      <div className="flex items-center justify-center gap-2 rounded-lg border bg-muted/30 p-3">
+        {transcribing ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            <span className="text-sm text-muted-foreground">Đang chuyển giọng nói thành văn bản...</span>
+          </>
+        ) : (
+          <>
+            <div className={`h-2.5 w-2.5 rounded-full ${recording ? "bg-red-500 animate-pulse" : "bg-zinc-400"}`} />
+            <span className="text-sm text-muted-foreground">
+              {recording ? "Đang ghi âm — cứ nói thoải mái, AI sẽ chấm sau." : "Mic chưa bật. Bấm 'Bắt đầu trả lời' để ghi."}
+            </span>
+          </>
+        )}
+      </div>
+      {recording && liveTranscript && (
+        <div className="rounded-lg border-2 border-sky-200 bg-sky-50 dark:bg-sky-950/20 dark:border-sky-900 p-3 text-sm italic text-sky-900 dark:text-sky-100">
+          {liveTranscript}
+        </div>
+      )}
     </div>
   );
 }
