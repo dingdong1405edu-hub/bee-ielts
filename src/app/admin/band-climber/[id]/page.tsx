@@ -67,6 +67,7 @@ export default async function EditBandStagePage({
         options: qq.options as { label: string; imageUrl?: string }[],
         correctIndex: qq.correctIndex,
         explanation: qq.explanation ?? "",
+        cueCardPoints: (qq.cueCardPoints as string[] | null) ?? [],
       })),
       deleteEndpoint: `/api/admin/mini-quizzes/${q.id}`,
     }));

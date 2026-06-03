@@ -52,6 +52,7 @@ interface QuizItem {
     options: { label: string; imageUrl?: string }[];
     correctIndex: number;
     explanation?: string;
+    cueCardPoints?: string[];
   }[];
   deleteEndpoint: string;
 }
@@ -128,6 +129,7 @@ export function SkillHubsClient({
                     options: q.options,
                     correctIndex: q.correctIndex,
                     explanation: q.explanation ?? "",
+                    cueCardPoints: q.cueCardPoints ?? [],
                   })),
                 }
               : undefined
@@ -278,6 +280,7 @@ function QuizModal({
       options: { label: string; imageUrl?: string }[];
       correctIndex: number;
       explanation?: string;
+      cueCardPoints?: string[];
     }[];
   };
   defaultSkill?: Skill;

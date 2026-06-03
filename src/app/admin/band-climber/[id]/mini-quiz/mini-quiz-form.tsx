@@ -29,6 +29,10 @@ interface QuestionDraft {
   // For SPEAKING the field doubles as guidance for the inline pronunciation
   // grader prompt (e.g. "target band 6.0, focus on past tense").
   explanation?: string;
+  // IELTS Speaking Part-2 cue card bullets. Only SPEAKING questions can
+  // have these; non-empty flips the player to Part-2 flow (1 min prep +
+  // 2 min speak with auto-recording).
+  cueCardPoints?: string[];
 }
 interface VocabItemDraft {
   term: string;
@@ -59,7 +63,15 @@ const blankQuestion = (type: QType = "TEXT_CHOICE"): QuestionDraft => {
   if (type === "SPEAKING") {
     // SPEAKING needs no options — learner records themselves answering the
     // prompt. correctIndex stays 0 as a no-op placeholder.
-    return { type, prompt: "", audioUrl: "", options: [], correctIndex: 0, explanation: "" };
+    return {
+      type,
+      prompt: "",
+      audioUrl: "",
+      options: [],
+      correctIndex: 0,
+      explanation: "",
+      cueCardPoints: [],
+    };
   }
   return {
     type,
@@ -139,6 +151,38 @@ export function MiniQuizForm({
       ),
     );
   };
+  const addCuePoint = (qIdx: number) => {
+    setQuestions((q) =>
+      q.map((qq, i) =>
+        i === qIdx
+          ? { ...qq, cueCardPoints: [...(qq.cueCardPoints ?? []), ""] }
+          : qq,
+      ),
+    );
+  };
+  const updateCuePoint = (qIdx: number, pIdx: number, value: string) => {
+    setQuestions((q) =>
+      q.map((qq, i) => {
+        if (i !== qIdx) return qq;
+        const next = [...(qq.cueCardPoints ?? [])];
+        next[pIdx] = value;
+        return { ...qq, cueCardPoints: next };
+      }),
+    );
+  };
+  const removeCuePoint = (qIdx: number, pIdx: number) => {
+    setQuestions((q) =>
+      q.map((qq, i) =>
+        i === qIdx
+          ? {
+              ...qq,
+              cueCardPoints: (qq.cueCardPoints ?? []).filter((_, j) => j !== pIdx),
+            }
+          : qq,
+      ),
+    );
+  };
+
   const removeOption = (qIdx: number, oIdx: number) => {
     setQuestions((q) =>
       q.map((qq, i) => {
@@ -219,6 +263,14 @@ export function MiniQuizForm({
           })),
           correctIndex: q.correctIndex,
           explanation: q.explanation?.trim() || undefined,
+          // Strip empty rows so a half-filled Part-2 cue card doesn't leak
+          // empty bullets into the player.
+          cueCardPoints:
+            q.type === "SPEAKING"
+              ? (q.cueCardPoints ?? [])
+                  .map((p) => p.trim())
+                  .filter(Boolean)
+              : undefined,
         })),
       };
       const endpoint =
@@ -415,16 +467,71 @@ export function MiniQuizForm({
               </label>
 
               {q.type === "SPEAKING" ? (
-                <div className="rounded-xl border-2 border-indigo-200 bg-indigo-50/30 p-3 text-sm text-indigo-900">
-                  <div className="font-bold text-indigo-700 inline-flex items-center gap-1.5">
-                    <Mic className="h-4 w-4" /> Dạng ghi âm
+                <>
+                  <div className="rounded-xl border-2 border-indigo-200 bg-indigo-50/30 p-3 text-sm text-indigo-900">
+                    <div className="font-bold text-indigo-700 inline-flex items-center gap-1.5">
+                      <Mic className="h-4 w-4" /> Dạng ghi âm
+                    </div>
+                    <p className="text-xs text-indigo-700 mt-1">
+                      User ghi âm trả lời — AI sẽ chấm pronunciation + grammar ngay sau khi user
+                      nói xong. Khi kết thúc cả quiz, user nghe lại được audio từng câu và được
+                      chấm điểm tổng IELTS y chang phần Speaking luyện tập.
+                    </p>
                   </div>
-                  <p className="text-xs text-indigo-700 mt-1">
-                    User ghi âm trả lời — AI sẽ chấm pronunciation + grammar ngay sau khi user
-                    nói xong. Khi kết thúc cả quiz, user nghe lại được audio từng câu và được
-                    chấm điểm tổng IELTS y chang phần Speaking luyện tập.
-                  </p>
-                </div>
+                  {/* Optional IELTS Part-2 cue card. Bullet points filled = the
+                      player runs the 1-min-prep + 2-min-speak Part 2 flow on
+                      this question; bullets empty = standard Part 1/3 record
+                      flow. */}
+                  <div className="rounded-xl border-2 border-violet-200 bg-violet-50/30 dark:bg-violet-950/20 p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="font-bold text-violet-700 dark:text-violet-300 inline-flex items-center gap-1.5">
+                        <Sparkles className="h-4 w-4" /> Speaking Part 2 — Cue card (tùy chọn)
+                      </div>
+                      <span className="text-[10px] text-violet-600 dark:text-violet-400">
+                        {(q.cueCardPoints?.length ?? 0) > 0
+                          ? `Đã bật — ${q.cueCardPoints?.length} gạch đầu dòng`
+                          : "Để trống = Part 1/3 thường"}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-violet-700 dark:text-violet-400 leading-snug">
+                      Thêm các bullet "You should say" — khi user vào quiz sẽ có{" "}
+                      <strong>1 phút chuẩn bị</strong> rồi <strong>2 phút nói tự động ghi âm</strong>{" "}
+                      y chang Speaking Part 2 luyện tập. AI vẫn chấm theo 4 tiêu chí IELTS như câu
+                      Speaking thường.
+                    </p>
+                    {(q.cueCardPoints ?? []).map((point, pIdx) => (
+                      <div key={pIdx} className="flex items-center gap-2">
+                        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-violet-500 text-white text-xs font-bold">
+                          {pIdx + 1}
+                        </span>
+                        <Input
+                          value={point}
+                          onChange={(e) => updateCuePoint(idx, pIdx, e.target.value)}
+                          placeholder="VD: When it happened"
+                        />
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-rose-600 shrink-0"
+                          onClick={() => removeCuePoint(idx, pIdx)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                    {(q.cueCardPoints?.length ?? 0) < 6 && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="border-violet-300 text-violet-700 hover:bg-violet-100"
+                        onClick={() => addCuePoint(idx)}
+                      >
+                        <Plus className="h-3 w-3" /> Thêm gạch đầu dòng
+                      </Button>
+                    )}
+                  </div>
+                </>
               ) : q.type === "FILL_BLANK" ? (
                 <FillBlankAnswers
                   options={q.options}

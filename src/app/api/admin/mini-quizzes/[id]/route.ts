@@ -17,6 +17,7 @@ const questionSchema = z
     options: z.array(optionSchema).max(8).default([]),
     correctIndex: z.number().int().min(0).default(0),
     explanation: z.string().max(1200).optional().or(z.literal("")),
+    cueCardPoints: z.array(z.string().min(1).max(200)).max(6).optional(),
   })
   .refine(
     (q) =>
@@ -98,6 +99,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
           correctIndex: q.correctIndex,
           order: i,
           explanation: q.explanation ? q.explanation : null,
+          // undefined keeps the column null (and lets createMany handle the
+          // Json type the same way the create() call above does).
+          cueCardPoints:
+            q.type === "SPEAKING" && q.cueCardPoints && q.cueCardPoints.length > 0
+              ? q.cueCardPoints
+              : undefined,
         })),
       });
     }

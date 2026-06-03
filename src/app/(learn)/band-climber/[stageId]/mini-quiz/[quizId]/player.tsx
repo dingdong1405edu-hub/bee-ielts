@@ -35,6 +35,10 @@ interface Q {
   // the learner checks; null = no row. For SPEAKING this string is passed
   // to the inline AI grader as a focus hint.
   explanation?: string | null;
+  // IELTS Speaking Part-2 cue card bullets. SPEAKING only — when present
+  // the player swaps the standard record-an-answer UI for the Part-2
+  // flow (60s prep + 120s auto-recording timed speech).
+  cueCardPoints?: string[] | null;
 }
 
 export interface VocabPackItem {
@@ -194,7 +198,14 @@ export function MiniQuizPlayer({
       const rec = recordings.get(q.id);
       if (rec && rec.transcript.trim().length > 0) {
         const questionId = q.id;
-        const prompt = q.prompt;
+        // For Part-2 cue-card questions, prepend the cue-card structure to
+        // the prompt + admin hint so the AI grader knows this was a 2-min
+        // monologue, not a single Part-1-style answer. Otherwise the grader
+        // judges fluency at the wrong scale.
+        const isPart2 = !!q.cueCardPoints && q.cueCardPoints.length > 0;
+        const prompt = isPart2
+          ? `IELTS Speaking Part 2 — Cue card.\nTopic: ${q.prompt}\nYou should say:\n${q.cueCardPoints!.map((p) => `- ${p}`).join("\n")}\n\nThe candidate spoke for up to 2 minutes.`
+          : q.prompt;
         const hint = q.explanation ?? "";
         setQGrade((m) => new Map(m).set(questionId, "loading"));
         void (async () => {
@@ -447,33 +458,65 @@ export function MiniQuizPlayer({
 
         {q.type === "SPEAKING" ? (
           <>
-            <SpeakingQuestion
-              key={q.id}
-              locked={verdict !== "none"}
-              transcript={speakingTranscript}
-              onRecorded={(rec) => {
-                setSpeakingTranscript(rec.transcript);
-                setRecordings((m) => {
-                  const next = new Map(m);
-                  next.set(q.id, rec);
-                  return next;
-                });
-              }}
-              onReset={() => {
-                setSpeakingTranscript("");
-                setRecordings((m) => {
-                  const next = new Map(m);
-                  next.delete(q.id);
-                  return next;
-                });
-                setQGrade((m) => {
-                  const next = new Map(m);
-                  next.delete(q.id);
-                  return next;
-                });
-              }}
-              onBeforeRecord={() => stopExaminerLine(examinerAudioRef)}
-            />
+            {q.cueCardPoints && q.cueCardPoints.length > 0 ? (
+              <SpeakingPart2Question
+                key={q.id}
+                locked={verdict !== "none"}
+                transcript={speakingTranscript}
+                cueCardTopic={q.prompt}
+                cueCardPoints={q.cueCardPoints}
+                onRecorded={(rec) => {
+                  setSpeakingTranscript(rec.transcript);
+                  setRecordings((m) => {
+                    const next = new Map(m);
+                    next.set(q.id, rec);
+                    return next;
+                  });
+                }}
+                onReset={() => {
+                  setSpeakingTranscript("");
+                  setRecordings((m) => {
+                    const next = new Map(m);
+                    next.delete(q.id);
+                    return next;
+                  });
+                  setQGrade((m) => {
+                    const next = new Map(m);
+                    next.delete(q.id);
+                    return next;
+                  });
+                }}
+                onBeforeRecord={() => stopExaminerLine(examinerAudioRef)}
+              />
+            ) : (
+              <SpeakingQuestion
+                key={q.id}
+                locked={verdict !== "none"}
+                transcript={speakingTranscript}
+                onRecorded={(rec) => {
+                  setSpeakingTranscript(rec.transcript);
+                  setRecordings((m) => {
+                    const next = new Map(m);
+                    next.set(q.id, rec);
+                    return next;
+                  });
+                }}
+                onReset={() => {
+                  setSpeakingTranscript("");
+                  setRecordings((m) => {
+                    const next = new Map(m);
+                    next.delete(q.id);
+                    return next;
+                  });
+                  setQGrade((m) => {
+                    const next = new Map(m);
+                    next.delete(q.id);
+                    return next;
+                  });
+                }}
+                onBeforeRecord={() => stopExaminerLine(examinerAudioRef)}
+              />
+            )}
             {/* Inline per-question grading card — shows once the user has
                 hit "Hoàn thành" so they get pronunciation/grammar fixes
                 BEFORE moving to the next question. */}
@@ -1238,6 +1281,326 @@ function SpeakingQuestion({
 }
 
 /**
+ * IELTS Speaking Part-2 cue-card variant of SpeakingQuestion. Shows the
+ * cue card topic + bullet points, runs a 60s preparation countdown
+ * (skippable), then auto-starts MediaRecorder + a 120s speaking timer.
+ * When the speak timer ends (or the candidate taps "Dừng sớm") the
+ * recorder stops, the blob is sent to /api/speaking/transcribe for
+ * Deepgram word-confidence, and onRecorded fires with the same shape
+ * SpeakingQuestion uses — so the parent's grading flow doesn't have to
+ * branch.
+ */
+const PART2_PREP_SEC = 60;
+const PART2_SPEAK_SEC = 120;
+
+function SpeakingPart2Question({
+  locked,
+  transcript,
+  cueCardTopic,
+  cueCardPoints,
+  onRecorded,
+  onReset,
+  onBeforeRecord,
+}: {
+  locked: boolean;
+  transcript: string;
+  cueCardTopic: string;
+  cueCardPoints: string[];
+  onRecorded: (rec: { audioUrl: string; transcript: string; lowConfWords: string[] }) => void;
+  onReset: () => void;
+  onBeforeRecord?: () => void;
+}) {
+  type Phase = "prep" | "speak" | "transcribing" | "done";
+  const [phase, setPhase] = useState<Phase>("prep");
+  const [prepRemaining, setPrepRemaining] = useState(PART2_PREP_SEC);
+  const [speakRemaining, setSpeakRemaining] = useState(PART2_SPEAK_SEC);
+  const [liveTranscript, setLiveTranscript] = useState("");
+  const [permError, setPermError] = useState<string | null>(null);
+
+  const streamRef = useRef<MediaStream | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const webSpeechRef = useRef<WebSpeechSession | null>(null);
+  const prepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const speakTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const cleanupAudio = () => {
+    if (speakTimerRef.current) clearInterval(speakTimerRef.current);
+    speakTimerRef.current = null;
+    webSpeechRef.current?.stop();
+    webSpeechRef.current = null;
+    try {
+      if (recorderRef.current && recorderRef.current.state !== "inactive") {
+        recorderRef.current.stop();
+      }
+    } catch {
+      /* ignore */
+    }
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+  };
+
+  // Belt-and-braces cleanup so navigating away mid-Part-2 kills the mic
+  // indicator + timers.
+  useEffect(() => {
+    return () => {
+      if (prepTimerRef.current) clearInterval(prepTimerRef.current);
+      cleanupAudio();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Prep timer — runs while phase === "prep", auto-advances to "speak".
+  useEffect(() => {
+    if (phase !== "prep") return;
+    setPrepRemaining(PART2_PREP_SEC);
+    if (prepTimerRef.current) clearInterval(prepTimerRef.current);
+    prepTimerRef.current = setInterval(() => {
+      setPrepRemaining((r) => {
+        if (r <= 1) {
+          if (prepTimerRef.current) clearInterval(prepTimerRef.current);
+          setPhase("speak");
+          return 0;
+        }
+        return r - 1;
+      });
+    }, 1000);
+    return () => {
+      if (prepTimerRef.current) clearInterval(prepTimerRef.current);
+    };
+  }, [phase]);
+
+  // Speak phase — auto-start mic + 120s countdown. Mic stop triggers the
+  // transcribe → onRecorded chain.
+  useEffect(() => {
+    if (phase !== "speak") return;
+    let cancelled = false;
+    (async () => {
+      onBeforeRecord?.();
+      setPermError(null);
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        streamRef.current = stream;
+        const mr = new MediaRecorder(stream);
+        chunksRef.current = [];
+        mr.ondataavailable = (e) => {
+          if (e.data.size > 0) chunksRef.current.push(e.data);
+        };
+        mr.onstop = async () => {
+          const blobType = mr.mimeType || "audio/webm";
+          const blob = new Blob(chunksRef.current, { type: blobType });
+          const audioUrl = blob.size > 0 ? URL.createObjectURL(blob) : "";
+          const browserTranscript = webSpeechRef.current?.getTranscript() ?? "";
+          webSpeechRef.current?.stop();
+          webSpeechRef.current = null;
+
+          let finalTranscript = browserTranscript.trim();
+          let lowConfWords: string[] = [];
+          if (blob.size >= 1200) {
+            setPhase("transcribing");
+            try {
+              const res = await fetch("/api/speaking/transcribe", {
+                method: "POST",
+                headers: { "Content-Type": blob.type || "audio/webm" },
+                body: blob,
+              });
+              const data = await res.json();
+              if (res.ok) {
+                const text = (data.transcript ?? "").trim();
+                if (text.length > 0) finalTranscript = text;
+                const words = (data.words ?? []) as { word: string; confidence: number }[];
+                lowConfWords = Array.from(
+                  new Set(words.filter((w) => w.confidence < 0.7).map((w) => w.word)),
+                );
+              }
+            } catch (e) {
+              console.warn("[mini-quiz/part2 transcribe]", e);
+            }
+          }
+          onRecorded({ audioUrl, transcript: finalTranscript, lowConfWords });
+          setPhase("done");
+        };
+
+        if (isWebSpeechSupported()) {
+          webSpeechRef.current = startWebSpeech({
+            lang: "en-US",
+            onInterim: (t) => setLiveTranscript(t),
+            onError: (err) => console.warn("[mini-quiz/part2 web-speech]", err),
+          });
+        }
+
+        mr.start();
+        recorderRef.current = mr;
+        setSpeakRemaining(PART2_SPEAK_SEC);
+        if (speakTimerRef.current) clearInterval(speakTimerRef.current);
+        speakTimerRef.current = setInterval(() => {
+          setSpeakRemaining((r) => {
+            if (r <= 1) {
+              if (speakTimerRef.current) clearInterval(speakTimerRef.current);
+              try {
+                if (recorderRef.current && recorderRef.current.state !== "inactive") {
+                  recorderRef.current.stop();
+                }
+              } catch {
+                /* ignore */
+              }
+              return 0;
+            }
+            return r - 1;
+          });
+        }, 1000);
+      } catch (e) {
+        console.error("[mini-quiz/part2 getUserMedia]", e);
+        setPermError(
+          "Không truy cập được micro. Hãy cấp quyền micro trong trình duyệt rồi tải lại trang.",
+        );
+      }
+    })();
+    return () => {
+      cancelled = true;
+      cleanupAudio();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
+  const skipPrep = () => {
+    if (prepTimerRef.current) clearInterval(prepTimerRef.current);
+    setPhase("speak");
+  };
+  const stopSpeakEarly = () => {
+    if (speakTimerRef.current) clearInterval(speakTimerRef.current);
+    try {
+      if (recorderRef.current && recorderRef.current.state !== "inactive") {
+        recorderRef.current.stop();
+      }
+    } catch {
+      /* ignore */
+    }
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+  };
+  const restart = () => {
+    onReset();
+    setLiveTranscript("");
+    setPhase("prep");
+  };
+
+  return (
+    <div className="w-full max-w-2xl space-y-3">
+      {/* Cue card — always visible across prep/speak/done so the candidate
+          can keep the bullets in sight while talking. */}
+      <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-4 space-y-2">
+        <div className="text-[10px] font-extrabold uppercase tracking-widest text-amber-700 dark:text-amber-300">
+          IELTS Speaking · Part 2 · Cue card
+        </div>
+        <div className="font-extrabold text-lg leading-snug">{cueCardTopic}</div>
+        <div className="text-xs font-bold text-amber-700 dark:text-amber-300">You should say:</div>
+        <ul className="list-disc pl-5 text-sm space-y-0.5">
+          {cueCardPoints.map((p, i) => (
+            <li key={i}>{p}</li>
+          ))}
+        </ul>
+      </div>
+
+      {phase === "prep" && (
+        <div className="rounded-2xl border-2 border-indigo-200 bg-indigo-50 dark:bg-indigo-950/20 dark:border-indigo-900 p-4 text-center space-y-2">
+          <div className="text-[10px] font-extrabold uppercase tracking-widest text-indigo-700 dark:text-indigo-300">
+            Chuẩn bị (1 phút)
+          </div>
+          <div className="text-4xl font-extrabold tabular-nums">
+            {formatDuration(prepRemaining)}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Suy nghĩ ý + dàn bài. Có thể bỏ qua nếu đã sẵn sàng.
+          </p>
+          <button
+            type="button"
+            onClick={skipPrep}
+            disabled={locked}
+            className="inline-flex items-center gap-1.5 rounded-full bg-indigo-500 hover:bg-indigo-600 px-5 py-2 text-white font-bold text-sm shadow disabled:opacity-50"
+          >
+            <Mic className="h-4 w-4" /> Bỏ qua, nói luôn →
+          </button>
+        </div>
+      )}
+
+      {phase === "speak" && (
+        <div className="rounded-2xl border-2 border-rose-300 bg-rose-50 dark:bg-rose-950/20 dark:border-rose-900 p-4 space-y-2 text-center">
+          <div className="text-[10px] font-extrabold uppercase tracking-widest text-rose-700 dark:text-rose-300">
+            Đang nói (tối đa 2 phút)
+          </div>
+          <div className="text-4xl font-extrabold tabular-nums">
+            {formatDuration(speakRemaining)}
+          </div>
+          <div className="flex items-center justify-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+            <span className="text-sm text-rose-700 dark:text-rose-200 font-semibold">
+              Đang ghi âm — cứ nói tự nhiên
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={stopSpeakEarly}
+            className="inline-flex items-center gap-1.5 rounded-full bg-rose-500 hover:bg-rose-600 px-5 py-2 text-white font-bold text-sm shadow"
+          >
+            <Square className="h-4 w-4 fill-current" /> Dừng sớm
+          </button>
+          {liveTranscript && (
+            <div className="rounded-xl border-2 border-sky-200 bg-sky-50 dark:bg-sky-950/20 dark:border-sky-900 p-3 text-left">
+              <div className="text-[10px] font-extrabold uppercase tracking-wider text-sky-600 mb-1">
+                Bạn đang nói (live)
+              </div>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap text-sky-900 dark:text-sky-100">
+                {liveTranscript}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {phase === "transcribing" && (
+        <div className="flex items-center justify-center gap-2 rounded-2xl border-2 border-indigo-200 bg-indigo-50 dark:bg-indigo-950/20 dark:border-indigo-900 p-4">
+          <Loader2 className="h-5 w-5 animate-spin text-indigo-600" />
+          <span className="text-sm font-semibold text-indigo-700 dark:text-indigo-200">
+            Đang chuyển giọng nói thành văn bản...
+          </span>
+        </div>
+      )}
+
+      {phase === "done" && transcript && (
+        <div className="rounded-2xl border-2 border-emerald-300 bg-emerald-50 dark:bg-emerald-950/20 dark:border-emerald-900 p-4">
+          <div className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-600 mb-1 inline-flex items-center gap-1">
+            <Check className="h-3.5 w-3.5" /> Bạn đã nói
+          </div>
+          <p className="text-sm leading-relaxed whitespace-pre-wrap text-emerald-900 dark:text-emerald-100">
+            {transcript}
+          </p>
+          {!locked && (
+            <button
+              type="button"
+              onClick={restart}
+              className="mt-2 inline-flex items-center gap-1 rounded-full border border-emerald-400 px-3 py-1 text-xs font-bold text-emerald-700 hover:bg-emerald-100"
+            >
+              <Mic className="h-3 w-3" /> Làm lại Part 2
+            </button>
+          )}
+        </div>
+      )}
+
+      {permError && (
+        <div className="rounded-xl border-2 border-rose-300 bg-rose-50 dark:bg-rose-950/20 p-3 text-sm text-rose-800 dark:text-rose-200">
+          {permError}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
  * "Nghe lại đề" button for SPEAKING questions — calls /api/speaking/tts
  * (which proxies to the user's Aurora endpoint) with the prompt text and
  * plays the result via the shared examiner AudioContext path. Same audio
@@ -1648,13 +2011,16 @@ function SpeakingQuizSummary({
     const answers = questions
       .map((qq) => {
         const rec = recordings.get(qq.id);
-        return rec
-          ? {
-              question: qq.prompt,
-              transcript: rec.transcript,
-              lowConfidenceWords: rec.lowConfWords,
-            }
-          : null;
+        if (!rec) return null;
+        const isPart2 = !!qq.cueCardPoints && qq.cueCardPoints.length > 0;
+        const question = isPart2
+          ? `[Part 2 cue card] ${qq.prompt} — Points: ${qq.cueCardPoints!.join("; ")}`
+          : qq.prompt;
+        return {
+          question,
+          transcript: rec.transcript,
+          lowConfidenceWords: rec.lowConfWords,
+        };
       })
       .filter((a): a is { question: string; transcript: string; lowConfidenceWords: string[] } => a !== null);
     if (answers.length === 0) {

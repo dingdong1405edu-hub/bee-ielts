@@ -213,6 +213,14 @@ model MiniQuestion {
   // explanation rendered.
   explanation  String?  @db.Text
 
+  // IELTS Speaking Part-2 cue card bullets. JSON array of strings:
+  //   ["What it is", "Where it happened", "How you felt"]
+  // Only meaningful for SPEAKING-type questions. When non-empty the player
+  // runs the IELTS Part-2 flow (1 minute prep + 2 minute speak with auto
+  // recording) instead of the plain "record an answer" flow. Empty / null
+  // = regular Part-1/3 style question.
+  cueCardPoints Json?
+
   @@index([miniQuizId])
 }
 

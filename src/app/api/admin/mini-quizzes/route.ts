@@ -24,6 +24,10 @@ const questionSchema = z
     // learner answers — explains why the correct option is right + why
     // distractors are wrong. Empty / undefined = no explanation row.
     explanation: z.string().max(1200).optional().or(z.literal("")),
+    // IELTS Speaking Part-2 cue-card bullets. Only meaningful for SPEAKING
+    // questions; switches the player to Part-2 flow (prep + timed speak)
+    // when present + non-empty.
+    cueCardPoints: z.array(z.string().min(1).max(200)).max(6).optional(),
   })
   .refine(
     (q) =>
@@ -125,6 +129,10 @@ export async function POST(req: Request) {
             correctIndex: q.correctIndex,
             order: i,
             explanation: q.explanation ? q.explanation : null,
+            cueCardPoints:
+              q.type === "SPEAKING" && q.cueCardPoints && q.cueCardPoints.length > 0
+                ? q.cueCardPoints
+                : undefined,
           })),
         },
       },

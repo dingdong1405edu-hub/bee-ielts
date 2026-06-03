@@ -77,18 +77,25 @@ export default async function MiniQuizPage({
       quiz={{
         id: quiz.id,
         title: quiz.title,
-        questions: quiz.questions.map((q) => ({
-          id: q.id,
-          type: q.type as "IMAGE_CHOICE" | "TEXT_CHOICE" | "FILL_BLANK" | "SPEAKING",
-          prompt: q.prompt,
-          audioUrl: q.audioUrl,
-          options: q.options as { label: string; imageUrl?: string }[],
-          correctIndex: q.correctIndex,
-          // Admin-authored explanation. Player surfaces it in the verdict
-          // bar after the learner checks each non-SPEAKING question. For
-          // SPEAKING it's forwarded to the inline grader as a focus hint.
-          explanation: q.explanation ?? null,
-        })),
+        questions: quiz.questions.map((q) => {
+          const raw = q.cueCardPoints as string[] | null;
+          return {
+            id: q.id,
+            type: q.type as "IMAGE_CHOICE" | "TEXT_CHOICE" | "FILL_BLANK" | "SPEAKING",
+            prompt: q.prompt,
+            audioUrl: q.audioUrl,
+            options: q.options as { label: string; imageUrl?: string }[],
+            correctIndex: q.correctIndex,
+            // Admin-authored explanation. Player surfaces it in the verdict
+            // bar after the learner checks each non-SPEAKING question. For
+            // SPEAKING it's forwarded to the inline grader as a focus hint.
+            explanation: q.explanation ?? null,
+            // Part-2 cue card bullets. Non-empty = player flips to IELTS
+            // Part-2 flow (prep timer + auto-recording).
+            cueCardPoints:
+              Array.isArray(raw) && raw.length > 0 ? raw : null,
+          };
+        }),
       }}
     />
   );
