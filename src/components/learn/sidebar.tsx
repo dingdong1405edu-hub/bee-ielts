@@ -29,24 +29,18 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(href + "/");
 }
 
-// Pages where the learner has navigated INTO a specific lesson/test/stage —
-// here we hide the chrome by default so they can focus on the exercise.
-// Top-level list pages (e.g. /vocab, /reading) stay expanded.
-const LEARN_ROOTS = new Set([
-  "band-climber",
-  "vocab",
-  "grammar",
-  "reading",
-  "listening",
-  "writing",
-  "speaking",
-  "words",
-  "mock",
-]);
-function isDeepLearnRoute(pathname: string): boolean {
-  const segs = pathname.split("/").filter(Boolean);
-  if (segs.length < 2) return false;
-  return LEARN_ROOTS.has(segs[0]);
+// Default behaviour: rail is COLLAPSED on every learn-layout page so the
+// main content gets full width. Hover (or click → pin) brings the full
+// nav back. Users who prefer a permanent sidebar pin it open and the
+// preference persists via PIN_STORAGE_KEY.
+//
+// Was previously gated by isDeepLearnRoute() — only deep lesson pages
+// collapsed, shallow pages like /dashboard kept the 256px sidebar open.
+// That left the dashboard's right-hand cards (Lịch thi / Lịch học) sitting
+// behind the sidebar at narrow widths; collapsing by default everywhere
+// fixes the overlap without forcing per-page tweaks.
+function shouldAutoCollapse(_pathname: string): boolean {
+  return true;
 }
 
 const PIN_STORAGE_KEY = "bee-sidebar-pinned-v1";
@@ -57,7 +51,7 @@ export function Sidebar({ isAdmin }: { isAdmin?: boolean }) {
   // the left panel blends with the page instead of staying dark.
   const community = pathname === "/community" || pathname.startsWith("/community/");
 
-  const autoCollapse = useMemo(() => isDeepLearnRoute(pathname), [pathname]);
+  const autoCollapse = useMemo(() => shouldAutoCollapse(pathname), [pathname]);
 
   // Three-way state for sidebar visibility:
   //   null  → follow auto rule (deep learn route = rail, else = full)
