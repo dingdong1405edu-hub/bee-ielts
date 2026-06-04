@@ -287,33 +287,34 @@ function QuizModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  // Full-screen editor — admins asked for the form to take the whole
+  // viewport so the long question list has room to breathe. The backdrop
+  // click-to-close + max-width-4xl card pattern was useful while the form
+  // was short, but it caps the working area unnecessarily once questions
+  // start to scroll. We keep the gradient hero strip + X button so the
+  // close action is still obvious (no backdrop = clicking outside no
+  // longer dismisses).
   return (
-    <div
-      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-6"
-      onClick={onClose}
-    >
-      <div
-        className="relative bg-card w-full sm:max-w-4xl max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="sticky top-0 z-10 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white px-5 py-4 flex items-center justify-between rounded-t-3xl">
-          <div className="min-w-0">
-            <div className="text-[10px] uppercase tracking-widest opacity-80 font-bold">
-              {mode === "create" ? "Tạo Quiz mới" : "Sửa Quiz"} ·{" "}
-              {stage.fromBand} → {stage.toBand}
-            </div>
-            <h2 className="font-extrabold text-lg leading-tight truncate">{stage.title}</h2>
+    <div className="fixed inset-0 z-50 bg-background flex flex-col">
+      <div className="sticky top-0 z-10 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white px-5 md:px-8 py-4 flex items-center justify-between">
+        <div className="min-w-0">
+          <div className="text-[10px] uppercase tracking-widest opacity-80 font-bold">
+            {mode === "create" ? "Tạo Quiz mới" : "Sửa Quiz"} ·{" "}
+            {stage.fromBand} → {stage.toBand}
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/20 hover:bg-white/30 text-white"
-            aria-label="Đóng"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <h2 className="font-extrabold text-lg leading-tight truncate">{stage.title}</h2>
         </div>
-        <div className="p-5">
+        <button
+          type="button"
+          onClick={onClose}
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/20 hover:bg-white/30 text-white"
+          aria-label="Đóng"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-5xl mx-auto p-5 md:p-8">
           <MiniQuizForm
             stage={stage}
             mode={mode}
