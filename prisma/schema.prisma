@@ -23,6 +23,14 @@ enum PremiumRequestStatus {
   REJECTED
 }
 
+/// What a coupon redemption gives the learner. PREMIUM flips isPremium
+/// to true; XP and HEARTS add a numeric reward to the User row.
+enum CouponRewardKind {
+  PREMIUM
+  XP
+  HEARTS
+}
+
 enum CEFRLevel {
   A1
   A2
@@ -106,6 +114,7 @@ model User {
   mockAttempts      MockAttempt[]
   bandStageProgress BandStageProgress[]
   premiumRequests   PremiumRequest[]
+  couponRedemptions CouponRedemption[]
 }
 
 /// A learner asks the owner to upgrade their account to premium. One
@@ -124,6 +133,44 @@ model PremiumRequest {
 
   @@index([userId])
   @@index([status, createdAt])
+}
+
+/// Admin-created redeemable code. Code is uppercase + globally unique.
+/// `maxUses=null` means unlimited; `usedCount` is incremented per
+/// redemption inside a transaction so concurrent redeems can't
+/// overshoot. `expiresAt=null` = never expires.
+model Coupon {
+  id          String           @id @default(cuid())
+  code        String           @unique
+  description String?
+  rewardKind  CouponRewardKind
+  /// XP / hearts amount. Ignored for PREMIUM.
+  rewardValue Int              @default(0)
+  maxUses     Int?
+  usedCount   Int              @default(0)
+  active      Boolean          @default(true)
+  expiresAt   DateTime?
+  /// User id of the admin/owner who created the code.
+  createdBy   String
+  createdAt   DateTime         @default(now())
+
+  redemptions CouponRedemption[]
+
+  @@index([active, expiresAt])
+}
+
+/// One row per (couponId, userId) — guarantees a user can only redeem a
+/// given coupon once. Stored for audit (which user got what + when).
+model CouponRedemption {
+  id         String   @id @default(cuid())
+  couponId   String
+  coupon     Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  redeemedAt DateTime @default(now())
+
+  @@unique([couponId, userId])
+  @@index([userId])
 }
 
 /// One row per completed mock test. Stores enough data to render the

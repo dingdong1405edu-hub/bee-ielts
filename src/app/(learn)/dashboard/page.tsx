@@ -4,9 +4,11 @@ import { ScrollReveal } from "@/components/scroll-reveal";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { computeDisplayStreak, getStreakRestoreState } from "@/lib/streak";
+import { effectivePremium } from "@/lib/premium";
 import { StatsRow } from "@/components/learn/stats-row";
 import { ExamCountdown } from "@/components/learn/exam-countdown";
 import { StudySchedule } from "@/components/learn/study-schedule";
+import { PremiumCouponCards } from "@/components/learn/premium-coupon-cards";
 
 const modules = [
   { href: "/vocab", label: "Vocabulary", desc: "Vocabulary", icon: Sparkles, grad: "from-violet-500 to-fuchsia-500" },
@@ -31,9 +33,23 @@ export default async function DashboardPage() {
       streakRestoresUsed: true,
       streakRestoreMonth: true,
       examDate: true,
+      role: true,
+      isPremium: true,
     },
   });
   if (!user) return null;
+
+  // Premium gate + pending request flag for the bottom CTA cards. Cheap
+  // lookup; reused throughout the dashboard render.
+  const isPremium = effectivePremium(
+    user as { role: "LEARNER" | "ADMIN" | "OWNER"; isPremium: boolean },
+  );
+  const pendingPremiumRequest = isPremium
+    ? false
+    : !!(await prisma.premiumRequest.findFirst({
+        where: { userId: session.user.id, status: "PENDING" },
+        select: { id: true },
+      }));
 
   const weekStart = new Date();
   weekStart.setHours(0, 0, 0, 0);
@@ -145,6 +161,14 @@ export default async function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Bottom CTA pair — premium upsell on the left, coupon redemption
+          on the right. Hidden behind no flag: even premium users see the
+          coupon card so they can still claim XP/heart codes. */}
+      <PremiumCouponCards
+        isPremium={isPremium}
+        hasPendingRequest={pendingPremiumRequest}
+      />
     </div>
   );
 }
