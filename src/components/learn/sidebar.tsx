@@ -99,9 +99,6 @@ export function Sidebar({ isAdmin }: { isAdmin?: boolean }) {
   // Effective rail state. Before hydration, fall back to the auto rule so the
   // server-rendered HTML is stable.
   const isRail = !hydrated ? autoCollapse : pinned === null ? autoCollapse : !pinned;
-  // When the rail is hovered, the panel floats out on top of content without
-  // pushing the page — feels snappier than a layout reflow on every hover.
-  const showFullPanel = !isRail || hovered;
 
   const linkClass = (active: boolean, collapsed: boolean) =>
     cn(
@@ -158,24 +155,40 @@ export function Sidebar({ isAdmin }: { isAdmin?: boolean }) {
           >
             <PanelLeftOpen className="h-4 w-4" />
           </button>
+        ) : isRail ? (
+          // Hover-expanded mode (panel is open but not pinned): show a pin
+          // button so the user can lock it open without having to keep the
+          // cursor parked over the sidebar.
+          <button
+            type="button"
+            onClick={() => setPinnedPersistent(true)}
+            aria-label="Ghim mở thanh bên"
+            title="Ghim mở thanh bên"
+            className={cn(
+              "shrink-0 grid h-8 w-8 place-items-center rounded-lg transition-colors",
+              community
+                ? "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+                : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
+            )}
+          >
+            <PanelLeftOpen className="h-4 w-4" />
+          </button>
         ) : (
-          !isRail && (
-            // Anchored-expanded mode: button collapses to rail.
-            <button
-              type="button"
-              onClick={() => setPinnedPersistent(false)}
-              aria-label="Thu gọn thanh bên"
-              title="Thu gọn thanh bên"
-              className={cn(
-                "shrink-0 grid h-8 w-8 place-items-center rounded-lg transition-colors",
-                community
-                  ? "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
-                  : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
-              )}
-            >
-              <PanelLeftClose className="h-4 w-4" />
-            </button>
-          )
+          // Anchored-expanded mode (pinned open): button collapses to rail.
+          <button
+            type="button"
+            onClick={() => setPinnedPersistent(false)}
+            aria-label="Thu gọn thanh bên"
+            title="Thu gọn thanh bên"
+            className={cn(
+              "shrink-0 grid h-8 w-8 place-items-center rounded-lg transition-colors",
+              community
+                ? "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+                : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
+            )}
+          >
+            <PanelLeftClose className="h-4 w-4" />
+          </button>
         )}
       </div>
       <nav className="flex-1 space-y-1">
@@ -222,61 +235,34 @@ export function Sidebar({ isAdmin }: { isAdmin?: boolean }) {
     </>
   );
 
+  // Effective COLLAPSED state for what the user actually sees right now —
+  // combines isRail (the "anchored" rail decision) with hover. Hover bumps
+  // us out of collapsed so the aside grows in-flow and pushes the main
+  // content right, instead of overlaying on top of it.
+  const collapsedNow = isRail && !hovered;
+
   return (
     <aside
       onMouseEnter={() => isRail && setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className={cn(
-        "hidden md:flex md:flex-col md:h-screen md:sticky md:top-0 relative transition-[width] duration-300 ease-out",
-        // Layout-occupying width: thin rail when collapsed, full when expanded
-        isRail ? "md:w-16" : "md:w-64",
-        community && !showFullPanel && "bg-white border-r border-zinc-200",
+        "hidden md:flex md:flex-col md:h-screen md:sticky md:top-0 transition-[width] duration-300 ease-out overflow-hidden",
+        // Single source of truth for width — grows from rail to full panel
+        // on hover so the main column reflows instead of being covered by
+        // an overlay. This is the "từ từ kéo sang bên phải trở lại như
+        // ban đầu" behaviour the user asked for.
+        collapsedNow ? "md:w-16" : "md:w-64",
+        community && "bg-white border-r border-zinc-200",
       )}
     >
-      {/* When the rail is collapsed and NOT hovered, render the thin icon
-          column directly. */}
-      {isRail && !hovered && (
-        <div className="flex flex-col h-full w-16 p-2">{renderNav(true)}</div>
-      )}
-
-      {/* Expanded panel — either anchored (pinned open / shallow route) or
-          floating overlay (rail + hover). Same JSX, only positioning differs
-          so we have one source of truth for nav state. */}
-      {showFullPanel && (
-        <div
-          className={cn(
-            "flex flex-col p-4 w-64",
-            isRail
-              ? // Floating overlay over the rail + content. The slide-in
-                // animation makes the "kéo sang bên phải trở lại" feel the
-                // user asked for instead of an instant pop.
-                "absolute left-0 top-0 h-screen z-40 bg-card shadow-2xl border-r border-border animate-in slide-in-from-left-2 fade-in-0 duration-200"
-              : // Anchored — takes the full sticky aside
-                "h-full",
-            community && "bg-white border-zinc-200",
-          )}
-        >
-          {renderNav(false)}
-          {isRail && (
-            // Floating overlay's pin-open button — committing pin keeps the
-            // panel from disappearing on mouseleave.
-            <button
-              type="button"
-              onClick={() => setPinnedPersistent(true)}
-              aria-label="Ghim mở thanh bên"
-              title="Ghim mở thanh bên"
-              className={cn(
-                "absolute top-4 right-2 grid h-8 w-8 place-items-center rounded-lg transition-colors",
-                community
-                  ? "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
-                  : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
-              )}
-            >
-              <PanelLeftOpen className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-      )}
+      <div
+        className={cn(
+          "flex flex-col h-full",
+          collapsedNow ? "w-16 p-2" : "w-64 p-4",
+        )}
+      >
+        {renderNav(collapsedNow)}
+      </div>
     </aside>
   );
 }
