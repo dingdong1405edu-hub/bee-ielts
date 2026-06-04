@@ -43,7 +43,12 @@ function shouldAutoCollapse(_pathname: string): boolean {
   return true;
 }
 
-const PIN_STORAGE_KEY = "bee-sidebar-pinned-v1";
+// Bumped v1 → v2 when the auto-collapse default flipped to apply on every
+// learn page (previously only deep routes). Old keys held `true` for users
+// who had pinned-open under the old rule, which kept the sidebar full-width
+// and masked the new default. Bumping invalidates those stale preferences
+// so everyone lands on the collapsed rail on next load.
+const PIN_STORAGE_KEY = "bee-sidebar-pinned-v2";
 
 export function Sidebar({ isAdmin }: { isAdmin?: boolean }) {
   const pathname = usePathname();
