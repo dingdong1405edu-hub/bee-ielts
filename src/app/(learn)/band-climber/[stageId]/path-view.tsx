@@ -154,7 +154,13 @@ export function PathView({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-50/60 via-card to-card -mx-4 md:-mx-8 -mt-4 md:-mt-8 pb-20">
+    // Solid bg-card so the global .ambient-bg (fixed grid + brand glows
+    // sitting at z-index: -10) doesn't bleed through. The previous
+    // `from-emerald-50/60` gradient was 60% alpha at the top — that's
+    // where the ambient grid + center glow showed through and produced
+    // the dim "fog" effect over the path. A subtle emerald accent strip
+    // lives inside Hero, so we don't need a body-level tint anymore.
+    <div className="min-h-screen bg-card -mx-4 md:-mx-8 -mt-4 md:-mt-8 pb-20">
       <Hero stage={stage} onShowTips={showTipsButton ? () => setShowTips(true) : null} />
 
       {stage.description && (
