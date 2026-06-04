@@ -85,6 +85,7 @@ model User {
   studyPlan       StudyPlanEntry[]
   payments        Payment[]
   mockAttempts    MockAttempt[]
+  bandStageProgress BandStageProgress[]
 }
 
 /// One row per completed mock test. Stores enough data to render the
@@ -157,8 +158,25 @@ model BandStage {
   writingTasks   WritingTask[]
   speakingSets   SpeakingSet[]
   miniQuizzes    BandClimbMiniQuiz[]
+  progress       BandStageProgress[]
 
   @@unique([fromBand, toBand])
+}
+
+// Per-user marker that a band-climb stage has been finished. Powers the
+// "complete stage N before unlocking N+1" gate on /band-climber: a learner
+// at band 2.0 has to walk through the 4→5 stage and tap "Đánh dấu hoàn
+// thành" before the 5→6 stage unlocks. One row = one finished stage.
+model BandStageProgress {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bandStageId String
+  bandStage   BandStage @relation(fields: [bandStageId], references: [id], onDelete: Cascade)
+  completedAt DateTime @default(now())
+
+  @@unique([userId, bandStageId])
+  @@index([userId])
 }
 
 // Duolingo-style short quizzes inside a band-climb stage. Each holds a list

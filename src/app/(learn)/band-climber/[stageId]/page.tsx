@@ -1,4 +1,5 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { PathView, type PathGroup } from "./path-view";
 
@@ -10,6 +11,8 @@ export default async function BandStagePage({
   params: Promise<{ stageId: string }>;
 }) {
   const { stageId } = await params;
+  const session = await auth();
+  if (!session?.user?.id) redirect("/login");
   const stage = await prisma.bandStage.findUnique({
     where: { id: stageId },
     include: {
@@ -54,6 +57,53 @@ export default async function BandStagePage({
     },
   });
   if (!stage) notFound();
+
+  // Server-side lock guard. Mirror the same rule the list page applies so
+  // a learner can't deep-link past the gate. Stages at or below the user's
+  // placement band stay open (entry + review); any higher stage requires
+  // the previous one to be marked complete. Without a placement band we
+  // send them back to /band-climber where the PlacementGate pushes them
+  // to take the mock.
+  const [user, allStages, progress] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { placementBand: true },
+    }),
+    prisma.bandStage.findMany({
+      orderBy: [{ order: "asc" }, { fromBand: "asc" }],
+      select: { id: true, fromBand: true },
+    }),
+    prisma.bandStageProgress.findMany({
+      where: { userId: session.user.id },
+      select: { bandStageId: true },
+    }),
+  ]);
+  const completedSet = new Set(progress.map((p) => p.bandStageId));
+  const isCurrentCompleted = completedSet.has(stage.id);
+
+  if (user?.placementBand == null) redirect("/band-climber");
+  {
+    const entryFromBand = user.placementBand;
+    let prevDone = true;
+    let allowed = false;
+    for (const s of allStages) {
+      const open =
+        s.fromBand <= entryFromBand
+          ? true
+          : prevDone;
+      if (s.id === stage.id) {
+        allowed = open;
+        break;
+      }
+      // Update prevDone for the NEXT iteration's gate check.
+      if (s.fromBand <= entryFromBand) {
+        prevDone = completedSet.has(s.id);
+      } else if (prevDone) {
+        prevDone = completedSet.has(s.id);
+      }
+    }
+    if (!allowed) redirect("/band-climber");
+  }
 
   // Mini-quizzes are part of the chặng — flowed inline with the long tests
   // in their skill column, distinguished only by node size/color. Each
@@ -149,6 +199,7 @@ export default async function BandStagePage({
         speaking: stage.speaking,
       }}
       showTipsButton={stage.tipsShowOnTest}
+      initiallyCompleted={isCurrentCompleted}
     />
   );
 }

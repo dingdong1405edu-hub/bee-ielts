@@ -1,7 +1,9 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 import {
   BookOpen,
   Headphones,
@@ -15,6 +17,8 @@ import {
   Package,
   X,
   Brain,
+  Check,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StageView } from "./stage-view";
@@ -107,6 +111,7 @@ export function PathView({
   groups,
   tips,
   showTipsButton = true,
+  initiallyCompleted = false,
 }: {
   stage: Stage;
   groups: PathGroup[];
@@ -114,14 +119,39 @@ export function PathView({
   // Admin can hide the HƯỚNG DẪN button on the hero (BandStage.tipsShowOnTest).
   // Defaults true so existing stages keep their behavior.
   showTipsButton?: boolean;
+  /** Whether the user already tapped "Đánh dấu hoàn thành" on this stage —
+   *  flips the bottom CTA from "mark as done" to "mở chặng tiếp theo". */
+  initiallyCompleted?: boolean;
 }) {
   const [showTips, setShowTips] = useState(false);
+  const [completed, setCompleted] = useState(initiallyCompleted);
+  const [marking, setMarking] = useState(false);
+  const router = useRouter();
   const flat = groups.flatMap((g) =>
     g.exercises.map((e) => ({ ...e, skill: g.skill })),
   );
   const currentId = flat[0]?.id;
 
   const hasAny = flat.length > 0;
+
+  const markComplete = async () => {
+    if (completed || marking) return;
+    setMarking(true);
+    try {
+      const res = await fetch(`/api/band-climber/stages/${stage.id}/complete`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Lỗi");
+      setCompleted(true);
+      toast.success("Đã đánh dấu hoàn thành chặng. Chặng tiếp theo đã mở khoá!");
+      router.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Lưu thất bại");
+    } finally {
+      setMarking(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-50/60 via-card to-card -mx-4 md:-mx-8 -mt-4 md:-mt-8 pb-20">
@@ -165,6 +195,52 @@ export function PathView({
           ))}
 
           <FinishCap />
+
+          {/* Completion CTA — pinned at the end of the chặng path. Marks
+              the stage as done so the next chặng on /band-climber unlocks. */}
+          <div className="flex flex-col items-center gap-2 pb-4">
+            {completed ? (
+              <>
+                <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500 text-white px-5 py-2.5 font-extrabold uppercase tracking-wider text-sm shadow-md shadow-emerald-500/30">
+                  <Check className="h-4 w-4" /> Đã hoàn thành chặng
+                </div>
+                <Link
+                  href="/band-climber"
+                  className="text-xs font-bold text-primary hover:underline"
+                >
+                  ← Về danh sách chặng để mở chặng tiếp theo
+                </Link>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={markComplete}
+                  disabled={marking}
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded-full px-6 py-3 font-extrabold uppercase tracking-wider text-sm shadow-md transition-all",
+                    marking
+                      ? "bg-emerald-400 text-white cursor-wait"
+                      : "bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-emerald-500/30",
+                  )}
+                >
+                  {marking ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" /> Đang lưu...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4" /> Đánh dấu hoàn thành chặng
+                    </>
+                  )}
+                </button>
+                <p className="text-[11px] text-muted-foreground text-center max-w-xs">
+                  Bấm khi đã làm xong các bài trên — chặng tiếp theo (band cao
+                  hơn) sẽ tự động mở khoá.
+                </p>
+              </>
+            )}
+          </div>
         </div>
       )}
 

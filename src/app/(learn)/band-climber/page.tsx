@@ -8,6 +8,8 @@ import {
   Mic,
   GraduationCap,
   Star,
+  Lock,
+  Check,
 } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
@@ -40,7 +42,7 @@ function recommendStageId(
 
 export default async function BandClimberPage() {
   const session = await auth();
-  const [stages, user] = await Promise.all([
+  const [stages, user, progress] = await Promise.all([
     prisma.bandStage.findMany({ orderBy: [{ order: "asc" }, { fromBand: "asc" }] }),
     session?.user?.id
       ? prisma.user.findUnique({
@@ -48,12 +50,50 @@ export default async function BandClimberPage() {
           select: { placementBand: true, placementDoneAt: true },
         })
       : Promise.resolve(null),
+    session?.user?.id
+      ? prisma.bandStageProgress.findMany({
+          where: { userId: session.user.id },
+          select: { bandStageId: true },
+        })
+      : Promise.resolve([]),
   ]);
 
+  const completedSet = new Set(progress.map((p) => p.bandStageId));
   const recommendedId =
     user?.placementBand != null
       ? recommendStageId(stages, user.placementBand)
       : null;
+
+  // Lock rule:
+  // - Every stage at or below the user's placement band stays unlocked (the
+  //   "entry" stage matching their level + lower stages they may want to
+  //   review).
+  // - Stages STRICTLY above the entry stage chain on completion: stage N+1
+  //   only unlocks when the chronologically previous stage is completed.
+  //   So a band-4.0 learner sees 4→5 unlocked immediately, but 5→6 stays
+  //   locked until they tap "Đánh dấu hoàn thành" inside 4→5.
+  // - Users without a placement band see no unlocked stages — the
+  //   PlacementGate already pushes them to take the mock.
+  const entryFromBand = user?.placementBand ?? -Infinity;
+  const unlockedSet = new Set<string>();
+  // Tracks whether the immediately previous stage in this loop is finished
+  // (or counts as an unlocked entry stage that's complete). Starts true so
+  // entry-band stages always unlock; flips to false after we visit an
+  // incomplete stage so every subsequent "above entry" sibling stays locked.
+  let prevDone = true;
+  for (const s of stages) {
+    if (user?.placementBand == null) break;
+    if (s.fromBand <= entryFromBand) {
+      // Entry + review tier — open, no precondition.
+      unlockedSet.add(s.id);
+      prevDone = completedSet.has(s.id);
+      continue;
+    }
+    // Above entry — gated by prevDone.
+    if (!prevDone) continue;
+    unlockedSet.add(s.id);
+    prevDone = completedSet.has(s.id);
+  }
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -89,27 +129,65 @@ export default async function BandClimberPage() {
         <div className="space-y-3">
           {stages.map((s) => {
             const isRecommended = s.id === recommendedId;
+            const isUnlocked = unlockedSet.has(s.id);
+            const isCompleted = completedSet.has(s.id);
+            // Render as a non-clickable card when locked. Keeps the layout
+            // identical so the lock state reads as "same thing but greyed",
+            // not "missing".
+            const Wrapper: React.ElementType = isUnlocked ? Link : "div";
+            const wrapperProps = isUnlocked
+              ? { href: `/band-climber/${s.id}` }
+              : {
+                  role: "button",
+                  "aria-disabled": true,
+                  title:
+                    "Bạn cần hoàn thành chặng phía trước trước khi mở chặng này.",
+                };
             return (
-              <Link key={s.id} href={`/band-climber/${s.id}`}>
+              <Wrapper key={s.id} {...wrapperProps}>
                 <Card
-                  className={`hover:shadow-lg transition-shadow cursor-pointer ${
-                    isRecommended
-                      ? "border-2 border-primary ring-2 ring-primary/30 shadow-lg shadow-primary/10"
-                      : "hover:border-primary/40"
+                  className={`transition-shadow ${
+                    !isUnlocked
+                      ? "opacity-60 cursor-not-allowed bg-muted/40"
+                      : isRecommended
+                        ? "border-2 border-primary ring-2 ring-primary/30 shadow-lg shadow-primary/10 hover:shadow-lg cursor-pointer"
+                        : "hover:shadow-lg hover:border-primary/40 cursor-pointer"
                   }`}
                 >
                   <CardContent className="p-5 flex items-center gap-4">
-                    <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl gradient-brand text-white font-extrabold text-lg shadow-md shadow-primary/20">
+                    <div
+                      className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl font-extrabold text-lg shadow-md ${
+                        isUnlocked
+                          ? "gradient-brand text-white shadow-primary/20"
+                          : "bg-zinc-300 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300 shadow-zinc-500/10"
+                      }`}
+                    >
                       {s.fromBand.toFixed(1)}
                     </div>
                     <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-accent text-foreground font-extrabold text-lg border-2 border-primary/30">
+                    <div
+                      className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl font-extrabold text-lg border-2 ${
+                        isUnlocked
+                          ? "bg-accent text-foreground border-primary/30"
+                          : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 border-zinc-300 dark:border-zinc-700"
+                      }`}
+                    >
                       {s.toBand.toFixed(1)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <div className="font-extrabold truncate">{s.title}</div>
-                        {isRecommended && (
+                        {isCompleted && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                            <Check className="h-2.5 w-2.5" /> Đã xong
+                          </span>
+                        )}
+                        {!isUnlocked && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-zinc-400 dark:bg-zinc-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                            <Lock className="h-2.5 w-2.5" /> Khoá
+                          </span>
+                        )}
+                        {isRecommended && isUnlocked && !isCompleted && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary-foreground">
                             <Star className="h-2.5 w-2.5 fill-current" /> Đề xuất
                           </span>
@@ -125,10 +203,14 @@ export default async function BandClimberPage() {
                         <SkillBadge label="Speaking" icon={Mic} present={!!s.speaking.trim()} />
                       </div>
                     </div>
-                    <ArrowRight className="h-5 w-5 text-muted-foreground shrink-0" />
+                    {isUnlocked ? (
+                      <ArrowRight className="h-5 w-5 text-muted-foreground shrink-0" />
+                    ) : (
+                      <Lock className="h-5 w-5 text-muted-foreground shrink-0" />
+                    )}
                   </CardContent>
                 </Card>
-              </Link>
+              </Wrapper>
             );
           })}
         </div>
