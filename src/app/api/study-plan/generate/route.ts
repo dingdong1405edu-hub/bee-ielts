@@ -6,8 +6,11 @@ import { prisma } from "@/lib/db";
 import { generateStudyPlan } from "@/lib/claude";
 
 // availableWeekdays: Monday-start indices (0=Mon … 6=Sun) the learner can study.
+// focusNotes: optional free-text from the learner describing weak skills,
+// goals, or constraints — fed straight into the AI prompt.
 const schema = z.object({
   availableWeekdays: z.array(z.number().int().min(0).max(6)).min(1).max(7),
+  focusNotes: z.string().max(800).optional().default(""),
 });
 
 /** Static fallback rotation used when the AI call fails. */
@@ -44,6 +47,7 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Dữ liệu không hợp lệ" }, { status: 400 });
   const available = new Set(parsed.data.availableWeekdays);
   const daysPerWeek = available.size;
+  const focusNotes = parsed.data.focusNotes ?? "";
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -105,6 +109,7 @@ export async function POST(req: Request) {
         hasExamDate: examDay != null,
         daysPerWeek,
         skillScores,
+        focusNotes,
       });
       const tmpl = (plan.weeklyTemplate ?? [])
         .filter((s) => s && s.title && SKILL_VALUES.includes(s.skill as Skill))

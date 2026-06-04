@@ -55,16 +55,21 @@ type SpeakingResult = {
 
 const STUDY_PLAN_SYSTEM = `You are an experienced IELTS coach building a personalised weekly study roadmap for a Vietnamese learner.
 
-You receive: the learner's target band, weeks until exam, how many days per week they can study, and their recent performance per skill (if any).
+You receive: the learner's target band, weeks until exam, how many days per week they can study, their recent performance per skill (if any), AND a free-text "Yêu cầu của học viên" block written by the learner describing what they feel weak at, what they want to prioritise, or any constraint they want you to respect.
 
-Design ONE representative week of study — exactly one session per available day. Prioritise the learner's WEAKEST skills (lowest recent band, or skills never practised). Across the week, still touch all four IELTS skills plus vocabulary/grammar. Each session focuses on ONE main skill.
+Priority order when picking which skills appear in the weekly template:
+1. **The learner's own "Yêu cầu" block (highest priority).** If they explicitly ask for more Listening + Writing and less Reading, honour that — even if their measured scores disagree. Quote or paraphrase a fragment of their ask inside the "overview" so they see you read it.
+2. Lowest measured skill scores (their actual data).
+3. Skills they've never practised (so the plan still touches all four IELTS skills + vocab/grammar across the week).
 
-Write everything in Vietnamese. Every "note" must be a CONCRETE, actionable study-method tip — never generic encouragement.
+If they ask for a specific QUESTION TYPE within a skill (e.g. "Listening Part 3 MCQ", "Writing Task 2 Opinion essays"), bake that into the relevant session's "title" and "note" instead of staying generic.
+
+Design exactly one session per available day. Each session focuses on ONE main skill. Write everything in Vietnamese. Every "note" must be a CONCRETE, actionable study-method tip — never generic encouragement.
 
 Return ONLY valid JSON matching this exact TypeScript type — no markdown, no commentary:
 
 type StudyPlan = {
-  overview: string;          // 1-2 sentences, personalised + motivating, Vietnamese
+  overview: string;          // 1-2 sentences, personalised + motivating, Vietnamese. If "Yêu cầu" was provided, acknowledge it here.
   weeklyTemplate: {
     skill: "READING" | "LISTENING" | "WRITING" | "SPEAKING" | "VOCAB" | "GRAMMAR";
     title: string;           // short Vietnamese task title
@@ -81,6 +86,8 @@ export interface StudyPlanInput {
   hasExamDate: boolean;
   daysPerWeek: number;
   skillScores: { skill: string; avgBand: number; attempts: number }[];
+  /** Free-text from the learner — weak areas, focus asks, constraints. May be empty. */
+  focusNotes?: string;
 }
 
 export interface StudyPlanResult {
@@ -98,13 +105,18 @@ export async function generateStudyPlan(input: StudyPlanInput): Promise<StudyPla
           .join("\n")
       : "Chưa có dữ liệu luyện tập — coi như người mới, cân bằng mọi kỹ năng.";
 
+  const focus = (input.focusNotes ?? "").trim();
+  const focusBlock = focus
+    ? `\n\nYêu cầu của học viên (ƯU TIÊN CAO NHẤT — đọc kỹ và phải bám vào đây khi chọn skill mỗi buổi):\n"""\n${focus}\n"""`
+    : `\n\nYêu cầu của học viên: (học viên không ghi gì — dùng dữ liệu điểm yếu phía trên để quyết định.)`;
+
   const userMessage = `Thông tin người học:
 - Mục tiêu: band ${input.targetBand.toFixed(1)}
 - ${input.hasExamDate ? `Còn ${input.weeksUntilExam} tuần đến ngày thi` : `Chưa đặt ngày thi — lập kế hoạch ${input.weeksUntilExam} tuần`}
 - Học ${input.daysPerWeek} buổi/tuần
 
 Kết quả luyện tập gần đây:
-${perf}
+${perf}${focusBlock}
 
 Hãy thiết kế weeklyTemplate gồm đúng ${input.daysPerWeek} buổi và trả về JSON.`;
 

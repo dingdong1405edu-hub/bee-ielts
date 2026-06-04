@@ -208,11 +208,14 @@ export function StudySchedule({
     }
   };
 
-  const generatePlan = async (availableWeekdays: number[]) => {
+  const generatePlan = async (
+    availableWeekdays: number[],
+    focusNotes: string,
+  ) => {
     const res = await fetch("/api/study-plan/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ availableWeekdays }),
+      body: JSON.stringify({ availableWeekdays, focusNotes }),
     });
     if (!res.ok) {
       toast.error((await res.json().catch(() => ({}))).error || "Tạo lộ trình thất bại");
@@ -363,11 +366,15 @@ function RoadmapGenerator({
 }: {
   targetBand: number;
   examDate: string | null;
-  onGenerate: (weekdays: number[]) => Promise<void>;
+  onGenerate: (weekdays: number[], focusNotes: string) => Promise<void>;
   onClose: () => void;
 }) {
   const recommended = recommendedDays(targetBand);
   const [picked, setPicked] = useState<number[]>(() => defaultWeekdays(recommended));
+  // Free-text focus notes — the user describes what they want to prioritise
+  // (weak skills, specific question types, time constraints, etc.). Capped
+  // at 800 chars so the AI prompt stays within sensible bounds.
+  const [focusNotes, setFocusNotes] = useState("");
   const [generating, setGenerating] = useState(false);
 
   const toggle = (idx: number) =>
@@ -379,7 +386,7 @@ function RoadmapGenerator({
       return;
     }
     setGenerating(true);
-    await onGenerate(picked);
+    await onGenerate(picked, focusNotes.trim());
     setGenerating(false);
   };
 
@@ -420,6 +427,32 @@ function RoadmapGenerator({
             </button>
           );
         })}
+      </div>
+
+      {/* Free-form focus notes — the AI weights these heavily when picking
+          which skills appear in the weekly template. Optional: leaving it
+          blank falls back to skillScores-driven prioritisation. */}
+      <div className="space-y-1.5">
+        <label className="text-xs font-bold text-foreground/80 flex items-center gap-1.5">
+          <Sparkles className="h-3.5 w-3.5 text-primary" />
+          Bạn muốn AI tập trung vào điều gì? <span className="text-muted-foreground font-normal">(tuỳ chọn)</span>
+        </label>
+        <textarea
+          value={focusNotes}
+          onChange={(e) => setFocusNotes(e.target.value.slice(0, 800))}
+          placeholder={
+            "VD: Mình yếu phần Listening Part 3 + 4, muốn luyện nhiều dạng MCQ. Writing Task 2 hay bí ý — cần ôn cấu trúc bài Opinion. Reading thì ổn rồi, chỉ cần duy trì 1-2 buổi/tuần."
+          }
+          rows={4}
+          className="w-full rounded-xl border bg-background px-3 py-2 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+          disabled={generating}
+        />
+        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+          <span>AI sẽ ưu tiên những gì bạn ghi ở đây hơn cả điểm yếu phân tích từ dữ liệu luyện tập.</span>
+          <span className={cn("font-mono", focusNotes.length > 700 && "text-amber-600")}>
+            {focusNotes.length}/800
+          </span>
+        </div>
       </div>
 
       <p className="text-xs text-muted-foreground">
