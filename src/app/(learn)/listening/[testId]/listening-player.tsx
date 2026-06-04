@@ -3,26 +3,26 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Clock, CheckCircle2, XCircle, Play, Pause, Gauge } from "lucide-react";
-import { formatDuration, cn, isAnswerCorrect } from "@/lib/utils";
-import { speakText, stopSpeaking, isTTSSupported } from "@/lib/tts";
+import { CheckCircle2, XCircle } from "lucide-react";
+import { cn, isAnswerCorrect } from "@/lib/utils";
 import { TipsCard } from "@/components/learn/tips-card";
 import { ReviewReport, type ListeningReviewData } from "@/components/learn/review-report";
-import { FormBlanks, TableBlanks, groupQuestions } from "@/components/learn/form-blanks";
+import {
+  ListeningShell,
+  type ListeningPart,
+  type ShellListeningQ,
+} from "@/components/learn/listening-shell";
 
-type Q = {
-  id: string;
-  type: "MCQ" | "FILL_BLANK" | "TRUE_FALSE" | "TRUE_FALSE_NOT_GIVEN" | "MATCHING" | "MATCHING_HEADINGS" | "MATCHING_INFO" | "MATCHING_FEATURES" | "MATCHING_SENTENCE_ENDINGS" | "SHORT_ANSWER";
-  prompt: string;
-  options: string[] | null;
-  correctAnswer: string;
-  formGroup?: string | null;
-  displayNumber?: number | null;
-};
+type Q = ShellListeningQ;
 
+/**
+ * Standalone Listening practice player. The body of the test renders via
+ * the shared <ListeningShell> so the chrome (brand bar, audio strip,
+ * floating arrows, part-nav strip) is identical to every other listening
+ * surface. Post-submit we leave the full-screen shell and render the
+ * results inline with the regular learn layout chrome.
+ */
 export function ListeningPlayer({
   testId,
   title,
@@ -73,132 +73,93 @@ export function ListeningPlayer({
     }
   };
 
+  // Single-part practice. Continuous numbering starts at 1.
+  const parts: ListeningPart[] = [
+    {
+      id: testId,
+      index: 1,
+      startNum: 1,
+      title: "Part 1",
+      audioUrl,
+      transcript,
+      contentImageUrl: contentImageUrl ?? imageUrl ?? null,
+      questions,
+      instructions:
+        questions[0]?.type === "FILL_BLANK"
+          ? "Complete the notes below. Write ONE WORD AND/OR A NUMBER for each answer."
+          : null,
+    },
+  ];
+
+  if (!submitted) {
+    return (
+      <ListeningShell
+        title={title}
+        brandName="Bee IELTS"
+        parts={parts}
+        activeIdx={0}
+        onActiveIdxChange={() => {}}
+        answers={answers}
+        onChangeAnswer={(id, v) => setAnswers((a) => ({ ...a, [id]: v }))}
+        onSubmit={submit}
+        elapsedSec={elapsed}
+        remainingSec={null}
+      />
+    );
+  }
+
+  // ---- Post-submit view (regular learn layout) ----
+  const correctCount = questions.filter(
+    (q) => isAnswerCorrect(answers[q.id], q.correctAnswer, q.type),
+  ).length;
+  const band = (correctCount / questions.length) * 9;
+
   return (
     <div className="max-w-3xl mx-auto space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <button onClick={() => router.push("/listening")} className="text-sm text-muted-foreground hover:underline">
-            ← Listening
-          </button>
-          <h1 className="text-xl md:text-2xl font-bold mt-1">{title}</h1>
-        </div>
-        <Badge variant="outline" className="text-base px-3 py-1">
-          <Clock className="h-4 w-4 mr-1" /> Đã làm {formatDuration(elapsed)}
-        </Badge>
-      </div>
+      <Card className="bg-accent">
+        <CardContent className="p-5 text-center space-y-2">
+          <h3 className="text-xl font-bold">Kết quả</h3>
+          <p className="text-3xl font-bold text-primary">
+            {correctCount}/{questions.length}
+          </p>
+          <p className="text-muted-foreground">Band ước tính: {band.toFixed(1)}</p>
+          <div className="flex justify-center gap-2 pt-2 flex-wrap">
+            {transcript && (
+              <Button variant="outline" onClick={() => setShowTranscript((s) => !s)}>
+                {showTranscript ? "Ẩn" : "Xem"} transcript
+              </Button>
+            )}
+            <Button onClick={() => router.push("/listening")}>Về danh sách</Button>
+          </div>
+        </CardContent>
+      </Card>
 
-      <div data-tour="audio">
-        <AudioPlayer audioUrl={audioUrl} transcript={transcript} />
-      </div>
-
-      {imageUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={imageUrl} alt="" className="w-full max-h-80 rounded-2xl border bg-muted/30 object-contain" />
-      )}
-
-      {contentImageUrl && (
-        <Card data-tour="content-image">
-          <CardContent className="p-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={contentImageUrl}
-              alt="Hình ảnh cho bài làm"
-              className="w-full max-h-[32rem] rounded-lg border bg-muted/30 object-contain"
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      {/* data-tour="questions" — Bee 🐝 spotlights the whole questions
-          column when admin picks "Vùng câu hỏi". Per-question highlight
-          uses [data-question-id="..."] on each Card below. */}
-      <div data-tour="questions" className="space-y-3">
-        {groupQuestions(questions).map((unit) => {
-          if (unit.kind === "form") {
-            const end = unit.startNum + unit.items.length - 1;
-            const Block = unit.layout === "table" ? TableBlanks : FormBlanks;
-            return (
-              <Card
-                key={`form-${unit.items[0].id}`}
-                data-question-id={unit.items[0].id}
-              >
-                <CardContent className="p-5 space-y-2">
-                  <div className="text-xs font-extrabold uppercase tracking-wider text-primary">
-                    Câu {unit.startNum}–{end} · {unit.layout === "table" ? "Hoàn thành bảng" : "Điền vào chỗ trống"}
-                  </div>
-                  <Block
-                    items={unit.items}
-                    startNum={unit.startNum}
-                    answers={answers}
-                    onChange={(id, v) => setAnswers((a) => ({ ...a, [id]: v }))}
-                    disabled={submitted}
-                    submitted={submitted}
-                  />
-                </CardContent>
-              </Card>
-            );
-          }
-          const q = unit.q;
+      <div className="space-y-3">
+        {questions.map((q, i) => {
           const userAns = answers[q.id] || "";
           const isCorrect = isAnswerCorrect(userAns, q.correctAnswer, q.type);
-          const num = q.displayNumber ?? unit.num;
           return (
             <Card
               key={q.id}
-              data-question-id={q.id}
-              className={cn(submitted && (isCorrect ? "border-success" : "border-destructive"))}
+              className={cn(isCorrect ? "border-success" : "border-destructive")}
             >
-              <CardContent className="p-5 space-y-3">
+              <CardContent className="p-5 space-y-2">
                 <div className="flex items-start gap-2">
-                  <span className="font-semibold text-primary">{num}.</span>
+                  <span className="font-semibold text-primary">{i + 1}.</span>
                   <p className="font-medium flex-1">{q.prompt}</p>
-                  {submitted && (isCorrect ? <CheckCircle2 className="h-5 w-5 text-success" /> : <XCircle className="h-5 w-5 text-destructive" />)}
+                  {isCorrect ? (
+                    <CheckCircle2 className="h-5 w-5 text-success" />
+                  ) : (
+                    <XCircle className="h-5 w-5 text-destructive" />
+                  )}
                 </div>
-                {q.type === "MATCHING_HEADINGS" || q.type === "MATCHING" ? (
-                  <MatchingHeadingPicker
-                    options={q.options ?? []}
-                    value={userAns}
-                    correct={q.correctAnswer}
-                    submitted={submitted}
-                    onChange={(v) => setAnswers((a) => ({ ...a, [q.id]: v }))}
-                    label={q.type === "MATCHING" ? "Danh sách câu nối" : "Danh sách Heading"}
-                    placeholder={q.type === "MATCHING" ? "— Chọn A/B/C/… —" : "— Chọn heading —"}
-                  />
-                ) : q.options ? (
-                  <div className="space-y-2">
-                    {q.options.map((opt) => (
-                      <label
-                        key={opt}
-                        className={cn(
-                          "flex items-center gap-2 rounded-lg border p-2.5 cursor-pointer",
-                          userAns === opt && "border-primary bg-accent",
-                          submitted && opt === q.correctAnswer && "border-success bg-success/10",
-                        )}
-                      >
-                        <input
-                          type="radio"
-                          name={q.id}
-                          value={opt}
-                          disabled={submitted}
-                          checked={userAns === opt}
-                          onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
-                          className="h-4 w-4"
-                        />
-                        <span className="text-sm">{opt}</span>
-                      </label>
-                    ))}
-                  </div>
-                ) : (
-                  <Input
-                    placeholder="Câu trả lời..."
-                    value={userAns}
-                    disabled={submitted}
-                    onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
-                  />
-                )}
-                {submitted && !isCorrect && (
-                  <div className="text-sm text-muted-foreground">
-                    Đáp án: <strong className="text-success">{q.correctAnswer}</strong>
+                <div className="text-sm text-muted-foreground ml-6">
+                  Bạn chọn: <strong>{userAns || "—"}</strong>
+                </div>
+                {!isCorrect && (
+                  <div className="text-sm ml-6">
+                    Đáp án đúng:{" "}
+                    <strong className="text-success">{q.correctAnswer}</strong>
                   </div>
                 )}
               </CardContent>
@@ -207,22 +168,7 @@ export function ListeningPlayer({
         })}
       </div>
 
-      <div className="flex gap-3 justify-end">
-        {!submitted ? (
-          <Button size="lg" onClick={submit}>Nộp bài</Button>
-        ) : (
-          <>
-            {transcript && (
-              <Button variant="outline" onClick={() => setShowTranscript((s) => !s)}>
-                {showTranscript ? "Ẩn" : "Xem"} transcript
-              </Button>
-            )}
-            <Button onClick={() => router.push("/listening")}>Về danh sách</Button>
-          </>
-        )}
-      </div>
-
-      {submitted && showTranscript && transcript && (
+      {showTranscript && transcript && (
         <Card>
           <CardContent className="p-5">
             <h3 className="font-semibold mb-2">Transcript</h3>
@@ -231,190 +177,27 @@ export function ListeningPlayer({
         </Card>
       )}
 
-      {submitted && (
-        <>
-          <TipsCard
-            skill="LISTENING"
-            score={(questions.filter((q) => isAnswerCorrect(answers[q.id], q.correctAnswer, q.type)).length / questions.length) * 9}
-            context={`User got ${questions.filter((q) => isAnswerCorrect(answers[q.id], q.correctAnswer, q.type)).length}/${questions.length} questions correct on a listening test.`}
-          />
-          <ReviewReport
-            data={{
-              kind: "LISTENING",
-              title,
-              transcript: transcript ?? null,
-              questions: questions.map((q) => ({
-                prompt: q.prompt,
-                type: q.type,
-                userAnswer: answers[q.id] || "",
-                correctAnswer: q.correctAnswer,
-              })),
-              totalCorrect: questions.filter((q) => isAnswerCorrect(answers[q.id], q.correctAnswer, q.type)).length,
-              totalQuestions: questions.length,
-              band: (questions.filter((q) => isAnswerCorrect(answers[q.id], q.correctAnswer, q.type)).length / questions.length) * 9,
-            } satisfies ListeningReviewData}
-          />
-        </>
-      )}
-    </div>
-  );
-}
-
-function AudioPlayer({ audioUrl, transcript }: { audioUrl: string; transcript: string | null }) {
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const [playing, setPlaying] = useState(false);
-  const [speed, setSpeed] = useState(1);
-  const hasReal = audioUrl && !audioUrl.startsWith("/audio/sample");
-
-  const setRate = (r: number) => {
-    setSpeed(r);
-    if (audioRef.current) audioRef.current.playbackRate = r;
-  };
-
-  const togglePlay = async () => {
-    if (hasReal && audioRef.current) {
-      if (playing) {
-        audioRef.current.pause();
-      } else {
-        audioRef.current.playbackRate = speed;
-        await audioRef.current.play();
-      }
-      return;
-    }
-    if (!transcript) {
-      toast.error("Không có audio + transcript.");
-      return;
-    }
-    if (!isTTSSupported()) {
-      toast.error("Browser không hỗ trợ TTS.");
-      return;
-    }
-    if (playing) {
-      stopSpeaking();
-      setPlaying(false);
-      return;
-    }
-    setPlaying(true);
-    try {
-      await speakText(transcript, { rate: speed });
-    } finally {
-      setPlaying(false);
-    }
-  };
-
-  return (
-    <Card>
-      <CardContent className="p-5 space-y-3">
-        {hasReal ? (
-          <audio
-            ref={audioRef}
-            src={audioUrl}
-            controls
-            className="w-full"
-            preload="metadata"
-            onPlay={() => setPlaying(true)}
-            onPause={() => setPlaying(false)}
-            onEnded={() => setPlaying(false)}
-          />
-        ) : (
-          <Button onClick={togglePlay} variant={playing ? "destructive" : "brand"} size="lg" className="w-full">
-            {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-            {playing ? "Dừng" : "Phát audio (AI voice)"}
-          </Button>
-        )}
-        <div className="flex items-center gap-2 flex-wrap">
-          <Gauge className="h-4 w-4 text-muted-foreground" />
-          <span className="text-xs text-muted-foreground font-semibold">Tốc độ:</span>
-          {[0.75, 1, 1.25, 1.5, 2].map((r) => (
-            <button
-              key={r}
-              onClick={() => setRate(r)}
-              className={cn(
-                "rounded-full px-2.5 py-1 text-xs font-bold transition-colors",
-                speed === r ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent",
-              )}
-            >
-              {r}x
-            </button>
-          ))}
-        </div>
-        {!hasReal && (
-          <p className="text-xs text-muted-foreground italic">
-            ⚠️ Audio dùng giọng AI (Web Speech). Practice — không giới hạn lần phát.
-          </p>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-/**
- * Matching Headings answer UI: a small list of the shared headings + a dropdown
- * for this paragraph. Options come in as "i. Heading text" — the dropdown value
- * is the roman numeral so the stored answer matches the admin's saved key.
- */
-function MatchingHeadingPicker({
-  options,
-  value,
-  correct,
-  submitted,
-  onChange,
-  label = "Danh sách Heading",
-  placeholder = "— Chọn heading —",
-}: {
-  options: string[];
-  value: string;
-  correct: string;
-  submitted: boolean;
-  onChange: (v: string) => void;
-  label?: string;
-  placeholder?: string;
-}) {
-  // Accept both roman ("i. text") and letter ("A. text") prefixes — letters
-  // are kept upper-case, romans lower-case so values match the saved keys.
-  const items = options.map((opt) => {
-    const m = opt.match(/^([A-Z]|[ivxIVX]+)\.\s*(.*)$/);
-    if (!m) return { key: opt, label: opt };
-    const raw = m[1];
-    const isLetter = /^[A-Z]$/.test(raw);
-    return { key: isLetter ? raw : raw.toLowerCase(), label: m[2] };
-  });
-  return (
-    <div className="space-y-2">
-      <div className="rounded-lg border bg-muted/30 px-3 py-2">
-        <div className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground mb-1">
-          {label}
-        </div>
-        <ul className="space-y-0.5 text-sm leading-relaxed">
-          {items.map((it) => (
-            <li key={it.key}>
-              <span className="font-bold mr-1">{it.key}.</span> {it.label}
-            </li>
-          ))}
-        </ul>
-      </div>
-      <select
-        value={value}
-        disabled={submitted}
-        onChange={(e) => onChange(e.target.value)}
-        className={cn(
-          "h-10 w-full rounded-lg border-2 bg-background px-3 text-sm font-bold",
-          submitted && value === correct && "border-success",
-          submitted && value !== correct && "border-destructive",
-        )}
-      >
-        <option value="">{placeholder}</option>
-        {items.map((it) => (
-          <option key={it.key} value={it.key}>
-            {it.key}. {it.label}
-          </option>
-        ))}
-      </select>
-      {submitted && value !== correct && (
-        <p className="text-sm text-muted-foreground">
-          Đáp án đúng: <strong className="text-success">{correct}</strong>
-        </p>
-      )}
+      <TipsCard
+        skill="LISTENING"
+        score={band}
+        context={`User got ${correctCount}/${questions.length} questions correct on a listening test.`}
+      />
+      <ReviewReport
+        data={{
+          kind: "LISTENING",
+          title,
+          transcript: transcript ?? null,
+          questions: questions.map((q) => ({
+            prompt: q.prompt,
+            type: q.type,
+            userAnswer: answers[q.id] || "",
+            correctAnswer: q.correctAnswer,
+          })),
+          totalCorrect: correctCount,
+          totalQuestions: questions.length,
+          band,
+        } satisfies ListeningReviewData}
+      />
     </div>
   );
 }
