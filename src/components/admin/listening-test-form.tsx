@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Trash2, Plus, Loader2, GraduationCap, Headphones, AlignLeft, Table, List, Sparkles, Upload } from "lucide-react";
+import { Trash2, Plus, Loader2, GraduationCap, Headphones, AlignLeft, Table, List, Sparkles, Upload, Map as MapIcon, Workflow } from "lucide-react";
 import { ImageUrlField } from "./image-url-field";
 import { AudioUrlField } from "./audio-url-field";
 import { DeleteTestButton } from "./delete-test-button";
@@ -17,7 +17,30 @@ import { BandClimbToursEditor, type TourStepDraft } from "./band-climb-tours-edi
 import { countBlanks, parseTablePaste, buildFormQuestions } from "@/lib/form-completion";
 
 type Bank = "PRACTICE" | "MOCK";
-type QType = "MCQ" | "FILL_BLANK" | "TRUE_FALSE_NOT_GIVEN" | "SHORT_ANSWER" | "MATCHING_HEADINGS" | "MATCHING";
+// MAP_LABELLING is an admin-only label — it gets persisted as MATCHING_FEATURES
+// in the DB (the Prisma enum already includes that), so the player can branch
+// on it if needed but the storage flows through the same matching rails as
+// regular MATCHING. The admin sees "Dán nhãn bản đồ" as a distinct option in
+// the dropdown so the IELTS task type is named in the editor.
+type QType =
+  | "MCQ"
+  | "FILL_BLANK"
+  | "TRUE_FALSE_NOT_GIVEN"
+  | "SHORT_ANSWER"
+  | "MATCHING_HEADINGS"
+  | "MATCHING"
+  | "MAP_LABELLING";
+
+// DB-stored type — admin's MAP_LABELLING flattens to MATCHING_FEATURES at
+// persist time. The other 6 names match 1:1.
+type DbType =
+  | "MCQ"
+  | "FILL_BLANK"
+  | "TRUE_FALSE_NOT_GIVEN"
+  | "SHORT_ANSWER"
+  | "MATCHING_HEADINGS"
+  | "MATCHING"
+  | "MATCHING_FEATURES";
 
 type Q = {
   type: QType;
@@ -46,7 +69,7 @@ const ROMAN = Array.from({ length: 30 }, (_, i) => toRoman(i + 1));
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
 type Payload = {
-  type: QType;
+  type: DbType;
   prompt: string;
   options?: string[];
   correctAnswer: string;
@@ -56,12 +79,13 @@ type Payload = {
 };
 
 const TYPE_LABEL: Record<QType, string> = {
-  MCQ: "Trắc nghiệm (Multiple choice)",
+  MCQ: "Trắc nghiệm (Multiple Choice)",
   FILL_BLANK: "Điền vào chỗ trống (Completion)",
   TRUE_FALSE_NOT_GIVEN: "Xác nhận thông tin (True / False / Not Given)",
-  SHORT_ANSWER: "Câu trả lời ngắn (Short answer)",
+  SHORT_ANSWER: "Câu trả lời ngắn (Short Answer)",
   MATCHING_HEADINGS: "Nối tiêu đề (Matching Headings)",
-  MATCHING: "Nối câu (Matching) — chọn A/B/C/…",
+  MATCHING: "Nối đặc điểm (Matching) — chọn A/B/C/…",
+  MAP_LABELLING: "Dán nhãn bản đồ / sơ đồ (Map / Plan / Diagram Labelling)",
 };
 
 const blankQ = (type: QType): Q => ({
@@ -106,6 +130,10 @@ function coerceType(t: string): QType {
     t === "MATCHING"
   )
     return t;
+  // MATCHING_FEATURES is how MAP_LABELLING is stored in the DB — collapse
+  // back so the admin sees the original Map/Plan/Diagram Labelling label
+  // when re-editing.
+  if (t === "MATCHING_FEATURES") return "MAP_LABELLING";
   if (t.startsWith("TRUE_FALSE")) return "TRUE_FALSE_NOT_GIVEN";
   if (t.startsWith("MATCHING")) return "MATCHING_HEADINGS";
   return "FILL_BLANK";
@@ -119,12 +147,14 @@ function coerceType(t: string): QType {
 type FormState = {
   questions: Q[];
   headings: string[];
-  /** Shared option list for plain MATCHING questions (A, B, C…). */
+  /** Shared option list for plain MATCHING + MAP_LABELLING (A, B, C…). */
   matchOptions: string[];
   formPassage: string;
   formAnswers: string[];
   tablePassage: string;
   tableAnswers: string[];
+  flowPassage: string;
+  flowAnswers: string[];
 };
 
 function toFormState(initial?: ListeningInitial): FormState {
@@ -137,10 +167,16 @@ function toFormState(initial?: ListeningInitial): FormState {
       formAnswers: [],
       tablePassage: "",
       tableAnswers: [],
+      flowPassage: "",
+      flowAnswers: [],
     };
   }
   const tableQs = initial.questions.filter((q) => q.formGroup?.startsWith("tbl"));
-  const formQs = initial.questions.filter((q) => q.formGroup && !q.formGroup.startsWith("tbl"));
+  const flowQs = initial.questions.filter((q) => q.formGroup?.startsWith("fc"));
+  // "Other formGroup" = form/notes completion (anything non-tbl + non-fc).
+  const formQs = initial.questions.filter(
+    (q) => q.formGroup && !q.formGroup.startsWith("tbl") && !q.formGroup.startsWith("fc"),
+  );
   const regular = initial.questions.filter((q) => !q.formGroup);
   let headings: string[] = [];
   let matchOptions: string[] = [];
@@ -155,10 +191,13 @@ function toFormState(initial?: ListeningInitial): FormState {
       const idx = ROMAN.indexOf(q.correctAnswer);
       return { type, prompt: q.prompt, options: [], correctAnswer: idx >= 0 ? String(idx) : "", explanation, displayNumber };
     }
-    if (type === "MATCHING") {
+    if (type === "MATCHING" || type === "MAP_LABELLING") {
+      // Both share the same letter list (matchOptions); only the storage
+      // type differs (MATCHING vs MATCHING_FEATURES). Strip the leading
+      // "A. " / "B. " label, keep the longest list seen so every stored
+      // answer index resolves.
       const mo = (q.options ?? []).map((o) => o.replace(/^[A-Z]\.\s*/, "").trim());
       if (mo.length > matchOptions.length) matchOptions = mo;
-      // correctAnswer is a single letter (A/B/…) — translate to an index.
       const idx = q.correctAnswer.length === 1 ? q.correctAnswer.toUpperCase().charCodeAt(0) - 65 : -1;
       return { type, prompt: q.prompt, options: [], correctAnswer: idx >= 0 ? String(idx) : "", explanation, displayNumber };
     }
@@ -181,6 +220,8 @@ function toFormState(initial?: ListeningInitial): FormState {
     formAnswers: formQs.map((q) => q.correctAnswer),
     tablePassage: tableQs.length ? stitch(tableQs) : "",
     tableAnswers: tableQs.map((q) => q.correctAnswer),
+    flowPassage: flowQs.length ? stitch(flowQs) : "",
+    flowAnswers: flowQs.map((q) => q.correctAnswer),
   };
 }
 
@@ -217,13 +258,26 @@ export function ListeningTestForm({
   const [formAnswers, setFormAnswers] = useState<string[]>(init.formAnswers);
   const [tablePassage, setTablePassage] = useState(init.tablePassage);
   const [tableAnswers, setTableAnswers] = useState<string[]>(init.tableAnswers);
+  // Flow-chart Completion paste — same idea as form/table completion but
+  // each line becomes one box; the player will render arrows between them.
+  // Persisted as FILL_BLANK questions with formGroup="fc<timestamp>" so the
+  // player can detect and switch layout.
+  const [flowPassage, setFlowPassage] = useState(init.flowPassage);
+  const [flowAnswers, setFlowAnswers] = useState<string[]>(init.flowAnswers);
   const [extractingTable, setExtractingTable] = useState(false);
   const tableImgRef = useRef<HTMLInputElement>(null);
 
   const blankCount = countBlanks(formPassage);
   const tableBlankCount = countBlanks(tablePassage);
   const hasMatching = questions.some((q) => q.type === "MATCHING_HEADINGS");
-  const hasMatch = questions.some((q) => q.type === "MATCHING");
+  // MAP_LABELLING shares the same shared-letters list as plain MATCHING, so
+  // either type triggers the editor for the A/B/C/… list at the top of the
+  // page. We still tell them apart at persist time so the DB stores the
+  // semantic IELTS label.
+  const hasMatch =
+    questions.some((q) => q.type === "MATCHING") ||
+    questions.some((q) => q.type === "MAP_LABELLING");
+  const hasMap = questions.some((q) => q.type === "MAP_LABELLING");
 
   /** Pop the OS file picker → compress → send to AI → fill table textarea + answers. */
   const extractTableFromFiles = async (files: FileList | null) => {
@@ -331,6 +385,14 @@ export function ListeningTestForm({
     if (type === "MATCHING" && !q.prompt.trim()) {
       patch.prompt = "Câu cần nối…";
     }
+    if (type === "MAP_LABELLING" && !q.prompt.trim()) {
+      // Map labelling default — "Điểm số N trên bản đồ" so the admin can
+      // tell at a glance which point on the contentImageUrl this refers to.
+      let mapCount = 0;
+      for (let i = 0; i <= qi; i++)
+        if (questions[i]?.type === "MAP_LABELLING") mapCount++;
+      patch.prompt = `Vị trí số ${mapCount} trên bản đồ`;
+    }
     patchQ(qi, patch);
   };
 
@@ -345,6 +407,9 @@ export function ListeningTestForm({
       });
   const setFormAnswerAt = setAnswerAt(setFormAnswers);
   const setTableAnswerAt = setAnswerAt(setTableAnswers);
+  const setFlowAnswerAt = setAnswerAt(setFlowAnswers);
+
+  const flowBlankCount = countBlanks(flowPassage);
 
   const submit = async () => {
     if (!title.trim()) return toast.error("Nhập tiêu đề");
@@ -415,13 +480,25 @@ export function ListeningTestForm({
         const newIdx = Number.isNaN(origIdx) ? undefined : matchRemap.get(origIdx);
         if (newIdx === undefined) return toast.error(`Câu ${i + 1}: chọn câu nối đúng (A/B/C/…)`);
         regularPayload.push({ type: "MATCHING", prompt: q.prompt.trim(), options: letteredMatch, correctAnswer: LETTERS[newIdx], explanation: q.explanation.trim() || undefined, displayNumber });
+      } else if (q.type === "MAP_LABELLING") {
+        // Persisted as MATCHING_FEATURES — the IELTS task type for
+        // labelling points on a map/plan/diagram with a shared A/B/C list.
+        // Same letter-resolution flow as plain MATCHING.
+        const origIdx = parseInt(q.correctAnswer, 10);
+        const newIdx = Number.isNaN(origIdx) ? undefined : matchRemap.get(origIdx);
+        if (newIdx === undefined) return toast.error(`Câu ${i + 1}: chọn nhãn đúng cho điểm trên bản đồ (A/B/C/…)`);
+        if (!contentImageUrl.trim())
+          return toast.error(`Câu ${i + 1} (Map Labelling): hãy upload "Ảnh trong bài làm" ở trên trước — học viên cần thấy bản đồ`);
+        regularPayload.push({ type: "MATCHING_FEATURES", prompt: q.prompt.trim(), options: letteredMatch, correctAnswer: LETTERS[newIdx], explanation: q.explanation.trim() || undefined, displayNumber });
       } else if (q.type === "TRUE_FALSE_NOT_GIVEN") {
         if (!["True", "False", "Not Given"].includes(q.correctAnswer))
           return toast.error(`Câu ${i + 1}: chọn đáp án đúng`);
         regularPayload.push({ type: "TRUE_FALSE_NOT_GIVEN", prompt: q.prompt.trim(), options: ["True", "False", "Not Given"], correctAnswer: q.correctAnswer, explanation: q.explanation.trim() || undefined, displayNumber });
       } else {
         if (!q.correctAnswer.trim()) return toast.error(`Câu ${i + 1}: nhập đáp án đúng`);
-        regularPayload.push({ type: q.type, prompt: q.prompt.trim(), correctAnswer: q.correctAnswer.trim(), explanation: q.explanation.trim() || undefined, displayNumber });
+        // q.type is now narrowed to FILL_BLANK | SHORT_ANSWER (the only
+        // remaining QType variants) — both map 1:1 onto DbType.
+        regularPayload.push({ type: q.type as DbType, prompt: q.prompt.trim(), correctAnswer: q.correctAnswer.trim(), explanation: q.explanation.trim() || undefined, displayNumber });
       }
     }
 
@@ -453,11 +530,24 @@ export function ListeningTestForm({
       tablePayload = buildFormQuestions(tableText, tableAnswers, "tbl" + Date.now().toString(36));
     }
 
-    if (formPayload.length + tablePayload.length + regularPayload.length === 0)
-      return toast.error("Cần ít nhất 1 câu hỏi — thêm câu hỏi, dán đoạn hoặc dán bảng");
+    // Flow-chart Completion block → one FILL_BLANK question per blank
+    // (formGroup "fc…" so the player can render arrows between boxes).
+    let flowPayload: Payload[] = [];
+    if (flowPassage.trim()) {
+      if (flowBlankCount < 1)
+        return toast.error("Đoạn Flow-chart chưa có chỗ trống — dùng chuỗi dấu chấm cho mỗi chỗ");
+      for (let i = 0; i < flowBlankCount; i++) {
+        if (!(flowAnswers[i] || "").trim())
+          return toast.error(`Flow-chart: thiếu đáp án cho chỗ trống ${i + 1}`);
+      }
+      flowPayload = buildFormQuestions(flowPassage, flowAnswers, "fc" + Date.now().toString(36));
+    }
 
-    // Grouped blocks render first (they are usually Section 1).
-    const payload = [...formPayload, ...tablePayload, ...regularPayload];
+    if (formPayload.length + tablePayload.length + flowPayload.length + regularPayload.length === 0)
+      return toast.error("Cần ít nhất 1 câu hỏi — thêm câu hỏi, dán đoạn, bảng hoặc flow-chart");
+
+    // Grouped blocks render first (they are usually Section 1 of a test).
+    const payload = [...formPayload, ...tablePayload, ...flowPayload, ...regularPayload];
 
     setLoading(true);
     try {
@@ -715,6 +805,86 @@ export function ListeningTestForm({
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Workflow className="h-5 w-5 text-primary" /> Flow-chart Completion — dán cả sơ đồ
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Dán nguyên một sơ đồ tư duy / quy trình. Mỗi bước viết trên một dòng; mỗi chỗ trống đánh
+            dấu bằng chuỗi dấu chấm. Người học thấy các ô nối với nhau bằng mũi tên ↓.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div>
+            <Label>Sơ đồ / quy trình</Label>
+            <Textarea
+              value={flowPassage}
+              onChange={(e) => setFlowPassage(e.target.value)}
+              className="min-h-[180px] font-mono text-[13px]"
+              placeholder={
+                "Step 1: Identify the 1. ..........\n\nStep 2: Discuss with 2. ..........\n\nStep 3: Submit 3. .......... to manager\n\nStep 4: Wait for approval"
+              }
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Mỗi dòng = một ô trong sơ đồ. Có thể dùng tiêu đề (Step 1, Step 2…). Mỗi chỗ trống là
+              một chuỗi dấu chấm. Để trống nếu bài không có dạng này.
+            </p>
+          </div>
+          {flowPassage.trim() && (
+            <div>
+              <Label>Đáp án — {flowBlankCount} chỗ trống</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Nhiều đáp án đúng? Ngăn cách bằng dấu “/” — VD “manager / boss”.
+              </p>
+              {flowBlankCount === 0 ? (
+                <p className="text-xs text-destructive mt-1">
+                  Chưa phát hiện chỗ trống nào — mỗi chỗ trống cần một chuỗi dấu chấm.
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 mt-1">
+                  {Array.from({ length: flowBlankCount }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-1.5">
+                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-violet-600 text-white text-xs font-bold">
+                        {i + 1}
+                      </span>
+                      <Input
+                        value={flowAnswers[i] ?? ""}
+                        onChange={(e) => setFlowAnswerAt(i, e.target.value)}
+                        placeholder={`Đáp án ${i + 1}`}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {hasMap && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MapIcon className="h-5 w-5 text-primary" /> Map / Plan / Diagram Labelling
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Học viên nhìn bản đồ ở “Ảnh trong bài làm” (đã upload phía trên), nghe audio rồi chọn
+              nhãn A/B/C/… cho từng điểm. Mỗi điểm là một câu hỏi MAP_LABELLING bên dưới — chia
+              dùng chung danh sách nhãn ngay sau đây.
+            </p>
+          </CardHeader>
+          <CardContent>
+            {!contentImageUrl.trim() && (
+              <p className="text-xs text-destructive">
+                ⚠️ Hãy upload “Ảnh trong bài làm” ở thẻ <strong>Thông tin</strong> phía trên — đây
+                là bản đồ học viên sẽ thấy.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {hasMatching && (
         <Card>
           <CardHeader>
@@ -756,17 +926,18 @@ export function ListeningTestForm({
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
-                <List className="h-5 w-5 text-primary" /> Danh sách câu nối (dùng chung)
+                <List className="h-5 w-5 text-primary" /> Danh sách nhãn A/B/C/… (dùng chung)
               </CardTitle>
               <Button size="sm" variant="outline" onClick={() => setMatchOptions([...matchOptions, ""])}>
-                <Plus className="h-4 w-4" /> Thêm câu
+                <Plus className="h-4 w-4" /> Thêm nhãn
               </Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
             <p className="text-xs text-muted-foreground">
-              Danh sách câu nối đánh số A, B, C… Mỗi câu “Matching” bên dưới sẽ chọn 1 câu nối
-              từ danh sách này. VD: A. Likes coffee · B. Prefers tea · C. Doesn’t drink at all.
+              {hasMap
+                ? "Danh sách nhãn A, B, C… dùng chung cho mọi câu Matching và Map Labelling. VD với map: A. Reception · B. Cafeteria · C. Library."
+                : "Danh sách câu nối đánh số A, B, C… Mỗi câu “Matching” bên dưới sẽ chọn 1 nhãn từ danh sách này. VD: A. Likes coffee · B. Prefers tea · C. Doesn’t drink at all."}
             </p>
             {matchOptions.map((o, oi) => (
               <div key={oi} className="flex items-center gap-2">
@@ -852,7 +1023,9 @@ export function ListeningTestForm({
                     ? "Tên đoạn / Speaker (hiển thị cạnh ô chọn)"
                     : q.type === "MATCHING"
                       ? "Câu cần nối (học viên sẽ chọn A/B/C/… cho câu này)"
-                      : "Nội dung câu hỏi"}
+                      : q.type === "MAP_LABELLING"
+                        ? "Mô tả điểm trên bản đồ (học viên sẽ chọn A/B/C/… cho điểm này)"
+                        : "Nội dung câu hỏi"}
                 </Label>
                 <Textarea
                   value={q.prompt}
@@ -866,7 +1039,9 @@ export function ListeningTestForm({
                           ? "VD: Speaker A"
                           : q.type === "MATCHING"
                             ? "VD: Tom nói rằng…"
-                            : "Nội dung câu hỏi..."
+                            : q.type === "MAP_LABELLING"
+                              ? "VD: Vị trí số 1 trên bản đồ"
+                              : "Nội dung câu hỏi..."
                   }
                 />
               </div>
@@ -877,7 +1052,7 @@ export function ListeningTestForm({
                 <HeadingPicker headings={headings} value={q.correctAnswer} onChange={(v) => patchQ(qi, { correctAnswer: v })} />
               )}
 
-              {q.type === "MATCHING" && (
+              {(q.type === "MATCHING" || q.type === "MAP_LABELLING") && (
                 <MatchPicker options={matchOptions} value={q.correctAnswer} onChange={(v) => patchQ(qi, { correctAnswer: v })} />
               )}
 

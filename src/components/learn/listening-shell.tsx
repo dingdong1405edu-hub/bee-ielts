@@ -32,7 +32,7 @@ import {
   Play,
 } from "lucide-react";
 import { cn, formatDuration, isAnswerCorrect } from "@/lib/utils";
-import { FormBlanks, TableBlanks, groupQuestions } from "@/components/learn/form-blanks";
+import { FormBlanks, TableBlanks, FlowBlanks, groupQuestions } from "@/components/learn/form-blanks";
 
 export type ShellQType =
   | "MCQ"
@@ -532,7 +532,12 @@ function PartBody({
       <div className="p-5 md:p-6 space-y-4">
         {units.map((unit, ui) => {
           if (unit.kind === "form") {
-            const Block = unit.layout === "table" ? TableBlanks : FormBlanks;
+            const Block =
+              unit.layout === "table"
+                ? TableBlanks
+                : unit.layout === "flow"
+                  ? FlowBlanks
+                  : FormBlanks;
             const start = part.startNum + unit.startNum - 1;
             return (
               <div key={`form-${ui}`}>
@@ -571,15 +576,29 @@ function PartBody({
                 </span>
                 <p className="font-medium flex-1 leading-relaxed">{q.prompt}</p>
               </div>
-              {q.type === "MATCHING_HEADINGS" || q.type === "MATCHING" ? (
+              {q.type === "MATCHING_HEADINGS" ||
+              q.type === "MATCHING" ||
+              q.type === "MATCHING_FEATURES" ||
+              q.type === "MATCHING_INFO" ||
+              q.type === "MATCHING_SENTENCE_ENDINGS" ? (
                 <HeadingPicker
                   options={q.options ?? []}
                   value={userAns}
                   correct={q.correctAnswer}
                   submitted={!!submitted}
                   onChange={(v) => onChange(q.id, v)}
-                  label={q.type === "MATCHING" ? "Danh sách câu nối" : "Danh sách Heading"}
-                  placeholder={q.type === "MATCHING" ? "— Chọn A/B/C/… —" : "— Chọn heading —"}
+                  label={
+                    q.type === "MATCHING_HEADINGS"
+                      ? "Danh sách Heading"
+                      : q.type === "MATCHING_FEATURES"
+                        ? "Danh sách nhãn (bản đồ / sơ đồ)"
+                        : "Danh sách nhãn A/B/C/…"
+                  }
+                  placeholder={
+                    q.type === "MATCHING_HEADINGS"
+                      ? "— Chọn heading —"
+                      : "— Chọn A/B/C/… —"
+                  }
                 />
               ) : q.options ? (
                 <div className="space-y-2 ml-8">

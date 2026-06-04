@@ -10,16 +10,18 @@ export interface FormQuestion {
 }
 
 export type QuestionUnit<T> =
-  | { kind: "form"; items: T[]; startNum: number; layout: "text" | "table" }
+  | { kind: "form"; items: T[]; startNum: number; layout: "text" | "table" | "flow" }
   | { kind: "multi"; q: T; num: number }
   | { kind: "single"; q: T; num: number };
 
 /**
  * Split a flat question list into render units. A run of consecutive
  * questions sharing the same non-empty `formGroup` becomes one "form" unit;
- * a formGroup starting with "tbl" is laid out as a table, otherwise as a
- * flowing passage. A formGroup starting with "ms" is a single "choose
- * TWO/THREE" multi-select question. Every other question is "single".
+ * - "tbl…" prefix → table layout (pipe-separated cells)
+ * - "fc…"  prefix → flow-chart layout (boxes stacked with ↓ arrows)
+ * - "ms…"  prefix → single "choose TWO/THREE" multi-select question
+ * - anything else → flowing passage (notes / sentence / summary completion)
+ * Every other question is "single".
  */
 export function groupQuestions<T extends { formGroup?: string | null }>(
   questions: T[],
@@ -38,7 +40,12 @@ export function groupQuestions<T extends { formGroup?: string | null }>(
         items.push(questions[i]);
         i++;
       }
-      units.push({ kind: "form", items, startNum, layout: fg.startsWith("tbl") ? "table" : "text" });
+      const layout: "text" | "table" | "flow" = fg.startsWith("tbl")
+        ? "table"
+        : fg.startsWith("fc")
+          ? "flow"
+          : "text";
+      units.push({ kind: "form", items, startNum, layout });
     } else {
       units.push({ kind: "single", q: questions[i], num: i + 1 });
       i++;
@@ -311,6 +318,98 @@ export function TableBlanks({
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/**
+ * Renders a pasted flow-chart-completion task. Each non-blank line in the
+ * stitched prompt becomes one box; an arrow ↓ is drawn between consecutive
+ * boxes. Each `___` marker inside a line (walked in reading order) becomes
+ * an inline numbered input — same BlankInput pill the form/table layouts
+ * use, so a learner sees a consistent input style across every completion
+ * variant.
+ *
+ * Admins paste their flow-chart linewise:
+ *
+ *     Step 1: Identify the 1. ..........
+ *     Step 2: Discuss with 2. ..........
+ *     Step 3: Submit 3. .......... to manager
+ *
+ * Each line becomes a card; arrows connect them visually.
+ */
+export function FlowBlanks({
+  items,
+  startNum,
+  answers,
+  onChange,
+  disabled,
+  submitted,
+}: {
+  items: FormQuestion[];
+  startNum: number;
+  answers: Record<string, string>;
+  onChange: (id: string, v: string) => void;
+  disabled?: boolean;
+  submitted?: boolean;
+}) {
+  // Stitch every prompt back into one string, split by line — same shape the
+  // admin pasted. Walk the marker positions in reading order to bind each
+  // blank to the right `items[]` entry, so per-input answers stay aligned.
+  const stitched = items.map((it) => it.prompt).join("");
+  const lines = stitched.split("\n").map((l) => l.trim()).filter(Boolean);
+  let blankIdx = 0;
+  return (
+    <div className="rounded-2xl border bg-card p-4 md:p-5 space-y-2">
+      {lines.map((line, li) => {
+        const parts = line.split(/(_{2,}|\{N\})/g);
+        return (
+          <div key={li} className="flex flex-col items-stretch">
+            <div className="rounded-xl border-2 border-primary/30 bg-background px-4 py-3 text-[15px] leading-relaxed text-center">
+              {parts.map((p, pi) => {
+                if (/_{2,}/.test(p) || /\{N\}/.test(p)) {
+                  const it = items[blankIdx];
+                  const num = startNum + blankIdx;
+                  blankIdx++;
+                  if (!it) return null;
+                  return (
+                    <BlankInput
+                      key={pi}
+                      num={num}
+                      value={answers[it.id] || ""}
+                      correctAnswer={it.correctAnswer}
+                      onChange={(v) => onChange(it.id, v)}
+                      disabled={disabled}
+                      submitted={submitted}
+                    />
+                  );
+                }
+                return <span key={pi}>{p}</span>;
+              })}
+            </div>
+            {li < lines.length - 1 && (
+              <div className="flex justify-center py-1">
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 18 18"
+                  fill="none"
+                  className="text-primary/60"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M9 2v12m0 0l-4-4m4 4l4-4"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
