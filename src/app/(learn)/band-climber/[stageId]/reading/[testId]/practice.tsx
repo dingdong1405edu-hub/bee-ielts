@@ -13,6 +13,12 @@ import { groupQuestions, FormBlanks, MultiSelectQuestion } from "@/components/le
 import { ReadingGroupHeader, groupStartFor } from "@/components/learn/reading-group-header";
 import { ReadingSolutions } from "@/components/learn/reading-solutions";
 import { BeeGuide, type TourStep } from "@/components/learn/bee-guide";
+import {
+  HighlightablePassage,
+  HighlightToolbar,
+  type Highlight,
+  type HighlightTool,
+} from "@/components/learn/highlightable-passage";
 
 type Q = {
   id: string;
@@ -73,6 +79,11 @@ export function BandClimbReadingPractice({
   const [elapsed, setElapsed] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Highlight pen — same UX as the standalone Reading test player and the
+  // mock-test Reading section. Tool/highlights live in-component only;
+  // we don't persist them server-side.
+  const [tool, setTool] = useState<HighlightTool>("none");
+  const [highlights, setHighlights] = useState<Highlight[]>([]);
 
   useEffect(() => {
     if (submitted) return;
@@ -154,7 +165,8 @@ export function BandClimbReadingPractice({
               {stage.subtitle ? ` · ${stage.subtitle}` : ""}
             </p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+            {!submitted && <HighlightToolbar tool={tool} setTool={setTool} />}
             <Badge variant="outline" className="text-sm px-2 py-1">
               <Clock className="h-3.5 w-3.5 mr-1" /> {formatDuration(elapsed)}
             </Badge>
@@ -193,7 +205,13 @@ export function BandClimbReadingPractice({
                   className="not-prose mb-4 w-full rounded-lg border bg-muted/30 object-contain max-h-80"
                 />
               )}
-              <div className="whitespace-pre-wrap text-sm leading-relaxed">{test.passage}</div>
+              <HighlightablePassage
+                passage={test.passage}
+                highlights={highlights}
+                tool={submitted ? "none" : tool}
+                onChangeHighlights={setHighlights}
+                className="text-sm leading-relaxed"
+              />
             </CardContent>
           </Card>
 

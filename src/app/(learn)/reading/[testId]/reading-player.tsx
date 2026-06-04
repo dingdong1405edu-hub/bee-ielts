@@ -12,6 +12,12 @@ import { TipsCard } from "@/components/learn/tips-card";
 import { ReadingGroupHeader, groupStartFor } from "@/components/learn/reading-group-header";
 import { ReadingComments } from "@/components/learn/reading-comments";
 import { FormBlanks, MultiSelectQuestion, groupQuestions } from "@/components/learn/form-blanks";
+import {
+  HighlightablePassage,
+  HighlightToolbar,
+  type Highlight,
+  type HighlightTool,
+} from "@/components/learn/highlightable-passage";
 
 type Q = {
   id: string;
@@ -43,6 +49,12 @@ export function ReadingPlayer({
   const [elapsed, setElapsed] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Highlight pen state — shared across the passage card. The active tool
+  // controls cursor + click behaviour inside HighlightablePassage; the
+  // highlights array stores marked ranges (persisted in component state
+  // only, no DB write — same as ReadingShell / mock test).
+  const [tool, setTool] = useState<HighlightTool>("none");
+  const [highlights, setHighlights] = useState<Highlight[]>([]);
 
   // Practise — đếm xuôi thời gian đã làm, không giới hạn, không tự nộp.
   useEffect(() => {
@@ -87,7 +99,8 @@ export function ReadingPlayer({
           </button>
           <h1 className="text-xl md:text-2xl font-bold mt-1">{title}</h1>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          {!submitted && <HighlightToolbar tool={tool} setTool={setTool} />}
           <Badge variant="outline" className="text-base px-3 py-1">
             <Clock className="h-4 w-4 mr-1" /> Đã làm {formatDuration(elapsed)}
           </Badge>
@@ -107,7 +120,13 @@ export function ReadingPlayer({
               // eslint-disable-next-line @next/next/no-img-element
               <img src={imageUrl} alt="" className="not-prose mb-4 w-full rounded-lg border bg-muted/30 object-contain max-h-80" />
             )}
-            <div className="whitespace-pre-wrap text-sm leading-relaxed">{passage}</div>
+            <HighlightablePassage
+              passage={passage}
+              highlights={highlights}
+              tool={submitted ? "none" : tool}
+              onChangeHighlights={setHighlights}
+              className="text-sm leading-relaxed"
+            />
           </CardContent>
         </Card>
 
