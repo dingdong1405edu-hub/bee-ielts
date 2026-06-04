@@ -27,16 +27,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (!user?.passwordHash) return null;
         const ok = await bcrypt.compare(password, user.passwordHash);
         if (!ok) return null;
-        // Owner luôn được nâng lên ADMIN (kể cả lần đăng nhập đầu).
+        // Owner luôn được nâng lên OWNER (kể cả lần đăng nhập đầu).
+        // OWNER là role cao nhất — vừa được premium auto, vừa là người
+        // duy nhất có quyền cấp/thu premium cho user khác. Idempotent.
         const owner = isOwner(user.email);
-        if (owner && user.role !== "ADMIN") {
-          await prisma.user.update({ where: { id: user.id }, data: { role: "ADMIN" } });
+        if (owner && user.role !== "OWNER") {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { role: "OWNER", isPremium: true },
+          });
         }
         return {
           id: user.id,
           email: user.email,
           name: user.name ?? undefined,
-          role: owner ? "ADMIN" : user.role,
+          role: owner ? "OWNER" : user.role,
         };
       },
     }),

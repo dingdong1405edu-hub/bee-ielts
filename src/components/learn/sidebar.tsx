@@ -5,12 +5,20 @@ import { usePathname } from "next/navigation";
 import {
   Home, Sparkles, BookOpenText, BookOpen, Headphones, PenLine, Mic,
   GraduationCap, Shield, LogOut, User, Users, Menu, X, Layers, TrendingUp,
-  PanelLeftClose, PanelLeftOpen,
+  PanelLeftClose, PanelLeftOpen, Crown, Lock,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 
-const nav = [
+type NavItem = {
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  /** Premium-only — locked icon + tooltip for free users. */
+  premium?: boolean;
+};
+
+const nav: NavItem[] = [
   { href: "/dashboard", label: "Home", icon: Home },
   { href: "/vocab", label: "Vocab", icon: Sparkles },
   { href: "/grammar", label: "Grammar", icon: BookOpenText },
@@ -19,7 +27,7 @@ const nav = [
   { href: "/writing", label: "Writing", icon: PenLine },
   { href: "/speaking", label: "Speaking", icon: Mic },
   { href: "/words", label: "Học từ", icon: Layers },
-  { href: "/band-climber", label: "Vượt band", icon: TrendingUp },
+  { href: "/band-climber", label: "Vượt band", icon: TrendingUp, premium: true },
   { href: "/mock", label: "Thi thử", icon: GraduationCap },
   { href: "/community", label: "Cộng đồng", icon: Users },
   { href: "/profile", label: "Hồ sơ", icon: User },
@@ -50,7 +58,13 @@ function shouldAutoCollapse(_pathname: string): boolean {
 // so everyone lands on the collapsed rail on next load.
 const PIN_STORAGE_KEY = "bee-sidebar-pinned-v2";
 
-export function Sidebar({ isAdmin }: { isAdmin?: boolean }) {
+export function Sidebar({
+  isAdmin,
+  isPremium,
+}: {
+  isAdmin?: boolean;
+  isPremium?: boolean;
+}) {
   const pathname = usePathname();
   // On the Community page the feed is white — make the sidebar white too so
   // the left panel blends with the page instead of staying dark.
@@ -195,18 +209,60 @@ export function Sidebar({ isAdmin }: { isAdmin?: boolean }) {
         {nav.map((item) => {
           const Icon = item.icon;
           const active = isActive(pathname, item.href);
+          // Premium-gated link gets a lock icon for free users so the
+          // restriction is visible up front. We still let them click —
+          // the layout gate redirects to /premium with a useful CTA.
+          const locked = !!item.premium && !isPremium;
           return (
             <Link
               key={item.href}
               href={item.href}
               className={linkClass(active, collapsed)}
-              title={collapsed ? item.label : undefined}
+              title={
+                collapsed
+                  ? locked
+                    ? `${item.label} (Premium)`
+                    : item.label
+                  : undefined
+              }
             >
               <Icon className={cn("h-5 w-5 shrink-0", active && "text-primary")} />
-              {!collapsed && <span>{item.label}</span>}
+              {!collapsed && (
+                <span className="flex items-center gap-1.5">
+                  {item.label}
+                  {locked && <Lock className="h-3 w-3 text-muted-foreground" />}
+                </span>
+              )}
             </Link>
           );
         })}
+        {!isPremium && (
+          <Link
+            href="/premium"
+            className={linkClass(pathname.startsWith("/premium"), collapsed)}
+            title={collapsed ? "Premium" : undefined}
+          >
+            <Crown className="h-5 w-5 shrink-0 text-amber-500" />
+            {!collapsed && <span className="text-amber-600 dark:text-amber-400">Premium</span>}
+          </Link>
+        )}
+        {isPremium && (
+          <Link
+            href="/premium"
+            className={linkClass(pathname.startsWith("/premium"), collapsed)}
+            title={collapsed ? "Premium" : undefined}
+          >
+            <Crown className="h-5 w-5 shrink-0 text-amber-500" />
+            {!collapsed && (
+              <span className="flex items-center gap-1.5">
+                Premium
+                <span className="text-[9px] font-bold uppercase tracking-wider bg-amber-500 text-white rounded px-1 py-px">
+                  ON
+                </span>
+              </span>
+            )}
+          </Link>
+        )}
         {isAdmin && (
           <Link
             href="/admin"

@@ -27,15 +27,24 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // Verify role against DB (not JWT). When OWNER grants ADMIN to another
   // user, their JWT still says LEARNER — so this gate has to consult the
   // source of truth or the new admin would bounce back to /dashboard.
+  // Both ADMIN and OWNER can enter the admin space; only OWNER sees the
+  // Premium grant page (Phân quyền + new Premium tab).
   const dbUser = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: { role: true, email: true },
   });
-  if (!dbUser || dbUser.role !== "ADMIN") redirect("/dashboard");
+  if (!dbUser || (dbUser.role !== "ADMIN" && dbUser.role !== "OWNER")) {
+    redirect("/dashboard");
+  }
 
-  const items = isOwner(dbUser.email)
-    ? [...nav, { href: "/admin/access", label: "Phân quyền", icon: KeyRound }]
-    : nav;
+  const items =
+    dbUser.role === "OWNER" || isOwner(dbUser.email)
+      ? [
+          ...nav,
+          { href: "/admin/premium", label: "Premium", icon: KeyRound },
+          { href: "/admin/access", label: "Phân quyền", icon: KeyRound },
+        ]
+      : nav;
 
   return (
     <div className="flex min-h-screen bg-muted/30">

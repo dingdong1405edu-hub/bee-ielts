@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { checkMockQuota } from "@/lib/premium";
 import { MockRunner } from "./mock-runner";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +23,14 @@ function pickMany<T>(items: T[], n: number): T[] {
 export default async function MockTestPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
+
+  // Free-tier learners get 1 mock attempt every 7 days. Hard block — we
+  // redirect to /mock with a flag so the landing page can render the
+  // upsell CTA + countdown to the next window. Premium walks through.
+  const quota = await checkMockQuota(session.user.id);
+  if (!quota.allowed) {
+    redirect("/mock?quota=blocked");
+  }
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },

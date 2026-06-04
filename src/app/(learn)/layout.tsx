@@ -2,6 +2,8 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { prisma } from "@/lib/db";
+import { effectivePremium } from "@/lib/premium";
 import { getCurrentUserChrome } from "@/lib/user-cache";
 import { Sidebar, MobileMenu } from "@/components/learn/sidebar";
 import { StatsBar } from "@/components/learn/stats-bar";
@@ -17,13 +19,26 @@ export default async function LearnLayout({ children }: { children: React.ReactN
   // `session.user.role` is refreshed from DB by the jwt callback in auth.ts
   // (at most every 30 s) — so a freshly-promoted admin sees the Admin
   // sidebar link on their next page load without having to log out.
-  const isAdmin = (session.user as { role?: string }).role === "ADMIN";
+  const role = (session.user as { role?: string }).role;
+  const isAdmin = role === "ADMIN" || role === "OWNER";
+  // Premium gate read — used to lock/unlock the Vượt band link and show
+  // the "Premium ON" badge in the sidebar. Cheap single-column lookup.
+  const dbUser = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true, isPremium: true },
+  });
+  const isPremium = effectivePremium(
+    (dbUser ?? { role: "LEARNER", isPremium: false }) as {
+      role: "LEARNER" | "ADMIN" | "OWNER";
+      isPremium: boolean;
+    },
+  );
 
   return (
     <div className="flex min-h-screen">
       <LearnBackground />
       <div data-chrome>
-        <Sidebar isAdmin={isAdmin} />
+        <Sidebar isAdmin={isAdmin} isPremium={isPremium} />
       </div>
       <div className="flex-1 flex flex-col min-w-0">
         <header data-chrome className="sticky top-0 z-30 flex items-center justify-between gap-3 backdrop-blur-md px-4 py-3 md:px-8 md:py-4">

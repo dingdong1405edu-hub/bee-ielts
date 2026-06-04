@@ -10,6 +10,17 @@ datasource db {
 enum Role {
   LEARNER
   ADMIN
+  OWNER
+}
+
+/// Status of a learner's request to be upgraded to premium. PENDING is
+/// the queue an owner reviews; APPROVED/REJECTED is a record of the
+/// decision (owner can revoke after approving by flipping the user's
+/// isPremium flag — the request itself stays as a historical row).
+enum PremiumRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum CEFRLevel {
@@ -71,21 +82,48 @@ model User {
   avatarUrl          String?   @db.Text
   coverUrl           String?   @db.Text
   bio                String?
+  // Premium flag — OWNER + ADMIN are implicitly premium via effectivePremium();
+  // this column carries the explicit grant for LEARNER role users so the
+  // checker is a simple OR of (role in OWNER/ADMIN, isPremium=true).
+  isPremium          Boolean   @default(false)
+  premiumGrantedAt   DateTime?
+  /// User id (OWNER) who flipped isPremium → true. Used in the admin UI
+  /// to attribute who approved which user. Null on revoke.
+  premiumGrantedBy   String?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  vocabProgress   VocabProgress[]
-  grammarProgress GrammarProgress[]
-  attempts        Attempt[]
-  posts           Post[]
-  postLikes       PostLike[]
-  postComments    PostComment[]
-  readingComments ReadingComment[]
-  wordDecks       WordDeck[]
-  studyPlan       StudyPlanEntry[]
-  payments        Payment[]
-  mockAttempts    MockAttempt[]
+  vocabProgress     VocabProgress[]
+  grammarProgress   GrammarProgress[]
+  attempts          Attempt[]
+  posts             Post[]
+  postLikes         PostLike[]
+  postComments      PostComment[]
+  readingComments   ReadingComment[]
+  wordDecks         WordDeck[]
+  studyPlan         StudyPlanEntry[]
+  payments          Payment[]
+  mockAttempts      MockAttempt[]
   bandStageProgress BandStageProgress[]
+  premiumRequests   PremiumRequest[]
+}
+
+/// A learner asks the owner to upgrade their account to premium. One
+/// learner can have multiple historical rows (rejected, then later
+/// approved). The owner reviews PENDING rows on /admin/premium.
+model PremiumRequest {
+  id        String               @id @default(cuid())
+  userId    String
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   String?              @db.Text
+  status    PremiumRequestStatus @default(PENDING)
+  createdAt DateTime             @default(now())
+  decidedAt DateTime?
+  /// User id (OWNER) who approved/rejected this request.
+  decidedBy String?
+
+  @@index([userId])
+  @@index([status, createdAt])
 }
 
 /// One row per completed mock test. Stores enough data to render the

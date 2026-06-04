@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { GraduationCap, Headphones, BookOpen, PenLine, Mic, Coffee, Clock, Sparkles } from "lucide-react";
+import { GraduationCap, Headphones, BookOpen, PenLine, Mic, Coffee, Clock, Sparkles, Lock, Crown } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { checkMockQuota } from "@/lib/premium";
 
 export default async function MockLandingPage() {
   const session = await auth();
@@ -14,6 +15,12 @@ export default async function MockLandingPage() {
         take: 3,
       })
     : [];
+
+  // Free users see "1 lần / tuần" + a countdown when they've used their
+  // quota. Premium users (OWNER/ADMIN/granted) see no banner.
+  const quota = session?.user?.id
+    ? await checkMockQuota(session.user.id)
+    : { allowed: true, isPremium: false, nextAllowedAt: null, lastAttemptAt: null };
 
   const sections = [
     { icon: Headphones, label: "Listening", time: "~20 phút", grad: "from-amber-500 to-orange-500" },
@@ -73,10 +80,67 @@ export default async function MockLandingPage() {
         </CardContent>
       </Card>
 
+      {!quota.isPremium && (
+        <Card
+          className={
+            quota.allowed
+              ? "border-2 border-amber-300 bg-amber-50/50 dark:bg-amber-950/20"
+              : "border-2 border-rose-300 bg-rose-50/50 dark:bg-rose-950/20"
+          }
+        >
+          <CardContent className="p-4 flex items-start gap-3 text-sm">
+            {quota.allowed ? (
+              <>
+                <Sparkles className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-amber-900 dark:text-amber-300">
+                    Bạn đang dùng tài khoản miễn phí — 1 lượt thi thử / tuần
+                  </p>
+                  <p className="text-amber-900/80 dark:text-amber-300/80 text-xs mt-0.5">
+                    Nâng cấp Premium để thi thử không giới hạn + mở khoá toàn bộ phần “Vượt band”.
+                  </p>
+                </div>
+                <Button asChild size="sm" variant="outline" className="shrink-0 border-amber-500 text-amber-700 hover:bg-amber-100">
+                  <Link href="/premium">
+                    <Crown className="h-3.5 w-3.5" /> Nâng cấp
+                  </Link>
+                </Button>
+              </>
+            ) : (
+              <>
+                <Lock className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-rose-900 dark:text-rose-300">
+                    Tuần này bạn đã thi thử rồi — hết lượt miễn phí
+                  </p>
+                  <p className="text-rose-900/80 dark:text-rose-300/80 text-xs mt-0.5">
+                    {quota.nextAllowedAt
+                      ? `Lượt tiếp theo mở vào ${new Date(quota.nextAllowedAt).toLocaleString("vi-VN")}.`
+                      : "Quay lại tuần sau nhé."}{" "}
+                    Hoặc nâng cấp Premium để thi không giới hạn ngay.
+                  </p>
+                </div>
+                <Button asChild size="sm" variant="brand" className="shrink-0">
+                  <Link href="/premium?from=mock-quota">
+                    <Crown className="h-3.5 w-3.5" /> Nâng cấp
+                  </Link>
+                </Button>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <div className="flex gap-3">
-        <Button asChild size="xl" variant="brand" className="flex-1 rounded-full">
-          <Link href="/mock/test">Bắt đầu thi thử →</Link>
-        </Button>
+        {quota.allowed ? (
+          <Button asChild size="xl" variant="brand" className="flex-1 rounded-full">
+            <Link href="/mock/test">Bắt đầu thi thử →</Link>
+          </Button>
+        ) : (
+          <Button disabled size="xl" variant="brand" className="flex-1 rounded-full">
+            <Lock className="h-4 w-4" /> Hết lượt — tuần sau quay lại
+          </Button>
+        )}
       </div>
 
       {recent.length > 0 && (
