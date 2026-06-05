@@ -89,7 +89,7 @@ async function fetchPdfFromUrl(url: string): Promise<ReadingPdfInput> {
 
 export async function POST(req: Request) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") {
+  if (!session?.user || session.user.role !== "ADMIN" && session.user.role !== "OWNER") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   if (!process.env.ANTHROPIC_API_KEY) {

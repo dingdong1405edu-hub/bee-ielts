@@ -21,7 +21,7 @@ const MAX_BYTES = 10 * 1024 * 1024;
  */
 export async function POST(req: Request) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") {
+  if (!session?.user || session.user.role !== "ADMIN" && session.user.role !== "OWNER") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

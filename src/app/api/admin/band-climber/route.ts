@@ -22,7 +22,7 @@ const bodySchema = z.object({
 /** Used by admin exercise forms to populate the "Gắn vào chặng" dropdown. */
 export async function GET() {
   const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") {
+  if (!session?.user || session.user.role !== "ADMIN" && session.user.role !== "OWNER") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const stages = await prisma.bandStage.findMany({
@@ -34,7 +34,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") {
+  if (!session?.user || session.user.role !== "ADMIN" && session.user.role !== "OWNER") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));

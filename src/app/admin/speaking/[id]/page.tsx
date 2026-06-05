@@ -7,7 +7,7 @@ import type { TourStepDraft } from "@/components/admin/band-climb-tours-editor";
 export default async function EditSpeakingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") redirect("/dashboard");
+  if (!session?.user || session.user.role !== "ADMIN" && session.user.role !== "OWNER") redirect("/dashboard");
 
   const set = await prisma.speakingSet.findUnique({ where: { id } });
   if (!set) notFound();

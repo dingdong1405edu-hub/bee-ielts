@@ -37,7 +37,7 @@ const schema = z.discriminatedUnion("mode", [
 /** Tạo bài học Grammar — admin / owner. */
 export async function POST(req: Request) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") {
+  if (!session?.user || session.user.role !== "ADMIN" && session.user.role !== "OWNER") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

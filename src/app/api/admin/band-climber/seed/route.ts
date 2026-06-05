@@ -10,7 +10,7 @@ import { BAND_STAGE_DEFAULTS } from "@/lib/band-climber-defaults";
  */
 export async function POST() {
   const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") {
+  if (!session?.user || session.user.role !== "ADMIN" && session.user.role !== "OWNER") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   let created = 0;

@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminVoicesPage() {
   const session = await auth();
-  if (!session?.user || (session.user as { role?: string }).role !== "ADMIN") {
+  if (!session?.user || (session.user as { role?: string }).role !== "ADMIN" && (session.user as { role?: string }).role !== "OWNER") {
     redirect("/dashboard");
   }
 

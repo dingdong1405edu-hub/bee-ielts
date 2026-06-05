@@ -60,7 +60,7 @@ const patchSchema = z.object({
 
 async function requireAdmin() {
   const session = await auth();
-  if (!session?.user || (session.user as { role?: string }).role !== "ADMIN") return null;
+  if (!session?.user || (session.user as { role?: string }).role !== "ADMIN" && (session.user as { role?: string }).role !== "OWNER") return null;
   return session;
 }
 

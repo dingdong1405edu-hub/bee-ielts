@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export default async function VoiceTestPage() {
   const session = await auth();
-  if (!session?.user || (session.user as { role?: string }).role !== "ADMIN") {
+  if (!session?.user || (session.user as { role?: string }).role !== "ADMIN" && (session.user as { role?: string }).role !== "OWNER") {
     redirect("/dashboard");
   }
   return <VoiceTestClient />;

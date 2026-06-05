@@ -11,7 +11,7 @@ import { SAMPLE_READING_4_TO_5 } from "@/lib/band-climber-reading-sample";
  */
 export async function POST() {
   const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") {
+  if (!session?.user || session.user.role !== "ADMIN" && session.user.role !== "OWNER") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

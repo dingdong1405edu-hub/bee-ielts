@@ -18,7 +18,7 @@ export default async function NewMiniQuizPage({
   const { id } = await params;
   const { skill } = await searchParams;
   const session = await auth();
-  if (!session?.user || (session.user as { role?: string }).role !== "ADMIN") {
+  if (!session?.user || (session.user as { role?: string }).role !== "ADMIN" && (session.user as { role?: string }).role !== "OWNER") {
     redirect("/dashboard");
   }
   const stage = await prisma.bandStage.findUnique({

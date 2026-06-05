@@ -12,7 +12,7 @@ export default async function EditMiniQuizPage({
 }) {
   const { id, quizId } = await params;
   const session = await auth();
-  if (!session?.user || (session.user as { role?: string }).role !== "ADMIN") {
+  if (!session?.user || (session.user as { role?: string }).role !== "ADMIN" && (session.user as { role?: string }).role !== "OWNER") {
     redirect("/dashboard");
   }
   const [stage, quiz] = await Promise.all([

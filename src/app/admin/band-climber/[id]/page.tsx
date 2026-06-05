@@ -13,7 +13,7 @@ export default async function EditBandStagePage({
 }) {
   const { id } = await params;
   const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") redirect("/dashboard");
+  if (!session?.user || session.user.role !== "ADMIN" && session.user.role !== "OWNER") redirect("/dashboard");
 
   const stage = await prisma.bandStage.findUnique({
     where: { id },
