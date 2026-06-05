@@ -75,6 +75,7 @@ export default async function EditBandStagePage({
   return (
     <div className="space-y-6">
       <BandStageForm
+        canDelete={session.user.role === "OWNER"}
         initial={{
           id: stage.id,
           fromBand: stage.fromBand,

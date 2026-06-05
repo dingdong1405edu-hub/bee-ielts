@@ -35,7 +35,17 @@ export interface BandStageInitial {
   tipsShowOnMiniQuiz: boolean;
 }
 
-export function BandStageForm({ initial }: { initial?: BandStageInitial }) {
+export function BandStageForm({
+  initial,
+  canDelete = false,
+}: {
+  initial?: BandStageInitial;
+  /** Only OWNER can delete a chặng — ADMIN sees the form but no destructive
+   *  button. The page passes this in based on the session role; the API
+   *  enforces the same rule independently so a determined ADMIN still
+   *  can't DELETE via fetch. */
+  canDelete?: boolean;
+}) {
   const router = useRouter();
   const isEdit = !!initial;
   const [loading, setLoading] = useState(false);
@@ -300,10 +310,15 @@ export function BandStageForm({ initial }: { initial?: BandStageInitial }) {
           {loading && <Loader2 className="h-4 w-4 animate-spin" />}
           {isEdit ? "Lưu thay đổi" : "Tạo chặng"}
         </Button>
-        {isEdit && (
+        {isEdit && canDelete && (
           <Button variant="destructive" className="ml-auto" onClick={remove} disabled={loading}>
             <Trash2 className="h-4 w-4" /> Xoá chặng
           </Button>
+        )}
+        {isEdit && !canDelete && (
+          <p className="ml-auto text-xs text-muted-foreground italic self-center">
+            Chỉ OWNER mới xoá được chặng.
+          </p>
         )}
       </div>
     </div>

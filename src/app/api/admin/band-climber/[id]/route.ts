@@ -74,8 +74,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN" && session.user.role !== "OWNER") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  // Stricter gate than PATCH on purpose: deleting a chặng wipes the linked
+  // mini-quizzes, the BandStageProgress rows for every learner who finished
+  // it, and the recommendedStageId logic on /band-climber. ADMIN can edit
+  // chặng content but only OWNER gets to take one off the map.
+  if (!session?.user || session.user.role !== "OWNER") {
+    return NextResponse.json(
+      { error: "Chỉ OWNER có quyền xoá chặng" },
+      { status: 403 },
+    );
   }
   const existing = await prisma.bandStage.findUnique({ where: { id } });
   if (!existing) return NextResponse.json({ error: "Không tìm thấy chặng" }, { status: 404 });
