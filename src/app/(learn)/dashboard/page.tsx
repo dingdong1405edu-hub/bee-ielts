@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Sparkles, BookOpenText, BookOpen, Headphones, PenLine, Mic, ArrowRight, GraduationCap } from "lucide-react";
+import { Sparkles, BookOpenText, BookOpen, Headphones, PenLine, Mic, ArrowRight, GraduationCap, Video, Play } from "lucide-react";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
@@ -105,6 +105,32 @@ export default async function DashboardPage() {
             <div className="flex-1 min-w-0">
               <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">Thi thử IELTS Full</h2>
               <p className="text-white/90 text-sm mt-0.5">4 kỹ năng → AI chấm overall + per-skill band</p>
+            </div>
+            <ArrowRight className="h-6 w-6 group-hover:translate-x-1 transition-transform" />
+          </div>
+        </div>
+      </Link>
+
+      {/* Shadowing hero — highlight new feature: practice with YouTube
+          videos, AI scores pronunciation per sentence. Sits between Mock
+          card and module grid so it's the second-most prominent CTA. */}
+      <Link href="/shadowing" className="block group">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-rose-500 via-orange-500 to-amber-500 p-6 md:p-8 text-white shadow-xl shadow-orange-500/25 transition-all hover:shadow-2xl hover:shadow-orange-500/35 hover:-translate-y-0.5">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_85%,rgba(255,255,255,0.25),transparent_55%)]" />
+          <div className="absolute -right-8 -top-8 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+          <span className="absolute top-4 right-4 inline-flex items-center gap-1 rounded-full bg-white/20 backdrop-blur px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider border border-white/30">
+            <Sparkles className="h-3 w-3" /> Mới
+          </span>
+          <div className="relative flex items-center gap-4 flex-wrap">
+            <div className="relative grid h-14 w-14 place-items-center rounded-2xl bg-white/15 backdrop-blur border border-white/20">
+              <Video className="h-7 w-7" />
+              <span className="absolute -bottom-1 -right-1 grid h-6 w-6 place-items-center rounded-full bg-white text-rose-600 shadow-md">
+                <Play className="h-3 w-3 fill-current" />
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">Shadowing với YouTube</h2>
+              <p className="text-white/90 text-sm mt-0.5">Nghe – nói theo video → AI chấm phát âm từng câu</p>
             </div>
             <ArrowRight className="h-6 w-6 group-hover:translate-x-1 transition-transform" />
           </div>
