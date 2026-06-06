@@ -264,7 +264,10 @@ function ShellHeader({
         <div className="flex-1" />
         <div
           className={cn(
-            "hidden md:inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-bold",
+            // Countdown must stay visible on mobile too — 10-min review timer
+            // is critical info for IELTS pacing. Was previously hidden md:
+            // which made it invisible on phones.
+            "inline-flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-full text-xs md:text-sm font-bold",
             showCountdown
               ? lowTime
                 ? "bg-rose-500/10 text-rose-600 animate-pulse"
@@ -272,11 +275,11 @@ function ShellHeader({
               : "bg-muted text-foreground/80",
           )}
         >
-          <Clock className="h-4 w-4" />
+          <Clock className="h-3.5 w-3.5 md:h-4 md:w-4" />
           {showCountdown ? (
             <span>{formatDuration(remainingSec ?? 0)} còn lại</span>
           ) : (
-            <span>Đã làm {formatDuration(elapsedSec)}</span>
+            <span className="hidden sm:inline">Đã làm {formatDuration(elapsedSec)}</span>
           )}
         </div>
         <button

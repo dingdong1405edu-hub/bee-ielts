@@ -127,7 +127,7 @@ export function MockListening({
     const allLocked = new Set(sections.map((s) => s.id));
     return (
       <ListeningShell
-        title="Listening Mock Test"
+        title="Listening Mock Test — 10 phút kiểm tra"
         brandName="Bee IELTS"
         parts={parts}
         activeIdx={activeIdx}
@@ -143,8 +143,24 @@ export function MockListening({
     );
   }
 
-  // Playing phase — forward-only, play-once per section, last "next" flips
-  // the phase to reviewing instead of advancing to a non-existent part.
+  // Playing phase — forward-only, play-once per section. The submit button
+  // advances one section at a time; only when we're on the LAST section
+  // does it flip the phase to the 10-minute review. Previously this had
+  // a bug where any click on submit jumped straight to review, skipping
+  // sections 2–4. Now intermediate sections route through handlePartChange
+  // (same path the bottom part-nav uses) so the IELTS forward-only rule
+  // applies uniformly.
+  const advance = () => {
+    if (activeIdx === sections.length - 1) {
+      // Lock the final section's audio too before entering review.
+      markPlayed(sections[activeIdx].id);
+      setActiveIdx(0); // start review from Part 1 so the learner re-scans top to bottom
+      setPhase("reviewing");
+    } else {
+      handlePartChange(activeIdx + 1);
+    }
+  };
+
   return (
     <ListeningShell
       title="Listening Mock Test"
@@ -154,7 +170,7 @@ export function MockListening({
       onActiveIdxChange={handlePartChange}
       answers={answers}
       onChangeAnswer={(id, v) => setAnswers((a) => ({ ...a, [id]: v }))}
-      onSubmit={() => setPhase("reviewing")}
+      onSubmit={advance}
       submitLabel={
         activeIdx === sections.length - 1
           ? "Sang kiểm tra (10:00)"
