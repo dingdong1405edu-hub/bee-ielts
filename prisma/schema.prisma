@@ -115,6 +115,8 @@ model User {
   bandStageProgress BandStageProgress[]
   premiumRequests   PremiumRequest[]
   couponRedemptions CouponRedemption[]
+  shadowingLessons  ShadowingLesson[]
+  shadowingAttempts ShadowingAttempt[]
 }
 
 /// A learner asks the owner to upgrade their account to premium. One
@@ -680,4 +682,69 @@ model SpeakingVoice {
   updatedAt DateTime @updatedAt
 
   @@index([enabled, order])
+}
+
+/// Shadowing/Dictation lesson — a YouTube video (or uploaded audio
+/// later) sliced into short segments the learner repeats. `source` is
+/// the channel/platform label shown on the card ("TED-Ed", "Netflix",
+/// "BBC"). `youtubeId` is the 11-char video id (preferred so we can
+/// embed via the IFrame Player API + thumbnail URL).
+model ShadowingLesson {
+  id          String   @id @default(cuid())
+  title       String
+  source      String
+  youtubeId   String
+  thumbnailUrl String? @db.Text
+  /// Null = community/admin lesson. Set = user-uploaded private lesson.
+  createdBy   String?
+  user        User?    @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+  /// Hidden lessons stay private to creator until admin promotes.
+  published   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  segments    ShadowingSegment[]
+  attempts    ShadowingAttempt[]
+
+  @@index([published, createdAt])
+  @@index([createdBy])
+}
+
+/// One sentence-sized clip inside a lesson. startSec/endSec are seconds
+/// (float). Order is 1-based for display. `textVi` + `ipa` are optional
+/// admin-authored helpers shown on the right column of the player.
+model ShadowingSegment {
+  id        String   @id @default(cuid())
+  lessonId  String
+  lesson    ShadowingLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  order     Int
+  startSec  Float
+  endSec    Float
+  textEn    String   @db.Text
+  textVi    String?  @db.Text
+  ipa       String?  @db.Text
+
+  attempts  ShadowingAttempt[]
+
+  @@unique([lessonId, order])
+  @@index([lessonId])
+}
+
+/// One recorded attempt at a segment. Stores the Whisper transcript
+/// and a 0-100 word-match score against textEn so the UI can show
+/// progress without rerunning the model.
+model ShadowingAttempt {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId    String
+  lesson      ShadowingLesson  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  segmentId   String
+  segment     ShadowingSegment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+  transcript  String?  @db.Text
+  score       Float?
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([segmentId])
 }

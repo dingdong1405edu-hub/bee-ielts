@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   Home, Sparkles, BookOpenText, BookOpen, Headphones, PenLine, Mic,
   GraduationCap, Shield, LogOut, User, Users, Menu, X, Layers, TrendingUp,
-  PanelLeftClose, PanelLeftOpen, Crown, Lock,
+  PanelLeftClose, PanelLeftOpen, Crown, Lock, Video,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -27,6 +27,7 @@ const nav: NavItem[] = [
   { href: "/writing", label: "Writing", icon: PenLine },
   { href: "/speaking", label: "Speaking", icon: Mic },
   { href: "/words", label: "Học từ", icon: Layers },
+  { href: "/shadowing", label: "Shadowing", icon: Video },
   { href: "/band-climber", label: "Vượt band", icon: TrendingUp, premium: true },
   { href: "/mock", label: "Thi thử", icon: GraduationCap },
   { href: "/community", label: "Cộng đồng", icon: Users },
