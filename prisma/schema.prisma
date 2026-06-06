@@ -117,6 +117,7 @@ model User {
   couponRedemptions CouponRedemption[]
   shadowingLessons  ShadowingLesson[]
   shadowingAttempts ShadowingAttempt[]
+  shadowingNotes    ShadowingNote[]
 }
 
 /// A learner asks the owner to upgrade their account to premium. One
@@ -705,6 +706,7 @@ model ShadowingLesson {
 
   segments    ShadowingSegment[]
   attempts    ShadowingAttempt[]
+  notes       ShadowingNote[]
 
   @@index([published, createdAt])
   @@index([createdBy])
@@ -728,6 +730,21 @@ model ShadowingSegment {
 
   @@unique([lessonId, order])
   @@index([lessonId])
+}
+
+/// Per-user free-text notes for a lesson. Surfaced in the "Ghi chú"
+/// tab in the player. One row per (user, lesson) — upsert on autosave.
+model ShadowingNote {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId  String
+  lesson    ShadowingLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  text      String   @db.Text
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@unique([userId, lessonId])
 }
 
 /// One recorded attempt at a segment. Stores the Whisper transcript

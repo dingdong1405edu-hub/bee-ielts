@@ -2,7 +2,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Video, Plus, Loader2, Trash2, Youtube, ExternalLink } from "lucide-react";
+import { Video, Plus, Loader2, Trash2, Youtube, ExternalLink, Sparkles, ChevronDown, Wand2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,6 +57,58 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
   const [bulkPaste, setBulkPaste] = useState("");
   const [creating, setCreating] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  // AI auto-create
+  const [aiTitle, setAiTitle] = useState("");
+  const [aiSource, setAiSource] = useState("");
+  const [aiUrl, setAiUrl] = useState("");
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiStep, setAiStep] = useState<string>("");
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+
+  const createWithAI = async () => {
+    if (!aiTitle.trim()) return toast.error("Nhập tiêu đề");
+    if (!aiSource.trim()) return toast.error("Nhập nguồn (VD: TED-Ed)");
+    if (!aiUrl.trim()) return toast.error("Dán URL YouTube");
+    setAiBusy(true);
+    setAiStep("Đang lấy phụ đề từ YouTube...");
+    try {
+      // We can't truly stream backend progress without SSE, but flip the
+      // message after a short delay so admin sees Claude phase too.
+      const stepTimer = setTimeout(() => {
+        setAiStep("Đang dịch + tạo IPA bằng AI... (có thể mất 1-2 phút)");
+      }, 5000);
+      const res = await fetch("/api/admin/shadowing/from-youtube", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: aiTitle.trim(),
+          source: aiSource.trim(),
+          youtubeUrl: aiUrl.trim(),
+        }),
+      });
+      clearTimeout(stepTimer);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error || "Tạo bài thất bại");
+        if (res.status === 422) {
+          setAdvancedOpen(true);
+        }
+        return;
+      }
+      toast.success(
+        `Đã tạo bài (${data.segmentCount} đoạn, AI dịch ${data.enriched} đoạn). Đang mở...`,
+      );
+      setAiTitle("");
+      setAiSource("");
+      setAiUrl("");
+      window.location.href = `/shadowing/${data.id}`;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Lỗi");
+    } finally {
+      setAiBusy(false);
+      setAiStep("");
+    }
+  };
 
   /** Quick parse for VTT-style or "start end text" lines.
    *  Accepted: "0:00 0:05 Hello world" / "0 5 Hello world" / VTT cues. */
@@ -195,16 +247,99 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
           <Video className="h-6 w-6 text-primary" /> Shadowing
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Tạo bài Shadowing từ video YouTube. Mỗi bài cần URL + danh sách đoạn (start, end,
-          text). Dán VTT/SRT thẳng vào ô “Import nhanh” bên dưới để auto-split.
+          Dán URL YouTube — AI tự lấy phụ đề, dịch tiếng Việt và sinh IPA cho từng câu.
         </p>
       </div>
 
+      {/* AI auto-create — primary path */}
+      <Card className="border-2 border-amber-400/60 bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-amber-950/30 dark:via-orange-950/20 dark:to-rose-950/20">
+        <CardContent className="p-5 space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-amber-500 to-rose-500 text-white shadow-md shrink-0">
+              <Wand2 className="h-5 w-5" />
+            </div>
+            <div className="flex-1">
+              <h2 className="font-extrabold flex items-center gap-2 text-lg">
+                AI tạo bài tự động
+                <span className="text-[10px] uppercase tracking-wider font-extrabold rounded-full bg-amber-500 text-white px-2 py-0.5">Mới</span>
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Chỉ cần URL — AI lo phần phụ đề, dịch nghĩa và IPA cho mọi câu.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label>Tiêu đề</Label>
+              <Input
+                value={aiTitle}
+                onChange={(e) => setAiTitle(e.target.value)}
+                placeholder="VD: TED-Ed — When I was a kid..."
+                disabled={aiBusy}
+              />
+            </div>
+            <div>
+              <Label>Nguồn (badge trên card)</Label>
+              <Input
+                value={aiSource}
+                onChange={(e) => setAiSource(e.target.value)}
+                placeholder="TED-Ed / BBC / Netflix..."
+                disabled={aiBusy}
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label>URL YouTube</Label>
+            <Input
+              value={aiUrl}
+              onChange={(e) => setAiUrl(e.target.value)}
+              placeholder="https://www.youtube.com/watch?v=..."
+              disabled={aiBusy}
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Video cần có phụ đề tiếng Anh (TED-Ed, BBC Learning, hầu hết các kênh edu đều có).
+            </p>
+          </div>
+
+          <Button
+            onClick={createWithAI}
+            disabled={aiBusy}
+            className="rounded-xl bg-gradient-to-br from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white shadow-md"
+          >
+            {aiBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {aiBusy ? aiStep || "Đang xử lý..." : "AI tạo bài tự động"}
+          </Button>
+          {aiBusy && (
+            <p className="text-xs text-amber-700 dark:text-amber-300 italic">
+              Đừng đóng tab — quá trình này chạy nền và lấy 30s tới vài phút cho video dài.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Manual fallback — collapsible */}
+      <button
+        type="button"
+        onClick={() => setAdvancedOpen((v) => !v)}
+        className="flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-foreground"
+      >
+        <ChevronDown
+          className={`h-4 w-4 transition-transform ${advancedOpen ? "rotate-180" : ""}`}
+        />
+        Chế độ nâng cao — dán transcript thủ công
+      </button>
+
+      {advancedOpen && (
       <Card>
         <CardContent className="p-5 space-y-4">
           <h2 className="font-extrabold flex items-center gap-2">
-            <Plus className="h-4 w-4 text-primary" /> Tạo bài mới
+            <Plus className="h-4 w-4 text-primary" /> Tạo bài mới (thủ công)
           </h2>
+          <p className="text-xs text-muted-foreground -mt-2">
+            Dùng khi video không có phụ đề EN trên YouTube, hoặc khi bạn đã có sẵn VTT/SRT.
+          </p>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
@@ -353,6 +488,7 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
           </Button>
         </CardContent>
       </Card>
+      )}
 
       <section className="space-y-2">
         <h2 className="font-extrabold">Tất cả bài ({lessons.length})</h2>

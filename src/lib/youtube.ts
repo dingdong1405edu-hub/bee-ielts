@@ -32,3 +32,77 @@ export function youtubeThumbnail(id: string): string {
 export function youtubeEmbedUrl(id: string): string {
   return `https://www.youtube.com/embed/${id}?enablejsapi=1&rel=0&modestbranding=1&controls=1`;
 }
+
+/**
+ * Merge raw YouTube caption cues (each typically 2-3 words long) into
+ * sentence-shaped shadowing segments. We greedy-pack cues until we hit a
+ * terminal punctuation (.!?) OR the running window grows past `targetSec`
+ * seconds OR we cross a long silence gap. Each merged segment carries a
+ * single start (from the first cue) and end (last cue's start+duration).
+ */
+export interface RawCue {
+  text: string;
+  offsetSec: number;
+  durationSec: number;
+}
+export interface MergedSegment {
+  startSec: number;
+  endSec: number;
+  textEn: string;
+}
+export function mergeCuesIntoSegments(
+  cues: RawCue[],
+  opts: { targetSec?: number; maxSec?: number; gapSec?: number } = {},
+): MergedSegment[] {
+  const targetSec = opts.targetSec ?? 6;
+  const maxSec = opts.maxSec ?? 12;
+  const gapSec = opts.gapSec ?? 1.2;
+  const cleaned = cues
+    .map((c) => ({
+      ...c,
+      text: c.text
+        .replace(/<[^>]+>/g, " ")
+        .replace(/&amp;/g, "&")
+        .replace(/&#39;/g, "'")
+        .replace(/&quot;/g, '"')
+        .replace(/\[.*?\]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim(),
+    }))
+    .filter((c) => c.text.length > 0);
+
+  const segments: MergedSegment[] = [];
+  let bucket: RawCue[] = [];
+  const flush = () => {
+    if (bucket.length === 0) return;
+    const startSec = bucket[0].offsetSec;
+    const last = bucket[bucket.length - 1];
+    const endSec = Math.max(startSec + 0.5, last.offsetSec + last.durationSec);
+    const textEn = bucket
+      .map((b) => b.text)
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (textEn) segments.push({ startSec, endSec, textEn });
+    bucket = [];
+  };
+
+  for (let i = 0; i < cleaned.length; i++) {
+    const cur = cleaned[i];
+    const prev = bucket[bucket.length - 1];
+    if (prev) {
+      const gap = cur.offsetSec - (prev.offsetSec + prev.durationSec);
+      if (gap > gapSec) flush();
+    }
+    bucket.push(cur);
+    const windowStart = bucket[0].offsetSec;
+    const windowEnd = cur.offsetSec + cur.durationSec;
+    const span = windowEnd - windowStart;
+    const endsSentence = /[.!?]\s*$/.test(cur.text);
+    if (endsSentence && span >= targetSec * 0.5) flush();
+    else if (span >= maxSec) flush();
+    else if (span >= targetSec && /[,;:]\s*$/.test(cur.text)) flush();
+  }
+  flush();
+  return segments;
+}

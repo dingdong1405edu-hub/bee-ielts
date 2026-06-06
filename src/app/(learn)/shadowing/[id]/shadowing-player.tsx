@@ -1,19 +1,24 @@
 "use client";
 /**
- * Shadowing player — left pane: YouTube IFrame embed + sentence list +
- * speed control + Hiện tiếng Việt toggle. Right pane: current sentence,
- * IPA, big record button, Câu trước/Nghe lại/Câu sau nav with keyboard
- * shortcuts (Tab / Ctrl / Enter).
+ * Shadowing player — left pane: YouTube IFrame + tabs (Phụ đề | Ghi chú)
+ * + bee progress trail + segment list. Right pane: current sentence with
+ * clickable words (popup → Vietnamese gloss), IPA toggle, optional Vi line,
+ * recorder, score card, nav.
  *
- * YouTube control uses the IFrame Player API loaded via the public
- * script tag; we play each segment with seekTo(start) → playVideo() and
- * stop with a setTimeout that pauses at segment.endSec. Re-seeking on
- * "Nghe lại" replays the same range without reloading the iframe.
+ * YouTube control: IFrame Player API loaded once on mount, then we
+ * seekTo(start) + playVideo() + setTimeout pause at endSec for each segment.
  *
- * Recording: MediaRecorder → POST to /api/shadowing/score with
- * ?segmentId=… → Deepgram transcribes → word-match score back.
+ * Recording: MediaRecorder → POST raw blob to /api/shadowing/score → Deepgram
+ * transcribes → bag-of-words match → score returned.
+ *
+ * Click-to-translate: POST to /api/shadowing/translate-word with the word
+ * + parent sentence → Claude returns {vi, pos, defEn}. Popup positions itself
+ * over the clicked word.
+ *
+ * Notes tab: textarea autosaved 800ms after the last edit (PUT
+ * /api/shadowing/note). Empty text deletes the row.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
@@ -23,15 +28,15 @@ import {
   Share2,
   Star,
   Volume2,
-  Subtitles,
-  Settings,
   ChevronLeft,
   ChevronRight,
   RotateCcw,
-  Eye,
+  Subtitles,
+  NotebookPen,
+  Sparkles,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { youtubeEmbedUrl } from "@/lib/youtube";
 
 interface Lesson {
   id: string;
@@ -65,7 +70,7 @@ export interface ShadowingPlayerProps {
   segments: Segment[];
 }
 
-// Loads the YouTube IFrame Player API exactly once across the page.
+// Load the YouTube IFrame Player API exactly once across the page.
 let ytApiPromise: Promise<unknown> | null = null;
 function loadYouTubeApi(): Promise<unknown> {
   if (typeof window === "undefined") return Promise.reject(new Error("no window"));
@@ -87,6 +92,21 @@ function loadYouTubeApi(): Promise<unknown> {
 
 const SPEEDS = [0.5, 0.75, 1, 1.25];
 
+interface WordHint {
+  word: string;
+  pos: string;
+  vi: string;
+  defEn: string;
+}
+interface PopupState {
+  word: string;
+  sentence: string;
+  x: number;
+  y: number;
+  loading: boolean;
+  hint: WordHint | null;
+}
+
 export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
   const [activeIdx, setActiveIdx] = useState(0);
   const [showVi, setShowVi] = useState(false);
@@ -95,6 +115,10 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
   const [recording, setRecording] = useState(false);
   const [scoring, setScoring] = useState(false);
   const [score, setScore] = useState<ScoreResult | null>(null);
+  const [tab, setTab] = useState<"subtitles" | "notes">("subtitles");
+  const [noteText, setNoteText] = useState("");
+  const [noteStatus, setNoteStatus] = useState<"" | "saving" | "saved">("");
+  const [popup, setPopup] = useState<PopupState | null>(null);
 
   const playerRef = useRef<{
     seekTo: (s: number, allowSeekAhead?: boolean) => void;
@@ -108,6 +132,7 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
 
   const mediaRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const noteSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const active = segments[activeIdx];
   const total = segments.length;
@@ -120,18 +145,21 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
   };
 
   /** Play a single segment: seek to start, play, schedule pause at end. */
-  const playSegment = useCallback((seg: Segment) => {
-    const yt = playerRef.current;
-    if (!yt) return;
-    clearStopTimer();
-    yt.setPlaybackRate(speed);
-    yt.seekTo(seg.startSec, true);
-    yt.playVideo();
-    const ms = Math.max(500, (seg.endSec - seg.startSec) * 1000);
-    stopTimerRef.current = setTimeout(() => {
-      yt.pauseVideo();
-    }, ms / speed);
-  }, [speed]);
+  const playSegment = useCallback(
+    (seg: Segment) => {
+      const yt = playerRef.current;
+      if (!yt) return;
+      clearStopTimer();
+      yt.setPlaybackRate(speed);
+      yt.seekTo(seg.startSec, true);
+      yt.playVideo();
+      const ms = Math.max(500, (seg.endSec - seg.startSec) * 1000);
+      stopTimerRef.current = setTimeout(() => {
+        yt.pauseVideo();
+      }, ms / speed);
+    },
+    [speed],
+  );
 
   // Initialise the YT player when the iframe element mounts.
   useEffect(() => {
@@ -164,19 +192,55 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lesson.youtubeId]);
 
-  // When the user picks a different segment, auto-play it.
+  // When the user picks a different segment, auto-play and clear score.
   useEffect(() => {
     if (active) playSegment(active);
     setScore(null);
+    setPopup(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeIdx]);
+
+  // Load saved note on mount.
+  useEffect(() => {
+    fetch(`/api/shadowing/note?lessonId=${encodeURIComponent(lesson.id)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (typeof d.text === "string") setNoteText(d.text);
+      })
+      .catch(() => {});
+  }, [lesson.id]);
+
+  // Debounced autosave for the note.
+  const onNoteChange = (v: string) => {
+    setNoteText(v);
+    setNoteStatus("saving");
+    if (noteSaveTimer.current) clearTimeout(noteSaveTimer.current);
+    noteSaveTimer.current = setTimeout(async () => {
+      try {
+        await fetch("/api/shadowing/note", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lessonId: lesson.id, text: v }),
+        });
+        setNoteStatus("saved");
+        setTimeout(() => setNoteStatus(""), 1500);
+      } catch {
+        setNoteStatus("");
+      }
+    }, 800);
+  };
 
   // Keyboard shortcuts: Tab=prev, Ctrl=replay, Enter=next.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // Ignore typing inside form elements.
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+      if (popup) {
+        if (e.key === "Escape") {
+          setPopup(null);
+          return;
+        }
+      }
       if (e.key === "Tab") {
         e.preventDefault();
         prev();
@@ -191,7 +255,7 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeIdx]);
+  }, [activeIdx, popup]);
 
   const prev = () => {
     if (activeIdx > 0) setActiveIdx((i) => i - 1);
@@ -206,6 +270,38 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
   const changeSpeed = (s: number) => {
     setSpeed(s);
     playerRef.current?.setPlaybackRate(s);
+  };
+
+  // Click on a word → fetch hint + open popup.
+  const onWordClick = async (
+    word: string,
+    sentence: string,
+    e: React.MouseEvent<HTMLSpanElement>,
+  ) => {
+    const cleaned = word.replace(/[^A-Za-z'-]/g, "");
+    if (!cleaned) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    setPopup({
+      word: cleaned,
+      sentence,
+      x: rect.left + rect.width / 2,
+      y: rect.bottom + 6,
+      loading: true,
+      hint: null,
+    });
+    try {
+      const res = await fetch("/api/shadowing/translate-word", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ word: cleaned, sentence }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Dịch lỗi");
+      setPopup((p) => (p && p.word === cleaned ? { ...p, loading: false, hint: data } : p));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Lỗi");
+      setPopup(null);
+    }
   };
 
   // Recording — short clip per segment, capped at 30s.
@@ -257,7 +353,6 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
     };
     mr.start();
     setRecording(true);
-    // Auto-stop at 30s.
     setTimeout(() => {
       if (mr.state === "recording") mr.stop();
     }, 30_000);
@@ -265,9 +360,18 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
 
   const progressPct = total === 0 ? 0 : Math.round((completedIds.size / total) * 100);
 
+  // Tokenise the active sentence into clickable words + punctuation.
+  const activeTokens = useMemo(() => {
+    if (!active) return [] as { isWord: boolean; text: string }[];
+    return active.textEn.split(/(\s+|[.,!?;:"()—–\-])/).map((t) => ({
+      isWord: /[A-Za-z]/.test(t),
+      text: t,
+    }));
+  }, [active]);
+
   return (
     <div className="grid lg:grid-cols-[1fr_1fr] gap-4 -mx-4 md:-mx-8 -mt-4 md:-mt-8 min-h-screen bg-card">
-      {/* LEFT: video + segment list */}
+      {/* LEFT: video + tabs + bee progress + segment list / notes */}
       <div className="p-4 md:p-6 space-y-3 border-r">
         <div className="flex items-center gap-2 mb-2">
           <Link href="/shadowing" className="text-xs font-bold text-muted-foreground hover:text-primary">
@@ -281,11 +385,11 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
         </div>
 
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <div>
+          <div className="min-w-0">
             <p className="font-bold text-sm truncate">{lesson.title}</p>
             <p className="text-xs text-muted-foreground">{lesson.source}</p>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 shrink-0">
             {SPEEDS.map((s) => (
               <button
                 key={s}
@@ -303,90 +407,116 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
           </div>
         </div>
 
-        {/* Tabs: Phụ đề / Ghi chú (Phụ đề only for MVP) */}
-        <div className="flex items-center justify-between border-b pb-2">
-          <div className="flex items-center gap-4">
-            <span className="text-sm font-extrabold border-b-2 border-primary pb-1">Phụ đề</span>
-            <span className="text-sm text-muted-foreground">Ghi chú</span>
+        {/* Tabs */}
+        <div className="flex items-center justify-between border-b">
+          <div className="flex items-center gap-1">
+            <TabButton
+              active={tab === "subtitles"}
+              onClick={() => setTab("subtitles")}
+              icon={Subtitles}
+              label="Phụ đề"
+            />
+            <TabButton
+              active={tab === "notes"}
+              onClick={() => setTab("notes")}
+              icon={NotebookPen}
+              label="Ghi chú"
+            />
           </div>
-          <div className="flex items-center gap-2 text-xs">
-            <span className="font-bold">{total} Câu</span>
-            <label className="inline-flex items-center gap-1.5 cursor-pointer">
-              <span>Hiện tiếng việt</span>
-              <input
-                type="checkbox"
-                checked={showVi}
-                onChange={(e) => setShowVi(e.target.checked)}
-                className="h-4 w-7 appearance-none rounded-full bg-muted checked:bg-emerald-500 relative transition-colors before:absolute before:top-0.5 before:left-0.5 before:h-3 before:w-3 before:rounded-full before:bg-white before:transition-transform checked:before:translate-x-3"
-              />
-            </label>
-          </div>
+          {tab === "subtitles" && (
+            <div className="flex items-center gap-2 text-xs pb-2">
+              <span className="font-bold">{total} Câu</span>
+              <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                <span>Hiện tiếng việt</span>
+                <input
+                  type="checkbox"
+                  checked={showVi}
+                  onChange={(e) => setShowVi(e.target.checked)}
+                  className="h-4 w-7 appearance-none rounded-full bg-muted checked:bg-emerald-500 relative transition-colors before:absolute before:top-0.5 before:left-0.5 before:h-3 before:w-3 before:rounded-full before:bg-white before:transition-transform checked:before:translate-x-3"
+                />
+              </label>
+            </div>
+          )}
+          {tab === "notes" && (
+            <span className="text-xs text-muted-foreground pb-2">
+              {noteStatus === "saving" && "Đang lưu..."}
+              {noteStatus === "saved" && "Đã lưu ✓"}
+            </span>
+          )}
         </div>
 
-        {/* Progress bar */}
-        <div className="rounded-full h-2.5 bg-muted overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 transition-all"
-            style={{ width: `${progressPct}%` }}
-          />
-        </div>
-        <div className="flex justify-between text-xs text-muted-foreground -mt-1">
-          <span>Tiến độ</span>
-          <span className="font-bold text-emerald-700 dark:text-emerald-300">{progressPct}%</span>
-        </div>
+        {/* Bee progress trail — replaces the Mario screenshot. The bee
+            sits on the trail at the current % progress; honey jar sits at
+            the end. Looks branded + cute on mobile. */}
+        <BeeProgress pct={progressPct} />
 
-        {/* Segment list */}
-        <div className="space-y-1.5 max-h-[calc(100vh-32rem)] overflow-y-auto pr-1">
-          {segments.map((s, i) => {
-            const isActive = i === activeIdx;
-            const done = completedIds.has(s.id);
-            return (
-              <button
-                key={s.id}
-                onClick={() => setActiveIdx(i)}
-                className={cn(
-                  "w-full text-left rounded-xl border-2 p-3 transition-all",
-                  isActive
-                    ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 shadow-sm"
-                    : done
-                      ? "border-emerald-200 bg-emerald-50/40 dark:bg-emerald-950/10"
-                      : "border-transparent bg-muted/30 hover:border-primary/30",
-                )}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <span
-                    className={cn(
-                      "grid h-4 w-4 place-items-center rounded-full text-[10px] font-bold",
-                      isActive
-                        ? "bg-emerald-500 text-white"
-                        : done
-                          ? "bg-emerald-200 text-emerald-800"
-                          : "bg-muted text-muted-foreground",
-                    )}
-                  >
-                    {done ? "✓" : ""}
-                  </span>
-                  <span className="text-xs font-extrabold text-muted-foreground">
-                    #{s.order}
-                  </span>
-                  {isActive && (
-                    <span className="text-[10px] font-extrabold rounded bg-emerald-500 text-white px-1.5 py-0.5 uppercase tracking-wider">
-                      Đang học
-                    </span>
+        {tab === "subtitles" ? (
+          /* Segment list */
+          <div className="space-y-1.5 max-h-[calc(100vh-32rem)] overflow-y-auto pr-1">
+            {segments.map((s, i) => {
+              const isActive = i === activeIdx;
+              const done = completedIds.has(s.id);
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => setActiveIdx(i)}
+                  className={cn(
+                    "w-full text-left rounded-xl border-2 p-3 transition-all",
+                    isActive
+                      ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 shadow-sm"
+                      : done
+                        ? "border-emerald-200 bg-emerald-50/40 dark:bg-emerald-950/10"
+                        : "border-transparent bg-muted/30 hover:border-primary/30",
                   )}
-                  <Volume2 className="h-3 w-3 text-muted-foreground ml-auto" />
-                </div>
-                <p className="text-sm font-medium leading-snug">{s.textEn}</p>
-                {showVi && s.textVi && (
-                  <p className="text-xs text-muted-foreground italic mt-0.5">{s.textVi}</p>
-                )}
-              </button>
-            );
-          })}
-        </div>
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span
+                      className={cn(
+                        "grid h-4 w-4 place-items-center rounded-full text-[10px] font-bold",
+                        isActive
+                          ? "bg-emerald-500 text-white"
+                          : done
+                            ? "bg-emerald-200 text-emerald-800"
+                            : "bg-muted text-muted-foreground",
+                      )}
+                    >
+                      {done ? "✓" : ""}
+                    </span>
+                    <span className="text-xs font-extrabold text-muted-foreground">#{s.order}</span>
+                    {isActive && (
+                      <span className="text-[10px] font-extrabold rounded bg-emerald-500 text-white px-1.5 py-0.5 uppercase tracking-wider">
+                        Đang học
+                      </span>
+                    )}
+                    <Volume2 className="h-3 w-3 text-muted-foreground ml-auto" />
+                  </div>
+                  <p className="text-sm font-medium leading-snug">{s.textEn}</p>
+                  {showVi && s.textVi && (
+                    <p className="text-xs text-muted-foreground italic mt-0.5">{s.textVi}</p>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          /* Notes editor */
+          <div className="space-y-2">
+            <textarea
+              value={noteText}
+              onChange={(e) => onNoteChange(e.target.value)}
+              placeholder={
+                "Ghi chú của bạn cho bài này — từ mới, idiom, mẹo phát âm... Auto-save khi bạn dừng gõ."
+              }
+              className="w-full min-h-[300px] rounded-2xl border-2 bg-card p-4 text-sm leading-relaxed focus:outline-none focus:border-primary"
+            />
+            <p className="text-xs text-muted-foreground">
+              Ghi chú chỉ bạn nhìn thấy. Tự động lưu sau 0.8s khi ngừng gõ.
+            </p>
+          </div>
+        )}
       </div>
 
-      {/* RIGHT: current sentence + record + nav */}
+      {/* RIGHT: current sentence + clickable words + record + nav */}
       <div className="p-4 md:p-6 space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-2 pb-3 border-b">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -404,27 +534,33 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
           </div>
         </div>
 
-        {/* Tabs row */}
-        <div className="flex items-center gap-4 text-xs flex-wrap text-muted-foreground">
-          <span className="inline-flex items-center gap-1">
-            <Eye className="h-3.5 w-3.5" /> Click the word to translate
+        {/* Tabs row — hint at click-to-translate */}
+        <div className="flex items-center gap-3 text-xs flex-wrap text-muted-foreground">
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-950/40 px-2.5 py-1 font-bold text-amber-700 dark:text-amber-300">
+            <Sparkles className="h-3 w-3" /> Click vào từ để dịch
           </span>
-          <span>|</span>
-          <span className="inline-flex items-center gap-1">
-            <Subtitles className="h-3.5 w-3.5" /> Câu mẫu
-          </span>
-          <span>|</span>
-          <span className="inline-flex items-center gap-1">
-            <Volume2 className="h-3.5 w-3.5" /> IPA
-          </span>
-          <span>|</span>
-          <span className="inline-flex items-center gap-1">
-            <Settings className="h-3.5 w-3.5" /> Dịch nghĩa
-          </span>
+          {active?.ipa && (
+            <span className="inline-flex items-center gap-1">
+              <Volume2 className="h-3.5 w-3.5" /> IPA bật
+            </span>
+          )}
         </div>
 
-        <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight leading-tight">
-          {active?.textEn}
+        {/* Clickable sentence */}
+        <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight leading-relaxed">
+          {activeTokens.map((tok, i) =>
+            tok.isWord ? (
+              <span
+                key={i}
+                onClick={(e) => onWordClick(tok.text, active.textEn, e)}
+                className="cursor-pointer hover:bg-amber-200/60 dark:hover:bg-amber-900/40 rounded transition-colors px-0.5"
+              >
+                {tok.text}
+              </span>
+            ) : (
+              <span key={i}>{tok.text}</span>
+            ),
+          )}
         </h2>
         {active?.ipa && (
           <div className="border-l-4 border-primary/40 pl-3 font-mono text-base text-muted-foreground">
@@ -500,7 +636,7 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
               </span>
             </div>
             <p className="text-xs text-muted-foreground">
-              <span className="font-bold">Bạn nói:</span> "{score.transcript}"
+              <span className="font-bold">Bạn nói:</span> &ldquo;{score.transcript}&rdquo;
             </p>
             {score.missingWords.length > 0 && (
               <p className="text-xs">
@@ -513,19 +649,8 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
 
         {/* Nav buttons */}
         <div className="grid grid-cols-3 gap-2 mt-4">
-          <NavCard
-            label="Câu trước"
-            shortcut="Tab"
-            icon={ChevronLeft}
-            onClick={prev}
-            disabled={activeIdx === 0}
-          />
-          <NavCard
-            label="Nghe lại"
-            shortcut="Ctrl"
-            icon={RotateCcw}
-            onClick={replay}
-          />
+          <NavCard label="Câu trước" shortcut="Tab" icon={ChevronLeft} onClick={prev} disabled={activeIdx === 0} />
+          <NavCard label="Nghe lại" shortcut="Ctrl" icon={RotateCcw} onClick={replay} />
           <NavCard
             label="Câu sau"
             shortcut="Enter"
@@ -536,7 +661,72 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
           />
         </div>
       </div>
+
+      {/* Word translate popup — positioned at the clicked word. */}
+      {popup && (
+        <div
+          className="fixed z-50 max-w-[260px] rounded-2xl border-2 border-amber-300 bg-card shadow-2xl p-3"
+          style={{
+            left: Math.max(8, Math.min(window.innerWidth - 280, popup.x - 130)),
+            top: Math.min(window.innerHeight - 200, popup.y),
+          }}
+        >
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="font-extrabold text-base">{popup.word}</span>
+            <button
+              onClick={() => setPopup(null)}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          {popup.loading ? (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Đang dịch...
+            </div>
+          ) : popup.hint ? (
+            <div className="space-y-1.5">
+              {popup.hint.pos && (
+                <span className="inline-block text-[10px] uppercase tracking-wider font-extrabold rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 px-1.5 py-0.5">
+                  {popup.hint.pos}
+                </span>
+              )}
+              <p className="text-sm font-bold text-foreground">{popup.hint.vi}</p>
+              {popup.hint.defEn && (
+                <p className="text-xs text-muted-foreground italic leading-snug">{popup.hint.defEn}</p>
+              )}
+            </div>
+          ) : null}
+        </div>
+      )}
     </div>
+  );
+}
+
+function TabButton({
+  active,
+  onClick,
+  icon: Icon,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ElementType;
+  label: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "inline-flex items-center gap-1.5 text-sm font-extrabold pb-2 px-2 border-b-2 transition-colors",
+        active
+          ? "border-primary text-foreground"
+          : "border-transparent text-muted-foreground hover:text-foreground",
+      )}
+    >
+      <Icon className="h-3.5 w-3.5" />
+      {label}
+    </button>
   );
 }
 
@@ -575,5 +765,50 @@ function NavCard({
         {shortcut}
       </kbd>
     </button>
+  );
+}
+
+/**
+ * Bee progress trail — branded replacement for the Mario screenshot. A
+ * honey-gold gradient track fills from 0..pct%, the bee SVG sits at the
+ * head of the fill, and a honey jar marks the finish line. Pure CSS so
+ * we don't pay for framer-motion on every render.
+ */
+function BeeProgress({ pct }: { pct: number }) {
+  const safePct = Math.max(0, Math.min(100, pct));
+  return (
+    <div className="relative pt-3 pb-1">
+      <div className="relative h-6">
+        {/* Track */}
+        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-2.5 rounded-full bg-gradient-to-r from-amber-100 via-orange-100 to-rose-100 dark:from-amber-950/40 dark:via-orange-950/40 dark:to-rose-950/40 border border-amber-200 dark:border-amber-800/40 overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400 transition-all duration-500"
+            style={{ width: `${safePct}%` }}
+          />
+        </div>
+
+        {/* Bee — flies along the progress */}
+        <div
+          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 transition-all duration-500"
+          style={{ left: `calc(${safePct}% )` }}
+        >
+          <div className="grid h-7 w-7 place-items-center rounded-full bg-amber-300 border-2 border-amber-500 shadow-lg shadow-amber-500/30 text-base leading-none animate-float">
+            🐝
+          </div>
+        </div>
+
+        {/* Honey jar — destination */}
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2">
+          <div className="grid h-7 w-7 place-items-center rounded-full bg-rose-100 dark:bg-rose-950/40 border-2 border-rose-400 text-base leading-none">
+            🍯
+          </div>
+        </div>
+      </div>
+
+      <div className="flex justify-between text-xs text-muted-foreground mt-1">
+        <span className="font-bold">Tiến độ</span>
+        <span className="font-extrabold text-amber-700 dark:text-amber-300">{safePct}%</span>
+      </div>
+    </div>
   );
 }

@@ -345,6 +345,54 @@ Please grade and return the JSON.`;
   return extractJSON(text);
 }
 
+const SHADOWING_ENRICH_SYSTEM = `You are an English phonetics + Vietnamese translation assistant for an IELTS shadowing app.
+
+You receive a list of English shadowing segments numbered 1..N. For each segment, output:
+- ipa: the IPA transcription of the WHOLE segment in standard General American IPA (no slashes — just the IPA characters separated by single spaces between words). Use stress marks ˈ ˌ where natural. Be accurate, not approximate.
+- textVi: a natural-sounding Vietnamese translation of the segment that a learner can read alongside the English. Keep it concise; do NOT translate proper nouns. Tone is neutral / explanatory.
+
+Return ONLY valid JSON — no markdown, no commentary — matching this exact TypeScript type:
+
+type EnrichResult = {
+  items: { index: number; ipa: string; textVi: string }[];
+};
+
+"index" MUST match the 1-based number we gave you. Items MUST appear in ascending index order and cover every segment exactly once.`;
+
+export interface ShadowingEnrichInput {
+  segments: { textEn: string }[];
+}
+export interface ShadowingEnrichItem {
+  index: number;
+  ipa: string;
+  textVi: string;
+}
+
+/** Send a batch of shadowing sentences to Claude and get IPA + Vietnamese back for each. */
+export async function enrichShadowingSegments(
+  input: ShadowingEnrichInput,
+): Promise<ShadowingEnrichItem[]> {
+  if (input.segments.length === 0) return [];
+  const lines = input.segments
+    .map((s, i) => `${i + 1}. ${s.textEn.replace(/\s+/g, " ").trim()}`)
+    .join("\n");
+  const userMessage = `Here are ${input.segments.length} shadowing segments. Produce IPA + Vietnamese for every one and return the JSON:\n\n${lines}`;
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: Math.min(8000, 200 + input.segments.length * 120),
+    temperature: 0.2,
+    system: SHADOWING_ENRICH_SYSTEM,
+    messages: [{ role: "user", content: userMessage }],
+  });
+  const text = response.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("");
+  const parsed = extractJSON(text) as { items?: ShadowingEnrichItem[] };
+  return (parsed.items ?? []).filter((x) => x && typeof x.index === "number");
+}
+
 const TABLE_EXTRACT_SYSTEM = `You read a photo or scan of an IELTS table-completion task and convert the table into our admin paste format so the editor can render it back exactly.
 
 Rules:
