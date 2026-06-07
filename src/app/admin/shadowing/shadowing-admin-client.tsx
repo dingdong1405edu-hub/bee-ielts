@@ -78,8 +78,8 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
 
   const createWithAI = async () => {
     if (aiInFlightRef.current) return; // hard guard against double-click
-    if (!aiTitle.trim()) return toast.error("Nhập tiêu đề");
-    if (!aiSource.trim()) return toast.error("Nhập nguồn (VD: TED-Ed)");
+    // title + source are optional — the server auto-fills them from the
+    // YouTube metadata if blank. Only the URL is strictly required.
     if (!aiUrl.trim()) return toast.error("Dán URL YouTube");
     aiInFlightRef.current = true;
     setAiBusy(true);
@@ -309,40 +309,48 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <Label>Tiêu đề</Label>
-              <Input
-                value={aiTitle}
-                onChange={(e) => setAiTitle(e.target.value)}
-                placeholder="VD: TED-Ed — When I was a kid..."
-                disabled={aiBusy}
-              />
-            </div>
-            <div>
-              <Label>Nguồn (badge trên card)</Label>
-              <Input
-                value={aiSource}
-                onChange={(e) => setAiSource(e.target.value)}
-                placeholder="TED-Ed / BBC / Netflix..."
-                disabled={aiBusy}
-              />
-            </div>
-          </div>
-
           <div>
-            <Label>URL YouTube</Label>
+            <Label className="text-sm font-bold">
+              URL YouTube <span className="text-rose-600">*</span>
+            </Label>
             <Input
               value={aiUrl}
               onChange={(e) => setAiUrl(e.target.value)}
               placeholder="https://www.youtube.com/watch?v=..."
               disabled={aiBusy}
+              className="text-base"
             />
             <p className="text-xs text-muted-foreground mt-1">
-              Ưu tiên dùng phụ đề EN có sẵn (miễn phí). Nếu video không có,
-              AI sẽ tự nghe — xem checkbox bên dưới.
+              Dán URL là đủ — tiêu đề + nguồn tự lấy từ YouTube. Ưu tiên phụ đề
+              EN có sẵn (miễn phí); nếu không có, AI tự nghe (xem checkbox dưới).
             </p>
           </div>
+
+          <details className="text-xs">
+            <summary className="cursor-pointer text-muted-foreground hover:text-foreground font-bold">
+              Tùy chọn: ghi đè tiêu đề / nguồn
+            </summary>
+            <div className="grid gap-3 sm:grid-cols-2 mt-2">
+              <div>
+                <Label className="text-xs">Tiêu đề (tự lấy nếu trống)</Label>
+                <Input
+                  value={aiTitle}
+                  onChange={(e) => setAiTitle(e.target.value)}
+                  placeholder="VD: TED-Ed — When I was a kid..."
+                  disabled={aiBusy}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Nguồn / kênh (tự lấy nếu trống)</Label>
+                <Input
+                  value={aiSource}
+                  onChange={(e) => setAiSource(e.target.value)}
+                  placeholder="TED-Ed / BBC / Netflix..."
+                  disabled={aiBusy}
+                />
+              </div>
+            </div>
+          </details>
 
           {/* Audio fallback toggle — when ON the route downloads the audio
               via youtubei.js and Deepgram transcribes it. Costs ~$0.05 per

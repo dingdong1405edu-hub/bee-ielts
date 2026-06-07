@@ -34,6 +34,7 @@ import { isAdminOrOwner } from "@/lib/premium";
 import {
   extractYoutubeId,
   getYouTubeAudioBuffer,
+  getYouTubeBasicInfo,
   MAX_AUDIO_FALLBACK_SEC,
   mergeCuesIntoSegments,
   youtubeThumbnail,
@@ -52,8 +53,11 @@ function latinRatio(text: string): number {
 }
 
 const bodySchema = z.object({
-  title: z.string().min(1).max(200),
-  source: z.string().min(1).max(80),
+  /** Optional — if empty we pull it from YouTube metadata. Admin can leave
+   *  this blank and the lesson still gets a proper title. */
+  title: z.string().max(200).optional().default(""),
+  /** Optional — defaults to the channel name from YouTube metadata. */
+  source: z.string().max(80).optional().default(""),
   youtubeUrl: z.string().min(1),
   /** Whether to fall back to AI audio transcription when there are no
    *  English captions. Defaults to true — admins almost always want this. */
@@ -264,6 +268,41 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "URL YouTube không hợp lệ" }, { status: 400 });
   }
 
+  // 0. Pull YouTube metadata FIRST so we can auto-fill missing title/source.
+  //    Admin only has to paste the URL — we figure out the rest. If the
+  //    metadata fetch itself fails (private video, region-block, etc.) we
+  //    surface a clean error before burning Claude/Deepgram credits.
+  let ytTitle = "";
+  let ytChannel = "";
+  try {
+    const info = await getYouTubeBasicInfo(ytId);
+    ytTitle = info.title;
+    ytChannel = info.channelTitle ?? "";
+    if (info.isLive) {
+      return NextResponse.json(
+        { error: "Video đang livestream — chọn video đã phát xong." },
+        { status: 422 },
+      );
+    }
+  } catch (e) {
+    const raw = e instanceof Error ? e.message : String(e);
+    console.error(`[from-youtube] getBasicInfo failed ytId=${ytId}:`, raw);
+    return NextResponse.json(
+      {
+        error:
+          "Không lấy được thông tin video. " +
+          (raw.toLowerCase().includes("private")
+            ? "Video private."
+            : raw.toLowerCase().includes("login")
+              ? "Video bị age-gate hoặc yêu cầu đăng nhập."
+              : "URL có hợp lệ không? Thử lại."),
+      },
+      { status: 422 },
+    );
+  }
+  const finalTitle = (parsed.data.title?.trim() || ytTitle || `Video ${ytId}`).slice(0, 200);
+  const finalSource = (parsed.data.source?.trim() || ytChannel || "YouTube").slice(0, 80);
+
   // 1. Captions path first — free + fast.
   let merged: MergedSegment[] = [];
   let method: "captions" | "audio" = "captions";
@@ -340,20 +379,19 @@ export async function POST(req: Request) {
     }
   }
 
-  // 4. Persist. Truncate the original source field FIRST so the "· AI nghe"
+  // 4. Persist. Truncate the resolved source field FIRST so the "· AI nghe"
   //    badge can never be the part that gets chopped off — admin can always
   //    tell at a glance which path produced the lesson.
-  const sourceRaw = parsed.data.source.trim();
   const sourceBadge =
     method === "audio"
-      ? `${sourceRaw.slice(0, 70)} · AI nghe`
-      : sourceRaw.slice(0, 80);
+      ? `${finalSource.slice(0, 70)} · AI nghe`
+      : finalSource.slice(0, 80);
 
   let lesson;
   try {
     lesson = await prisma.shadowingLesson.create({
       data: {
-        title: parsed.data.title.trim(),
+        title: finalTitle,
         source: sourceBadge.slice(0, 80),
         youtubeId: ytId,
         thumbnailUrl: youtubeThumbnail(ytId),

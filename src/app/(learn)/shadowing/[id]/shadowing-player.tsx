@@ -119,6 +119,19 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
   const [noteText, setNoteText] = useState("");
   const [noteStatus, setNoteStatus] = useState<"" | "saving" | "saved">("");
   const [popup, setPopup] = useState<PopupState | null>(null);
+  // Countdown shown in the score card so the user knows the next segment is
+  // coming. Set to 2.5s the moment scoring completes; cleared if the user
+  // jumps somewhere else first.
+  const [autoNextIn, setAutoNextIn] = useState<number | null>(null);
+  const autoNextTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoNextTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const clearAutoNext = () => {
+    if (autoNextTimerRef.current) clearTimeout(autoNextTimerRef.current);
+    if (autoNextTickRef.current) clearInterval(autoNextTickRef.current);
+    autoNextTimerRef.current = null;
+    autoNextTickRef.current = null;
+    setAutoNextIn(null);
+  };
 
   const playerRef = useRef<{
     seekTo: (s: number, allowSeekAhead?: boolean) => void;
@@ -225,6 +238,7 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
     if (active) playSegment(active);
     setScore(null);
     setPopup(null);
+    clearAutoNext();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeIdx]);
 
@@ -286,14 +300,35 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
   }, [activeIdx, popup]);
 
   const prev = () => {
+    clearAutoNext();
     if (activeIdx > 0) setActiveIdx((i) => i - 1);
   };
   const next = () => {
+    clearAutoNext();
     if (activeIdx < total - 1) setActiveIdx((i) => i + 1);
   };
   const replay = () => {
+    clearAutoNext();
     if (active) playSegment(active);
   };
+
+  /** Schedule auto-advance to the next segment after the score lands.
+   *  2.5s gives the user time to read the score + cancel via Tab/Ctrl
+   *  (which call clearAutoNext through prev/replay). Last segment doesn't
+   *  auto-advance — it would loop or stop at the same place. */
+  const scheduleAutoNext = useCallback(() => {
+    if (activeIdx >= total - 1) return;
+    clearAutoNext();
+    const SECONDS = 3;
+    setAutoNextIn(SECONDS);
+    autoNextTickRef.current = setInterval(() => {
+      setAutoNextIn((s) => (s == null || s <= 1 ? null : s - 1));
+    }, 1000);
+    autoNextTimerRef.current = setTimeout(() => {
+      clearAutoNext();
+      setActiveIdx((i) => Math.min(i + 1, total - 1));
+    }, SECONDS * 1000);
+  }, [activeIdx, total]);
 
   const changeSpeed = (s: number) => {
     setSpeed(s);
@@ -338,6 +373,14 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
       mediaRef.current?.stop();
       return;
     }
+    // Defence in depth: pause the video the SECOND the user hits mic, even
+    // if the YouTube end-of-segment poller hasn't fired yet (user could
+    // click mic during a "Nghe lại" replay, or before buffering finished).
+    // Without this, the video keeps playing while the user is speaking →
+    // their mic captures the video too and the score is garbage.
+    playerRef.current?.pauseVideo();
+    clearStopPoll();
+    clearAutoNext();
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -373,6 +416,11 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
         if (!res.ok) throw new Error(data.error || "Chấm thất bại");
         setScore(data as ScoreResult);
         setCompletedIds((s) => new Set(s).add(active.id));
+        // User wanted auto-advance after each take so they don't have to
+        // hunt for "Câu sau". 3s gives them time to glance at the score
+        // before we move them on — they can cancel by pressing Tab (prev)
+        // or Ctrl (replay), both of which call clearAutoNext().
+        scheduleAutoNext();
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Lỗi");
       } finally {
@@ -690,6 +738,20 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
                 <span className="font-bold text-rose-700">Bỏ sót:</span>{" "}
                 {score.missingWords.join(", ")}
               </p>
+            )}
+            {autoNextIn !== null && (
+              <div className="flex items-center justify-between gap-2 pt-2 border-t mt-2">
+                <p className="text-xs text-muted-foreground">
+                  Tự chuyển câu sau <span className="font-extrabold text-foreground">{autoNextIn}s</span>
+                  <span className="ml-1 italic">(Tab/Ctrl để giữ lại)</span>
+                </p>
+                <button
+                  onClick={clearAutoNext}
+                  className="text-xs font-bold rounded-md px-2 py-1 bg-muted hover:bg-accent"
+                >
+                  Huỷ
+                </button>
+              </div>
             )}
           </div>
         )}
