@@ -155,6 +155,13 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
   // because the user explicitly asked for this flow. Toggle in the header
   // disables it for users who prefer manual stepping.
   const [autoFollow, setAutoFollow] = useState(true);
+  // Auto-record mode: when the video pauses at endSec, automatically open
+  // the mic and record the user's shadowing take. They press a big "XONG"
+  // button when finished → we score it and advance. Default ON because the
+  // user explicitly asked for this flow. If mic permission was once denied
+  // we flip this off so the player isn't stuck repeatedly toasting errors.
+  const [autoRecord, setAutoRecord] = useState(true);
+  const micDeniedRef = useRef(false);
   const [followCountdown, setFollowCountdown] = useState<number | null>(null);
   const followTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const followTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -184,10 +191,15 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
    *  ends. Wait time = the segment's own duration (clamped 2-8s) so the
    *  user has the same window to read/shadow as the speaker had. Mic
    *  recording or any manual nav cancels via clearFollow(). Last segment
-   *  doesn't schedule. */
+   *  doesn't schedule.
+   *
+   *  Skipped entirely when autoRecord is ON because the recording flow
+   *  takes over the post-pause window — user finishes with "XONG", we
+   *  score, then scheduleAutoNext (separate flow) advances. */
   const scheduleFollow = useCallback(
     (justEndedSeg: Segment) => {
       if (!autoFollow) return;
+      if (autoRecord && !micDeniedRef.current) return;
       if (activeIdx >= total - 1) return;
       clearFollow();
       const segDur = Math.max(0.5, justEndedSeg.endSec - justEndedSeg.startSec);
@@ -203,7 +215,7 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
         setActiveIdx((i) => Math.min(i + 1, total - 1));
       }, waitSec * 1000);
     },
-    [activeIdx, total, autoFollow],
+    [activeIdx, total, autoFollow, autoRecord],
   );
 
   /** Hard-cut the YouTube audio at the end of a segment. We call pauseVideo
@@ -328,6 +340,27 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
     clearAutoNext();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeIdx]);
+
+  // Auto-record trigger: when the segment ends (waitingForUser flips true)
+  // AND auto-record is on AND we haven't already started a take, fire up
+  // the mic so user can shadow without clicking anything. User presses the
+  // big "XONG" button below to stop + score. micDeniedRef short-circuits
+  // this so a single permission denial doesn't loop forever.
+  useEffect(() => {
+    if (!waitingForUser) return;
+    if (!autoRecord) return;
+    if (micDeniedRef.current) return;
+    if (recording || scoring) return;
+    // Small delay so the YT pause/hardCutAudio is visually settled before
+    // the mic indicator pops — feels less jarring.
+    const t = setTimeout(() => {
+      if (waitingForUser && autoRecord && !micDeniedRef.current && !recording && !scoring) {
+        void toggleRecord();
+      }
+    }, 250);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [waitingForUser, autoRecord, recording, scoring]);
 
   // Load saved note on mount.
   useEffect(() => {
@@ -476,6 +509,10 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {
+      // Flag the denial so the auto-record useEffect doesn't keep firing
+      // a doomed permission request every time a segment ends. The header
+      // toggle stays so user can re-enable after granting permission.
+      micDeniedRef.current = true;
       toast.error("Cần quyền microphone để chấm phát âm");
       return;
     }
@@ -521,9 +558,12 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
     mr.start();
     setRecording(true);
     setWaitingForUser(false);
+    // Safety cap so a stuck recording doesn't run forever (lost focus, dead
+    // tab, mic perm revoked mid-take). 60s is plenty for shadowing a single
+    // sentence — anything past that is almost always abandoned.
     setTimeout(() => {
       if (mr.state === "recording") mr.stop();
-    }, 30_000);
+    }, 60_000);
   };
 
   const progressPct = total === 0 ? 0 : Math.round((completedIds.size / total) * 100);
@@ -554,21 +594,32 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
             users can still drag the YT scrubber if they want. */}
         <div className="rounded-2xl overflow-hidden border bg-black aspect-video relative">
           <div ref={playerContainerRef} className="w-full h-full" />
-          {waitingForUser && !recording && !scoring && (
+          {(waitingForUser || recording) && !scoring && (
             <div className="pointer-events-none absolute inset-0 bg-black/55 backdrop-blur-[1px] flex items-center justify-center transition-opacity">
-              <div className="flex items-center gap-3 rounded-full bg-amber-500/95 text-white px-5 py-2.5 shadow-2xl ring-2 ring-amber-200">
-                <span className="text-xl leading-none">⏸</span>
+              <div
+                className={cn(
+                  "flex items-center gap-3 rounded-full px-5 py-2.5 shadow-2xl ring-2 text-white",
+                  recording
+                    ? "bg-rose-500/95 ring-rose-200 animate-pulse"
+                    : "bg-amber-500/95 ring-amber-200",
+                )}
+              >
+                <span className="text-xl leading-none">{recording ? "🔴" : "⏸"}</span>
                 <div className="text-sm">
-                  <p className="font-extrabold leading-tight">Đã dừng — bạn đọc theo</p>
-                  {followCountdown != null ? (
-                    <p className="text-xs leading-tight opacity-90">
-                      Câu sau trong {followCountdown}s
-                    </p>
-                  ) : (
-                    <p className="text-xs leading-tight opacity-90">
-                      Bấm Câu sau / Enter để tiếp
-                    </p>
-                  )}
+                  <p className="font-extrabold leading-tight">
+                    {recording
+                      ? "Đang ghi âm — nói theo câu"
+                      : "Đã dừng — bạn đọc theo"}
+                  </p>
+                  <p className="text-xs leading-tight opacity-90">
+                    {recording
+                      ? "Bấm XONG bên phải khi đọc xong"
+                      : followCountdown != null
+                        ? `Câu sau trong ${followCountdown}s`
+                        : autoRecord && !micDeniedRef.current
+                          ? "Mic đang mở..."
+                          : "Bấm Câu sau / Enter để tiếp"}
+                  </p>
                 </div>
               </div>
             </div>
@@ -627,6 +678,20 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
                     if (!e.target.checked) clearFollow();
                   }}
                   className="h-4 w-7 appearance-none rounded-full bg-muted checked:bg-amber-500 relative transition-colors before:absolute before:top-0.5 before:left-0.5 before:h-3 before:w-3 before:rounded-full before:bg-white before:transition-transform checked:before:translate-x-3"
+                />
+              </label>
+              <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                <span>Tự ghi âm</span>
+                <input
+                  type="checkbox"
+                  checked={autoRecord}
+                  onChange={(e) => {
+                    setAutoRecord(e.target.checked);
+                    // Re-arm mic permission after user toggles back on so
+                    // we don't permanently disable it from one earlier denial.
+                    if (e.target.checked) micDeniedRef.current = false;
+                  }}
+                  className="h-4 w-7 appearance-none rounded-full bg-muted checked:bg-rose-500 relative transition-colors before:absolute before:top-0.5 before:left-0.5 before:h-3 before:w-3 before:rounded-full before:bg-white before:transition-transform checked:before:translate-x-3"
                 />
               </label>
               <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
@@ -814,7 +879,7 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
               {scoring
                 ? "Đang chấm..."
                 : recording
-                  ? "Đang ghi âm..."
+                  ? "🔴 Đang ghi âm — nói theo câu vừa nghe"
                   : waitingForUser
                     ? followCountdown != null
                       ? `Đọc theo... câu sau sau ${followCountdown}s`
@@ -822,15 +887,32 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
                     : "Nhấn để thu âm"}
             </p>
             <p className="text-xs text-muted-foreground">
-              {recording || scoring
-                ? "Tối đa 30 giây"
-                : followCountdown != null
-                  ? "Bấm mic để dừng đếm ngược + thu âm chấm phát âm"
-                  : waitingForUser
-                    ? "Video đã dừng. Nhấn mic và đọc theo câu này."
-                    : "Tối đa 30 giây"}
+              {recording
+                ? "Bấm XONG bên phải khi đọc xong • tối đa 60 giây"
+                : scoring
+                  ? "Đang gửi đi chấm..."
+                  : followCountdown != null
+                    ? "Bấm mic để dừng đếm ngược + thu âm chấm phát âm"
+                    : waitingForUser
+                      ? autoRecord && !micDeniedRef.current
+                        ? "Đang mở mic..."
+                        : "Video đã dừng. Nhấn mic và đọc theo câu này."
+                      : "Tối đa 60 giây"}
             </p>
           </div>
+          {/* Big XONG button — replaces the tiny stop-circle on the mic
+              when auto-record kicked in. User flow: video pauses → mic
+              opens automatically → user reads aloud → press XONG to score
+              and move on. */}
+          {recording && (
+            <button
+              type="button"
+              onClick={() => mediaRef.current?.stop()}
+              className="shrink-0 rounded-xl bg-emerald-500 hover:bg-emerald-600 px-5 py-3 text-white font-extrabold uppercase tracking-wider shadow-lg ring-2 ring-emerald-300 active:scale-95"
+            >
+              XONG
+            </button>
+          )}
           {/* Cancel button for the auto-follow countdown so users on a
               hard sentence can take all the time they need. */}
           {followCountdown != null && !recording && !scoring && (
