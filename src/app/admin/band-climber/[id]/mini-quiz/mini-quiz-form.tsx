@@ -11,7 +11,12 @@ import { Plus, Trash2, ArrowLeft, ImageIcon, Type, CheckCircle2, Volume2, Pencil
 import { BandClimbToursEditor, type TourStepDraft } from "@/components/admin/band-climb-tours-editor";
 
 type Skill = "READING" | "LISTENING" | "WRITING" | "SPEAKING";
-type QType = "IMAGE_CHOICE" | "TEXT_CHOICE" | "FILL_BLANK" | "SPEAKING";
+type QType =
+  | "IMAGE_CHOICE"
+  | "TEXT_CHOICE"
+  | "FILL_BLANK"
+  | "PARAGRAPH_FILL"
+  | "SPEAKING";
 
 interface OptionDraft {
   label: string;
@@ -45,6 +50,19 @@ const blankQuestion = (type: QType = "TEXT_CHOICE"): QuestionDraft => {
     // FILL_BLANK reuses `options` to store the acceptable answers:
     // options[0] = primary answer, options[1..] = optional alt-spellings.
     return { type, prompt: "", audioUrl: "", options: [{ label: "" }], correctIndex: 0, explanation: "" };
+  }
+  if (type === "PARAGRAPH_FILL") {
+    // PARAGRAPH_FILL: prompt is a paragraph with N "___" markers. options[]
+    // holds N answers in order — one per blank. options[i].label is the
+    // accepted answer (alts separated by "/", e.g. "color/colour").
+    return {
+      type,
+      prompt: "",
+      audioUrl: "",
+      options: [],
+      correctIndex: 0,
+      explanation: "",
+    };
   }
   if (type === "IMAGE_CHOICE") {
     return {
@@ -217,6 +235,31 @@ export function MiniQuizForm({
       }
       // SPEAKING needs no options — learner records an answer instead.
       if (q.type === "SPEAKING") continue;
+      // PARAGRAPH_FILL: number of options must equal number of "___" markers
+      // in the prompt. Caught here so admin gets a friendly toast vs the
+      // generic API 400.
+      if (q.type === "PARAGRAPH_FILL") {
+        const blanks = (q.prompt.match(/___/g) ?? []).length;
+        if (blanks === 0) {
+          toast.error(
+            `Câu ${i + 1}: đoạn văn chưa có chỗ trống — dùng ___ để đánh dấu chỗ điền.`,
+          );
+          return;
+        }
+        if (q.options.length !== blanks) {
+          toast.error(
+            `Câu ${i + 1}: có ${blanks} chỗ trống nhưng ${q.options.length} đáp án — phải khớp.`,
+          );
+          return;
+        }
+        for (let j = 0; j < q.options.length; j++) {
+          if (!q.options[j].label.trim()) {
+            toast.error(`Câu ${i + 1}: chỗ trống #${j + 1} chưa có đáp án.`);
+            return;
+          }
+        }
+        continue;
+      }
       // FILL_BLANK accepts ≥ 1 valid answer (primary + optional variants);
       // choice-type questions still need ≥ 2 options to be answerable.
       const minOpts = q.type === "FILL_BLANK" ? 1 : 2;
@@ -405,9 +448,11 @@ export function MiniQuizForm({
                       ? "Ảnh"
                       : q.type === "FILL_BLANK"
                         ? "Điền chỗ trống"
-                        : q.type === "SPEAKING"
-                          ? "Ghi âm"
-                          : "Văn bản"})
+                        : q.type === "PARAGRAPH_FILL"
+                          ? "Đoạn văn điền từ"
+                          : q.type === "SPEAKING"
+                            ? "Ghi âm"
+                            : "Văn bản"})
                   </span>
                 </CardTitle>
                 <Button
@@ -429,25 +474,43 @@ export function MiniQuizForm({
                       — dùng <code>___</code> (3 underscores) để đánh dấu chỗ điền
                     </span>
                   )}
+                  {q.type === "PARAGRAPH_FILL" && (
+                    <span className="ml-1 normal-case text-[10px] font-normal text-rose-600">
+                      — đoạn văn nhiều câu; mỗi chỗ điền dùng <code>___</code>. Đếm số <code>___</code> = số đáp án bên dưới.
+                    </span>
+                  )}
                   {q.type === "SPEAKING" && (
                     <span className="ml-1 normal-case text-[10px] font-normal text-indigo-600">
                       — user sẽ ghi âm trả lời, không có đáp án đúng/sai
                     </span>
                   )}
                 </span>
-                <Input
-                  value={q.prompt}
-                  onChange={(e) => updateQuestion(idx, { prompt: e.target.value })}
-                  placeholder={
-                    q.type === "IMAGE_CHOICE"
-                      ? 'VD: Đâu là "cà phê"?'
-                      : q.type === "FILL_BLANK"
-                        ? "VD: He ___ to school every day."
-                        : q.type === "SPEAKING"
-                          ? "VD: Tell me about your hometown."
-                          : 'VD: Chọn nghĩa đúng của "coffee"'
-                  }
-                />
+                {q.type === "PARAGRAPH_FILL" ? (
+                  <textarea
+                    value={q.prompt}
+                    onChange={(e) =>
+                      updateQuestion(idx, { prompt: e.target.value })
+                    }
+                    placeholder={
+                      "VD: When I ___ a child, I lived in a small ___. Every morning my father ___ me to school by bicycle..."
+                    }
+                    className="block w-full min-h-[120px] rounded-md border-2 border-input bg-background px-3 py-2 text-sm leading-relaxed focus:border-primary focus:outline-none"
+                  />
+                ) : (
+                  <Input
+                    value={q.prompt}
+                    onChange={(e) => updateQuestion(idx, { prompt: e.target.value })}
+                    placeholder={
+                      q.type === "IMAGE_CHOICE"
+                        ? 'VD: Đâu là "cà phê"?'
+                        : q.type === "FILL_BLANK"
+                          ? "VD: He ___ to school every day."
+                          : q.type === "SPEAKING"
+                            ? "VD: Tell me about your hometown."
+                            : 'VD: Chọn nghĩa đúng của "coffee"'
+                    }
+                  />
+                )}
               </label>
 
               <label className="block">
@@ -534,6 +597,12 @@ export function MiniQuizForm({
                 </>
               ) : q.type === "FILL_BLANK" ? (
                 <FillBlankAnswers
+                  options={q.options}
+                  onChange={(opts) => updateQuestion(idx, { options: opts })}
+                />
+              ) : q.type === "PARAGRAPH_FILL" ? (
+                <ParagraphFillAnswers
+                  prompt={q.prompt}
                   options={q.options}
                   onChange={(opts) => updateQuestion(idx, { options: opts })}
                 />
@@ -640,6 +709,13 @@ export function MiniQuizForm({
         </Button>
         <Button
           variant="outline"
+          onClick={() => addQuestion("PARAGRAPH_FILL")}
+          className="border-rose-300 text-rose-700 hover:bg-rose-50"
+        >
+          <Sparkles className="h-4 w-4" /> Thêm câu — đoạn văn điền từ (Writing)
+        </Button>
+        <Button
+          variant="outline"
           onClick={() => addQuestion("SPEAKING")}
           className="border-indigo-300 text-indigo-700 hover:bg-indigo-50"
         >
@@ -727,6 +803,80 @@ function FillBlankAnswers({
           So sánh không phân biệt hoa/thường và khoảng trắng đầu/cuối.
         </p>
       </label>
+    </div>
+  );
+}
+
+/**
+ * PARAGRAPH_FILL answer editor — one row per "___" marker in the prompt.
+ * Auto-syncs options[] length to the blank count: typing a new ___ in the
+ * paragraph adds an empty row; deleting one removes the trailing row.
+ *
+ * Per blank, admin types the accepted answer. Alternates use "/" separator
+ * matching the existing Reading form-completion convention, e.g.
+ * "color/colour" or "1/one".
+ */
+function ParagraphFillAnswers({
+  prompt,
+  options,
+  onChange,
+}: {
+  prompt: string;
+  options: OptionDraft[];
+  onChange: (opts: OptionDraft[]) => void;
+}) {
+  const blankCount = (prompt.match(/___/g) ?? []).length;
+  // Sync options[].length to blankCount on the fly so admin doesn't have
+  // to remember to "add answer" manually.
+  if (options.length !== blankCount) {
+    // Pad with empty rows or truncate excess — defer via microtask so we
+    // don't setState during render of the parent.
+    queueMicrotask(() => {
+      const next = options.slice(0, blankCount);
+      while (next.length < blankCount) next.push({ label: "" });
+      onChange(next);
+    });
+  }
+
+  if (blankCount === 0) {
+    return (
+      <div className="rounded-xl border-2 border-dashed border-rose-300 bg-rose-50/30 p-4 text-sm text-rose-700">
+        Đoạn văn chưa có chỗ trống nào. Gõ <code className="font-mono font-bold">___</code> (3 underscore) vào đề ở phía trên để tạo chỗ điền.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2 rounded-xl border-2 border-rose-200 bg-rose-50/30 p-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold uppercase text-rose-700 flex items-center gap-1.5">
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          Đáp án cho {blankCount} chỗ trống
+        </span>
+        <span className="text-[10px] text-muted-foreground">
+          Nhiều dạng đúng: phân tách bởi <code className="font-mono">/</code>
+        </span>
+      </div>
+      {Array.from({ length: blankCount }).map((_, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-rose-500 text-white text-xs font-extrabold">
+            {i + 1}
+          </span>
+          <Input
+            value={options[i]?.label ?? ""}
+            onChange={(e) => {
+              const next = [...options];
+              while (next.length <= i) next.push({ label: "" });
+              next[i] = { ...next[i], label: e.target.value };
+              onChange(next);
+            }}
+            placeholder={`Đáp án cho chỗ trống #${i + 1} (vd: "was" hoặc "color/colour")`}
+          />
+        </div>
+      ))}
+      <p className="text-[10px] text-muted-foreground mt-1">
+        So sánh không phân biệt hoa/thường và khoảng trắng đầu/cuối. User phải điền ĐÚNG TẤT CẢ {blankCount} chỗ mới được tính là correct.
+      </p>
     </div>
   );
 }

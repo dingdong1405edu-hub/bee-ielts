@@ -14,11 +14,23 @@ const questionSchema = z
     // prompt — no options, no objectively-correct answer. The Whisper /
     // Deepgram STT pipeline transcribes the take so the learner sees what
     // they actually said.
-    type: z.enum(["IMAGE_CHOICE", "TEXT_CHOICE", "FILL_BLANK", "SPEAKING"]),
-    prompt: z.string().min(1).max(400),
+    // PARAGRAPH_FILL is Writing-flavored cloze: paragraph with N "___"
+    // markers, options[] holds N answers in order (one per blank). Each
+    // option.label may contain "/"-separated alternates ("color/colour").
+    type: z.enum([
+      "IMAGE_CHOICE",
+      "TEXT_CHOICE",
+      "FILL_BLANK",
+      "PARAGRAPH_FILL",
+      "SPEAKING",
+    ]),
+    // PARAGRAPH_FILL prompts hold a whole paragraph (Writing cloze) so the
+    // limit is bumped from 400 to 2000 chars.
+    prompt: z.string().min(1).max(2000),
     // Optional mp3/ogg URL — player shows a Listen button when present.
     audioUrl: z.string().url().optional().or(z.literal("")),
-    options: z.array(optionSchema).max(8).default([]),
+    // PARAGRAPH_FILL with up to ~12 blanks per paragraph; bump from 8.
+    options: z.array(optionSchema).max(20).default([]),
     correctIndex: z.number().int().min(0).default(0),
     // Admin's reasoning surfaced in the player verdict bar after the
     // learner answers — explains why the correct option is right + why
@@ -33,6 +45,7 @@ const questionSchema = z
     (q) =>
       q.type === "SPEAKING" ||
       q.type === "FILL_BLANK" ||
+      q.type === "PARAGRAPH_FILL" ||
       q.options.length >= 2,
     {
       message: "Choice-type questions need at least 2 options",
@@ -42,7 +55,21 @@ const questionSchema = z
   .refine((q) => q.type !== "FILL_BLANK" || q.options.length >= 1, {
     message: "Fill-blank needs at least 1 accepted answer",
     path: ["options"],
-  });
+  })
+  // PARAGRAPH_FILL requires options[] length to match the number of ___
+  // markers in the prompt (one answer per blank, in order).
+  .refine(
+    (q) => {
+      if (q.type !== "PARAGRAPH_FILL") return true;
+      const blanks = (q.prompt.match(/___/g) ?? []).length;
+      return blanks >= 1 && q.options.length === blanks;
+    },
+    {
+      message:
+        "Đoạn văn điền từ: số đáp án phải khớp với số chỗ trống ___ trong đề.",
+      path: ["options"],
+    },
+  );
 // Tour shape mirrors what BeeGuide consumes — kept permissive so admin
 // can add/remove keys as the BandClimbToursEditor evolves.
 const tourStepSchema = z.object({
@@ -88,9 +115,11 @@ export async function POST(req: Request) {
   const data = parsed.data;
 
   // Validate correctIndex falls within options for each question. SPEAKING
-  // questions don't have a "correct" option so the check is skipped.
+  // questions don't have a "correct" option, and PARAGRAPH_FILL treats
+  // every option as a correct answer (one per blank, in order), so both
+  // skip the index check.
   for (const q of data.questions) {
-    if (q.type === "SPEAKING") continue;
+    if (q.type === "SPEAKING" || q.type === "PARAGRAPH_FILL") continue;
     if (q.correctIndex < 0 || q.correctIndex >= q.options.length) {
       return NextResponse.json(
         { error: `correctIndex ngoài phạm vi cho câu: ${q.prompt.slice(0, 50)}` },

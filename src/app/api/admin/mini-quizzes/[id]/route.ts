@@ -11,10 +11,19 @@ const optionSchema = z.object({
 });
 const questionSchema = z
   .object({
-    type: z.enum(["IMAGE_CHOICE", "TEXT_CHOICE", "FILL_BLANK", "SPEAKING"]),
-    prompt: z.string().min(1).max(400),
+    type: z.enum([
+      "IMAGE_CHOICE",
+      "TEXT_CHOICE",
+      "FILL_BLANK",
+      "PARAGRAPH_FILL",
+      "SPEAKING",
+    ]),
+    // PARAGRAPH_FILL prompts hold a whole paragraph (Writing cloze) so the
+    // limit is bumped from 400 to 2000 chars.
+    prompt: z.string().min(1).max(2000),
     audioUrl: z.string().url().optional().or(z.literal("")),
-    options: z.array(optionSchema).max(8).default([]),
+    // PARAGRAPH_FILL with up to ~12 blanks per paragraph; bump from 8.
+    options: z.array(optionSchema).max(20).default([]),
     correctIndex: z.number().int().min(0).default(0),
     explanation: z.string().max(1200).optional().or(z.literal("")),
     cueCardPoints: z.array(z.string().min(1).max(200)).max(6).optional(),
@@ -23,6 +32,7 @@ const questionSchema = z
     (q) =>
       q.type === "SPEAKING" ||
       q.type === "FILL_BLANK" ||
+      q.type === "PARAGRAPH_FILL" ||
       q.options.length >= 2,
     {
       message: "Choice-type questions need at least 2 options",
@@ -32,7 +42,19 @@ const questionSchema = z
   .refine((q) => q.type !== "FILL_BLANK" || q.options.length >= 1, {
     message: "Fill-blank needs at least 1 accepted answer",
     path: ["options"],
-  });
+  })
+  .refine(
+    (q) => {
+      if (q.type !== "PARAGRAPH_FILL") return true;
+      const blanks = (q.prompt.match(/___/g) ?? []).length;
+      return blanks >= 1 && q.options.length === blanks;
+    },
+    {
+      message:
+        "Đoạn văn điền từ: số đáp án phải khớp với số chỗ trống ___ trong đề.",
+      path: ["options"],
+    },
+  );
 const tourStepSchema = z.object({
   target: z.string(),
   targetQuestionId: z.string().nullable().optional(),
@@ -77,7 +99,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     // for a quiz this size (admin edits are bulk, not per-question).
     if (parsed.data.questions) {
       for (const q of parsed.data.questions) {
-        if (q.type === "SPEAKING") continue;
+        if (q.type === "SPEAKING" || q.type === "PARAGRAPH_FILL") continue;
         if (q.correctIndex < 0 || q.correctIndex >= q.options.length) {
           return NextResponse.json(
             { error: `correctIndex ngoài phạm vi: ${q.prompt.slice(0, 50)}` },

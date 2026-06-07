@@ -26,7 +26,12 @@ const SKILL_META: Record<Skill, { label: string; icon: React.ElementType; grad: 
 
 interface Q {
   id: string;
-  type: "IMAGE_CHOICE" | "TEXT_CHOICE" | "FILL_BLANK" | "SPEAKING";
+  type:
+    | "IMAGE_CHOICE"
+    | "TEXT_CHOICE"
+    | "FILL_BLANK"
+    | "PARAGRAPH_FILL"
+    | "SPEAKING";
   prompt: string;
   audioUrl?: string | null;
   options: { label: string; imageUrl?: string }[];
@@ -125,6 +130,10 @@ export function MiniQuizPlayer({
   const [selected, setSelected] = useState<number | null>(null);
   // FILL_BLANK text input value; reset on every step change.
   const [blankInput, setBlankInput] = useState("");
+  // PARAGRAPH_FILL: one input per blank, in order. Length always matches
+  // q.options.length while the user is on a PARAGRAPH_FILL step. Reset on
+  // step change just like blankInput.
+  const [paragraphInputs, setParagraphInputs] = useState<string[]>([]);
   // SPEAKING transcript — populated when /api/speaking/transcribe returns
   // (or Web Speech fills it live). Reset on every step change.
   const [speakingTranscript, setSpeakingTranscript] = useState("");
@@ -171,16 +180,20 @@ export function MiniQuizPlayer({
   const progressPct = (answered / total) * 100;
 
   // canCheck rules vary by question type:
-  //  - SPEAKING:    transcript must be non-empty (user finished recording)
-  //  - FILL_BLANK:  blank input must have content
-  //  - choice:      an option must be selected
+  //  - SPEAKING:        transcript must be non-empty
+  //  - FILL_BLANK:      blank input must have content
+  //  - PARAGRAPH_FILL:  every blank must have content
+  //  - choice:          an option must be selected
   const canCheck =
     q != null &&
     (q.type === "SPEAKING"
       ? speakingTranscript.trim().length > 0
       : q.type === "FILL_BLANK"
         ? blankInput.trim().length > 0
-        : selected != null);
+        : q.type === "PARAGRAPH_FILL"
+          ? paragraphInputs.length === q.options.length &&
+            paragraphInputs.every((v) => v.trim().length > 0)
+          : selected != null);
 
   const check = () => {
     if (q == null) return;
@@ -247,6 +260,30 @@ export function MiniQuizPlayer({
       }
       return;
     }
+    if (q.type === "PARAGRAPH_FILL") {
+      // All blanks must be correct for the question to count. Each
+      // option.label is the answer for the same-index blank; alternates
+      // are "/"-separated. ALL must match — partial credit would muddy
+      // the heart accounting.
+      const allOk = q.options.every((o, i) => {
+        const user = normalize(paragraphInputs[i] ?? "");
+        const accepts = o.label
+          .split("/")
+          .map((s) => normalize(s))
+          .filter(Boolean);
+        return accepts.includes(user);
+      });
+      if (allOk) {
+        setVerdict("correct");
+        setCorrectCount((c) => c + 1);
+        playCorrectSfx();
+      } else {
+        setVerdict("wrong");
+        setHearts((h) => Math.max(0, h - 1));
+        playWrongSfx();
+      }
+      return;
+    }
     if (selected == null) return;
     if (selected === q.correctIndex) {
       setVerdict("correct");
@@ -270,6 +307,7 @@ export function MiniQuizPlayer({
     setStep((s) => s + 1);
     setSelected(null);
     setBlankInput("");
+    setParagraphInputs([]);
     setSpeakingTranscript("");
     setVerdict("none");
   };
@@ -312,6 +350,21 @@ export function MiniQuizPlayer({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Initialise PARAGRAPH_FILL inputs array to the right length when the
+  // step lands on one. Single source of truth for "how many blanks does
+  // this question have" = q.options.length (admin form enforces it
+  // matching the ___ count in the prompt at save time).
+  useEffect(() => {
+    if (step >= total) return;
+    const qq = quiz.questions[step];
+    if (qq.type !== "PARAGRAPH_FILL") return;
+    const need = qq.options.length;
+    setParagraphInputs((prev) =>
+      prev.length === need ? prev : Array.from({ length: need }, () => ""),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, total]);
 
   // ============================ FINISHED SUMMARY ============================
   if (step >= total) {
@@ -441,6 +494,16 @@ export function MiniQuizPlayer({
               locked={verdict !== "none"}
               verdict={verdict}
             />
+          ) : q.type === "PARAGRAPH_FILL" ? (
+            <ParagraphFillInlinePrompt
+              prompt={q.prompt}
+              values={paragraphInputs}
+              onChange={setParagraphInputs}
+              onSubmit={check}
+              locked={verdict !== "none"}
+              verdict={verdict}
+              options={q.options}
+            />
           ) : (
             <h2 className="text-2xl md:text-3xl font-extrabold leading-tight">{q.prompt}</h2>
           )}
@@ -526,7 +589,7 @@ export function MiniQuizPlayer({
               />
             )}
           </>
-        ) : q.type === "FILL_BLANK" ? (
+        ) : q.type === "PARAGRAPH_FILL" ? null : q.type === "FILL_BLANK" ? (
           q.prompt.includes(BLANK_MARK) ? null : (
             <div className="w-full max-w-xl">
               <input
@@ -667,7 +730,11 @@ export function MiniQuizPlayer({
                     <span className="font-bold">
                       {q.type === "FILL_BLANK"
                         ? q.options[0]?.label ?? "—"
-                        : q.options[q.correctIndex]?.label ?? "—"}
+                        : q.type === "PARAGRAPH_FILL"
+                          ? q.options
+                              .map((o) => o.label.split("/")[0])
+                              .join(" · ")
+                          : q.options[q.correctIndex]?.label ?? "—"}
                     </span>
                   </div>
                 )}
@@ -693,7 +760,11 @@ export function MiniQuizPlayer({
                 <div className="text-sm text-rose-700">
                   {q.type === "FILL_BLANK"
                     ? q.options[0]?.label ?? "—"
-                    : q.options[q.correctIndex]?.label ?? "—"}
+                    : q.type === "PARAGRAPH_FILL"
+                      ? q.options
+                          .map((o) => o.label.split("/")[0])
+                          .join(" · ")
+                      : q.options[q.correctIndex]?.label ?? "—"}
                 </div>
                 <button className="text-xs font-bold text-rose-700/70 inline-flex items-center gap-1 mt-0.5">
                   <Flag className="h-3 w-3" /> BÁO CÁO
@@ -888,6 +959,122 @@ function FillBlankInlinePrompt({
         return nodes;
       })}
     </h2>
+  );
+}
+
+/**
+ * PARAGRAPH_FILL prompt rendered as a paragraph with one inline input per
+ * blank. Same visual language as FillBlankInlinePrompt (sky / emerald /
+ * rose tones for none / correct / wrong) but every blank gets its OWN
+ * verdict color based on whether its answer matches options[i].label
+ * (alternates separated by "/").
+ *
+ * The "correct answer" gets revealed inline on wrong submissions so the
+ * user sees exactly what should have been there for each blank.
+ */
+function ParagraphFillInlinePrompt({
+  prompt,
+  values,
+  onChange,
+  onSubmit,
+  locked,
+  verdict,
+  options,
+}: {
+  prompt: string;
+  values: string[];
+  onChange: (next: string[]) => void;
+  onSubmit: () => void;
+  locked: boolean;
+  verdict: "none" | "correct" | "wrong";
+  options: { label: string }[];
+}) {
+  const parts = prompt.split(BLANK_MARK);
+  // Per-blank correctness lookup, computed only when the verdict is
+  // revealed so admin-supplied alternates ("color/colour") drive both the
+  // tone and the reveal text.
+  const blankOk = (i: number): boolean => {
+    const user = values[i]?.trim().toLowerCase() ?? "";
+    const accepts = (options[i]?.label ?? "")
+      .split("/")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+    return accepts.includes(user);
+  };
+  const tone = (i: number): string => {
+    if (verdict === "none") {
+      return "border-sky-300 bg-sky-50 text-sky-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-200";
+    }
+    return blankOk(i)
+      ? "border-emerald-400 bg-emerald-50 text-emerald-800"
+      : "border-rose-400 bg-rose-50 text-rose-800";
+  };
+  return (
+    <div className="text-left max-w-2xl mx-auto">
+      <p className="text-lg md:text-xl font-semibold leading-relaxed text-foreground">
+        {parts.flatMap((seg, i) => {
+          const nodes: React.ReactNode[] = [
+            <span key={`seg-${i}`}>{seg}</span>,
+          ];
+          if (i < parts.length - 1) {
+            const idx = i;
+            const wrong = verdict === "wrong" && !blankOk(idx);
+            nodes.push(
+              <span key={`blank-${i}`} className="inline-block align-baseline">
+                <input
+                  type="text"
+                  value={values[idx] ?? ""}
+                  onChange={(e) => {
+                    const next = [...values];
+                    while (next.length <= idx) next.push("");
+                    next[idx] = e.target.value;
+                    onChange(next);
+                  }}
+                  onKeyDown={(e) => {
+                    if (
+                      e.key === "Enter" &&
+                      !locked &&
+                      values.every((v) => v.trim().length > 0)
+                    ) {
+                      e.preventDefault();
+                      onSubmit();
+                    }
+                  }}
+                  disabled={locked}
+                  placeholder="..."
+                  className={cn(
+                    "inline-block min-w-[6ch] max-w-[18ch] rounded-md border-2 px-2 py-0.5 text-center font-extrabold outline-none transition-all",
+                    tone(idx),
+                  )}
+                  size={Math.max(
+                    Math.max(
+                      values[idx]?.length ?? 0,
+                      // After reveal, fit the displayed answer too so the
+                      // input doesn't grow/shrink awkwardly.
+                      verdict === "wrong"
+                        ? (options[idx]?.label.split("/")[0]?.length ?? 0)
+                        : 0,
+                    ),
+                    6,
+                  )}
+                />
+                {wrong && (
+                  <span className="ml-1 text-xs font-bold text-emerald-700">
+                    → {options[idx]?.label.split("/")[0] ?? ""}
+                  </span>
+                )}
+              </span>,
+            );
+          }
+          return nodes;
+        })}
+      </p>
+      {verdict === "none" && (
+        <p className="text-xs text-muted-foreground mt-3 text-center">
+          Điền hết các chỗ trống rồi nhấn Enter / nút Kiểm tra ở dưới.
+        </p>
+      )}
+    </div>
   );
 }
 
