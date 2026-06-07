@@ -12,12 +12,24 @@
  */
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { YoutubeTranscript } from "youtube-transcript";
+import {
+  YoutubeTranscript,
+  YoutubeTranscriptNotAvailableLanguageError,
+} from "youtube-transcript";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { isAdminOrOwner } from "@/lib/premium";
 import { extractYoutubeId, mergeCuesIntoSegments, youtubeThumbnail } from "@/lib/youtube";
 import { enrichShadowingSegments } from "@/lib/claude";
+
+/** Ratio of A-Z/a-z characters out of all non-space chars. Used to detect
+ *  when YouTube returned a non-English track (e.g. Chinese) by mistake. */
+function latinRatio(text: string): number {
+  const stripped = text.replace(/\s+/g, "");
+  if (stripped.length === 0) return 0;
+  const latin = stripped.match(/[A-Za-z]/g)?.length ?? 0;
+  return latin / stripped.length;
+}
 
 const bodySchema = z.object({
   title: z.string().min(1).max(200),
@@ -50,39 +62,78 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "URL YouTube không hợp lệ" }, { status: 400 });
   }
 
-  // 1. Fetch caption track. Prefer English variants; fall back to whatever
-  //    YouTube returns (some channels only have auto-generated tracks).
+  // 1. Fetch caption track. STRICTLY English-only. We never fall back to
+  //    `fetchTranscript(ytId)` without a lang because the library defaults
+  //    to `captionTracks[0]`, which for non-English channels (Netflix Anime,
+  //    K-content, etc.) is whatever the channel publishes first — often
+  //    Chinese / Japanese / Korean — and we'd silently store CJK as the
+  //    "English" shadowing source.
   type RawTr = { text: string; offset: number; duration: number };
   let cuesRaw: RawTr[] = [];
-  const tries = ["en", "en-US", "en-GB"];
-  for (const lang of tries) {
+  let availableLangs: string[] = [];
+  const triedLangs = new Set<string>();
+  const tryLang = async (lang: string): Promise<RawTr[]> => {
+    if (triedLangs.has(lang)) return [];
+    triedLangs.add(lang);
     try {
-      const cues = await YoutubeTranscript.fetchTranscript(ytId, { lang });
-      if (cues.length > 0) {
-        cuesRaw = cues;
-        break;
-      }
-    } catch {
-      // try next language
-    }
-  }
-  if (cuesRaw.length === 0) {
-    try {
-      cuesRaw = await YoutubeTranscript.fetchTranscript(ytId);
+      return await YoutubeTranscript.fetchTranscript(ytId, { lang });
     } catch (e) {
-      return NextResponse.json(
-        {
-          error:
-            "Video này không có phụ đề tiếng Anh. Vui lòng dán transcript thủ công ở chế độ nâng cao.",
-          detail: e instanceof Error ? e.message : String(e),
-        },
-        { status: 422 },
-      );
+      if (e instanceof YoutubeTranscriptNotAvailableLanguageError) {
+        // Library exposes available langs through the message; pull them out.
+        const m = e.message.match(/Available languages:\s*(.+)$/);
+        if (m) {
+          availableLangs = m[1]
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+        }
+      }
+      return [];
+    }
+  };
+  for (const lang of ["en", "en-US", "en-GB"]) {
+    cuesRaw = await tryLang(lang);
+    if (cuesRaw.length > 0) break;
+  }
+  // Last-ditch: any track whose code starts with "en" (en-CA, en-AU, en-IN…).
+  if (cuesRaw.length === 0 && availableLangs.length > 0) {
+    const englishish = availableLangs.find((l) => l.toLowerCase().startsWith("en"));
+    if (englishish) {
+      cuesRaw = await tryLang(englishish);
     }
   }
   if (cuesRaw.length === 0) {
+    const langsMsg =
+      availableLangs.length > 0
+        ? ` Track có sẵn: ${availableLangs.join(", ")}.`
+        : "";
     return NextResponse.json(
-      { error: "Không lấy được phụ đề cho video này." },
+      {
+        error:
+          "Video này KHÔNG có phụ đề tiếng Anh." +
+          langsMsg +
+          " Vui lòng dán transcript thủ công ở chế độ nâng cao, hoặc chọn video khác.",
+      },
+      { status: 422 },
+    );
+  }
+
+  // Belt-and-braces: even if YouTube said this is `en`, sanity-check that
+  // the actual text is mostly Latin alphabet. Catches mislabeled tracks
+  // (the language tag says en but content is Chinese, etc.).
+  const sampleText = cuesRaw
+    .slice(0, 20)
+    .map((c) => c.text)
+    .join(" ");
+  const ratio = latinRatio(sampleText);
+  if (ratio < 0.6) {
+    return NextResponse.json(
+      {
+        error:
+          "Phụ đề tải được không phải tiếng Anh thật (tỉ lệ chữ Latin = " +
+          Math.round(ratio * 100) +
+          "%). Có thể video gắn nhầm track. Vui lòng dán transcript thủ công.",
+      },
       { status: 422 },
     );
   }
