@@ -138,6 +138,8 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
     playVideo: () => void;
     pauseVideo: () => void;
     setPlaybackRate: (r: number) => void;
+    mute?: () => void;
+    unMute?: () => void;
     getCurrentTime?: () => number;
   } | null>(null);
   const playerContainerRef = useRef<HTMLDivElement | null>(null);
@@ -204,10 +206,33 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
     [activeIdx, total, autoFollow],
   );
 
+  /** Hard-cut the YouTube audio at the end of a segment. We call pauseVideo
+   *  AND mute together because pauseVideo can take 50-200ms to actually
+   *  silence on slow networks, and the user wants ZERO audio bleed between
+   *  segments. unMute fires the next time we play. */
+  const hardCutAudio = useCallback(() => {
+    const yt = playerRef.current;
+    if (!yt) return;
+    try {
+      yt.mute?.();
+    } catch {
+      /* silent */
+    }
+    try {
+      yt.pauseVideo();
+    } catch {
+      /* silent */
+    }
+  }, []);
+
   /** Play a single segment: seek to start, play, then poll the real YouTube
    *  current time at 100ms ticks. Pause as soon as the real playback head
    *  crosses endSec. This is buffer-safe — if YouTube takes 700ms to start
-   *  the segment, the pause still lands at the right audible moment. */
+   *  the segment, the pause still lands at the right audible moment.
+   *
+   *  Errors from the YT IFrame API are caught so a single bad tick can't
+   *  silently kill the interval (which would let the video play through
+   *  segment boundaries with no pause). */
   const playSegment = useCallback(
     (seg: Segment) => {
       const yt = playerRef.current;
@@ -215,9 +240,14 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
       clearStopPoll();
       clearFollow();
       setWaitingForUser(false);
-      yt.setPlaybackRate(speed);
-      yt.seekTo(seg.startSec, true);
-      yt.playVideo();
+      try {
+        yt.unMute?.();
+        yt.setPlaybackRate(speed);
+        yt.seekTo(seg.startSec, true);
+        yt.playVideo();
+      } catch (e) {
+        console.error("[shadowing] playSegment YT call failed", e);
+      }
       // Safety stop: even if YouTube never advances the playhead, never
       // poll forever — cap at segment-duration * 4 / speed, rounded up.
       const maxWaitMs = Math.max(
@@ -226,25 +256,37 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
       );
       const startedAt = Date.now();
       stopPollRef.current = setInterval(() => {
-        const cur = yt.getCurrentTime?.() ?? 0;
-        // 50ms epsilon — pause at the FIRST tick that crosses endSec so
-        // we don't bleed into the next segment.
-        if (cur >= seg.endSec - 0.05) {
-          yt.pauseVideo();
-          clearStopPoll();
-          setWaitingForUser(true);
-          scheduleFollow(seg);
-          return;
-        }
-        if (Date.now() - startedAt > maxWaitMs) {
-          yt.pauseVideo();
-          clearStopPoll();
-          setWaitingForUser(true);
-          scheduleFollow(seg);
+        try {
+          const cur = yt.getCurrentTime?.() ?? 0;
+          // 50ms epsilon — pause at the FIRST tick that crosses endSec so
+          // we don't bleed into the next segment.
+          if (cur >= seg.endSec - 0.05) {
+            hardCutAudio();
+            clearStopPoll();
+            setWaitingForUser(true);
+            scheduleFollow(seg);
+            return;
+          }
+          if (Date.now() - startedAt > maxWaitMs) {
+            hardCutAudio();
+            clearStopPoll();
+            setWaitingForUser(true);
+            scheduleFollow(seg);
+          }
+        } catch (e) {
+          // If getCurrentTime throws, fall back to the safety pause so
+          // the user isn't left with a video playing forever.
+          console.error("[shadowing] end-of-segment poll error", e);
+          if (Date.now() - startedAt > maxWaitMs) {
+            hardCutAudio();
+            clearStopPoll();
+            setWaitingForUser(true);
+            scheduleFollow(seg);
+          }
         }
       }, 100);
     },
-    [speed, scheduleFollow],
+    [speed, scheduleFollow, hardCutAudio],
   );
 
   // Initialise the YT player when the iframe element mounts.
@@ -426,7 +468,7 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
     // click mic during a "Nghe lại" replay, or before buffering finished).
     // Without this, the video keeps playing while the user is speaking →
     // their mic captures the video too and the score is garbage.
-    playerRef.current?.pauseVideo();
+    hardCutAudio();
     clearStopPoll();
     clearAutoNext();
     clearFollow();
@@ -505,9 +547,32 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
           </Link>
         </div>
 
-        {/* YouTube embed */}
+        {/* YouTube embed — overlay dims + shows a "paused" badge while we
+            hold the audio cut at end of segment, so the user clearly sees
+            the YouTube audio has been stopped (not just a UI nudge). The
+            overlay sits ON TOP of the iframe with pointer-events:none so
+            users can still drag the YT scrubber if they want. */}
         <div className="rounded-2xl overflow-hidden border bg-black aspect-video relative">
           <div ref={playerContainerRef} className="w-full h-full" />
+          {waitingForUser && !recording && !scoring && (
+            <div className="pointer-events-none absolute inset-0 bg-black/55 backdrop-blur-[1px] flex items-center justify-center transition-opacity">
+              <div className="flex items-center gap-3 rounded-full bg-amber-500/95 text-white px-5 py-2.5 shadow-2xl ring-2 ring-amber-200">
+                <span className="text-xl leading-none">⏸</span>
+                <div className="text-sm">
+                  <p className="font-extrabold leading-tight">Đã dừng — bạn đọc theo</p>
+                  {followCountdown != null ? (
+                    <p className="text-xs leading-tight opacity-90">
+                      Câu sau trong {followCountdown}s
+                    </p>
+                  ) : (
+                    <p className="text-xs leading-tight opacity-90">
+                      Bấm Câu sau / Enter để tiếp
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between flex-wrap gap-2">
