@@ -147,6 +147,22 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
   // segment audibly ends — cutting off the last word.
   const stopPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [waitingForUser, setWaitingForUser] = useState(false);
+  // Auto-follow mode: after a segment finishes, pause for "reading time"
+  // (= the segment's own duration so user has the same time to read aloud
+  // as the speaker took) and then auto-play the next segment. Default ON
+  // because the user explicitly asked for this flow. Toggle in the header
+  // disables it for users who prefer manual stepping.
+  const [autoFollow, setAutoFollow] = useState(true);
+  const [followCountdown, setFollowCountdown] = useState<number | null>(null);
+  const followTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const followTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const clearFollow = () => {
+    if (followTimerRef.current) clearTimeout(followTimerRef.current);
+    if (followTickRef.current) clearInterval(followTickRef.current);
+    followTimerRef.current = null;
+    followTickRef.current = null;
+    setFollowCountdown(null);
+  };
 
   const mediaRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -162,6 +178,32 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
     }
   };
 
+  /** Schedule auto-advance to the next segment after the current segment
+   *  ends. Wait time = the segment's own duration (clamped 2-8s) so the
+   *  user has the same window to read/shadow as the speaker had. Mic
+   *  recording or any manual nav cancels via clearFollow(). Last segment
+   *  doesn't schedule. */
+  const scheduleFollow = useCallback(
+    (justEndedSeg: Segment) => {
+      if (!autoFollow) return;
+      if (activeIdx >= total - 1) return;
+      clearFollow();
+      const segDur = Math.max(0.5, justEndedSeg.endSec - justEndedSeg.startSec);
+      // Clamp: very short segments still need at least 2s to read, very
+      // long ones don't need a full 30s pause.
+      const waitSec = Math.min(8, Math.max(2, Math.round(segDur)));
+      setFollowCountdown(waitSec);
+      followTickRef.current = setInterval(() => {
+        setFollowCountdown((s) => (s == null || s <= 1 ? null : s - 1));
+      }, 1000);
+      followTimerRef.current = setTimeout(() => {
+        clearFollow();
+        setActiveIdx((i) => Math.min(i + 1, total - 1));
+      }, waitSec * 1000);
+    },
+    [activeIdx, total, autoFollow],
+  );
+
   /** Play a single segment: seek to start, play, then poll the real YouTube
    *  current time at 100ms ticks. Pause as soon as the real playback head
    *  crosses endSec. This is buffer-safe — if YouTube takes 700ms to start
@@ -171,6 +213,7 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
       const yt = playerRef.current;
       if (!yt) return;
       clearStopPoll();
+      clearFollow();
       setWaitingForUser(false);
       yt.setPlaybackRate(speed);
       yt.seekTo(seg.startSec, true);
@@ -190,16 +233,18 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
           yt.pauseVideo();
           clearStopPoll();
           setWaitingForUser(true);
+          scheduleFollow(seg);
           return;
         }
         if (Date.now() - startedAt > maxWaitMs) {
           yt.pauseVideo();
           clearStopPoll();
           setWaitingForUser(true);
+          scheduleFollow(seg);
         }
       }, 100);
     },
-    [speed],
+    [speed, scheduleFollow],
   );
 
   // Initialise the YT player when the iframe element mounts.
@@ -301,14 +346,17 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
 
   const prev = () => {
     clearAutoNext();
+    clearFollow();
     if (activeIdx > 0) setActiveIdx((i) => i - 1);
   };
   const next = () => {
     clearAutoNext();
+    clearFollow();
     if (activeIdx < total - 1) setActiveIdx((i) => i + 1);
   };
   const replay = () => {
     clearAutoNext();
+    clearFollow();
     if (active) playSegment(active);
   };
 
@@ -381,6 +429,7 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
     playerRef.current?.pauseVideo();
     clearStopPoll();
     clearAutoNext();
+    clearFollow();
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -501,8 +550,20 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
             />
           </div>
           {tab === "subtitles" && (
-            <div className="flex items-center gap-2 text-xs pb-2">
+            <div className="flex items-center gap-2 text-xs pb-2 flex-wrap">
               <span className="font-bold">{total} Câu</span>
+              <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                <span>Tự chuyển câu</span>
+                <input
+                  type="checkbox"
+                  checked={autoFollow}
+                  onChange={(e) => {
+                    setAutoFollow(e.target.checked);
+                    if (!e.target.checked) clearFollow();
+                  }}
+                  className="h-4 w-7 appearance-none rounded-full bg-muted checked:bg-amber-500 relative transition-colors before:absolute before:top-0.5 before:left-0.5 before:h-3 before:w-3 before:rounded-full before:bg-white before:transition-transform checked:before:translate-x-3"
+                />
+              </label>
               <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
                 <span>Hiện tiếng việt</span>
                 <input
@@ -683,22 +744,39 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
               <Mic className="h-6 w-6" />
             )}
           </button>
-          <div>
+          <div className="flex-1 min-w-0">
             <p className="font-extrabold">
               {scoring
                 ? "Đang chấm..."
                 : recording
                   ? "Đang ghi âm..."
                   : waitingForUser
-                    ? "Đến lượt bạn — nói theo!"
+                    ? followCountdown != null
+                      ? `Đọc theo... câu sau sau ${followCountdown}s`
+                      : "Đến lượt bạn — nói theo!"
                     : "Nhấn để thu âm"}
             </p>
             <p className="text-xs text-muted-foreground">
-              {waitingForUser && !recording && !scoring
-                ? "Video đã dừng. Nhấn mic và đọc theo câu này."
-                : "Tối đa 30 giây"}
+              {recording || scoring
+                ? "Tối đa 30 giây"
+                : followCountdown != null
+                  ? "Bấm mic để dừng đếm ngược + thu âm chấm phát âm"
+                  : waitingForUser
+                    ? "Video đã dừng. Nhấn mic và đọc theo câu này."
+                    : "Tối đa 30 giây"}
             </p>
           </div>
+          {/* Cancel button for the auto-follow countdown so users on a
+              hard sentence can take all the time they need. */}
+          {followCountdown != null && !recording && !scoring && (
+            <button
+              type="button"
+              onClick={clearFollow}
+              className="shrink-0 rounded-lg border-2 border-amber-300 bg-white dark:bg-zinc-900 px-3 py-1.5 text-xs font-bold hover:bg-amber-50 dark:hover:bg-amber-950/30"
+            >
+              Tạm dừng
+            </button>
+          )}
         </div>
 
         {/* Score result */}
