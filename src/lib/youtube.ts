@@ -2,7 +2,11 @@
  * YouTube URL helpers — extract the 11-character video id from any of the
  * URL shapes YouTube has shipped over the years, and compute the canonical
  * thumbnail URL for a given id. Used by the Shadowing module.
+ *
+ * Also includes server-side audio extraction via youtubei.js — used by the
+ * shadowing audio fallback when a video has no English captions on YouTube.
  */
+import { Innertube, UniversalCache, Utils } from "youtubei.js";
 
 /** Return the 11-char video id from a YouTube URL, or null if not found. */
 export function extractYoutubeId(input: string): string | null {
@@ -105,4 +109,120 @@ export function mergeCuesIntoSegments(
   }
   flush();
   return segments;
+}
+
+/**
+ * youtubei.js — server-side audio fetcher used by the "AI nghe & tạo bài"
+ * fallback when a video has no English captions. Singleton client is
+ * cheaper (~200ms session init / call avoided) than creating one per
+ * request. UniversalCache(false) = in-memory only — fine for Railway.
+ *
+ * IOS client choice: it's the variant least likely to require a PO token
+ * on fresh server IPs. ANDROID would also work; WEB requires a token.
+ *
+ * HMR safety: in dev, Next.js re-evaluates this module on every code
+ * change. A naive `let innertubeSingleton: Innertube | null = null;` at
+ * module scope leaks: each HMR cycle creates a fresh session, never GCs
+ * the old ones, and a long dev session can stack 50+ Innertube instances
+ * holding network sockets. Stash on globalThis (same trick the Prisma
+ * singleton uses) so HMR finds the live instance instead of recreating it.
+ */
+type InnertubeGlobal = typeof globalThis & {
+  __beeInnertube?: Innertube;
+  __beeInnertubePromise?: Promise<Innertube>;
+};
+async function getInnertube(): Promise<Innertube> {
+  const g = globalThis as InnertubeGlobal;
+  if (g.__beeInnertube) return g.__beeInnertube;
+  // Concurrent callers must share the same in-flight create() promise or
+  // we'd init twice on the very first burst of requests.
+  if (g.__beeInnertubePromise) return g.__beeInnertubePromise;
+  g.__beeInnertubePromise = Innertube.create({
+    cache: new UniversalCache(false),
+    generate_session_locally: true,
+  }).then((c) => {
+    g.__beeInnertube = c;
+    return c;
+  });
+  return g.__beeInnertubePromise;
+}
+
+/** Lightweight metadata for a video — used to reject livestreams and to
+ *  cap duration before we burn API credits on a 3-hour podcast. */
+export interface YouTubeBasicInfo {
+  videoId: string;
+  title: string;
+  durationSec: number;
+  isLive: boolean;
+  channelTitle: string | null;
+}
+
+export async function getYouTubeBasicInfo(videoId: string): Promise<YouTubeBasicInfo> {
+  const yt = await getInnertube();
+  const info = await yt.getBasicInfo(videoId);
+  const basic = info.basic_info;
+  return {
+    videoId,
+    title: basic.title ?? "",
+    durationSec: basic.duration ?? 0,
+    isLive: !!basic.is_live,
+    channelTitle: basic.author ?? null,
+  };
+}
+
+// MAX_AUDIO_FALLBACK_SEC lives in shadowing-constants.ts so client
+// components can use it without dragging youtubei.js into the browser
+// bundle. Re-exported here as a convenience for server-side callers
+// that already imported from this file.
+export { MAX_AUDIO_FALLBACK_SEC } from "./shadowing-constants";
+import { MAX_AUDIO_FALLBACK_SEC } from "./shadowing-constants";
+
+/**
+ * Download an audio-only track and return it as a Buffer. WebM/Opus by
+ * default (~1 MB / min), which Deepgram accepts natively when we send
+ * `Content-Type: audio/webm`.
+ *
+ * Throws if the video is a livestream, age-restricted (LOGIN_REQUIRED),
+ * region-locked, or longer than MAX_AUDIO_FALLBACK_SEC.
+ */
+export interface YouTubeAudio {
+  buffer: Buffer;
+  contentType: string;
+  durationSec: number;
+  title: string;
+}
+export async function getYouTubeAudioBuffer(videoId: string): Promise<YouTubeAudio> {
+  const yt = await getInnertube();
+  const info = await yt.getBasicInfo(videoId);
+  if (info.basic_info.is_live) {
+    throw new Error("Video đang livestream — không tải audio được.");
+  }
+  const dur = info.basic_info.duration ?? 0;
+  if (dur === 0) {
+    throw new Error("Không xác định được độ dài video.");
+  }
+  if (dur > MAX_AUDIO_FALLBACK_SEC) {
+    throw new Error(
+      `Video dài ${Math.round(dur / 60)} phút, vượt giới hạn ${MAX_AUDIO_FALLBACK_SEC / 60} phút cho AI nghe.`,
+    );
+  }
+  const stream = await yt.download(videoId, {
+    type: "audio",
+    quality: "best",
+    format: "any",
+    client: "IOS",
+  });
+  const chunks: Uint8Array[] = [];
+  for await (const chunk of Utils.streamToIterable(stream)) {
+    chunks.push(chunk);
+  }
+  const buffer = Buffer.concat(chunks);
+  return {
+    buffer,
+    // We asked for `format: "any"` so most tracks come back as webm/opus.
+    // Deepgram will sniff the container — webm is a safe default.
+    contentType: "audio/webm",
+    durationSec: dur,
+    title: info.basic_info.title ?? "",
+  };
 }

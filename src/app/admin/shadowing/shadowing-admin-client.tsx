@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Video, Plus, Loader2, Trash2, Youtube, ExternalLink, Sparkles, ChevronDown, Wand2 } from "lucide-react";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { MAX_AUDIO_FALLBACK_SEC } from "@/lib/shadowing-constants";
 
 export interface LessonRow {
   id: string;
@@ -64,19 +65,46 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
   const [aiBusy, setAiBusy] = useState(false);
   const [aiStep, setAiStep] = useState<string>("");
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  // Allow the route to fall back to audio transcription (Deepgram + Groq
+  // Whisper) when YouTube has no English captions. Default ON because
+  // most admins want it; toggle off if they only want free caption-based
+  // lessons for cost control.
+  const [allowAudioFallback, setAllowAudioFallback] = useState(true);
+  // Hard double-click guard: aiBusy state is reactive (re-renders after a
+  // tick) so a fast double-click can fire the second click before the
+  // disabled prop wins. A ref read inside the handler is synchronous and
+  // blocks the second request before it ever leaves the browser.
+  const aiInFlightRef = useRef(false);
 
   const createWithAI = async () => {
+    if (aiInFlightRef.current) return; // hard guard against double-click
     if (!aiTitle.trim()) return toast.error("Nhập tiêu đề");
     if (!aiSource.trim()) return toast.error("Nhập nguồn (VD: TED-Ed)");
     if (!aiUrl.trim()) return toast.error("Dán URL YouTube");
+    aiInFlightRef.current = true;
     setAiBusy(true);
     setAiStep("Đang lấy phụ đề từ YouTube...");
+    // 10-minute browser-side abort. Matches the server route's
+    // maxDuration=600 so the user gets a clear error instead of a
+    // browser-default "no response" hang on very long videos.
+    const controller = new AbortController();
+    const abortTimer = setTimeout(() => controller.abort(), 600_000);
     try {
       // We can't truly stream backend progress without SSE, but flip the
-      // message after a short delay so admin sees Claude phase too.
-      const stepTimer = setTimeout(() => {
-        setAiStep("Đang dịch + tạo IPA bằng AI... (có thể mất 1-2 phút)");
-      }, 5000);
+      // step message based on elapsed time so admin sees the phase shift.
+      const stepTimers = [
+        setTimeout(() => {
+          if (allowAudioFallback)
+            setAiStep(
+              "Phụ đề không có → AI nghe video... (chỉ chạy nếu cần, ~30-60s)",
+            );
+          else
+            setAiStep("Đang dịch + tạo IPA bằng AI... (có thể mất 1-2 phút)");
+        }, 8000),
+        setTimeout(() => {
+          setAiStep("Đang dịch + tạo IPA bằng AI... (có thể mất 1-2 phút)");
+        }, 45000),
+      ];
       const res = await fetch("/api/admin/shadowing/from-youtube", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -84,27 +112,39 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
           title: aiTitle.trim(),
           source: aiSource.trim(),
           youtubeUrl: aiUrl.trim(),
+          allowAudioFallback,
         }),
+        signal: controller.signal,
       });
-      clearTimeout(stepTimer);
+      stepTimers.forEach(clearTimeout);
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         toast.error(data.error || "Tạo bài thất bại");
-        if (res.status === 422) {
-          setAdvancedOpen(true);
-        }
+        if (res.status === 422) setAdvancedOpen(true);
         return;
       }
+      const methodLabel =
+        data.method === "audio"
+          ? `AI nghe (${data.sttSource ?? "?"})`
+          : "phụ đề YT";
       toast.success(
-        `Đã tạo bài (${data.segmentCount} đoạn, AI dịch ${data.enriched} đoạn). Đang mở...`,
+        `Đã tạo bài (${data.segmentCount} đoạn · nguồn: ${methodLabel} · AI dịch ${data.enriched}). Đang mở...`,
       );
       setAiTitle("");
       setAiSource("");
       setAiUrl("");
       window.location.href = `/shadowing/${data.id}`;
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Lỗi");
+      if (e instanceof DOMException && e.name === "AbortError") {
+        toast.error(
+          "Quá 10 phút không có phản hồi — server có thể đang xử lý. Mở /admin/shadowing để kiểm tra bài mới.",
+        );
+      } else {
+        toast.error(e instanceof Error ? e.message : "Lỗi");
+      }
     } finally {
+      clearTimeout(abortTimer);
+      aiInFlightRef.current = false;
       setAiBusy(false);
       setAiStep("");
     }
@@ -299,9 +339,35 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
               disabled={aiBusy}
             />
             <p className="text-xs text-muted-foreground mt-1">
-              Video cần có phụ đề tiếng Anh (TED-Ed, BBC Learning, hầu hết các kênh edu đều có).
+              Ưu tiên dùng phụ đề EN có sẵn (miễn phí). Nếu video không có,
+              AI sẽ tự nghe — xem checkbox bên dưới.
             </p>
           </div>
+
+          {/* Audio fallback toggle — when ON the route downloads the audio
+              via youtubei.js and Deepgram transcribes it. Costs ~$0.05 per
+              video so we surface it explicitly. */}
+          <label
+            className="flex items-start gap-3 rounded-xl border-2 border-amber-300 bg-white/60 dark:bg-zinc-900/40 p-3 cursor-pointer select-none"
+          >
+            <input
+              type="checkbox"
+              checked={allowAudioFallback}
+              onChange={(e) => setAllowAudioFallback(e.target.checked)}
+              disabled={aiBusy}
+              className="mt-0.5 h-4 w-4 accent-amber-500"
+            />
+            <div className="flex-1">
+              <p className="text-sm font-bold">
+                Nếu không có phụ đề EN → AI tự nghe video & tạo transcript
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Tải audio bằng youtubei.js → Deepgram nova-2 transcribe →
+                gộp thành câu shadowing. Tốn thêm ~$0.05/video, video tối đa{" "}
+                {Math.round(MAX_AUDIO_FALLBACK_SEC / 60)} phút. Chỉ kích hoạt nếu phụ đề YT không có.
+              </p>
+            </div>
+          </label>
 
           <Button
             onClick={createWithAI}
@@ -313,7 +379,8 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
           </Button>
           {aiBusy && (
             <p className="text-xs text-amber-700 dark:text-amber-300 italic">
-              Đừng đóng tab — quá trình này chạy nền và lấy 30s tới vài phút cho video dài.
+              Đừng đóng tab — quá trình này chạy nền và lấy 30s tới vài phút
+              cho video dài. Audio fallback có thể mất tới 3-5 phút cho video 20+ phút.
             </p>
           )}
         </CardContent>

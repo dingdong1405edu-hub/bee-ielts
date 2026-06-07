@@ -1,14 +1,26 @@
 /**
  * POST /api/admin/shadowing/from-youtube
  *
- * Admin pastes a YouTube URL → we fetch the video's English caption track,
- * merge the 2-3-word cues into shadowing-sized sentences, send the batch to
- * Claude for IPA + Vietnamese translation, and write the full ShadowingLesson
- * + ShadowingSegments to the DB. Admin can then open it and edit further.
+ * Admin pastes a YouTube URL → we build a full ShadowingLesson with
+ * IPA + Vietnamese on every sentence. Two paths:
  *
- * Fallback path: if the video has no English captions YouTube exposes a
- * specific error — we surface that so the admin form can show "fall back to
- * manual paste" guidance.
+ * 1. CAPTIONS path (preferred — free, fastest): fetch the video's English
+ *    caption track via youtube-transcript and use it directly. Strictly
+ *    English-only (we never blindly grab `captionTracks[0]` — that yielded
+ *    Chinese on Netflix Anime videos before).
+ *
+ * 2. AUDIO path (fallback — costs ~$0.05 per video): if the captions path
+ *    yields nothing AND `allowAudioFallback` is true, download the video's
+ *    audio-only track with youtubei.js, transcribe it with Deepgram
+ *    (utterances=true so we get sentence-shaped chunks with timestamps),
+ *    then merge/normalise. Falls through to Groq Whisper inside the
+ *    transcription helper if Deepgram itself is down.
+ *
+ * Both paths feed the same downstream pipeline:
+ *   mergeCuesIntoSegments → Claude enrichShadowingSegments → DB write.
+ *
+ * Returns `{ id, segmentCount, enriched, method, sttSource? }` so the admin
+ * client can show how the lesson was made.
  */
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -19,8 +31,16 @@ import {
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { isAdminOrOwner } from "@/lib/premium";
-import { extractYoutubeId, mergeCuesIntoSegments, youtubeThumbnail } from "@/lib/youtube";
+import {
+  extractYoutubeId,
+  getYouTubeAudioBuffer,
+  MAX_AUDIO_FALLBACK_SEC,
+  mergeCuesIntoSegments,
+  youtubeThumbnail,
+  type MergedSegment,
+} from "@/lib/youtube";
 import { enrichShadowingSegments } from "@/lib/claude";
+import { deepgramTranscribeWithTimings } from "@/lib/deepgram";
 
 /** Ratio of A-Z/a-z characters out of all non-space chars. Used to detect
  *  when YouTube returned a non-English track (e.g. Chinese) by mistake. */
@@ -35,11 +55,193 @@ const bodySchema = z.object({
   title: z.string().min(1).max(200),
   source: z.string().min(1).max(80),
   youtubeUrl: z.string().min(1),
+  /** Whether to fall back to AI audio transcription when there are no
+   *  English captions. Defaults to true — admins almost always want this. */
+  allowAudioFallback: z.boolean().optional().default(true),
 });
 
-// Caption fetch + multi-batch Claude enrich can run 30-120s for a long
-// video. Railway respects this; Vercel hobby caps at 60s.
-export const maxDuration = 300;
+// Caption fetch alone runs 5-30s; audio fallback (download + Deepgram +
+// Claude) is 60-300s for a 10-30 min video. Cap at 10 min for safety.
+export const maxDuration = 600;
+
+interface CaptionsResult {
+  kind: "ok";
+  cues: { offsetSec: number; durationSec: number; text: string }[];
+}
+interface CaptionsFail {
+  kind: "fail";
+  availableLangs: string[];
+  reason: "no-english-track" | "non-latin-content" | "empty";
+  ratio?: number;
+}
+
+async function tryCaptions(ytId: string): Promise<CaptionsResult | CaptionsFail> {
+  type RawTr = { text: string; offset: number; duration: number };
+  let cuesRaw: RawTr[] = [];
+  let availableLangs: string[] = [];
+  const triedLangs = new Set<string>();
+  const tryLang = async (lang: string): Promise<RawTr[]> => {
+    if (triedLangs.has(lang)) return [];
+    triedLangs.add(lang);
+    try {
+      return await YoutubeTranscript.fetchTranscript(ytId, { lang });
+    } catch (e) {
+      if (e instanceof YoutubeTranscriptNotAvailableLanguageError) {
+        const m = e.message.match(/Available languages:\s*(.+)$/);
+        if (m) {
+          availableLangs = m[1]
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+        }
+      }
+      return [];
+    }
+  };
+  for (const lang of ["en", "en-US", "en-GB"]) {
+    cuesRaw = await tryLang(lang);
+    if (cuesRaw.length > 0) break;
+  }
+  if (cuesRaw.length === 0 && availableLangs.length > 0) {
+    const englishish = availableLangs.find((l) => l.toLowerCase().startsWith("en"));
+    if (englishish) cuesRaw = await tryLang(englishish);
+  }
+  if (cuesRaw.length === 0) {
+    return { kind: "fail", availableLangs, reason: "no-english-track" };
+  }
+  // Sanity-check Latin ratio.
+  const sampleText = cuesRaw.slice(0, 20).map((c) => c.text).join(" ");
+  const ratio = latinRatio(sampleText);
+  if (ratio < 0.6) {
+    return { kind: "fail", availableLangs, reason: "non-latin-content", ratio };
+  }
+  // youtube-transcript returns srv3 (ms) or classic (sec). Heuristic: in
+  // classic format a single cue's "duration" field is seconds (typical
+  // 1-10s, edge cases up to ~60s for slow songs). In srv3 it's ms so
+  // even short cues land at 1000+. Use 1000 as threshold — no realistic
+  // caption cue is 17 MINUTES of seconds while srv3 minimum is ~500ms.
+  const maxDur = Math.max(...cuesRaw.map((c) => c.duration));
+  const scale = maxDur > 1000 ? 1000 : 1;
+  const cues = cuesRaw.map((c) => ({
+    text: c.text,
+    offsetSec: c.offset / scale,
+    durationSec: c.duration / scale,
+  }));
+  return { kind: "ok", cues };
+}
+
+interface AudioOk {
+  kind: "ok";
+  segments: MergedSegment[];
+  sttSource: "deepgram" | "groq-whisper";
+}
+interface AudioFail {
+  kind: "fail";
+  message: string;
+}
+
+/** Map youtubei.js error messages to user-facing Vietnamese. Anything we
+ *  don't recognise falls through verbatim so admins can still file a bug. */
+function translateYoutubeError(raw: string): string {
+  const msg = raw.toLowerCase();
+  if (msg.includes("login_required") || msg.includes("sign in"))
+    return "Video bị age-gate hoặc yêu cầu đăng nhập — chọn video công khai khác.";
+  if (msg.includes("private")) return "Video ở chế độ private — không tải được.";
+  if (msg.includes("not available") || msg.includes("unavailable"))
+    return "Video không khả dụng (đã xoá hoặc bị chặn vùng cho server).";
+  if (msg.includes("livestream") || msg.includes("is_live"))
+    return "Video đang livestream — không tải audio được.";
+  if (msg.includes("region") || msg.includes("blocked"))
+    return "Video bị chặn vùng cho server.";
+  if (msg.includes("po_token"))
+    return "YouTube đang chặn server (yêu cầu PO token). Báo dev kiểm tra YT_COOKIE.";
+  return raw;
+}
+
+async function tryAudioTranscription(ytId: string): Promise<AudioOk | AudioFail> {
+  let audio: Awaited<ReturnType<typeof getYouTubeAudioBuffer>>;
+  try {
+    audio = await getYouTubeAudioBuffer(ytId);
+  } catch (e) {
+    const raw = e instanceof Error ? e.message : String(e);
+    console.error(`[from-youtube] audio download failed ytId=${ytId}:`, raw);
+    return {
+      kind: "fail",
+      message: `Tải audio thất bại: ${translateYoutubeError(raw)}`,
+    };
+  }
+  // ~50KB threshold: 1 sec of Opus @ ~96kbps is 12KB, so anything under
+  // 50KB is shorter than 5s — almost certainly a download truncation
+  // rather than a real video. 10KB was too lenient and let region-blocked
+  // partial streams slip through.
+  if (audio.buffer.byteLength < 50_000) {
+    console.warn(
+      `[from-youtube] audio too small ytId=${ytId} bytes=${audio.buffer.byteLength}`,
+    );
+    return {
+      kind: "fail",
+      message: `Audio quá nhỏ (${audio.buffer.byteLength} bytes) — video có thể bị chặn vùng cho server.`,
+    };
+  }
+
+  let result: Awaited<ReturnType<typeof deepgramTranscribeWithTimings>>;
+  try {
+    // Wrap the Node Buffer as a plain ArrayBuffer for the existing helper.
+    // `Buffer.buffer` is typed as `ArrayBufferLike` (ArrayBuffer | SharedArrayBuffer)
+    // in newer TS DOM libs; slice() narrows to a fresh ArrayBuffer.
+    const underlying = audio.buffer.buffer as ArrayBuffer;
+    const ab = underlying.slice(
+      audio.buffer.byteOffset,
+      audio.buffer.byteOffset + audio.buffer.byteLength,
+    );
+    result = await deepgramTranscribeWithTimings(
+      ab,
+      audio.contentType,
+      audio.durationSec,
+    );
+  } catch (e) {
+    const raw = e instanceof Error ? e.message : String(e);
+    console.error(`[from-youtube] transcribe failed ytId=${ytId}:`, raw);
+    return {
+      kind: "fail",
+      message: `Transcribe thất bại: ${raw}`,
+    };
+  }
+
+  if (result.utterances.length === 0) {
+    return { kind: "fail", message: "AI transcribe trả về rỗng." };
+  }
+
+  // Sanity-check the transcript is English.
+  const sample = result.utterances
+    .slice(0, 10)
+    .map((u) => u.text)
+    .join(" ");
+  if (latinRatio(sample) < 0.6) {
+    return {
+      kind: "fail",
+      message: "Audio transcribe ra không phải tiếng Anh — chọn video EN khác.",
+    };
+  }
+
+  // Convert utterances to MergedSegment shape so we share the downstream
+  // pipeline. Utterances are pause-delimited (can be too long), so re-run
+  // them through our standard merger using each utterance as a "cue".
+  const cues = result.utterances.map((u) => ({
+    text: u.text,
+    offsetSec: u.start,
+    durationSec: Math.max(0.3, u.end - u.start),
+  }));
+  const merged = mergeCuesIntoSegments(cues, {
+    targetSec: 6,
+    maxSec: 12,
+    gapSec: 1.5,
+  });
+  if (merged.length === 0) {
+    return { kind: "fail", message: "Sau khi gộp transcript ra 0 đoạn." };
+  }
+  return { kind: "ok", segments: merged, sttSource: result.source };
+}
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -62,99 +264,54 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "URL YouTube không hợp lệ" }, { status: 400 });
   }
 
-  // 1. Fetch caption track. STRICTLY English-only. We never fall back to
-  //    `fetchTranscript(ytId)` without a lang because the library defaults
-  //    to `captionTracks[0]`, which for non-English channels (Netflix Anime,
-  //    K-content, etc.) is whatever the channel publishes first — often
-  //    Chinese / Japanese / Korean — and we'd silently store CJK as the
-  //    "English" shadowing source.
-  type RawTr = { text: string; offset: number; duration: number };
-  let cuesRaw: RawTr[] = [];
-  let availableLangs: string[] = [];
-  const triedLangs = new Set<string>();
-  const tryLang = async (lang: string): Promise<RawTr[]> => {
-    if (triedLangs.has(lang)) return [];
-    triedLangs.add(lang);
-    try {
-      return await YoutubeTranscript.fetchTranscript(ytId, { lang });
-    } catch (e) {
-      if (e instanceof YoutubeTranscriptNotAvailableLanguageError) {
-        // Library exposes available langs through the message; pull them out.
-        const m = e.message.match(/Available languages:\s*(.+)$/);
-        if (m) {
-          availableLangs = m[1]
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean);
-        }
-      }
-      return [];
+  // 1. Captions path first — free + fast.
+  let merged: MergedSegment[] = [];
+  let method: "captions" | "audio" = "captions";
+  let sttSource: "deepgram" | "groq-whisper" | null = null;
+
+  const captionAttempt = await tryCaptions(ytId);
+  if (captionAttempt.kind === "ok") {
+    merged = mergeCuesIntoSegments(captionAttempt.cues);
+  }
+
+  // 2. Audio fallback — only if captions failed AND admin allowed it.
+  if (merged.length === 0) {
+    if (!parsed.data.allowAudioFallback) {
+      const langsMsg =
+        captionAttempt.kind === "fail" && captionAttempt.availableLangs.length > 0
+          ? ` Track có sẵn: ${captionAttempt.availableLangs.join(", ")}.`
+          : "";
+      return NextResponse.json(
+        {
+          error:
+            "Video không có phụ đề EN" +
+            langsMsg +
+            " và bạn đã tắt AI nghe fallback. Bật lại hoặc dán transcript thủ công.",
+        },
+        { status: 422 },
+      );
     }
-  };
-  for (const lang of ["en", "en-US", "en-GB"]) {
-    cuesRaw = await tryLang(lang);
-    if (cuesRaw.length > 0) break;
-  }
-  // Last-ditch: any track whose code starts with "en" (en-CA, en-AU, en-IN…).
-  if (cuesRaw.length === 0 && availableLangs.length > 0) {
-    const englishish = availableLangs.find((l) => l.toLowerCase().startsWith("en"));
-    if (englishish) {
-      cuesRaw = await tryLang(englishish);
+    method = "audio";
+    const audioAttempt = await tryAudioTranscription(ytId);
+    if (audioAttempt.kind === "fail") {
+      const langsMsg =
+        captionAttempt.kind === "fail" && captionAttempt.availableLangs.length > 0
+          ? ` (Captions có: ${captionAttempt.availableLangs.join(", ")})`
+          : "";
+      return NextResponse.json(
+        {
+          error: `Cả captions và AI nghe đều fail. ${audioAttempt.message}${langsMsg}`,
+        },
+        { status: 422 },
+      );
     }
-  }
-  if (cuesRaw.length === 0) {
-    const langsMsg =
-      availableLangs.length > 0
-        ? ` Track có sẵn: ${availableLangs.join(", ")}.`
-        : "";
-    return NextResponse.json(
-      {
-        error:
-          "Video này KHÔNG có phụ đề tiếng Anh." +
-          langsMsg +
-          " Vui lòng dán transcript thủ công ở chế độ nâng cao, hoặc chọn video khác.",
-      },
-      { status: 422 },
-    );
+    merged = audioAttempt.segments;
+    sttSource = audioAttempt.sttSource;
   }
 
-  // Belt-and-braces: even if YouTube said this is `en`, sanity-check that
-  // the actual text is mostly Latin alphabet. Catches mislabeled tracks
-  // (the language tag says en but content is Chinese, etc.).
-  const sampleText = cuesRaw
-    .slice(0, 20)
-    .map((c) => c.text)
-    .join(" ");
-  const ratio = latinRatio(sampleText);
-  if (ratio < 0.6) {
-    return NextResponse.json(
-      {
-        error:
-          "Phụ đề tải được không phải tiếng Anh thật (tỉ lệ chữ Latin = " +
-          Math.round(ratio * 100) +
-          "%). Có thể video gắn nhầm track. Vui lòng dán transcript thủ công.",
-      },
-      { status: 422 },
-    );
-  }
-
-  // youtube-transcript returns either srv3 (ms) or classic (seconds) units.
-  // Heuristic: if max duration is way above what a typical cue can be
-  // (60s), treat the whole batch as milliseconds and divide by 1000.
-  const maxDur = Math.max(...cuesRaw.map((c) => c.duration));
-  const inMs = maxDur > 120;
-  const scale = inMs ? 1000 : 1;
-  const rawCues = cuesRaw.map((c) => ({
-    text: c.text,
-    offsetSec: c.offset / scale,
-    durationSec: c.duration / scale,
-  }));
-
-  // 2. Merge into shadowing-sized chunks.
-  const merged = mergeCuesIntoSegments(rawCues);
   if (merged.length === 0) {
     return NextResponse.json(
-      { error: "Phụ đề trống sau khi gộp — video có thể không có lời thoại." },
+      { error: "Không tạo ra được đoạn nào — kiểm tra lại video." },
       { status: 422 },
     );
   }
@@ -176,40 +333,67 @@ export async function POST(req: Request) {
         }
       }
     } catch (e) {
-      // If Claude fails partway through, persist what we have without IPA/Vi
-      // for the missing range — admin can fill them in by hand.
-      console.error("enrichShadowingSegments failed", e);
+      console.error(
+        `[from-youtube] enrichShadowingSegments batch ${i}..${i + slice.length} failed ytId=${ytId}:`,
+        e instanceof Error ? e.message : e,
+      );
     }
   }
 
-  // 4. Persist.
-  const lesson = await prisma.shadowingLesson.create({
-    data: {
-      title: parsed.data.title.trim(),
-      source: parsed.data.source.trim(),
-      youtubeId: ytId,
-      thumbnailUrl: youtubeThumbnail(ytId),
-      createdBy: null,
-      published: true,
-      segments: {
-        create: merged.map((s, i) => {
-          const en = enriched.get(i);
-          return {
-            order: i + 1,
-            startSec: s.startSec,
-            endSec: s.endSec,
-            textEn: s.textEn,
-            textVi: en?.textVi || null,
-            ipa: en?.ipa || null,
-          };
-        }),
+  // 4. Persist. Truncate the original source field FIRST so the "· AI nghe"
+  //    badge can never be the part that gets chopped off — admin can always
+  //    tell at a glance which path produced the lesson.
+  const sourceRaw = parsed.data.source.trim();
+  const sourceBadge =
+    method === "audio"
+      ? `${sourceRaw.slice(0, 70)} · AI nghe`
+      : sourceRaw.slice(0, 80);
+
+  let lesson;
+  try {
+    lesson = await prisma.shadowingLesson.create({
+      data: {
+        title: parsed.data.title.trim(),
+        source: sourceBadge.slice(0, 80),
+        youtubeId: ytId,
+        thumbnailUrl: youtubeThumbnail(ytId),
+        createdBy: null,
+        published: true,
+        segments: {
+          create: merged.map((s, i) => {
+            const en = enriched.get(i);
+            return {
+              order: i + 1,
+              startSec: s.startSec,
+              endSec: s.endSec,
+              textEn: s.textEn,
+              textVi: en?.textVi || null,
+              ipa: en?.ipa || null,
+            };
+          }),
+        },
       },
-    },
-  });
+    });
+  } catch (e) {
+    console.error(
+      `[from-youtube] DB write failed ytId=${ytId} method=${method} segments=${merged.length}:`,
+      e instanceof Error ? e.message : e,
+    );
+    return NextResponse.json(
+      {
+        error:
+          "Đã transcribe + dịch xong nhưng lưu DB lỗi. Thử lại — nếu lặp lại, kiểm tra log Railway.",
+      },
+      { status: 500 },
+    );
+  }
 
   return NextResponse.json({
     id: lesson.id,
     segmentCount: merged.length,
     enriched: enriched.size,
+    method,
+    sttSource,
+    maxAudioMinutes: MAX_AUDIO_FALLBACK_SEC / 60,
   });
 }

@@ -138,6 +138,209 @@ export async function deepgramTranscribe(audio: ArrayBuffer, contentType: string
   return groqWhisperTranscribe(audio, contentType);
 }
 
+/** One sentence-shaped chunk with audio timestamps, used by the Shadowing
+ *  audio-fallback path. start/end are seconds (float). */
+export interface DGUtterance {
+  start: number;
+  end: number;
+  text: string;
+}
+
+export interface DGTranscriptWithTimings {
+  utterances: DGUtterance[];
+  source: "deepgram" | "groq-whisper";
+}
+
+/** Synthesize even-duration utterances over the audio's whole length when
+ *  the STT provider returns text but no segment boundaries. Without this,
+ *  we'd push {start:0, end:0} for the whole transcript and the merger
+ *  would collapse every shadowing segment to a 0.5s window at t=0 — every
+ *  segment in the lesson would show up as "starts at second 0", utterly
+ *  unusable. Splits on sentence boundaries; if none, on punctuation; if
+ *  none, on word count. */
+function distributeFlatTranscript(
+  text: string,
+  totalDurationSec: number,
+): DGUtterance[] {
+  const clean = text.replace(/\s+/g, " ").trim();
+  if (!clean) return [];
+  if (!totalDurationSec || totalDurationSec <= 0) totalDurationSec = 60;
+  // Sentence-shaped chunks: split on punctuation, then group word-wise so
+  // each chunk lands roughly 6-12 seconds at typical English speech rate
+  // (~2.5 wps).
+  const sentences = clean
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const buckets: string[] = [];
+  let cur: string[] = [];
+  let curWords = 0;
+  const TARGET_WORDS = 22; // ~8-9s at 2.5 wps
+  for (const sent of sentences) {
+    const w = sent.split(/\s+/).length;
+    cur.push(sent);
+    curWords += w;
+    if (curWords >= TARGET_WORDS) {
+      buckets.push(cur.join(" "));
+      cur = [];
+      curWords = 0;
+    }
+  }
+  if (cur.length) buckets.push(cur.join(" "));
+  if (buckets.length === 0) buckets.push(clean);
+  // Allocate time proportional to each bucket's word count.
+  const wordCounts = buckets.map((b) => b.split(/\s+/).length);
+  const totalWords = wordCounts.reduce((a, b) => a + b, 0) || 1;
+  let t = 0;
+  return buckets.map((b, i) => {
+    const share = wordCounts[i] / totalWords;
+    const dur = totalDurationSec * share;
+    const start = t;
+    const end = i === buckets.length - 1 ? totalDurationSec : t + dur;
+    t = end;
+    return { start, end, text: b };
+  });
+}
+
+/** Groq Whisper fallback for the timings path. verbose_json includes a
+ *  `segments` array with start/end seconds — close enough to Deepgram
+ *  utterances for our shadowing chunking. */
+async function groqWhisperTranscribeWithTimings(
+  audio: ArrayBuffer,
+  contentType: string,
+  fallbackDurationSec: number,
+): Promise<DGTranscriptWithTimings> {
+  const groqKey = process.env.GROQ_API_KEY;
+  if (!groqKey) throw new Error("GROQ_API_KEY not set");
+
+  const ext = extForCt(contentType || "audio/webm");
+  const filename = `audio.${ext}`;
+  const blob = new Blob([audio], { type: contentType || `audio/${ext}` });
+
+  const form = new FormData();
+  form.append("file", blob, filename);
+  form.append("model", "whisper-large-v3-turbo");
+  form.append("language", "en");
+  form.append("response_format", "verbose_json");
+  form.append("temperature", "0");
+
+  console.log(`[groq-stt-timings] POST whisper bytes=${audio.byteLength} ext=${ext}`);
+  const res = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${groqKey}` },
+    body: form,
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Groq Whisper ${res.status}: ${txt.slice(0, 300)}`);
+  }
+  const data = (await res.json()) as {
+    text?: string;
+    segments?: { start: number; end: number; text: string }[];
+  };
+  const utterances: DGUtterance[] = (data.segments ?? [])
+    .filter((s) => s && typeof s.start === "number" && typeof s.end === "number")
+    .map((s) => ({
+      start: s.start,
+      end: s.end,
+      text: (s.text ?? "").trim(),
+    }))
+    .filter((u) => u.text.length > 0);
+
+  if (utterances.length === 0 && data.text) {
+    // No segments returned — distribute the flat transcript across the
+    // known audio duration so we don't collapse every segment to t=0.
+    console.warn(
+      `[groq-stt-timings] no segments — distributing ${data.text.length} chars across ${fallbackDurationSec}s`,
+    );
+    return {
+      utterances: distributeFlatTranscript(data.text, fallbackDurationSec),
+      source: "groq-whisper",
+    };
+  }
+
+  console.log(`[groq-stt-timings] success utterances=${utterances.length}`);
+  return { utterances, source: "groq-whisper" };
+}
+
+/** Transcribe audio with per-utterance timestamps suitable for breaking
+ *  into shadowing segments. Tries Deepgram nova-2 with utterances + smart
+ *  format; falls back to Groq Whisper segments on any error. `audioDurationSec`
+ *  is needed for the Groq no-segments edge case — pass 0 if unknown. */
+export async function deepgramTranscribeWithTimings(
+  audio: ArrayBuffer,
+  contentType: string,
+  audioDurationSec: number = 0,
+): Promise<DGTranscriptWithTimings> {
+  const dgKey = process.env.DEEPGRAM_API_KEY;
+  if (dgKey) {
+    // utterances=true gives sentence-shaped chunks; utt_split=1.2 means
+    // "split on pauses >=1.2s" — empirically yields 5-15s clips, close
+    // to our shadowing target before our merger trims further.
+    const params = new URLSearchParams({
+      model: "nova-2",
+      language: "en",
+      smart_format: "true",
+      utterances: "true",
+      utt_split: "1.2",
+    });
+    const url = `${DG_LISTEN}?${params.toString()}`;
+    const ct = contentType || "audio/webm";
+    console.log(
+      `[deepgram-timings] POST nova-2 utterances=true content-type=${ct} bytes=${audio.byteLength}`,
+    );
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { Authorization: `Token ${dgKey}`, "Content-Type": ct },
+        body: audio,
+      });
+      if (res.ok) {
+        const data = (await res.json()) as {
+          results?: {
+            utterances?: { start: number; end: number; transcript: string }[];
+          };
+        };
+        const utterances: DGUtterance[] = (data.results?.utterances ?? [])
+          .filter((u) => u && typeof u.start === "number" && typeof u.end === "number")
+          .map((u) => ({
+            start: u.start,
+            end: u.end,
+            text: (u.transcript ?? "").trim(),
+          }))
+          .filter((u) => u.text.length > 0);
+        console.log(`[deepgram-timings] success utterances=${utterances.length}`);
+        if (utterances.length > 0) {
+          return { utterances, source: "deepgram" };
+        }
+        console.warn("[deepgram-timings] no utterances — falling back to Groq Whisper");
+      } else {
+        // Loud log for auth / rate-limit problems so an admin staring at a
+        // "AI nghe (groq-whisper)" lesson knows WHY Deepgram was skipped.
+        if (res.status === 401) {
+          console.error(
+            "[deepgram-timings] 401 — DEEPGRAM_API_KEY rejected. Check the key in Railway env.",
+          );
+        } else if (res.status === 429) {
+          console.error(
+            "[deepgram-timings] 429 — Deepgram rate-limited. Falling back to Groq.",
+          );
+        }
+        const txt = await res.text();
+        console.error(
+          `[deepgram-timings] ${res.status}: ${txt.slice(0, 300)} — falling back to Groq Whisper`,
+        );
+      }
+    } catch (e) {
+      console.error(`[deepgram-timings] threw:`, e instanceof Error ? e.message : e);
+    }
+  } else {
+    console.warn("[deepgram-timings] DEEPGRAM_API_KEY not set — using Groq Whisper directly");
+  }
+
+  return groqWhisperTranscribeWithTimings(audio, contentType, audioDurationSec);
+}
+
 /** Synthesize speech for `text` with the chosen Aura voice. Returns MP3 bytes. */
 export async function deepgramSpeak(text: string, voice: string = DEFAULT_VOICE): Promise<ArrayBuffer> {
   const clean = text.slice(0, 1800);
