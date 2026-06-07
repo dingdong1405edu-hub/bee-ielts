@@ -128,7 +128,12 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
     getCurrentTime?: () => number;
   } | null>(null);
   const playerContainerRef = useRef<HTMLDivElement | null>(null);
-  const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Poll handle for the end-of-segment guard. We use polling (not a single
+  // setTimeout) because YouTube buffers ~200-800ms between seekTo and the
+  // first playback frame, which would make a setTimeout fire BEFORE the
+  // segment audibly ends — cutting off the last word.
+  const stopPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [waitingForUser, setWaitingForUser] = useState(false);
 
   const mediaRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -137,26 +142,49 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
   const active = segments[activeIdx];
   const total = segments.length;
 
-  const clearStopTimer = () => {
-    if (stopTimerRef.current) {
-      clearTimeout(stopTimerRef.current);
-      stopTimerRef.current = null;
+  const clearStopPoll = () => {
+    if (stopPollRef.current) {
+      clearInterval(stopPollRef.current);
+      stopPollRef.current = null;
     }
   };
 
-  /** Play a single segment: seek to start, play, schedule pause at end. */
+  /** Play a single segment: seek to start, play, then poll the real YouTube
+   *  current time at 100ms ticks. Pause as soon as the real playback head
+   *  crosses endSec. This is buffer-safe — if YouTube takes 700ms to start
+   *  the segment, the pause still lands at the right audible moment. */
   const playSegment = useCallback(
     (seg: Segment) => {
       const yt = playerRef.current;
       if (!yt) return;
-      clearStopTimer();
+      clearStopPoll();
+      setWaitingForUser(false);
       yt.setPlaybackRate(speed);
       yt.seekTo(seg.startSec, true);
       yt.playVideo();
-      const ms = Math.max(500, (seg.endSec - seg.startSec) * 1000);
-      stopTimerRef.current = setTimeout(() => {
-        yt.pauseVideo();
-      }, ms / speed);
+      // Safety stop: even if YouTube never advances the playhead, never
+      // poll forever — cap at segment-duration * 4 / speed, rounded up.
+      const maxWaitMs = Math.max(
+        4000,
+        Math.ceil((seg.endSec - seg.startSec) * 4000 / speed),
+      );
+      const startedAt = Date.now();
+      stopPollRef.current = setInterval(() => {
+        const cur = yt.getCurrentTime?.() ?? 0;
+        // 50ms epsilon — pause at the FIRST tick that crosses endSec so
+        // we don't bleed into the next segment.
+        if (cur >= seg.endSec - 0.05) {
+          yt.pauseVideo();
+          clearStopPoll();
+          setWaitingForUser(true);
+          return;
+        }
+        if (Date.now() - startedAt > maxWaitMs) {
+          yt.pauseVideo();
+          clearStopPoll();
+          setWaitingForUser(true);
+        }
+      }, 100);
     },
     [speed],
   );
@@ -187,7 +215,7 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
       });
     return () => {
       cancelled = true;
-      clearStopTimer();
+      clearStopPoll();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lesson.youtubeId]);
@@ -353,6 +381,7 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
     };
     mr.start();
     setRecording(true);
+    setWaitingForUser(false);
     setTimeout(() => {
       if (mr.state === "recording") mr.stop();
     }, 30_000);
@@ -571,13 +600,17 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
           <p className="text-base italic text-foreground/70">{active.textVi}</p>
         )}
 
-        {/* Big record card */}
+        {/* Big record card. When the video has just paused at endSec
+            (waitingForUser), pulse the card amber so users know it's
+            their turn to speak. */}
         <div
           className={cn(
             "rounded-2xl border-2 p-5 flex items-center gap-4 transition-all",
             recording
               ? "border-rose-400 bg-rose-50 dark:bg-rose-950/30 animate-pulse"
-              : "border-emerald-400 bg-emerald-50/60 dark:bg-emerald-950/30",
+              : waitingForUser && !scoring
+                ? "border-amber-400 bg-amber-50 dark:bg-amber-950/30 ring-2 ring-amber-200 dark:ring-amber-900"
+                : "border-emerald-400 bg-emerald-50/60 dark:bg-emerald-950/30",
           )}
         >
           <button
@@ -586,7 +619,11 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
             disabled={scoring}
             className={cn(
               "grid h-14 w-14 place-items-center rounded-full text-white shadow-lg transition-transform active:scale-95",
-              recording ? "bg-rose-500" : "bg-emerald-500 hover:bg-emerald-600",
+              recording
+                ? "bg-rose-500"
+                : waitingForUser
+                  ? "bg-amber-500 hover:bg-amber-600 animate-bounce"
+                  : "bg-emerald-500 hover:bg-emerald-600",
               scoring && "opacity-50 cursor-wait",
             )}
           >
@@ -600,9 +637,19 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
           </button>
           <div>
             <p className="font-extrabold">
-              {scoring ? "Đang chấm..." : recording ? "Đang ghi âm..." : "Nhấn để thu âm"}
+              {scoring
+                ? "Đang chấm..."
+                : recording
+                  ? "Đang ghi âm..."
+                  : waitingForUser
+                    ? "Đến lượt bạn — nói theo!"
+                    : "Nhấn để thu âm"}
             </p>
-            <p className="text-xs text-muted-foreground">Tối đa 30 giây</p>
+            <p className="text-xs text-muted-foreground">
+              {waitingForUser && !recording && !scoring
+                ? "Video đã dừng. Nhấn mic và đọc theo câu này."
+                : "Tối đa 30 giây"}
+            </p>
           </div>
         </div>
 
