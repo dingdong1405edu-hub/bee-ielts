@@ -37,6 +37,7 @@ import {
   getYouTubeBasicInfo,
   MAX_AUDIO_FALLBACK_SEC,
   mergeCuesIntoSegments,
+  refineSegmentsForShadowing,
   youtubeThumbnail,
   type MergedSegment,
 } from "@/lib/youtube";
@@ -244,7 +245,9 @@ async function tryAudioTranscription(ytId: string): Promise<AudioOk | AudioFail>
   if (merged.length === 0) {
     return { kind: "fail", message: "Sau khi gộp transcript ra 0 đoạn." };
   }
-  return { kind: "ok", segments: merged, sttSource: result.source };
+  // Post-process: split long sentences at commas, fold lone interjections.
+  const refined = refineSegmentsForShadowing(merged);
+  return { kind: "ok", segments: refined, sttSource: result.source };
 }
 
 export async function POST(req: Request) {
@@ -310,7 +313,9 @@ export async function POST(req: Request) {
 
   const captionAttempt = await tryCaptions(ytId);
   if (captionAttempt.kind === "ok") {
-    merged = mergeCuesIntoSegments(captionAttempt.cues);
+    // Same refine pass as the audio path: comma-splits + interjection
+    // merge make caption-based lessons drillable, not just transcribed.
+    merged = refineSegmentsForShadowing(mergeCuesIntoSegments(captionAttempt.cues));
   }
 
   // 2. Audio fallback — only if captions failed AND admin allowed it.

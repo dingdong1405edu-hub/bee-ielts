@@ -18,6 +18,7 @@ import {
   type Highlight,
   type HighlightTool,
 } from "@/components/learn/highlightable-passage";
+import { WordTranslatePopup, type WordHint } from "@/components/learn/word-translate-popup";
 
 type Q = {
   id: string;
@@ -55,6 +56,43 @@ export function ReadingPlayer({
   // only, no DB write — same as ReadingShell / mock test).
   const [tool, setTool] = useState<HighlightTool>("none");
   const [highlights, setHighlights] = useState<Highlight[]>([]);
+
+  // ============= Translate mode state =============
+  // We pre-fetch a word→{pos,vi} map for the WHOLE passage in one Claude
+  // call the first time the user flips the toolbar into "translate" mode.
+  // After that, every click is an O(1) map lookup — zero extra tokens.
+  // defEn (1-line definition) is fetched lazily per click using the existing
+  // single-word route since the batch map only carries pos+vi to keep the
+  // response under max_tokens.
+  const [translateMap, setTranslateMap] = useState<Record<string, { pos: string; vi: string }>>({});
+  const [batchLoading, setBatchLoading] = useState(false);
+  const batchTriedRef = useRef(false);
+  const [popup, setPopup] = useState<
+    | { word: string; sentence: string; x: number; y: number; loading: boolean; hint: WordHint | null }
+    | null
+  >(null);
+
+  // Lazy-load batch translation when user first flips into translate mode.
+  // We only run it ONCE per page mount — flipping the toggle off then on
+  // again reuses the cached map.
+  useEffect(() => {
+    if (tool !== "translate") return;
+    if (batchTriedRef.current) return;
+    batchTriedRef.current = true;
+    setBatchLoading(true);
+    void fetch("/api/reading/translate-passage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ passage, passageId: testId }),
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.words) setTranslateMap(d.words);
+        else toast.error(d.error || "Tải bản dịch thất bại");
+      })
+      .catch(() => toast.error("Lỗi mạng khi tải bản dịch"))
+      .finally(() => setBatchLoading(false));
+  }, [tool, passage, testId]);
 
   // Practise — đếm xuôi thời gian đã làm, không giới hạn, không tự nộp.
   useEffect(() => {
@@ -125,8 +163,69 @@ export function ReadingPlayer({
               highlights={highlights}
               tool={submitted ? "none" : tool}
               onChangeHighlights={setHighlights}
+              onWordClick={({ word, sentence, x, y }) => {
+                const w = word.replace(/[^A-Za-z'-]/g, "").toLowerCase();
+                if (!w) return;
+                const cached = translateMap[w];
+                // Open immediately with the batch entry (instant). Then fire
+                // a per-word fetch in the background to get defEn — keeps
+                // popup latency at ~0 for the common path.
+                setPopup({
+                  word: w,
+                  sentence,
+                  x,
+                  y,
+                  loading: !cached,
+                  hint: cached ? { pos: cached.pos, vi: cached.vi } : null,
+                });
+                void fetch("/api/shadowing/translate-word", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ word: w, sentence }),
+                })
+                  .then((r) => r.json())
+                  .then((d) => {
+                    if (!d.error) {
+                      setPopup((p) =>
+                        p && p.word === w
+                          ? {
+                              ...p,
+                              loading: false,
+                              hint: {
+                                word: d.word,
+                                pos: d.pos || cached?.pos || "",
+                                vi: d.vi || cached?.vi || "",
+                                defEn: d.defEn,
+                              },
+                            }
+                          : p,
+                      );
+                    } else if (cached) {
+                      // Fallback: keep showing the cached pos+vi if defEn
+                      // fetch fails — at least we got something useful.
+                      setPopup((p) => (p && p.word === w ? { ...p, loading: false } : p));
+                    } else {
+                      setPopup(null);
+                      toast.error(d.error);
+                    }
+                  })
+                  .catch(() => {
+                    if (cached) setPopup((p) => (p ? { ...p, loading: false } : p));
+                    else setPopup(null);
+                  });
+              }}
               className="text-sm leading-relaxed"
             />
+            {tool === "translate" && batchLoading && (
+              <p className="mt-2 text-xs text-violet-700 dark:text-violet-300 italic">
+                Đang AI dịch toàn bộ bài... (1 lần duy nhất, click sau là tức thì)
+              </p>
+            )}
+            {tool === "translate" && !batchLoading && Object.keys(translateMap).length > 0 && (
+              <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-300">
+                ✓ Đã dịch {Object.keys(translateMap).length} từ — click từ trong bài để xem nghĩa.
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -257,6 +356,17 @@ export function ReadingPlayer({
           )}
         </div>
       </div>
+      {popup && (
+        <WordTranslatePopup
+          word={popup.word}
+          sentence={popup.sentence}
+          x={popup.x}
+          y={popup.y}
+          loading={popup.loading}
+          hint={popup.hint}
+          onClose={() => setPopup(null)}
+        />
+      )}
     </div>
   );
 }

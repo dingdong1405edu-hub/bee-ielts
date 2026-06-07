@@ -37,6 +37,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { WordTranslatePopup } from "@/components/learn/word-translate-popup";
 
 interface Lesson {
   id: string;
@@ -996,42 +997,18 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
         </div>
       </div>
 
-      {/* Word translate popup — positioned at the clicked word. */}
+      {/* Word translate popup — shared component with the Reading player so
+          both pages get the same "save to vocab deck" affordance. */}
       {popup && (
-        <div
-          className="fixed z-50 max-w-[260px] rounded-2xl border-2 border-amber-300 bg-card shadow-2xl p-3"
-          style={{
-            left: Math.max(8, Math.min(window.innerWidth - 280, popup.x - 130)),
-            top: Math.min(window.innerHeight - 200, popup.y),
-          }}
-        >
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="font-extrabold text-base">{popup.word}</span>
-            <button
-              onClick={() => setPopup(null)}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
-          {popup.loading ? (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Đang dịch...
-            </div>
-          ) : popup.hint ? (
-            <div className="space-y-1.5">
-              {popup.hint.pos && (
-                <span className="inline-block text-[10px] uppercase tracking-wider font-extrabold rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 px-1.5 py-0.5">
-                  {popup.hint.pos}
-                </span>
-              )}
-              <p className="text-sm font-bold text-foreground">{popup.hint.vi}</p>
-              {popup.hint.defEn && (
-                <p className="text-xs text-muted-foreground italic leading-snug">{popup.hint.defEn}</p>
-              )}
-            </div>
-          ) : null}
-        </div>
+        <WordTranslatePopup
+          word={popup.word}
+          sentence={popup.sentence}
+          x={popup.x}
+          y={popup.y}
+          loading={popup.loading}
+          hint={popup.hint}
+          onClose={() => setPopup(null)}
+        />
       )}
     </div>
   );

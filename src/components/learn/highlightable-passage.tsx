@@ -1,10 +1,13 @@
 "use client";
 import { createContext, useContext, useRef, type ReactNode } from "react";
-import { Eraser } from "lucide-react";
+import { Eraser, Languages } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type HighlightColor = "yellow" | "green" | "pink";
-export type HighlightTool = "none" | HighlightColor | "eraser";
+// "translate" mode: click a word → fetch its Vietnamese gloss from the
+// (already-batch-loaded) translation map and show a popup. Coexists with
+// the highlight pen toggle — only one mode active at a time.
+export type HighlightTool = "none" | HighlightColor | "eraser" | "translate";
 
 export interface Highlight {
   start: number;
@@ -143,12 +146,17 @@ export function HighlightablePassage({
   highlights,
   tool,
   onChangeHighlights,
+  onWordClick,
   className,
 }: {
   passage: string;
   highlights: Highlight[];
   tool: HighlightTool;
   onChangeHighlights: (next: Highlight[]) => void;
+  /** Fires when the user clicks a word with tool="translate". Receives the
+   *  raw word text + sentence context + click position so the parent can
+   *  open a translation popup. */
+  onWordClick?: (info: { word: string; sentence: string; x: number; y: number }) => void;
   className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -165,7 +173,7 @@ export function HighlightablePassage({
         }
       }
       onChangeHighlights(next);
-    } else if (tool !== "none") {
+    } else if (tool !== "none" && tool !== "translate") {
       onChangeHighlights(
         mergeHighlights([...highlights, { start: off.start, end: off.end, color: tool }]),
       );
@@ -190,16 +198,43 @@ export function HighlightablePassage({
 
   // Click handler — tap with a highlight tool active = mark the word under
   // the cursor instantly. Solves the "bút highlight đang không dùng được"
-  // confusion where users expected click-to-mark, not drag-select.
+  // confusion where users expected click-to-mark, not drag-select. The
+  // translate tool reuses the same word-at-point logic but instead of
+  // mutating highlights it calls onWordClick with the surrounding
+  // sentence so the parent can show a popup.
   const handleClick = (e: React.MouseEvent) => {
     if (tool === "none") return;
     if (!ref.current) return;
     const sel = window.getSelection();
-    // Skip the click handler when the click is the tail of a drag-select —
-    // handleMouseUp already processed that range.
     if (sel && !sel.isCollapsed) return;
     const off = getWordOffsetsAtPoint(e.clientX, e.clientY, ref.current);
     if (!off) return;
+    if (tool === "translate") {
+      if (!onWordClick) return;
+      const word = passage.slice(off.start, off.end).trim();
+      if (!word) return;
+      // Find the sentence boundaries by walking back to the nearest
+      // sentence-ender + walking forward to the next one. Falls back to
+      // a 200-char window if no boundary found.
+      const SENT_END = /[.!?]\s+/g;
+      let sentStart = 0;
+      let sentEnd = passage.length;
+      // Walk backward
+      for (let i = off.start - 1; i >= 0; i--) {
+        const ch = passage[i];
+        if ((ch === "." || ch === "!" || ch === "?") && /\s/.test(passage[i + 1] ?? " ")) {
+          sentStart = i + 1;
+          break;
+        }
+      }
+      // Walk forward
+      SENT_END.lastIndex = off.end;
+      const m = SENT_END.exec(passage);
+      if (m) sentEnd = m.index + 1;
+      const sentence = passage.slice(sentStart, sentEnd).trim();
+      onWordClick({ word, sentence, x: e.clientX, y: e.clientY });
+      return;
+    }
     applyAtOffsets(off);
   };
 
@@ -212,8 +247,9 @@ export function HighlightablePassage({
       onTouchEnd={handleMouseUp}
       className={cn(
         "text-[15px] leading-relaxed whitespace-pre-wrap text-foreground",
-        tool !== "none" && tool !== "eraser" && "cursor-text selection:bg-yellow-200/60",
+        tool !== "none" && tool !== "eraser" && tool !== "translate" && "cursor-text selection:bg-yellow-200/60",
         tool === "eraser" && "cursor-cell",
+        tool === "translate" && "cursor-help",
         className,
       )}
     >
@@ -307,7 +343,7 @@ export function HighlightableText({
         }
       }
       ctx.set(textKey, next);
-    } else if (ctx.tool !== "none") {
+    } else if (ctx.tool !== "none" && ctx.tool !== "translate") {
       ctx.set(
         textKey,
         mergeHighlights([
@@ -422,6 +458,24 @@ export function HighlightToolbar({
         )}
       >
         <Eraser className="h-3.5 w-3.5" />
+      </button>
+      <button
+        type="button"
+        onClick={() => setTool(tool === "translate" ? "none" : "translate")}
+        aria-label="Tự dịch"
+        title={
+          tool === "translate"
+            ? "Tắt chế độ dịch"
+            : "Bật chế độ dịch — click 1 từ trong bài để xem nghĩa tiếng Việt"
+        }
+        className={cn(
+          "h-7 w-7 rounded-full border-2 grid place-items-center transition-all",
+          tool === "translate"
+            ? "border-foreground bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 scale-110 ring-2 ring-foreground/30"
+            : "border-border hover:bg-muted text-muted-foreground",
+        )}
+      >
+        <Languages className="h-3.5 w-3.5" />
       </button>
     </div>
   );

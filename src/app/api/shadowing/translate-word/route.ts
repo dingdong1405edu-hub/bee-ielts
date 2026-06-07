@@ -13,9 +13,14 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import Anthropic from "@anthropic-ai/sdk";
 import { auth } from "@/auth";
-import { MODEL } from "@/lib/claude";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? "" });
+
+// Per-route model override: translation popups are 1-2 sentence outputs.
+// Haiku 4.5 is the right tier — cheap, fast, and known-good as of Jan 2026.
+// The repo-wide MODEL (Sonnet) was an older snapshot that started 404-ing
+// in prod; pinning Haiku here insulates the popup from that.
+const TRANSLATE_MODEL = "claude-haiku-4-5-20251001";
 
 const schema = z.object({
   word: z.string().min(1).max(60),
@@ -72,7 +77,7 @@ export async function POST(req: Request) {
   try {
     const userMessage = `Word: "${word}"\nSentence: "${parsed.data.sentence}"\n\nProduce the JSON.`;
     const response = await client.messages.create({
-      model: MODEL,
+      model: TRANSLATE_MODEL,
       max_tokens: 220,
       temperature: 0.2,
       system: SYSTEM,
@@ -84,7 +89,10 @@ export async function POST(req: Request) {
       .join("");
     const start = text.indexOf("{");
     const end = text.lastIndexOf("}");
-    if (start === -1 || end === -1) throw new Error("No JSON in response");
+    if (start === -1 || end === -1) {
+      console.error(`[translate-word] no JSON in response for "${word}":`, text.slice(0, 200));
+      throw new Error("No JSON in response");
+    }
     const json = JSON.parse(text.slice(start, end + 1)) as Omit<CachedResult, "ts">;
     const result: CachedResult = {
       word: json.word || word.toLowerCase(),
@@ -102,6 +110,12 @@ export async function POST(req: Request) {
     cache.set(key, result);
     return NextResponse.json(result);
   } catch (e) {
+    // Log full error server-side so we can debug stale model IDs, quota
+    // hits, or API outages without forcing the user to paste console logs.
+    console.error(
+      `[translate-word] failed word="${word}" model=${TRANSLATE_MODEL}:`,
+      e instanceof Error ? e.message : e,
+    );
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Translate failed" },
       { status: 500 },

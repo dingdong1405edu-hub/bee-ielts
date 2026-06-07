@@ -111,6 +111,124 @@ export function mergeCuesIntoSegments(
   return segments;
 }
 
+/** Standalone interjections that shouldn't form their own shadowing
+ *  segment — too short to be a useful drill. When found as the WHOLE
+ *  text of a segment they get merged into the next one (or the previous,
+ *  if it's the final segment). When they appear inside a multi-word
+ *  segment they're left alone — "Oh, I forgot" is a fine drill. */
+const LONE_INTERJECTIONS = new Set([
+  "hmm", "hmmm", "uhm", "umm", "ah", "ahh", "aw", "aww", "oh", "ohh", "uh",
+  "uhh", "eh", "huh", "wow", "ouch", "ugh", "haha", "hehe", "oof", "phew",
+  "yeah", "yep", "yup", "nope", "okay", "ok", "well", "so", "mmm", "mhm",
+]);
+
+function isLoneInterjection(text: string): boolean {
+  const stripped = text
+    .toLowerCase()
+    .replace(/[.,!?;:"'()—–\-…]/g, "")
+    .trim();
+  if (!stripped) return true;
+  // A segment is "lone" only when EVERY word is an interjection token.
+  // "oh i forgot" → has "i" + "forgot" → not lone.
+  const words = stripped.split(/\s+/);
+  return words.length > 0 && words.every((w) => LONE_INTERJECTIONS.has(w));
+}
+
+/**
+ * Post-process shadowing segments so each unit is comfortable to drill:
+ *
+ * 1. SPLIT-ON-COMMA — if a segment contains internal commas / semicolons
+ *    AND is "long" (>= 9 words OR >= 6s span), break it at those punctuation
+ *    points. Each sub-segment gets a proportional time slice based on
+ *    character count of its piece. Result: instead of one 14-word run,
+ *    user shadows two natural 7-word phrases.
+ *
+ * 2. MERGE-LONE-INTERJECTION — if a resulting segment is just an
+ *    interjection ("Hmm.", "Aw.") merge it into the NEXT segment so users
+ *    aren't asked to shadow a meaningless filler. Falls back to merging
+ *    into the previous segment for the trailing edge.
+ */
+export function refineSegmentsForShadowing(
+  segments: MergedSegment[],
+): MergedSegment[] {
+  // --- 1) Split on internal commas / semicolons for long sentences. ---
+  const splitOpen: MergedSegment[] = [];
+  for (const seg of segments) {
+    const text = seg.textEn.trim();
+    const words = text.split(/\s+/).length;
+    const span = seg.endSec - seg.startSec;
+    const hasInternalComma = /[,;]\s+\S/.test(text);
+    if (!hasInternalComma || (words < 9 && span < 6)) {
+      splitOpen.push(seg);
+      continue;
+    }
+    // Split BUT keep the punctuation glued to the preceding piece, e.g.
+    // "Of the many bewildering behaviors cats display,|one of..."
+    const pieces = text.match(/[^,;]+[,;]?(\s|$)/g);
+    if (!pieces || pieces.length < 2) {
+      splitOpen.push(seg);
+      continue;
+    }
+    const cleanedPieces = pieces
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0);
+    if (cleanedPieces.length < 2) {
+      splitOpen.push(seg);
+      continue;
+    }
+    const totalChars = cleanedPieces.reduce((s, p) => s + p.length, 0);
+    let t = seg.startSec;
+    cleanedPieces.forEach((p, idx) => {
+      const frac = p.length / totalChars;
+      const dur = span * frac;
+      const startSec = t;
+      const endSec = idx === cleanedPieces.length - 1 ? seg.endSec : t + dur;
+      t = endSec;
+      splitOpen.push({ startSec, endSec, textEn: p });
+    });
+  }
+
+  // --- 2) Merge any segment that is JUST an interjection. ---
+  // pendingFiller is LOCAL — never put state at module scope inside an
+  // async server route. Two admin requests in parallel would collide.
+  const refined: MergedSegment[] = [];
+  const pendingFiller: MergedSegment[] = [];
+  for (let idx = 0; idx < splitOpen.length; idx++) {
+    const seg = splitOpen[idx];
+    const isLast = idx === splitOpen.length - 1;
+    if (isLoneInterjection(seg.textEn) && !isLast) {
+      pendingFiller.push(seg);
+      continue;
+    }
+    if (pendingFiller.length > 0) {
+      const head = pendingFiller[0];
+      const text = `${pendingFiller.map((p) => p.textEn).join(" ")} ${seg.textEn}`.trim();
+      refined.push({
+        startSec: head.startSec,
+        endSec: seg.endSec,
+        textEn: text,
+      });
+      pendingFiller.length = 0;
+    } else {
+      refined.push(seg);
+    }
+  }
+  // If we ended with leftover interjections (last segment WAS an
+  // interjection), fold them into the previous real segment so the drill
+  // text isn't a meaningless filler.
+  if (pendingFiller.length > 0 && refined.length > 0) {
+    const last = refined[refined.length - 1];
+    const tail = pendingFiller.map((p) => p.textEn).join(" ");
+    refined[refined.length - 1] = {
+      startSec: last.startSec,
+      endSec: pendingFiller[pendingFiller.length - 1].endSec,
+      textEn: `${last.textEn} ${tail}`.trim(),
+    };
+  }
+
+  return refined;
+}
+
 /**
  * youtubei.js — server-side audio fetcher used by the "AI nghe & tạo bài"
  * fallback when a video has no English captions. Singleton client is
