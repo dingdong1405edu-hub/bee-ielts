@@ -157,6 +157,31 @@ export interface YouTubeBasicInfo {
   channelTitle: string | null;
 }
 
+/** Best-effort duration resolution. `basic_info.duration` is the canonical
+ *  field but youtubei.js returns 0/undefined for it on a non-trivial slice
+ *  of valid videos (player response shape varies by region / client / day).
+ *  Every adaptive format carries `approx_duration_ms`, which is always
+ *  populated when the video has any playable stream — fall back to that. */
+function resolveDuration(info: {
+  basic_info: { duration?: number | null };
+  streaming_data?: {
+    adaptive_formats?: { approx_duration_ms?: number | string }[];
+    formats?: { approx_duration_ms?: number | string }[];
+  } | null;
+}): number {
+  const d1 = info.basic_info.duration ?? 0;
+  if (d1 > 0) return d1;
+  const fromAdaptive = info.streaming_data?.adaptive_formats
+    ?.map((f) => Number(f.approx_duration_ms ?? 0))
+    .filter((n) => Number.isFinite(n) && n > 0) ?? [];
+  const fromMuxed = info.streaming_data?.formats
+    ?.map((f) => Number(f.approx_duration_ms ?? 0))
+    .filter((n) => Number.isFinite(n) && n > 0) ?? [];
+  const candidates = [...fromAdaptive, ...fromMuxed];
+  if (candidates.length === 0) return 0;
+  return Math.max(...candidates) / 1000;
+}
+
 export async function getYouTubeBasicInfo(videoId: string): Promise<YouTubeBasicInfo> {
   const yt = await getInnertube();
   const info = await yt.getBasicInfo(videoId);
@@ -164,7 +189,7 @@ export async function getYouTubeBasicInfo(videoId: string): Promise<YouTubeBasic
   return {
     videoId,
     title: basic.title ?? "",
-    durationSec: basic.duration ?? 0,
+    durationSec: resolveDuration(info),
     isLive: !!basic.is_live,
     channelTitle: basic.author ?? null,
   };
@@ -197,13 +222,19 @@ export async function getYouTubeAudioBuffer(videoId: string): Promise<YouTubeAud
   if (info.basic_info.is_live) {
     throw new Error("Video đang livestream — không tải audio được.");
   }
-  const dur = info.basic_info.duration ?? 0;
-  if (dur === 0) {
-    throw new Error("Không xác định được độ dài video.");
-  }
-  if (dur > MAX_AUDIO_FALLBACK_SEC) {
+  // Resolve duration with fallback to adaptive_formats.approx_duration_ms.
+  // If we STILL can't get a number, log + continue: we'll catch oversize
+  // videos with the streaming buffer-size guard below instead of bailing
+  // upfront. A "duration: 0" video usually still downloads fine.
+  const dur = resolveDuration(info);
+  if (dur > 0 && dur > MAX_AUDIO_FALLBACK_SEC) {
     throw new Error(
       `Video dài ${Math.round(dur / 60)} phút, vượt giới hạn ${MAX_AUDIO_FALLBACK_SEC / 60} phút cho AI nghe.`,
+    );
+  }
+  if (dur === 0) {
+    console.warn(
+      `[yt-audio] duration unknown for ${videoId} — relying on streaming size guard.`,
     );
   }
   const stream = await yt.download(videoId, {
@@ -212,17 +243,35 @@ export async function getYouTubeAudioBuffer(videoId: string): Promise<YouTubeAud
     format: "any",
     client: "IOS",
   });
+  // Streaming size guard: abort the download the moment we cross ~45MB.
+  // Opus at the "best" audio itag averages ~1MB/min, so 45MB ≈ 45 min —
+  // already past our 30-min target with comfortable headroom for variable
+  // bitrate. Without this guard, a stream we can't measure upfront could
+  // OOM the Railway worker.
+  const HARD_CAP_BYTES = 45 * 1024 * 1024;
   const chunks: Uint8Array[] = [];
+  let total = 0;
   for await (const chunk of Utils.streamToIterable(stream)) {
+    total += chunk.byteLength;
+    if (total > HARD_CAP_BYTES) {
+      throw new Error(
+        `Audio vượt ${Math.round(HARD_CAP_BYTES / 1024 / 1024)}MB — video quá dài cho AI nghe (~> 45 phút).`,
+      );
+    }
     chunks.push(chunk);
   }
   const buffer = Buffer.concat(chunks);
+  // Post-download duration estimate when metadata gave us nothing: Opus at
+  // youtubei.js "best" quality averages ~16 KB/s (~128 kbps). Off by ~30%
+  // worst case, but more than enough to feed distributeFlatTranscript in
+  // the Groq Whisper fallback path so segments aren't all stuck at t=0.
+  const finalDur = dur > 0 ? dur : Math.max(1, buffer.byteLength / 16000);
   return {
     buffer,
     // We asked for `format: "any"` so most tracks come back as webm/opus.
     // Deepgram will sniff the container — webm is a safe default.
     contentType: "audio/webm",
-    durationSec: dur,
+    durationSec: finalDur,
     title: info.basic_info.title ?? "",
   };
 }
