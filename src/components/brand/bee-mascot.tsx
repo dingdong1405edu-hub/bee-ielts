@@ -4,40 +4,60 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Bee IELTS mascot. Renders the uploaded artwork at `/bee-mascot.png` (the
- * friendly bee), falling back to an inline SVG bee if that file is missing so
- * the UI never shows a broken image. Drop the real PNG (square, transparent or
- * cream bg) at `public/bee-mascot.png` and it appears everywhere automatically.
- *
- * `pose` lets you point at alternate art if you add more files later, e.g.
- * `public/mascot/bee-cheer.png` → pose="cheer".
+ * Bee IELTS mascot. Renders the uploaded artwork at `/bee-mascot.jpg` (the
+ * friendly bee at a laptop), falling back to an inline SVG bee if that file is
+ * missing. The artwork is a square illustration WITH its own background, so by
+ * default it's shown inside a soft rounded frame ("rounded") — set
+ * `frame="circle"` for an avatar badge or `frame="none"` for the raw image
+ * (only sensible once you supply a transparent cutout).
  */
 export function BeeMascot({
   className,
+  frame = "rounded",
   pose,
   alt = "Bee — linh vật Bee IELTS",
   priority,
 }: {
   className?: string;
+  frame?: "rounded" | "circle" | "none";
   pose?: string;
   alt?: string;
   priority?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
-  const src = pose ? `/mascot/bee-${pose}.png` : "/bee-mascot.png";
+  const src = pose ? `/mascot/bee-${pose}.jpg` : "/bee-mascot.jpg";
 
   if (failed) return <BeeMascotFallback className={className} title={alt} />;
 
-  return (
+  const imgProps = {
+    src,
+    alt,
+    loading: priority ? ("eager" as const) : ("lazy" as const),
+    onError: () => setFailed(true),
+    draggable: false,
+  };
+
+  if (frame === "none") {
     // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={src}
-      alt={alt}
-      loading={priority ? "eager" : "lazy"}
-      onError={() => setFailed(true)}
-      className={cn("block select-none", className)}
-      draggable={false}
-    />
+    return <img {...imgProps} className={cn("block select-none", className)} />;
+  }
+
+  return (
+    <span
+      className={cn(
+        "relative inline-block select-none overflow-hidden bg-cream align-middle ring-1 ring-ink/10 shadow-sm",
+        frame === "circle" ? "aspect-square rounded-full" : "rounded-2xl",
+        className,
+      )}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        {...imgProps}
+        className={cn(
+          frame === "circle" ? "absolute inset-0 h-full w-full object-cover object-[50%_38%]" : "block h-auto w-full",
+        )}
+      />
+    </span>
   );
 }
 

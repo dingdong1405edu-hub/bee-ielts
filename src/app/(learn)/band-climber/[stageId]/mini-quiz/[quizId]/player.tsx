@@ -1744,7 +1744,7 @@ function SpeakingPart2Question({
             Đề Part 2 ↓
           </div>
           <div className="cuecard-bee grid h-10 w-10 sm:h-11 sm:w-11 place-items-center rounded-full bg-gradient-to-br from-gold-300 to-gold-400 shadow-xl shadow-gold-500/40 ring-2 ring-gold-500/50">
-            <BeeMascot className="w-7 sm:w-8" />
+            <BeeMascot frame="circle" className="w-8 sm:w-9" />
           </div>
         </div>
       </div>

@@ -467,7 +467,7 @@ function SpotlightBackdrop({
 
 /**
  * Animated bee mascot. Renders the shared <BeeMascot> (which serves
- * /bee-mascot.png with an automatic cute SVG fallback when the file is
+ * /bee-mascot.jpg with an automatic cute SVG fallback when the file is
  * missing). The wing flap + idle hover animations wrap whatever it renders.
  */
 function Bee() {
@@ -484,7 +484,7 @@ function Bee() {
         className="h-18 w-18 drop-shadow-lg"
         style={{ width: 72, height: 72 }}
       >
-        <BeeMascot priority className="h-full w-full object-contain" />
+        <BeeMascot priority frame="circle" className="h-full w-full" />
       </motion.div>
       {/* Trail dots */}
       <motion.span

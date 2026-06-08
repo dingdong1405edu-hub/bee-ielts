@@ -214,6 +214,10 @@ export default function LandingPage() {
 
       {/* ===== FEATURES ===== */}
       <section className="section" id="features">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/textures/leaf-news.jpg" className="feat-leaf feat-leaf-a" alt="" aria-hidden />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/textures/leaf-news.jpg" className="feat-leaf feat-leaf-b" alt="" aria-hidden />
         <div className="wrap">
           <div className="section-head">
             <span className="eyebrow">Tính năng</span>
