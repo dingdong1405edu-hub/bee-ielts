@@ -258,7 +258,7 @@ export function Sidebar({
             {!collapsed && (
               <span className="flex items-center gap-1.5">
                 Premium
-                <span className="text-[9px] font-bold uppercase tracking-wider bg-gold-500 text-white rounded px-1 py-px">
+                <span className="text-[9px] font-extrabold uppercase tracking-wider bg-gold-500 text-gold-950 rounded px-1 py-px">
                   ON
                 </span>
               </span>

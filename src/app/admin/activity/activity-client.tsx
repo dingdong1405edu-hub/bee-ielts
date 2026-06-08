@@ -61,7 +61,7 @@ const ENTITY_META: Record<
 
 const ACTION_META: Record<string, { label: string; tone: string }> = {
   CREATE: { label: "Tạo mới", tone: "bg-sage-500 text-white" },
-  UPDATE: { label: "Cập nhật", tone: "bg-gold-500 text-white" },
+  UPDATE: { label: "Cập nhật", tone: "bg-gold-500 text-gold-950" },
   DELETE: { label: "Xoá", tone: "bg-rose-500 text-white" },
 };
 

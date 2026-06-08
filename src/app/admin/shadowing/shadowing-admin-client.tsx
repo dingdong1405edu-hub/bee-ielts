@@ -301,7 +301,7 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
             <div className="flex-1">
               <h2 className="font-extrabold flex items-center gap-2 text-lg">
                 AI tạo bài tự động
-                <span className="text-[10px] uppercase tracking-wider font-extrabold rounded-full bg-gold-500 text-white px-2 py-0.5">Mới</span>
+                <span className="text-[10px] uppercase tracking-wider font-extrabold rounded-full bg-gold-500 text-gold-950 px-2 py-0.5">Mới</span>
               </h2>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Chỉ cần URL — AI lo phần phụ đề, dịch nghĩa và IPA cho mọi câu.

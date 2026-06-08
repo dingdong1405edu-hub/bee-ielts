@@ -1740,7 +1740,7 @@ function SpeakingPart2Question({
           aria-hidden
           className="pointer-events-none absolute -top-4 -right-2 sm:-right-3 flex items-start gap-1"
         >
-          <div className="cuecard-bee-bubble hidden sm:block rounded-2xl bg-gold-500 text-white text-[10px] font-extrabold uppercase tracking-widest px-2 py-1 shadow-lg shadow-gold-500/40">
+          <div className="cuecard-bee-bubble hidden sm:block rounded-2xl bg-gold-500 text-gold-950 text-[10px] font-extrabold uppercase tracking-widest px-2 py-1 shadow-lg shadow-gold-500/40">
             Đề Part 2 ↓
           </div>
           <div className="cuecard-bee grid h-10 w-10 sm:h-11 sm:w-11 place-items-center rounded-full bg-gradient-to-br from-gold-300 to-gold-400 shadow-xl shadow-gold-500/40 ring-2 ring-gold-500/50">
