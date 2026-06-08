@@ -39,6 +39,15 @@ import {
 import { cn } from "@/lib/utils";
 import { WordTranslatePopup } from "@/components/learn/word-translate-popup";
 import {Leaf, MascotBubble } from "@/components/brand";
+import {
+  playCorrectSfx,
+  playWrongSfx,
+  playSegmentDoneSfx,
+  playStreakSfx,
+  playLessonCompleteSfx,
+  playSwooshSfx,
+  playTypingTickSfx,
+} from "@/lib/quiz-sfx";
 
 interface Lesson {
   id: string;
@@ -70,6 +79,10 @@ interface ScoreResult {
 export interface ShadowingPlayerProps {
   lesson: Lesson;
   segments: Segment[];
+  /** "shadowing" = speak the sentence with mic (default). "dictation" =
+   *  type what you hear; video pauses until the full sentence is typed
+   *  correctly letter-by-letter, then auto-advances. */
+  mode?: "shadowing" | "dictation";
 }
 
 // Load the YouTube IFrame Player API exactly once across the page.
@@ -109,7 +122,8 @@ interface PopupState {
   hint: WordHint | null;
 }
 
-export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
+export function ShadowingPlayer({ lesson, segments, mode = "shadowing" }: ShadowingPlayerProps) {
+  const isDictation = mode === "dictation";
   const [activeIdx, setActiveIdx] = useState(0);
   const [showVi, setShowVi] = useState(false);
   const [speed, setSpeed] = useState(1);
@@ -121,6 +135,13 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
   const [noteText, setNoteText] = useState("");
   const [noteStatus, setNoteStatus] = useState<"" | "saving" | "saved">("");
   const [popup, setPopup] = useState<PopupState | null>(null);
+  // ============= Dictation state =============
+  // Letter-by-letter reveal: dictTyped is the number of characters of the
+  // active segment's textEn the user has correctly typed so far. Reset
+  // when the active segment changes. Wrong key triggers a shake + SFX.
+  const [dictTyped, setDictTyped] = useState(0);
+  const [dictShake, setDictShake] = useState(false);
+  const [dictRevealed, setDictRevealed] = useState(false);
   // Countdown shown in the score card so the user knows the next segment is
   // coming. Set to 2.5s the moment scoring completes; cleared if the user
   // jumps somewhere else first.
@@ -202,6 +223,10 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
     (justEndedSeg: Segment) => {
       if (!autoFollow) return;
       if (autoRecord && !micDeniedRef.current) return;
+      // Dictation mode never auto-advances on a timer — the user must type
+      // the sentence correctly to move on. Otherwise we'd skip past
+      // segments they're still working on.
+      if (isDictation) return;
       if (activeIdx >= total - 1) return;
       clearFollow();
       const segDur = Math.max(0.5, justEndedSeg.endSec - justEndedSeg.startSec);
@@ -214,6 +239,7 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
       }, 1000);
       followTimerRef.current = setTimeout(() => {
         clearFollow();
+        playSwooshSfx(); // subtle "moving on" cue
         setActiveIdx((i) => Math.min(i + 1, total - 1));
       }, waitSec * 1000);
     },
@@ -393,6 +419,9 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
     setScore(null);
     setPopup(null);
     clearAutoNext();
+    setDictTyped(0);
+    setDictRevealed(false);
+    setDictShake(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeIdx]);
 
@@ -404,6 +433,7 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
   useEffect(() => {
     if (!waitingForUser) return;
     if (!autoRecord) return;
+    if (isDictation) return; // dictation never wants the mic
     if (micDeniedRef.current) return;
     if (recording || scoring) return;
     // Small delay so the YT pause/hardCutAudio is visually settled before
@@ -474,6 +504,71 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeIdx, popup]);
 
+  // ============= Dictation keystroke handler =============
+  // When mode=dictation, every alpha-numeric keypress checks against the
+  // next letter of active.textEn. Correct → reveal + tick SFX (and skip
+  // over any whitespace/punctuation so the user only types letters).
+  // Wrong → shake + buzz, no progress. Full sentence → segment complete
+  // SFX + auto-advance after a short window.
+  useEffect(() => {
+    if (!isDictation) return;
+    if (!active) return;
+    const expected = active.textEn;
+    const skipNonLetter = (start: number) => {
+      let i = start;
+      while (i < expected.length && !/[A-Za-z0-9]/.test(expected[i])) i++;
+      return i;
+    };
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      // Only single printable characters count as a typed letter.
+      if (e.key.length !== 1) return;
+      let pos = dictTyped;
+      // If we're sitting on punctuation/space, jump past it for free.
+      pos = skipNonLetter(pos);
+      if (pos >= expected.length) return;
+      const typed = e.key.toLowerCase();
+      const want = expected[pos].toLowerCase();
+      if (typed === want) {
+        e.preventDefault();
+        const next = skipNonLetter(pos + 1);
+        setDictTyped(next);
+        playTypingTickSfx();
+        if (next >= expected.length) {
+          // Sentence done!
+          setDictRevealed(true);
+          playSegmentDoneSfx();
+          setCompletedIds((s) => {
+            if (s.has(active.id)) return s;
+            const out = new Set(s).add(active.id);
+            if (out.size === total) playLessonCompleteSfx();
+            else if (out.size > 0 && out.size % 5 === 0) {
+              setTimeout(playStreakSfx, 250);
+            }
+            return out;
+          });
+          // Brief celebration window then auto-advance.
+          setTimeout(() => {
+            if (activeIdx < total - 1) {
+              playSwooshSfx();
+              setActiveIdx((i) => Math.min(i + 1, total - 1));
+            }
+          }, 1200);
+        }
+      } else if (/[A-Za-z]/.test(typed)) {
+        e.preventDefault();
+        setDictShake(true);
+        playWrongSfx();
+        setTimeout(() => setDictShake(false), 320);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDictation, activeIdx, dictTyped, active]);
+
   const prev = () => {
     clearAutoNext();
     clearFollow();
@@ -504,6 +599,7 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
     }, 1000);
     autoNextTimerRef.current = setTimeout(() => {
       clearAutoNext();
+      playSwooshSfx();
       setActiveIdx((i) => Math.min(i + 1, total - 1));
     }, SECONDS * 1000);
   }, [activeIdx, total]);
@@ -598,7 +694,29 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || "Chấm thất bại");
         setScore(data as ScoreResult);
-        setCompletedIds((s) => new Set(s).add(active.id));
+        setCompletedIds((s) => {
+          const next = new Set(s).add(active.id);
+          // User asked "thêm nhiều sound effect càng nhiều càng tốt".
+          // Tiered feedback so each take feels different:
+          //   - score >= 80 → "segment done" 4-note flourish
+          //   - score >= 50 → standard "correct" chime
+          //   - score < 50  → soft wrong buzz (so user knows but isn't punished)
+          //   - 5-streak    → bigger streak chime, layered on top
+          //   - last segment → lesson-complete fanfare (no sub-chime)
+          if (next.size === total) {
+            playLessonCompleteSfx();
+          } else {
+            const score = (data as ScoreResult).score ?? 0;
+            if (score >= 80) playSegmentDoneSfx();
+            else if (score >= 50) playCorrectSfx();
+            else playWrongSfx();
+            // Streak SFX layered: every 5th completed segment.
+            if (next.size > 0 && next.size % 5 === 0) {
+              setTimeout(playStreakSfx, 250);
+            }
+          }
+          return next;
+        });
         // User wanted auto-advance after each take so they don't have to
         // hunt for "Câu sau". 3s gives them time to glance at the score
         // before we move them on — they can cancel by pressing Tab (prev)
@@ -904,9 +1022,30 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
           <p className="text-base italic text-foreground/70">{active.textVi}</p>
         )}
 
-        {/* Big record card. When the video has just paused at endSec
-            (waitingForUser), pulse the card amber so users know it's
-            their turn to speak. */}
+        {/* DICTATION MODE — letter-by-letter reveal panel. Hidden in
+            shadowing mode; shown instead of the record card. */}
+        {isDictation && active && (
+          <DictationCard
+            expected={active.textEn}
+            typed={dictTyped}
+            shake={dictShake}
+            revealed={dictRevealed}
+            onReveal={() => {
+              setDictRevealed(true);
+              setDictTyped(active.textEn.length);
+            }}
+            onReset={() => {
+              setDictTyped(0);
+              setDictRevealed(false);
+              setDictShake(false);
+            }}
+          />
+        )}
+
+        {/* Big record card — shadowing only. When the video has just
+            paused at endSec (waitingForUser), pulse the card amber so
+            users know it's their turn to speak. */}
+        {!isDictation && (
         <div
           className={cn(
             "rounded-2xl border-2 p-5 flex items-center gap-4 transition-all",
@@ -990,6 +1129,7 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
             </button>
           )}
         </div>
+        )}
 
         {/* Score result */}
         {score && (
@@ -1149,40 +1289,144 @@ function NavCard({
  * head of the fill, and a goal flag marks the finish line. Pure CSS so
  * we don't pay for framer-motion on every render.
  */
+/**
+ * Dictation panel. Renders the sentence with already-typed letters
+ * REVEALED (foreground colour) and not-yet-typed letters HIDDEN behind a
+ * blur + grey box so the user has to actually listen + type. Shake
+ * animation on wrong key. Buttons: Hiện đáp án (reveal everything, no
+ * completion credit), Làm lại (reset typing). Auto-advance happens at
+ * the parent level when typed === expected.length.
+ */
+function DictationCard({
+  expected,
+  typed,
+  shake,
+  revealed,
+  onReveal,
+  onReset,
+}: {
+  expected: string;
+  typed: number;
+  shake: boolean;
+  revealed: boolean;
+  onReveal: () => void;
+  onReset: () => void;
+}) {
+  // Compute a coarse "match %" — count of correct letters / total letters.
+  const totalLetters = (expected.match(/[A-Za-z0-9]/g) ?? []).length;
+  const typedLetters = (expected.slice(0, typed).match(/[A-Za-z0-9]/g) ?? []).length;
+  const pct = totalLetters === 0 ? 0 : Math.round((typedLetters / totalLetters) * 100);
+  return (
+    <div
+      className={cn(
+        "rounded-2xl border-2 p-5 space-y-4 transition-all",
+        revealed
+          ? "border-sage-400 bg-sage-50 dark:bg-sage-950/30"
+          : "border-amber-400 bg-amber-50 dark:bg-amber-950/30",
+        shake && "quiz-shake",
+      )}
+    >
+      <div className="flex items-center justify-between text-xs">
+        <span className="inline-flex items-center gap-1.5 font-extrabold text-amber-700 dark:text-amber-300">
+          🐝 Type what you hear — letters reveal as you go
+        </span>
+        <span className="font-extrabold text-foreground">
+          {typedLetters} / {totalLetters} · Khớp: {pct}%
+        </span>
+      </div>
+
+      {/* Reveal area */}
+      <div className="rounded-xl bg-card border p-4 min-h-[120px] font-mono text-lg md:text-xl leading-relaxed">
+        {expected.split("").map((ch, i) => {
+          const isLetter = /[A-Za-z0-9]/.test(ch);
+          const isRevealed = i < typed || revealed;
+          if (!isLetter) {
+            // Spaces + punctuation always visible — they're free.
+            return (
+              <span key={i} className="text-muted-foreground">
+                {ch}
+              </span>
+            );
+          }
+          if (isRevealed) {
+            return (
+              <span key={i} className="text-emerald-600 dark:text-emerald-400 font-bold">
+                {ch}
+              </span>
+            );
+          }
+          // Hidden letter: small slot rendered so the user sees how many
+          // remain. Acts like the dot rows in the reference screenshot.
+          return (
+            <span
+              key={i}
+              className="inline-block w-[0.8em] h-[1.2em] mx-[1px] align-middle border-b-2 border-foreground/30 text-transparent select-none"
+            >
+              ·
+            </span>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center gap-2 flex-wrap">
+        <button
+          type="button"
+          onClick={onReveal}
+          className="inline-flex items-center gap-1.5 rounded-xl border-2 border-amber-300 bg-white dark:bg-card px-4 py-2 text-sm font-bold hover:bg-amber-50 dark:hover:bg-amber-950/30"
+        >
+          👀 Hiện đáp án
+        </button>
+        <button
+          type="button"
+          onClick={onReset}
+          className="inline-flex items-center gap-1.5 rounded-xl border-2 border-sage-300 bg-white dark:bg-card px-4 py-2 text-sm font-bold hover:bg-sage-50 dark:hover:bg-sage-950/30"
+        >
+          ↻ Làm lại
+        </button>
+        <p className="text-xs text-muted-foreground ml-auto">
+          Gõ chữ trên bàn phím — dấu cách + dấu câu tự thêm.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function BeeProgress({ pct }: { pct: number }) {
   const safePct = Math.max(0, Math.min(100, pct));
   return (
     <div className="relative pt-3 pb-1">
       <div className="relative h-6">
-        {/* Track */}
-        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-2.5 rounded-full bg-gradient-to-r from-gold-100 to-rose-100 dark:from-gold-950/40 dark:to-rose-950/40 border border-gold-200 dark:border-gold-800/40 overflow-hidden">
+        {/* Honey-coloured track that fills as the user progresses. */}
+        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-2.5 rounded-full bg-gradient-to-r from-amber-100 via-orange-100 to-rose-100 dark:from-amber-950/40 dark:via-orange-950/40 dark:to-rose-950/40 border border-amber-200 dark:border-amber-800/40 overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-gold-400 to-rose-400 transition-all duration-500"
+            className="h-full bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400 transition-all duration-500"
             style={{ width: `${safePct}%` }}
           />
         </div>
 
-        {/* Marker — moves along the progress */}
+        {/* 🐝 marker — user explicitly asked the bee back. Flies along the
+            trail at the current % progress (= completed segments / total).
+            Soft float so it looks alive even at 0%. */}
         <div
           className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 transition-all duration-500"
           style={{ left: `calc(${safePct}% )` }}
         >
-          <div className="grid h-7 w-7 place-items-center rounded-full bg-gold-300 border-2 border-gold-500 shadow-lg shadow-gold-500/30 text-base leading-none animate-float">
-            🌱
+          <div className="grid h-7 w-7 place-items-center rounded-full bg-amber-300 border-2 border-amber-500 shadow-lg shadow-amber-500/30 text-base leading-none animate-float">
+            🐝
           </div>
         </div>
 
-        {/* Goal flag — destination */}
+        {/* 🍯 destination — honey jar at the finish line. */}
         <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2">
           <div className="grid h-7 w-7 place-items-center rounded-full bg-rose-100 dark:bg-rose-950/40 border-2 border-rose-400 text-base leading-none">
-            🏁
+            🍯
           </div>
         </div>
       </div>
 
       <div className="flex justify-between text-xs text-muted-foreground mt-1">
         <span className="font-bold">Tiến độ</span>
-        <span className="font-extrabold text-gold-700 dark:text-gold-300">{safePct}%</span>
+        <span className="font-extrabold text-amber-700 dark:text-amber-300">{safePct}%</span>
       </div>
     </div>
   );

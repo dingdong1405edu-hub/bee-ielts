@@ -63,3 +63,47 @@ export function playWrongSfx() {
   tone(220, 0, 180, 0.12, "sawtooth");
   tone(165, 0.1, 200, 0.1, "sawtooth");
 }
+
+// ===== Shadowing / Dictation specific =====
+
+/** Tiny tick when the dictation typer hits the correct next letter. Soft +
+ *  short so a fast typist isn't drowning in clicks. */
+export function playTypingTickSfx() {
+  tone(880, 0, 35, 0.08, "sine"); // A5, 35ms, very quiet
+}
+
+/** Heavier 3-note flourish when a whole dictation/shadowing segment is
+ *  completed correctly — bigger than playCorrectSfx so it feels like a
+ *  bigger reward than a single quiz question. */
+export function playSegmentDoneSfx() {
+  tone(523.25, 0, 100, 0.18, "triangle"); // C5
+  tone(659.25, 0.06, 120, 0.18, "triangle"); // E5
+  tone(783.99, 0.12, 140, 0.18, "triangle"); // G5
+  tone(1046.5, 0.2, 220, 0.2, "triangle"); // C6
+}
+
+/** Streak chime (5+ correct segments in a row) — adds an extra octave on
+ *  top of playSegmentDoneSfx so the user notices "yes, I'm on a roll". */
+export function playStreakSfx() {
+  tone(523.25, 0, 90, 0.16, "triangle");
+  tone(659.25, 0.05, 100, 0.16, "triangle");
+  tone(783.99, 0.1, 110, 0.16, "triangle");
+  tone(1046.5, 0.15, 140, 0.18, "triangle");
+  tone(1318.5, 0.22, 260, 0.18, "triangle"); // E6 cap
+}
+
+/** End-of-lesson fanfare — fired once when user finishes every segment. */
+export function playLessonCompleteSfx() {
+  tone(523.25, 0, 120, 0.18, "triangle");
+  tone(659.25, 0.08, 120, 0.18, "triangle");
+  tone(783.99, 0.16, 120, 0.18, "triangle");
+  tone(1046.5, 0.28, 240, 0.22, "triangle");
+  tone(1318.5, 0.4, 320, 0.22, "triangle");
+}
+
+/** Soft "swoosh" when the video auto-advances to the next segment. Distinct
+ *  from playCorrectSfx so the ear can tell "I was right" vs "next is coming". */
+export function playSwooshSfx() {
+  tone(440, 0, 80, 0.08, "sine");
+  tone(660, 0.04, 100, 0.08, "sine");
+}

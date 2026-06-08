@@ -101,7 +101,7 @@ export default async function ShadowingLandingPage({
         {lessons.map((l) => (
           <Link
             key={l.id}
-            href={`/shadowing/${l.id}`}
+            href={`/shadowing/${l.id}${mode === "DICTATION" ? "?mode=dictation" : ""}`}
             className="group rounded-2xl bg-card border-2 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all"
           >
             <div className="relative aspect-video bg-muted">
