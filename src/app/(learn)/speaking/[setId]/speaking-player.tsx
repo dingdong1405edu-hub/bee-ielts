@@ -675,7 +675,7 @@ export function SpeakingPlayer({
       <div className="max-w-3xl mx-auto py-6">
         <div className="rounded-3xl border bg-card shadow-sm p-6 md:p-8 space-y-6">
           <div className="relative overflow-hidden rounded-2xl">
-            <Honeycomb className="pointer-events-none absolute inset-0 text-[#C0714E]/[0.05]" />
+            <Honeycomb className="pointer-events-none absolute inset-0 text-[#FF4B6E]/[0.05]" />
             <div className="relative space-y-3">
               <h1 className="flex items-center justify-center gap-2 text-xl md:text-2xl font-extrabold tracking-tight text-center">
                 <Leaf className="h-4 w-4 text-leaf shrink-0" />

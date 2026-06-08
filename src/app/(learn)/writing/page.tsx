@@ -16,13 +16,13 @@ export const dynamic = "force-dynamic";
 export default function WritingIntroPage() {
   return (
     <div className="relative space-y-6">
-      <Honeycomb className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 text-[#B6883F]/[0.04]" />
+      <Honeycomb className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 text-[#FF9600]/[0.04]" />
       <div className="flex items-center justify-center gap-2 pt-2">
-        <span className="h-px w-8 bg-[#B6883F]/40" />
-        <span className="inline-flex items-center rounded-full border border-[#B6883F]/30 bg-[#B6883F]/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[#B6883F]">
+        <span className="h-px w-8 bg-[#FF9600]/40" />
+        <span className="inline-flex items-center rounded-full border border-[#FF9600]/30 bg-[#FF9600]/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[#FF9600]">
           IELTS Writing
         </span>
-        <span className="h-px w-8 bg-[#B6883F]/40" />
+        <span className="h-px w-8 bg-[#FF9600]/40" />
       </div>
       <SkillIntro
         title="Writing"

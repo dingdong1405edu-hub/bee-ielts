@@ -176,7 +176,7 @@ export function WritingSession({ task1, task2 }: Props) {
   return (
     <div className="max-w-5xl mx-auto space-y-4">
       <div className="relative overflow-hidden rounded-2xl border bg-honey-deep text-white p-4">
-        <Honeycomb className="pointer-events-none absolute inset-0 text-[#B6883F]/[0.05]" />
+        <Honeycomb className="pointer-events-none absolute inset-0 text-[#FF9600]/[0.05]" />
         <div className="relative flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
             <PenLine className="h-6 w-6" />

@@ -25,11 +25,11 @@ export default async function ShadowingLandingPage({
 
   return (
     <div className="relative max-w-6xl mx-auto space-y-6">
-      <Honeycomb className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 text-[#8A6E9C]/[0.04]" />
+      <Honeycomb className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 text-[#A560E8]/[0.04]" />
       <div>
         <span
-          className="inline-flex items-center gap-1.5 rounded-full bg-[#8A6E9C]/10 border border-[#8A6E9C]/20 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider"
-          style={{ color: "#8A6E9C" }}
+          className="inline-flex items-center gap-1.5 rounded-full bg-[#A560E8]/10 border border-[#A560E8]/20 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider"
+          style={{ color: "#A560E8" }}
         >
           <Headphones className="h-3 w-3" />
           {mode === "SHADOWING" ? "Shadowing" : "Dictation"}

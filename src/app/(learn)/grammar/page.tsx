@@ -52,14 +52,14 @@ export default async function GrammarPathPage() {
 
   return (
     <div className="relative max-w-2xl mx-auto space-y-6">
-      <Honeycomb className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 text-[#3E8C84]/[0.04]" />
+      <Honeycomb className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 text-[#14B8A6]/[0.04]" />
       {/* Hero path header */}
       <div className="gradient-brand relative overflow-hidden rounded-3xl p-6 md:p-7 text-white shadow-xl shadow-primary/20">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_15%,rgba(255,255,255,0.2),transparent_50%)]" />
         <div className="relative flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">Beginner Path</h1>
-            <span className="mt-2 block h-1 w-12 rounded-full" style={{ backgroundColor: "#3E8C84" }} aria-hidden />
+            <span className="mt-2 block h-1 w-12 rounded-full" style={{ backgroundColor: "#14B8A6" }} aria-hidden />
             <p className="text-white/85 text-sm mt-2">
               Từ A1 → C2 · {totalLessons} bài học
             </p>

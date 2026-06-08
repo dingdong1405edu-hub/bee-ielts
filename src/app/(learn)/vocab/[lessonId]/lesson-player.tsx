@@ -113,7 +113,7 @@ export function LessonPlayer({
   return (
     <div className="max-w-xl mx-auto space-y-6">
       <div className="relative overflow-hidden rounded-xl">
-        <Honeycomb className="pointer-events-none absolute inset-0 text-[#BD6B6B]/[0.05]" />
+        <Honeycomb className="pointer-events-none absolute inset-0 text-[#FF5CA8]/[0.05]" />
         <div className="relative space-y-2">
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <button onClick={() => router.push("/vocab")} className="hover:underline">

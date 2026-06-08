@@ -23,13 +23,13 @@ const LEVEL_COLOR: Record<CEFRLevel, PillColor> = {
 export default function ReadingIntroPage() {
   return (
     <div className="relative space-y-8">
-      <Honeycomb className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 text-[#4F7A66]/[0.04]" />
+      <Honeycomb className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 text-[#58CC02]/[0.04]" />
       <div className="flex justify-center">
         <span
-          className="inline-flex items-center gap-2 rounded-full border border-[#4F7A66]/30 bg-[#4F7A66]/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider"
-          style={{ color: "#4F7A66" }}
+          className="inline-flex items-center gap-2 rounded-full border border-[#58CC02]/30 bg-[#58CC02]/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider"
+          style={{ color: "#58CC02" }}
         >
-          <span className="h-1.5 w-1.5 rounded-full bg-[#4F7A66]" />
+          <span className="h-1.5 w-1.5 rounded-full bg-[#58CC02]" />
           Reading
         </span>
       </div>

@@ -98,13 +98,13 @@ export default async function BandClimberPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="text-center space-y-3">
-        <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl gradient-brand text-white shadow-lg shadow-primary/30 ring-2 ring-[#7A8C46]/40 ring-offset-2 ring-offset-background">
+        <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl gradient-brand text-white shadow-lg shadow-primary/30 ring-2 ring-[#F0A800]/40 ring-offset-2 ring-offset-background">
           <TrendingUp className="h-8 w-8" />
         </div>
         <h1 className="text-3xl font-extrabold tracking-tight">Vượt band IELTS</h1>
         <div
           className="mx-auto h-0.5 w-12 rounded-full"
-          style={{ backgroundColor: "#7A8C46" }}
+          style={{ backgroundColor: "#F0A800" }}
         />
         <p className="text-muted-foreground text-sm max-w-md mx-auto">
           Mỗi chặng tổng hợp các mẹo theo 4 kỹ năng để bạn nâng band mục tiêu hiệu quả nhất.

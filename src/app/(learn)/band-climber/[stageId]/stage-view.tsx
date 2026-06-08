@@ -38,7 +38,7 @@ export function StageView({
   return (
     <Card>
       <div className="relative overflow-hidden border-b">
-        <Honeycomb className="pointer-events-none absolute inset-0 text-[#7A8C46]/[0.05]" />
+        <Honeycomb className="pointer-events-none absolute inset-0 text-[#F0A800]/[0.05]" />
         <div className="relative grid grid-cols-2 sm:grid-cols-4">
         {TABS.map((t) => {
           const Icon = t.icon;

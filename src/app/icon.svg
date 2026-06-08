@@ -9,8 +9,8 @@
       <path d="M45 55 C34 51 26 56 30 64 C33 70 43 68 47 62 Z"/>
       <path d="M55 55 C66 51 74 56 70 64 C67 70 57 68 53 62 Z"/>
     </g>
-    <circle cx="50" cy="38" r="7.5" fill="#C5A05E" stroke="#2E3A33" stroke-width="3"/>
-    <path d="M50 45 C57 45 61 50 61 57 C61 68 56 77 50 77 C44 77 39 68 39 57 C39 50 43 45 50 45 Z" fill="#C5A05E" stroke="#2E3A33" stroke-width="3"/>
+    <circle cx="50" cy="38" r="7.5" fill="#FFC107" stroke="#2E3A33" stroke-width="3"/>
+    <path d="M50 45 C57 45 61 50 61 57 C61 68 56 77 50 77 C44 77 39 68 39 57 C39 50 43 45 50 45 Z" fill="#FFC107" stroke="#2E3A33" stroke-width="3"/>
     <path d="M42 56 H58 M43 63 H57 M45 70 H55" stroke="#2E3A33" stroke-width="2.6" fill="none"/>
   </g>
 </svg>

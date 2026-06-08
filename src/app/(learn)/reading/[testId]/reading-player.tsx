@@ -132,7 +132,7 @@ export function ReadingPlayer({
   return (
     <div className="max-w-7xl mx-auto space-y-4">
       <div className="relative overflow-hidden rounded-2xl flex items-center justify-between flex-wrap gap-3 p-4">
-        <Honeycomb className="pointer-events-none absolute inset-0 text-[#4F7A66]/[0.05]" />
+        <Honeycomb className="pointer-events-none absolute inset-0 text-[#58CC02]/[0.05]" />
         <div className="relative">
           <button onClick={() => router.push("/reading")} className="text-sm text-muted-foreground hover:underline">
             ← Reading

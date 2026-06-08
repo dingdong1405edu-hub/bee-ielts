@@ -156,7 +156,7 @@ export function StatsRow({ streakDays, streakRestoreRemaining, targetBand, weekM
       </div>
 
       <style jsx global>{`
-        .gradient-text-streak { background: linear-gradient(135deg,#C5A05E,#f43f5e); }
+        .gradient-text-streak { background: linear-gradient(135deg,#FFC107,#f43f5e); }
       `}</style>
 
       {pending && <span className="sr-only"><Sparkles /></span>}

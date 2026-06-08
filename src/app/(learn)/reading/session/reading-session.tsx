@@ -102,7 +102,7 @@ export function ReadingSession({ passages, targetBand = 6.0 }: { passages: Passa
   return (
     <div className="max-w-3xl mx-auto space-y-4 p-4 md:p-6">
       <div className="relative overflow-hidden text-center space-y-2 py-2">
-        <Honeycomb className="pointer-events-none absolute inset-0 text-[#4F7A66]/[0.05]" />
+        <Honeycomb className="pointer-events-none absolute inset-0 text-[#58CC02]/[0.05]" />
         <div className="relative mx-auto grid h-16 w-16 place-items-center rounded-2xl gradient-brand text-white shadow-lg shadow-primary/30">
           <Trophy className="h-8 w-8" />
         </div>

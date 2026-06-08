@@ -61,8 +61,8 @@ const SKILL_META: Record<
   listening: {
     label: "Listening",
     icon: Headphones,
-    from: "from-[#6E93B5]",
-    to: "to-[#4C6E92]",
+    from: "from-[#4FC3F7]",
+    to: "to-[#1CB0F6]",
     ring: "ring-gold-400/60",
     bubble: "from-gold-500 to-gold-600",
   },

@@ -62,11 +62,11 @@ export function BeeLogo({
         </g>
 
         {/* head */}
-        <circle cx="50" cy="36" r="8" fill="var(--gold, #C5A05E)" stroke="currentColor" strokeWidth="3" />
+        <circle cx="50" cy="36" r="8" fill="var(--gold, #FFC107)" stroke="currentColor" strokeWidth="3" />
         {/* abdomen — gold with ink stripes */}
         <path
           d="M50 44 C58 44 62 50 62 58 C62 70 56 80 50 80 C44 80 38 70 38 58 C38 50 42 44 50 44 Z"
-          fill="var(--gold, #C5A05E)"
+          fill="var(--gold, #FFC107)"
           stroke="currentColor"
           strokeWidth="3"
         />

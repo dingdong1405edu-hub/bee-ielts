@@ -24,11 +24,11 @@ export default async function VocabPage() {
 
   return (
     <div className="relative max-w-3xl mx-auto space-y-8">
-      <Honeycomb className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 text-[#BD6B6B]/[0.04]" />
+      <Honeycomb className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 text-[#FF5CA8]/[0.04]" />
       <div className="flex items-center gap-4">
         <div
-          className="grid h-14 w-14 place-items-center rounded-2xl border bg-[#BD6B6B]/10 border-[#BD6B6B]/20 shadow-sm"
-          style={{ color: "#BD6B6B" }}
+          className="grid h-14 w-14 place-items-center rounded-2xl border bg-[#FF5CA8]/10 border-[#FF5CA8]/20 shadow-sm"
+          style={{ color: "#FF5CA8" }}
         >
           <Sparkles className="h-6 w-6" />
         </div>

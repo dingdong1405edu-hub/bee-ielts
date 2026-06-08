@@ -86,7 +86,7 @@ export function GrammarPlayer({
           ← {unitTitle}
         </button>
         <div className="relative overflow-hidden rounded-3xl">
-          <Honeycomb className="pointer-events-none absolute inset-0 text-[#3E8C84]/[0.05]" />
+          <Honeycomb className="pointer-events-none absolute inset-0 text-[#14B8A6]/[0.05]" />
           <div className="relative text-center space-y-3 py-4">
             <div className="relative mx-auto">
               <BeeMascot priority className="mx-auto w-24 animate-float" />

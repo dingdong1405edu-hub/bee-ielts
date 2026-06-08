@@ -51,7 +51,7 @@ const CATEGORY_COLOR: Record<string, string> = {
   grammar: "bg-rose-500",
   vocabulary: "bg-gold-500",
   coherence: "bg-sage-500",
-  task: "bg-[#5B7E9C]",
+  task: "bg-[#1CB0F6]",
 };
 
 export function WritingFeedback({

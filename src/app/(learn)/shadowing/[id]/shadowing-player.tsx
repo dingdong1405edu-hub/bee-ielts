@@ -682,7 +682,7 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
         </div>
 
         <div className="relative overflow-hidden rounded-2xl">
-          <Honeycomb className="pointer-events-none absolute inset-0 text-[#8A6E9C]/[0.05]" />
+          <Honeycomb className="pointer-events-none absolute inset-0 text-[#A560E8]/[0.05]" />
           <div className="relative flex items-center justify-between flex-wrap gap-2">
           <div className="min-w-0">
             <p className="flex items-center gap-1.5 font-bold text-sm truncate">

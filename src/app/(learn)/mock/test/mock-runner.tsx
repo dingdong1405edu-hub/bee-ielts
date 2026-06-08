@@ -186,7 +186,7 @@ export function MockRunner({ targetBand, listenings, readings, writing, speaking
     return (
       <div className="max-w-2xl mx-auto py-10 space-y-6">
         <div className="relative overflow-hidden rounded-3xl">
-          <Honeycomb className="pointer-events-none absolute inset-0 text-[#4C5B8A]/[0.05]" />
+          <Honeycomb className="pointer-events-none absolute inset-0 text-[#4B6BFB]/[0.05]" />
           <div className="relative text-center space-y-3 py-4">
             <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl gradient-brand text-white shadow-lg shadow-primary/30">
               <GraduationCap className="h-8 w-8" />
@@ -500,7 +500,7 @@ function MockResultView({
 
       {/* Hero */}
       <div className="relative overflow-hidden rounded-3xl print:overflow-visible">
-        <Honeycomb className="pointer-events-none absolute inset-0 text-[#4C5B8A]/[0.05] print:hidden" />
+        <Honeycomb className="pointer-events-none absolute inset-0 text-[#4B6BFB]/[0.05] print:hidden" />
         <div className="relative text-center space-y-2 py-4 print:text-left print:py-0">
           <BeeMascot className="mx-auto w-16 drop-shadow-sm print:hidden" />
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl gradient-brand text-white shadow-lg shadow-primary/30 print:hidden">
