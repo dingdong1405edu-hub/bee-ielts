@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, ArrowLeft, Sparkles, X, Play, Plus, Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { BeeMascot } from "@/components/brand";
 
 /**
  * BeeGuide — an animated 🐝 mascot that tours the learner through band-climb
@@ -465,13 +466,11 @@ function SpotlightBackdrop({
 }
 
 /**
- * Animated bee mascot. Uses /bee-mascot.png if the admin has dropped a
- * custom mascot image into `public/`; otherwise renders the 🐝 emoji
- * inside a yellow gradient circle. The wing flap + idle hover animations
- * are applied to whichever variant renders.
+ * Animated bee mascot. Renders the shared <BeeMascot> (which serves
+ * /bee-mascot.png with an automatic cute SVG fallback when the file is
+ * missing). The wing flap + idle hover animations wrap whatever it renders.
  */
 function Bee() {
-  const [imgFailed, setImgFailed] = useState(false);
   return (
     <motion.div
       animate={{ y: [0, -8, 0], rotate: [-3, 3, -3] }}
@@ -485,19 +484,7 @@ function Bee() {
         className="h-18 w-18 drop-shadow-lg"
         style={{ width: 72, height: 72 }}
       >
-        {imgFailed ? (
-          <div className="grid h-full w-full place-items-center rounded-full bg-gradient-to-br from-gold-300 to-gold-500 text-4xl shadow-lg shadow-gold-500/40">
-            🐝
-          </div>
-        ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src="/bee-mascot.png"
-            alt="Bee"
-            onError={() => setImgFailed(true)}
-            className="h-full w-full object-contain"
-          />
-        )}
+        <BeeMascot priority className="h-full w-full object-contain" />
       </motion.div>
       {/* Trail dots */}
       <motion.span

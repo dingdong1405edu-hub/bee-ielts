@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { RotateCw, Timer, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BeeMascot } from "@/components/brand";
 import { cn } from "@/lib/utils";
 import type { StudyCard } from "./types";
 
@@ -206,7 +207,10 @@ function GameBoard({ cards }: { cards: StudyCard[] }) {
       {/* Win panel */}
       {finished && (
         <div className="flex flex-col items-center gap-4 rounded-2xl border bg-card py-10 shadow-sm">
-          <Trophy className="h-12 w-12 text-gold-500 fill-gold-200" />
+          <div className="flex items-end justify-center gap-2">
+            <BeeMascot className="w-20 drop-shadow-sm md:w-24" priority />
+            <Trophy className="h-12 w-12 text-gold-500 fill-gold-200" />
+          </div>
           <p className="font-extrabold text-2xl">Hoàn thành!</p>
           <p className="text-muted-foreground text-sm">
             Thời gian hoàn thành:{" "}

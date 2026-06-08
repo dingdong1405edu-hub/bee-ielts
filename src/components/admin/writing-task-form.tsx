@@ -12,6 +12,7 @@ import { ImageUrlField } from "./image-url-field";
 import { DeleteTestButton } from "./delete-test-button";
 import { BandStageSelect } from "./band-stage-select";
 import { BandClimbToursEditor, type TourStepDraft } from "./band-climb-tours-editor";
+import { BeeLogo } from "@/components/brand";
 
 /** DB-shaped writing task passed in when editing an existing record. */
 export type WritingInitial = {
@@ -120,7 +121,9 @@ export function WritingTaskForm({
       {bandStageId && (
         <Card>
           <CardHeader>
-            <CardTitle>Bee 🐝 hướng dẫn — bài này</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <BeeLogo variant="bare" className="h-5 w-5 text-ink" /> Bee hướng dẫn — bài này
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <BandClimbToursEditor steps={tips} onChange={setTips} />

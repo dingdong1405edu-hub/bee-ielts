@@ -12,6 +12,7 @@ import { ImageUrlField } from "@/components/admin/image-url-field";
 import { DeleteTestButton } from "@/components/admin/delete-test-button";
 import { BandStageSelect } from "@/components/admin/band-stage-select";
 import { BandClimbToursEditor, type TourStepDraft } from "@/components/admin/band-climb-tours-editor";
+import { BeeLogo } from "@/components/brand";
 
 /** DB-shaped speaking set passed in when editing an existing record. */
 export type SpeakingInitial = {
@@ -211,7 +212,9 @@ export function SpeakingSetForm({
       {bandStageId && (
         <Card>
           <CardHeader>
-            <CardTitle>Bee 🐝 hướng dẫn — bài này</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <BeeLogo variant="bare" className="h-5 w-5 text-ink" /> Bee hướng dẫn — bài này
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <BandClimbToursEditor steps={tips} onChange={setTips} />

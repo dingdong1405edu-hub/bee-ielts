@@ -63,6 +63,11 @@
     --mist:       #A8C3B5;
     --mist-soft:  #CADCD2;
     --forest:     #2E3A33;
+    /* slate-blue (logo wings) + warm kraft (leaf-paper texture) */
+    --slate:      #3F5168;
+    --slate-soft: #5B7E9C;
+    --kraft:      #C9A87E;
+    --kraft-soft: #E8D9C3;
     --line:       rgba(46,58,51,0.12);
     --line-soft:  rgba(46,58,51,0.07);
     --shadow:     46 58 51;
@@ -128,6 +133,10 @@
     --gold:       #D2B26E;
     --gold-soft:  #E6D5AE;
     --gold-deep:  #B6883F;
+    --slate:      #6E8CAA;
+    --slate-soft: #88A4BE;
+    --kraft:      #C9A87E;
+    --kraft-soft: #4A4032;
     --line:      rgba(234,241,236,0.12);
     --line-soft: rgba(234,241,236,0.06);
     --shadow:    0 0 0;

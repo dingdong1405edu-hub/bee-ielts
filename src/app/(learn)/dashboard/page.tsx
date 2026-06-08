@@ -9,6 +9,7 @@ import { StatsRow } from "@/components/learn/stats-row";
 import { ExamCountdown } from "@/components/learn/exam-countdown";
 import { StudySchedule } from "@/components/learn/study-schedule";
 import { PremiumCouponCards } from "@/components/learn/premium-coupon-cards";
+import { BeeMascot, Honeycomb, Leaf } from "@/components/brand";
 
 // Per-skill accent gradients — distinct hue per module, all muted/editorial
 // to harmonise with the sage+gold base (see tailwind `skill.*` tokens).
@@ -75,11 +76,17 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-2">
-          Chào {user.name || "bạn"} <span className="inline-block animate-float">👋</span>
-        </h1>
-        <p className="text-muted-foreground mt-1">Chọn một kỹ năng để bắt đầu luyện tập hôm nay.</p>
+      <div className="relative overflow-hidden rounded-3xl">
+        <Honeycomb className="absolute inset-0 text-gold/[0.06]" />
+        <div className="relative flex items-center gap-3">
+          <BeeMascot className="w-16 shrink-0 animate-float" priority />
+          <div>
+            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-2">
+              Chào {user.name || "bạn"} <span className="inline-block animate-float">👋</span>
+            </h1>
+            <p className="text-muted-foreground mt-1">Chọn một kỹ năng để bắt đầu luyện tập hôm nay.</p>
+          </div>
+        </div>
       </div>
 
       <StatsRow
@@ -140,7 +147,10 @@ export default async function DashboardPage() {
       </Link>
 
       <div>
-        <h2 className="text-xl font-extrabold mb-4 tracking-tight">Phần học:</h2>
+        <h2 className="text-xl font-extrabold mb-4 tracking-tight flex items-center gap-2">
+          <Leaf className="h-4 w-4 text-leaf" />
+          Phần học:
+        </h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {modules.map((m, i) => {
             const Icon = m.icon;
@@ -169,7 +179,10 @@ export default async function DashboardPage() {
 
       {recentAttempts.length > 0 && (
         <div>
-          <h2 className="text-xl font-extrabold mb-4 tracking-tight">Gần đây</h2>
+          <h2 className="text-xl font-extrabold mb-4 tracking-tight flex items-center gap-2">
+            <Leaf className="h-4 w-4 text-leaf" />
+            Gần đây
+          </h2>
           <div className="rounded-2xl border bg-card overflow-hidden">
             <div className="divide-y">
               {recentAttempts.map((a) => (

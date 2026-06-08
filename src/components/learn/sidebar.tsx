@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
+import { BeeLogo } from "@/components/brand/bee-logo";
 
 type NavItem = {
   href: string;
@@ -146,7 +147,7 @@ export function Sidebar({
           )}
           title="Bee IELTS"
         >
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl gradient-brand text-white font-bold shadow-md shadow-primary/20">🐝</div>
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-cream border border-gold/30 shadow-sm shadow-primary/10"><BeeLogo variant="bare" className="h-7 w-7 text-ink" /></div>
           {!collapsed && (
             <span className={cn("font-extrabold tracking-tight truncate", community && "text-foreground")}>
               Bee IELTS
@@ -355,7 +356,7 @@ export function MobileMenu({ isAdmin }: { isAdmin?: boolean }) {
         >
           <div className="flex items-center justify-between px-4 py-4 border-b">
             <Link href="/dashboard" onClick={() => setOpen(false)} className="flex items-center gap-2">
-              <div className="grid h-9 w-9 place-items-center rounded-xl gradient-brand text-white font-bold">🐝</div>
+              <div className="grid h-9 w-9 place-items-center rounded-xl bg-cream border border-gold/30"><BeeLogo variant="bare" className="h-6 w-6 text-ink" /></div>
               <span className="font-extrabold tracking-tight">Bee IELTS</span>
             </Link>
             <button

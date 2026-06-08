@@ -7,6 +7,7 @@ import { Plus, Loader2, Layers, Trash2, BellRing, BellOff, ChevronRight } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { BeeLogo, EmptyState, Honeycomb, Leaf } from "@/components/brand";
 import { cn } from "@/lib/utils";
 
 type Deck = { id: string; title: string; cardCount: number };
@@ -76,15 +77,19 @@ export function WordsHome({ decks, popQuizOn }: { decks: Deck[]; popQuizOn: bool
 
   return (
     <div className="max-w-3xl mx-auto space-y-5">
-      <div className="flex items-center gap-4">
-        <div className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-honey to-honey-deep text-white shadow-lg shadow-honey/30">
-          <Layers className="h-6 w-6" />
-        </div>
-        <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Học từ</h1>
-          <p className="text-muted-foreground text-sm">
-            Tạo bộ thẻ riêng — flashcard, học từ, nối hộp, kiểm tra.
-          </p>
+      <div className="relative overflow-hidden rounded-3xl border border-border bg-card p-5">
+        <Honeycomb className="absolute inset-0 text-gold/[0.06]" />
+        <Leaf className="pointer-events-none absolute -right-3 -top-3 h-20 w-20 rotate-12 text-leaf/10" />
+        <div className="relative flex items-center gap-4">
+          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-card text-ink shadow-sm ring-1 ring-border">
+            <BeeLogo variant="full" className="h-9 w-9 text-ink" />
+          </div>
+          <div>
+            <h1 className="font-display text-2xl md:text-3xl font-extrabold tracking-tight">Học từ</h1>
+            <p className="text-muted-foreground text-sm">
+              Tạo bộ thẻ riêng — flashcard, học từ, nối hộp, kiểm tra.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -135,18 +140,18 @@ export function WordsHome({ decks, popQuizOn }: { decks: Deck[]; popQuizOn: bool
 
       {/* Deck list */}
       {decks.length === 0 ? (
-        <Card>
-          <CardContent className="p-8 text-center text-sm text-muted-foreground">
-            Chưa có bộ thẻ nào. Tạo bộ đầu tiên phía trên nhé! 🐝
-          </CardContent>
-        </Card>
+        <EmptyState
+          compact
+          title="Chưa có bộ thẻ nào"
+          description="Tạo bộ thẻ đầu tiên ở ô phía trên để bắt đầu học từ — flashcard, nối hộp, kiểm tra."
+        />
       ) : (
         <div className="space-y-2">
           {decks.map((d) => (
             <Card key={d.id} className="hover:border-primary/40 transition-colors">
               <CardContent className="p-4 flex items-center gap-3">
                 <Link href={`/words/${d.id}`} className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-honey to-honey-deep text-white">
+                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gold/15 text-gold ring-1 ring-gold/20">
                     <Layers className="h-5 w-5" />
                   </div>
                   <div className="min-w-0 flex-1">

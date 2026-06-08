@@ -9,6 +9,7 @@ import { Check, X, BookOpenText, Trophy, Play, Sparkles, ArrowRight, Heart } fro
 import { cn } from "@/lib/utils";
 import { renderMarkdown } from "@/lib/markdown";
 import { TipsCard } from "@/components/learn/tips-card";
+import { BeeMascot } from "@/components/brand";
 
 type FillExercise = { type: "fill"; prompt: string; answer: string };
 
@@ -86,7 +87,7 @@ export function GrammarPlayer({
         </button>
         <div className="text-center space-y-3">
           <div className="relative mx-auto">
-            <div className="mx-auto grid h-24 w-24 place-items-center text-6xl animate-float">🐝</div>
+            <BeeMascot priority className="mx-auto w-24 animate-float" />
             <div className="absolute -top-2 -right-2 grid h-8 w-8 place-items-center rounded-full gradient-brand text-white shadow-md">
               <BookOpenText className="h-4 w-4" />
             </div>
@@ -199,7 +200,7 @@ export function GrammarPlayer({
           </div>
 
           <div className="flex items-end gap-3">
-            <div className="grid h-14 w-14 place-items-center text-4xl shrink-0">🐝</div>
+            <BeeMascot className="w-14 shrink-0" />
             <div
               className={cn(
                 "relative flex-1 rounded-3xl border-2 bg-card p-5 text-center text-xl font-bold leading-relaxed",

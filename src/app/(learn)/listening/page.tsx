@@ -4,6 +4,7 @@ import { SkillIntro } from "@/components/learn/skill-intro";
 import { TestPicker, questionTypeLabel } from "@/components/learn/test-picker";
 import { TestPickerSkeleton } from "@/components/learn/test-picker-skeleton";
 import { attemptCounts } from "@/lib/attempt-counts";
+import { Honeycomb } from "@/components/brand";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 
@@ -11,7 +12,8 @@ export const dynamic = "force-dynamic";
 
 export default function ListeningIntroPage() {
   return (
-    <div className="space-y-8">
+    <div className="relative space-y-8">
+      <Honeycomb className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 text-[#6E93B5]/[0.04]" />
       <SkillIntro
         title="Listening"
         subtitle="1 bài nghe mỗi lần luyện tập · audio + câu hỏi"

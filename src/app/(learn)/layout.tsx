@@ -11,6 +11,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { LearnBackground } from "@/components/learn/learn-background";
 import { FloatingHelpers } from "@/components/learn/floating-helpers";
 import { BackgroundMusicPlayer } from "@/components/learn/background-music";
+import { BeeLogo } from "@/components/brand";
 
 export default async function LearnLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -44,7 +45,9 @@ export default async function LearnLayout({ children }: { children: React.ReactN
         <header data-chrome className="sticky top-0 z-30 flex items-center justify-between gap-3 backdrop-blur-md px-4 py-3 md:px-8 md:py-4">
           <div className="flex items-center gap-2 md:hidden">
             <MobileMenu isAdmin={isAdmin} />
-            <div className="grid h-9 w-9 place-items-center rounded-xl gradient-brand text-white font-bold text-sm">🐝</div>
+            <div className="grid h-9 w-9 place-items-center rounded-xl bg-cream border border-gold/30">
+              <BeeLogo variant="bare" className="h-6 w-6 text-ink" />
+            </div>
             <span className="font-extrabold tracking-tight">Bee IELTS</span>
           </div>
           <div className="ml-auto flex items-center gap-2">

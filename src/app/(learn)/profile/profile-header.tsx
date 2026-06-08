@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Camera, ImageIcon, Loader2, Pencil, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BeeLogo, Honeycomb, LeafField, Leaf } from "@/components/brand";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -119,7 +120,19 @@ export function ProfileHeader({ name, email, bio, avatarUrl, coverUrl }: Props) 
           // eslint-disable-next-line @next/next/no-img-element
           <img src={cover} alt="cover" className="h-full w-full object-cover" />
         ) : (
-          <div className="h-full w-full gradient-brand" />
+          <div className="relative h-full w-full gradient-brand overflow-hidden">
+            <Honeycomb className="absolute inset-0 text-white/[0.12]" />
+            <LeafField className="absolute inset-0 text-white" />
+            <BeeLogo
+              variant="full"
+              title="Bee IELTS"
+              className="absolute -bottom-6 -right-4 h-40 w-40 text-white/25 rotate-[8deg]"
+            />
+            <div className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1.5 text-xs font-bold text-white backdrop-blur-sm">
+              <BeeLogo variant="bare" className="h-4 w-4 text-white" />
+              Bee IELTS
+            </div>
+          </div>
         )}
         <button
           onClick={() => coverInput.current?.click()}
@@ -192,7 +205,10 @@ export function ProfileHeader({ name, email, bio, avatarUrl, coverUrl }: Props) 
                 className="w-full max-w-xs rounded-lg border-2 px-2 py-1 text-lg font-extrabold bg-background"
               />
             ) : (
-              <h1 className="text-xl md:text-2xl font-extrabold tracking-tight truncate">{nameVal || "Học viên"}</h1>
+              <h1 className="text-xl md:text-2xl font-extrabold tracking-tight truncate flex items-center gap-1.5">
+                {nameVal || "Học viên"}
+                <Leaf className="h-4 w-4 shrink-0 text-leaf" />
+              </h1>
             )}
             <p className="text-sm text-muted-foreground truncate">{email}</p>
           </div>

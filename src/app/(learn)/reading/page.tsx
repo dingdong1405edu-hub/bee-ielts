@@ -5,6 +5,7 @@ import { SkillIntro } from "@/components/learn/skill-intro";
 import { TestPicker, questionTypeLabel, type PillColor } from "@/components/learn/test-picker";
 import { TestPickerSkeleton } from "@/components/learn/test-picker-skeleton";
 import { attemptCounts } from "@/lib/attempt-counts";
+import { Honeycomb } from "@/components/brand";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 
@@ -21,7 +22,8 @@ const LEVEL_COLOR: Record<CEFRLevel, PillColor> = {
 
 export default function ReadingIntroPage() {
   return (
-    <div className="space-y-8">
+    <div className="relative space-y-8">
+      <Honeycomb className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 text-[#4F7A66]/[0.04]" />
       <div className="flex justify-center">
         <span
           className="inline-flex items-center gap-2 rounded-full border border-[#4F7A66]/30 bg-[#4F7A66]/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider"

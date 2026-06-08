@@ -1,6 +1,7 @@
 "use client";
 import { Download, Printer, CheckCircle2, XCircle, Sparkles, Lightbulb, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BeeLogo } from "@/components/brand";
 import { isAnswerCorrect } from "@/lib/utils";
 
 export interface ReadingReviewData {
@@ -126,7 +127,7 @@ export function ReviewReport({ data, onClose }: { data: ReviewData; onClose?: ()
       <div className="rounded-2xl border bg-card p-6 space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-2 pb-3 border-b">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">🐝</span>
+            <BeeLogo variant="full" className="h-8 w-8 text-ink" />
             <div>
               <div className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Bee IELTS · {skillLabel[data.kind]} Report</div>
               <div className="text-lg font-extrabold tracking-tight">

@@ -1,6 +1,7 @@
 "use client";
 import { Sparkles, Heart, Flame, Star } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { BeeMascot } from "@/components/brand";
 
 type Mood = "celebrate" | "encourage" | "steady";
 
@@ -125,6 +126,7 @@ export function MotivationalCard({
   const config = {
     celebrate: {
       Icon: Star,
+      mascot: false,
       headline: "🎉 Tuyệt vời — bạn đã vượt target!",
       message: `Điểm hôm nay (${currentBand.toFixed(1)}) đã vượt mục tiêu ${targetBand.toFixed(1)} của bạn. Cứ giữ phong độ này nhé!`,
       gradient: "from-gold-400 via-gold-500 to-rose-500",
@@ -133,7 +135,8 @@ export function MotivationalCard({
     },
     encourage: {
       Icon: Heart,
-      headline: "🐝 Cố lên — bạn sẽ đạt được mục tiêu!",
+      mascot: true,
+      headline: "Cố lên — bạn sẽ đạt được mục tiêu!",
       message: `Điểm hôm nay (${currentBand.toFixed(1)}) còn cách mục tiêu ${targetBand.toFixed(1)} — nhưng mỗi lần luyện tập là một bước tiến gần hơn.`,
       gradient: "from-honey via-gold-400 to-honey-deep",
       bg: "from-honey-tint to-gold-50 dark:from-honey-deep/30 dark:to-gold-950/30",
@@ -141,6 +144,7 @@ export function MotivationalCard({
     },
     steady: {
       Icon: Flame,
+      mascot: false,
       headline: "🔥 Bạn đang đi đúng hướng",
       message: `Điểm hôm nay (${currentBand.toFixed(1)}) đã rất gần mục tiêu ${targetBand.toFixed(1)}. Một chút nữa thôi!`,
       gradient: "from-sage-500 via-teal-500 to-primary",
@@ -159,7 +163,10 @@ export function MotivationalCard({
             <Icon className="h-5 w-5" />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-extrabold leading-tight">{config.headline}</h3>
+            <h3 className="font-extrabold leading-tight flex items-center gap-1.5">
+              {config.mascot && <BeeMascot className="w-6 shrink-0" />}
+              {config.headline}
+            </h3>
             <p className="text-sm text-muted-foreground mt-1">{config.message}</p>
           </div>
         </div>

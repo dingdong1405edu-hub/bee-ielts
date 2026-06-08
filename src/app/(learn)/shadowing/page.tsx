@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Headphones, Keyboard, Sparkles, Upload, Clock } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { Honeycomb, EmptyState } from "@/components/brand";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,8 @@ export default async function ShadowingLandingPage({
   });
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="relative max-w-6xl mx-auto space-y-6">
+      <Honeycomb className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 text-[#8A6E9C]/[0.04]" />
       <div>
         <span
           className="inline-flex items-center gap-1.5 rounded-full bg-[#8A6E9C]/10 border border-[#8A6E9C]/20 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider"
@@ -134,13 +136,18 @@ export default async function ShadowingLandingPage({
       </div>
 
       {lessons.length === 0 && (
-        <div className="rounded-2xl border-2 border-dashed p-10 text-center text-muted-foreground">
-          Chưa có bài Shadowing nào. Admin có thể thêm bài tại{" "}
-          <Link href="/admin/shadowing" className="text-primary font-bold underline">
-            /admin/shadowing
-          </Link>
-          .
-        </div>
+        <EmptyState
+          title="Chưa có bài Shadowing nào"
+          description="Kho bài luyện đang trống. Admin có thể thêm bài mới để cả cộng đồng cùng luyện với Bee."
+          action={
+            <Link
+              href="/admin/shadowing"
+              className="inline-flex items-center gap-1.5 rounded-full gradient-brand px-5 py-2.5 text-sm font-bold text-white shadow-md transition-opacity hover:opacity-90"
+            >
+              Thêm bài tại /admin/shadowing
+            </Link>
+          }
+        />
       )}
     </div>
   );

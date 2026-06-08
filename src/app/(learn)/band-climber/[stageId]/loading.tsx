@@ -1,3 +1,5 @@
+import { BrandSpinner } from "@/components/brand";
+
 /**
  * Route-specific skeleton for the Duolingo-style stage path. Mimics the
  * green hero banner + zigzag of node placeholders so the user gets
@@ -15,6 +17,11 @@ export default function StagePathLoading() {
           </div>
           <div className="h-9 w-32 rounded-2xl bg-white/30" />
         </div>
+      </div>
+
+      {/* Centered brand spinner */}
+      <div className="max-w-md mx-auto px-4 pt-8">
+        <BrandSpinner label="Đang tải…" className="mx-auto" />
       </div>
 
       {/* Zigzag path skeleton */}

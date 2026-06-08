@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { Heart, Zap, Flame, BookOpenText, Play, Lock, Check, Settings } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { Honeycomb, EmptyState } from "@/components/brand";
 
 export const dynamic = "force-dynamic";
 
@@ -50,7 +51,8 @@ export default async function GrammarPathPage() {
   const activeIdx = flat.findIndex((l) => !l.progress?.completed);
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="relative max-w-2xl mx-auto space-y-6">
+      <Honeycomb className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 text-[#3E8C84]/[0.04]" />
       {/* Hero path header */}
       <div className="gradient-brand relative overflow-hidden rounded-3xl p-6 md:p-7 text-white shadow-xl shadow-primary/20">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_15%,rgba(255,255,255,0.2),transparent_50%)]" />
@@ -105,9 +107,18 @@ export default async function GrammarPathPage() {
       </Link>
 
       {totalLessons === 0 ? (
-        <div className="rounded-3xl border bg-card p-10 text-center text-muted-foreground">
-          Chưa có bài học nào.
-        </div>
+        <EmptyState
+          title="Chưa có bài ngữ pháp nào"
+          description="Lộ trình ngữ pháp đang được Bee chuẩn bị. Trong lúc chờ, hãy luyện từ vựng để giữ streak nhé!"
+          action={
+            <Link
+              href="/vocab"
+              className="inline-flex items-center gap-1.5 rounded-full gradient-brand px-5 py-2.5 text-sm font-bold text-white shadow-md transition-opacity hover:opacity-90"
+            >
+              Luyện từ vựng
+            </Link>
+          }
+        />
       ) : (
         <div className="relative py-6">
           {/* dashed vertical line */}

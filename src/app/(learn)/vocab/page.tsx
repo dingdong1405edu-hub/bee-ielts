@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
 import { auth } from "@/auth";
 import { Check, Lock, Sparkles, Play } from "lucide-react";
+import { Honeycomb, EmptyState } from "@/components/brand";
 
 export default async function VocabPage() {
   const session = await auth();
@@ -22,7 +23,8 @@ export default async function VocabPage() {
   });
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8">
+    <div className="relative max-w-3xl mx-auto space-y-8">
+      <Honeycomb className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 text-[#BD6B6B]/[0.04]" />
       <div className="flex items-center gap-4">
         <div
           className="grid h-14 w-14 place-items-center rounded-2xl border bg-[#BD6B6B]/10 border-[#BD6B6B]/20 shadow-sm"
@@ -37,9 +39,18 @@ export default async function VocabPage() {
       </div>
 
       {units.length === 0 ? (
-        <div className="rounded-3xl border bg-card p-10 text-center text-muted-foreground">
-          Chưa có unit nào.
-        </div>
+        <EmptyState
+          title="Chưa có bộ từ vựng nào"
+          description="Các unit từ vựng đang được Bee chuẩn bị. Quay lại Bảng điều khiển để khám phá kỹ năng khác nhé!"
+          action={
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-1.5 rounded-full gradient-brand px-5 py-2.5 text-sm font-bold text-white shadow-md transition-opacity hover:opacity-90"
+            >
+              Về Bảng điều khiển
+            </Link>
+          }
+        />
       ) : (
         units.map((unit, ui) => (
           <section key={unit.id}>

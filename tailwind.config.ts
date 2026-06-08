@@ -56,6 +56,9 @@ const config: Config = {
           soft: "#E6D5AE",
         },
         mist: { DEFAULT: "#A8C3B5", soft: "#CADCD2" },
+        /* slate-blue (logo wings) + warm kraft (newsprint-leaf texture) */
+        slate: { DEFAULT: "var(--slate)", soft: "var(--slate-soft)" },
+        kraft: { DEFAULT: "var(--kraft)", soft: "var(--kraft-soft)" },
         /* ===== Per-skill accent hues (sage+gold base, distinct per module) ===== */
         skill: {
           reading: "#4F7A66",     /* sage green   */

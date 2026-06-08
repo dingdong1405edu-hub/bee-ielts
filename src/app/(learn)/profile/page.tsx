@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { BookOpen, Headphones, PenLine, Mic, Sparkles, BookOpenText, Zap, Flame, Target, ChevronRight, GraduationCap, Trophy } from "lucide-react";
 import { ProfileHeader } from "./profile-header";
 import { DeleteAttemptButton } from "@/components/learn/delete-attempt-button";
+import { EmptyState, Leaf } from "@/components/brand";
 
 export const dynamic = "force-dynamic";
 
@@ -129,17 +130,28 @@ export default async function ProfilePage() {
       {/* Attempt history */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-extrabold">Bài mình đã làm</h2>
+          <h2 className="text-lg font-extrabold flex items-center gap-2">
+            <Leaf className="h-5 w-5 text-leaf" /> Bài mình đã làm
+          </h2>
           {attempts.length > 0 && (
             <span className="text-xs text-muted-foreground">Nhấn 🗑 để xoá bài không cần</span>
           )}
         </div>
         {attempts.length === 0 ? (
-          <Card>
-            <CardContent className="p-8 text-center text-sm text-muted-foreground">
-              Bạn chưa làm bài nào. Hãy bắt đầu luyện tập nhé! 🐝
-            </CardContent>
-          </Card>
+          <EmptyState
+            compact
+            title="Chưa có bài nào"
+            description="Bạn chưa làm bài nào. Cùng Bee bắt đầu luyện tập nhé!"
+            action={
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center gap-1.5 rounded-full gradient-brand px-5 py-2.5 text-sm font-bold text-white shadow-md transition-opacity hover:opacity-90"
+              >
+                Bắt đầu luyện tập
+                <ChevronRight className="h-4 w-4" />
+              </Link>
+            }
+          />
         ) : (
           <div className="space-y-2">
             {attempts.map((a) => {

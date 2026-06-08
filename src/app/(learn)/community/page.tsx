@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { CommunityFeed, type FeedPost, type FeedComment } from "./community-feed";
+import { BeeLogo, Honeycomb, Leaf } from "@/components/brand";
 
 export const dynamic = "force-dynamic";
 
@@ -77,13 +78,23 @@ export default async function CommunityPage() {
     <div className="-m-4 min-h-screen bg-background text-foreground md:-m-8">
       <div className="mx-auto flex max-w-[1000px] gap-6 px-4">
         <main className="mx-auto w-full max-w-[600px]">
-          <h1 className="py-4 text-center text-[15px] font-bold text-foreground">Trang chủ</h1>
+          <header className="relative my-4 overflow-hidden rounded-2xl border border-border bg-card px-4 py-3 text-center">
+            <Honeycomb className="absolute inset-0 text-gold/[0.06]" />
+            <h1 className="relative flex items-center justify-center gap-1.5 text-[15px] font-bold text-foreground">
+              <Leaf className="h-3.5 w-3.5 text-leaf" aria-hidden />
+              Trang chủ
+              <Leaf className="h-3.5 w-3.5 -scale-x-100 text-leaf" aria-hidden />
+            </h1>
+          </header>
           <CommunityFeed posts={feed} currentUser={currentUser} />
         </main>
         <aside className="hidden w-[290px] shrink-0 py-4 lg:block">
           <div className="sticky top-20 space-y-3">
             <div className="rounded-2xl border border-border bg-card p-5 text-center shadow-sm">
-              <h2 className="text-base font-bold text-foreground">Cộng đồng Bee IELTS 🐝</h2>
+              <h2 className="flex items-center justify-center gap-1.5 text-base font-bold text-foreground">
+                Cộng đồng Bee IELTS
+                <BeeLogo variant="bare" className="h-5 w-5 text-ink" />
+              </h2>
               <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
                 Xem mọi người đang học gì, hỏi đáp và động viên nhau trên hành trình
                 chinh phục IELTS.

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { BeeLogo } from "@/components/brand";
 
 /**
  * Tour step shape persisted to <Test>.bandClimbTips (Json). Mirrors the
@@ -57,7 +58,9 @@ export function BandClimbToursEditor({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div>
-          <Label>Mẹo Bee 🐝 cho bài này</Label>
+          <Label className="flex items-center gap-1.5">
+            <BeeLogo variant="bare" className="h-5 w-5 text-ink" /> Mẹo Bee cho bài này
+          </Label>
           <p className="text-xs text-muted-foreground">
             Mỗi bước = 1 bong bóng thoại Bee hiển thị trước khi user vào làm. Bỏ trống để dùng mẹo mặc định của kỹ năng.
           </p>

@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { cn, formatDuration, isAnswerCorrect } from "@/lib/utils";
 import { FormBlanks, TableBlanks, FlowBlanks, groupQuestions } from "@/components/learn/form-blanks";
+import { BeeLogo } from "@/components/brand";
 
 export type ShellQType =
   | "MCQ"
@@ -251,9 +252,7 @@ function ShellHeader({
       <div className="flex items-center gap-3 px-4 md:px-6 h-14">
         <div className="flex items-center gap-2 min-w-0">
           {brandLogo ?? (
-            <div className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground font-bold text-sm">
-              🐝
-            </div>
+            <BeeLogo variant="full" className="h-8 w-8 text-ink" />
           )}
           <div className="text-sm font-bold truncate">
             <span className="text-primary">{brandName}</span>

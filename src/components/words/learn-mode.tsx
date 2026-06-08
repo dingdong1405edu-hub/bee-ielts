@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { Check, X, Eye, RotateCw, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { BeeMascot, MascotBubble } from "@/components/brand";
 import { cn } from "@/lib/utils";
 import type { StudyCard } from "./types";
 
@@ -110,8 +111,11 @@ export function LearnMode({
   if (done) {
     return (
       <div className="flex flex-col items-center justify-center gap-6 py-16 text-center">
-        <div className="flex h-24 w-24 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-          <Trophy className="h-12 w-12 text-green-600 dark:text-green-400" />
+        <div className="flex items-end justify-center gap-3">
+          <BeeMascot className="w-28 drop-shadow-sm md:w-32" priority />
+          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+            <Trophy className="h-12 w-12 text-green-600 dark:text-green-400" />
+          </div>
         </div>
         <div className="space-y-2">
           <h2 className="text-3xl font-extrabold tracking-tight">Hoàn thành!</h2>
@@ -215,6 +219,13 @@ export function LearnMode({
           )}
         </CardContent>
       </Card>
+
+      {/* Mascot nudge — presentational, only after reveal */}
+      {revealed && (
+        <MascotBubble tone="tip" className="justify-center">
+          Bạn nhớ từ này chứ? Tự chấm thật lòng nhé!
+        </MascotBubble>
+      )}
 
       {/* Action buttons — only visible after reveal */}
       <div

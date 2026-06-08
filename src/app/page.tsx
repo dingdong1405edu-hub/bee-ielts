@@ -2,32 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { BeeLogo } from "@/components/brand/bee-logo";
+import { BeeMascot } from "@/components/brand/bee-mascot";
+import { Leaf } from "@/components/brand/leaf";
 import "./landing.css";
-
-/* ---- Logo mark: sage hexagon + gold leaf (bee → logo only) ---- */
-function LeafMark() {
-  return (
-    <svg className="mark" viewBox="0 0 40 40" fill="none" aria-hidden>
-      <path
-        d="M20 2.5 34.5 11v18L20 37.5 5.5 29V11L20 2.5Z"
-        fill="var(--sage)"
-        stroke="var(--sage-deep)"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M20 11c-5 4-6 9-0.5 14.5C25 20 24 15 20 11Z"
-        fill="var(--gold)"
-      />
-      <path
-        d="M20 14.5v8.5"
-        stroke="var(--sage-deep)"
-        strokeWidth="1.2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
 
 type Feature = {
   icon: string;
@@ -117,7 +95,7 @@ export default function LandingPage() {
       <header className={`nav${scrolled ? " scrolled" : ""}`}>
         <div className="wrap nav-inner">
           <Link href="/" className="brand">
-            <LeafMark />
+            <BeeLogo className="mark" />
             <span className="brand-stack">
               Bee IELTS
               <small>Học chăm như đàn ong</small>
@@ -188,38 +166,12 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Hero visual — sage disc + floating stat cards */}
+          {/* Hero visual — sage disc + mascot + floating stat cards */}
           <div className="hero-visual">
             <div className="disc" aria-hidden />
-            <svg
-              className="leaf-mark"
-              viewBox="0 0 120 140"
-              fill="none"
-              aria-hidden
-            >
-              <path
-                d="M60 8C30 36 24 74 59 132C95 74 90 36 60 8Z"
-                fill="var(--gold-soft)"
-              />
-              <path
-                d="M60 8C30 36 24 74 59 132"
-                fill="color-mix(in srgb, var(--gold) 70%, #fff)"
-              />
-              <path
-                d="M60 26V120"
-                stroke="var(--sage-deep)"
-                strokeWidth="2.4"
-                strokeLinecap="round"
-                opacity="0.5"
-              />
-              <path
-                d="M60 52L42 40M60 52L78 40M60 76L40 62M60 76L80 62M60 100L46 88M60 100L74 88"
-                stroke="var(--sage-deep)"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                opacity="0.35"
-              />
-            </svg>
+            <Leaf className="hero-leaf hero-leaf-1 text-gold-soft/40" />
+            <Leaf className="hero-leaf hero-leaf-2 text-mist/50" />
+            <BeeMascot className="hero-mascot" priority />
 
             <div className="float-card c-xp">
               <span className="fi">⚡</span>
@@ -374,7 +326,7 @@ export default function LandingPage() {
       <footer className="foot">
         <div className="wrap foot-inner">
           <Link href="/" className="brand">
-            <LeafMark />
+            <BeeLogo className="mark" />
             <span>Bee IELTS</span>
           </Link>
           <span className="copy">© 2026 Bee IELTS · DingDong Company</span>

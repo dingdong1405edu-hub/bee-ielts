@@ -10,6 +10,7 @@ import {
   Wand2, MessageSquareQuote,
 } from "lucide-react";
 import { cn, formatDuration } from "@/lib/utils";
+import { BeeMascot, MascotBubble } from "@/components/brand";
 import { BeeGuide, type TourStep } from "@/components/learn/bee-guide";
 import { playCorrectSfx, playWrongSfx } from "@/lib/quiz-sfx";
 import { startWebSpeech, isWebSpeechSupported, type WebSpeechSession } from "@/lib/web-speech";
@@ -748,6 +749,10 @@ export function MiniQuizPlayer({
               >
                 Tiếp tục
               </button>
+              {/* Bee mascot cheering the learner on — celebratory tone. */}
+              <MascotBubble tone="success" className="w-full mt-1">
+                <span className="font-bold text-success">Tuyệt vời! 🎉</span>
+              </MascotBubble>
             </>
           )}
           {verdict === "wrong" && (
@@ -776,6 +781,10 @@ export function MiniQuizPlayer({
               >
                 Tiếp tục
               </button>
+              {/* Bee mascot keeping spirits up after a miss — gentle, default tone. */}
+              <MascotBubble tone="default" className="w-full mt-1">
+                <span className="font-bold">Thử lại nhé! 💪</span>
+              </MascotBubble>
             </>
           )}
           {verdict === "none" && (
@@ -1734,8 +1743,8 @@ function SpeakingPart2Question({
           <div className="cuecard-bee-bubble hidden sm:block rounded-2xl bg-gold-500 text-white text-[10px] font-extrabold uppercase tracking-widest px-2 py-1 shadow-lg shadow-gold-500/40">
             Đề Part 2 ↓
           </div>
-          <div className="cuecard-bee grid h-10 w-10 sm:h-11 sm:w-11 place-items-center rounded-full bg-gradient-to-br from-gold-300 to-gold-400 text-2xl shadow-xl shadow-gold-500/40 ring-2 ring-gold-500/50">
-            🐝
+          <div className="cuecard-bee grid h-10 w-10 sm:h-11 sm:w-11 place-items-center rounded-full bg-gradient-to-br from-gold-300 to-gold-400 shadow-xl shadow-gold-500/40 ring-2 ring-gold-500/50">
+            <BeeMascot className="w-7 sm:w-8" />
           </div>
         </div>
       </div>

@@ -6,6 +6,7 @@ import {
   Heart, MessageCircle, Repeat2, Send, Loader2, ImagePlus, X, MoreHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { EmptyState } from "@/components/brand";
 
 /** Resize an image file to fit within maxW×maxH and return a JPEG data URL. */
 async function resizeImage(file: File, maxW: number, maxH: number, quality = 0.8): Promise<string> {
@@ -199,9 +200,12 @@ export function CommunityFeed({
 
       {/* Feed */}
       {posts.length === 0 ? (
-        <div className="px-4 py-16 text-center text-sm text-muted-foreground">
-          Chưa có bài viết nào. Hãy là người đầu tiên chia sẻ! 🐝
-        </div>
+        <EmptyState
+          className="rounded-t-none border-0"
+          compact
+          title="Chưa có bài viết nào"
+          description="Hãy là người đầu tiên chia sẻ điều gì đó với cộng đồng Bee IELTS!"
+        />
       ) : (
         posts.map((p) => <PostCard key={p.id} post={p} />)
       )}
@@ -368,7 +372,7 @@ function PostCard({ post }: { post: FeedPost }) {
           />
           <ActionButton
             icon={Repeat2}
-            onClick={() => toast.info("Tính năng chia sẻ lại đang được phát triển 🐝")}
+            onClick={() => toast.info("Tính năng chia sẻ lại đang được phát triển")}
             label="Chia sẻ lại"
           />
           <ActionButton icon={Send} onClick={sharePost} label="Chia sẻ" />

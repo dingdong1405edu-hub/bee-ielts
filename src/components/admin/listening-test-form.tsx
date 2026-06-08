@@ -15,6 +15,7 @@ import { DeleteTestButton } from "./delete-test-button";
 import { BandStageSelect } from "./band-stage-select";
 import { BandClimbToursEditor, type TourStepDraft } from "./band-climb-tours-editor";
 import { countBlanks, parseTablePaste, buildFormQuestions } from "@/lib/form-completion";
+import { BeeLogo } from "@/components/brand";
 
 type Bank = "PRACTICE" | "MOCK";
 // MAP_LABELLING is an admin-only label — it gets persisted as MATCHING_FEATURES
@@ -649,7 +650,9 @@ export function ListeningTestForm({
       {bandStageId && (
         <Card>
           <CardHeader>
-            <CardTitle>Bee 🐝 hướng dẫn — bài này</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <BeeLogo variant="bare" className="h-5 w-5 text-ink" /> Bee hướng dẫn — bài này
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <BandClimbToursEditor steps={tips} onChange={setTips} />
