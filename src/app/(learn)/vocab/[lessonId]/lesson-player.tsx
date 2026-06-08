@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Check, X, Sparkles, Trophy } from "lucide-react";
+import { Honeycomb, Leaf, MascotBubble, BeeMascot } from "@/components/brand";
 import { cn } from "@/lib/utils";
 
 type Exercise =
@@ -88,11 +89,15 @@ export function LessonPlayer({
     const score = Math.round((correctCount / exercises.length) * 100);
     return (
       <div className="max-w-md mx-auto text-center space-y-6 mt-12">
+        <BeeMascot className="w-16 mx-auto" />
         <div className="grid h-20 w-20 place-items-center rounded-full bg-success text-white mx-auto">
           <Trophy className="h-10 w-10" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold">Hoàn thành! 🎉</h1>
+          <h1 className="text-2xl font-bold flex items-center justify-center gap-2">
+            <Leaf className="h-5 w-5 text-leaf" />
+            Hoàn thành! 🎉
+          </h1>
           <p className="text-muted-foreground mt-1">
             Bạn trả lời đúng {correctCount}/{exercises.length} câu — điểm {score}/100
           </p>
@@ -107,21 +112,29 @@ export function LessonPlayer({
 
   return (
     <div className="max-w-xl mx-auto space-y-6">
-      <div className="space-y-2">
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <button onClick={() => router.push("/vocab")} className="hover:underline">
-            ← {unitTitle}
-          </button>
-          <span>
-            {idx + 1}/{exercises.length}
-          </span>
+      <div className="relative overflow-hidden rounded-xl">
+        <Honeycomb className="pointer-events-none absolute inset-0 text-[#BD6B6B]/[0.05]" />
+        <div className="relative space-y-2">
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <button onClick={() => router.push("/vocab")} className="hover:underline">
+              ← {unitTitle}
+            </button>
+            <span>
+              {idx + 1}/{exercises.length}
+            </span>
+          </div>
+          <Progress value={progressValue} />
+          <h1 className="text-xl font-semibold flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-honey-deep" />
+            {title}
+            <Leaf className="h-4 w-4 text-leaf" />
+          </h1>
         </div>
-        <Progress value={progressValue} />
-        <h1 className="text-xl font-semibold flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-honey-deep" />
-          {title}
-        </h1>
       </div>
+
+      {idx === 0 && feedback === null && (
+        <MascotBubble tone="tip">Cố lên! Mỗi từ mới là một bước tiến — bắt đầu thôi nào!</MascotBubble>
+      )}
 
       <AnimatePresence mode="wait">
         <motion.div

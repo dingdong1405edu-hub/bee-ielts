@@ -9,7 +9,7 @@ import { Check, X, BookOpenText, Trophy, Play, Sparkles, ArrowRight, Heart } fro
 import { cn } from "@/lib/utils";
 import { renderMarkdown } from "@/lib/markdown";
 import { TipsCard } from "@/components/learn/tips-card";
-import { BeeMascot } from "@/components/brand";
+import { BeeMascot, Honeycomb, Leaf, MascotBubble } from "@/components/brand";
 
 type FillExercise = { type: "fill"; prompt: string; answer: string };
 
@@ -85,18 +85,24 @@ export function GrammarPlayer({
         <button onClick={() => router.push("/grammar")} className="text-sm text-muted-foreground hover:underline">
           ← {unitTitle}
         </button>
-        <div className="text-center space-y-3">
-          <div className="relative mx-auto">
-            <BeeMascot priority className="mx-auto w-24 animate-float" />
-            <div className="absolute -top-2 -right-2 grid h-8 w-8 place-items-center rounded-full gradient-brand text-white shadow-md">
-              <BookOpenText className="h-4 w-4" />
+        <div className="relative overflow-hidden rounded-3xl">
+          <Honeycomb className="pointer-events-none absolute inset-0 text-[#3E8C84]/[0.05]" />
+          <div className="relative text-center space-y-3 py-4">
+            <div className="relative mx-auto">
+              <BeeMascot priority className="mx-auto w-24 animate-float" />
+              <div className="absolute -top-2 -right-2 grid h-8 w-8 place-items-center rounded-full gradient-brand text-white shadow-md">
+                <BookOpenText className="h-4 w-4" />
+              </div>
             </div>
+            <h1 className="flex items-center justify-center gap-2 text-3xl font-extrabold tracking-tight">
+              <Leaf className="h-4 w-4 text-leaf" />
+              Luyện tập <span className="gradient-brand-text">Grammar</span>
+            </h1>
+            <p className="text-muted-foreground">{title}</p>
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight">
-            Luyện tập <span className="gradient-brand-text">Grammar</span>
-          </h1>
-          <p className="text-muted-foreground">{title}</p>
         </div>
+
+        <MascotBubble tone="tip">Cố lên! Mỗi câu đúng là một bước tiến gần hơn tới band cao. 🐝</MascotBubble>
 
         <div className="rounded-3xl border bg-card p-6">
           <div className="text-sm text-muted-foreground mb-3 font-semibold tracking-wider uppercase">Lý thuyết</div>
@@ -131,7 +137,10 @@ export function GrammarPlayer({
           <Trophy className="h-12 w-12" />
         </motion.div>
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight">Hoàn thành! 🎉</h1>
+          <h1 className="flex items-center justify-center gap-2 text-3xl font-extrabold tracking-tight">
+            <Leaf className="h-4 w-4 text-leaf" />
+            Hoàn thành! 🎉
+          </h1>
           <p className="text-muted-foreground mt-1">
             Đúng <span className="text-success font-bold">{correctCount}/{exercises.length}</span> · {score}/100 điểm
           </p>
@@ -196,7 +205,10 @@ export function GrammarPlayer({
             <div className="text-xs uppercase tracking-wider text-muted-foreground font-bold mb-2">
               Câu {idx + 1} / {exercises.length}
             </div>
-            <h2 className="text-2xl font-extrabold leading-tight">Điền từ thích hợp vào chỗ trống</h2>
+            <h2 className="flex items-center justify-center gap-2 text-2xl font-extrabold leading-tight">
+              <Leaf className="h-4 w-4 text-leaf" />
+              Điền từ thích hợp vào chỗ trống
+            </h2>
           </div>
 
           <div className="flex items-end gap-3">

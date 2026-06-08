@@ -19,6 +19,7 @@ import {
   type HighlightTool,
 } from "@/components/learn/highlightable-passage";
 import { WordTranslatePopup, type WordHint } from "@/components/learn/word-translate-popup";
+import { Honeycomb, Leaf, MascotBubble, BeeMascot } from "@/components/brand";
 
 type Q = {
   id: string;
@@ -130,14 +131,18 @@ export function ReadingPlayer({
 
   return (
     <div className="max-w-7xl mx-auto space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
+      <div className="relative overflow-hidden rounded-2xl flex items-center justify-between flex-wrap gap-3 p-4">
+        <Honeycomb className="pointer-events-none absolute inset-0 text-[#4F7A66]/[0.05]" />
+        <div className="relative">
           <button onClick={() => router.push("/reading")} className="text-sm text-muted-foreground hover:underline">
             ← Reading
           </button>
-          <h1 className="text-xl md:text-2xl font-bold mt-1">{title}</h1>
+          <h1 className="text-xl md:text-2xl font-bold mt-1 flex items-center gap-2">
+            <Leaf className="h-4 w-4 text-leaf shrink-0" />
+            {title}
+          </h1>
         </div>
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative flex items-center gap-3 flex-wrap">
           {/* Toolbar stays visible after submit — user explicitly asked the
               translate tool to work during "chữa bài" (review) too, and
               there's no harm letting them keep highlighting at that stage. */}
@@ -152,6 +157,12 @@ export function ReadingPlayer({
           )}
         </div>
       </div>
+
+      {!submitted && (
+        <MascotBubble tone="tip">
+          Đọc kỹ rồi chọn đáp án — em tin anh/chị làm được! 🐝
+        </MascotBubble>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-6rem)] overflow-y-auto">
@@ -341,6 +352,7 @@ export function ReadingPlayer({
             <>
               <Card className="bg-accent">
                 <CardContent className="p-5 text-center space-y-2">
+                  <BeeMascot className="w-16 mx-auto" />
                   <h3 className="text-xl font-bold">Kết quả</h3>
                   <p className="text-3xl font-bold text-primary">
                     {correctCount}/{questions.length}

@@ -12,6 +12,7 @@ import { TipsCard } from "@/components/learn/tips-card";
 import { ReviewReport, type WritingReviewData } from "@/components/learn/review-report";
 import { WritingFeedback, type WritingResult } from "@/components/learn/writing-feedback";
 import { TaskDiagram } from "@/components/learn/task-diagram";
+import { Honeycomb, Leaf, MascotBubble, BeeMascot } from "@/components/brand";
 
 export function WritingPlayer({
   taskId,
@@ -87,6 +88,7 @@ export function WritingPlayer({
         </button>
         <Card className="bg-gradient-to-br from-primary/10 to-accent">
           <CardContent className="p-6 text-center">
+            <BeeMascot className="w-16 mx-auto mb-1" />
             <div className="text-sm text-muted-foreground">Overall Band Score</div>
             <div className="text-6xl font-bold text-primary mt-2">{result.overallBand.toFixed(1)}</div>
             <p className="text-sm text-muted-foreground mt-3 max-w-md mx-auto">{result.summary}</p>
@@ -116,20 +118,26 @@ export function WritingPlayer({
 
   return (
     <div className="max-w-5xl mx-auto space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <button onClick={() => router.push("/writing")} className="text-sm text-muted-foreground hover:underline">
-            ← Writing
-          </button>
-          <h1 className="text-xl md:text-2xl font-bold mt-1 flex items-center gap-2">
-            <PenLine className="h-6 w-6 text-rose-500" />
-            Task {taskType}
-          </h1>
+      <div className="relative overflow-hidden rounded-2xl">
+        <Honeycomb className="pointer-events-none absolute inset-0 text-[#B6883F]/[0.05]" />
+        <div className="relative flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <button onClick={() => router.push("/writing")} className="text-sm text-muted-foreground hover:underline">
+              ← Writing
+            </button>
+            <h1 className="text-xl md:text-2xl font-bold mt-1 flex items-center gap-2">
+              <PenLine className="h-6 w-6 text-rose-500" />
+              Task {taskType}
+              <Leaf className="h-4 w-4 text-leaf" />
+            </h1>
+          </div>
+          <Badge variant="outline" className="text-base px-3 py-1">
+            <Clock className="h-4 w-4 mr-1" /> Đã làm {formatDuration(elapsed)}
+          </Badge>
         </div>
-        <Badge variant="outline" className="text-base px-3 py-1">
-          <Clock className="h-4 w-4 mr-1" /> Đã làm {formatDuration(elapsed)}
-        </Badge>
       </div>
+
+      <MascotBubble tone="tip">Viết đủ ý, đúng band — mình cùng cố nhé!</MascotBubble>
 
       <div className="grid gap-4 lg:grid-cols-2">
         {/* data-tour="prompt" lets the band-climb Bee 🐝 tour spotlight this

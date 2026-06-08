@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WordTranslatePopup } from "@/components/learn/word-translate-popup";
+import { Honeycomb, Leaf, MascotBubble } from "@/components/brand";
 
 interface Lesson {
   id: string;
@@ -680,9 +681,14 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
           )}
         </div>
 
-        <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="relative overflow-hidden rounded-2xl">
+          <Honeycomb className="pointer-events-none absolute inset-0 text-[#8A6E9C]/[0.05]" />
+          <div className="relative flex items-center justify-between flex-wrap gap-2">
           <div className="min-w-0">
-            <p className="font-bold text-sm truncate">{lesson.title}</p>
+            <p className="flex items-center gap-1.5 font-bold text-sm truncate">
+              <Leaf className="h-4 w-4 shrink-0 text-leaf" />
+              <span className="truncate">{lesson.title}</span>
+            </p>
             <p className="text-xs text-muted-foreground">{lesson.source}</p>
           </div>
           <div className="flex items-center gap-1 shrink-0">
@@ -700,6 +706,7 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
                 {s}x
               </button>
             ))}
+          </div>
           </div>
         </div>
 
@@ -855,6 +862,10 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
             </button>
           </div>
         </div>
+
+        <MascotBubble tone="tip">
+          Nói theo từng câu nhé — bắt chước đúng nhịp điệu là phát âm lên ngay!
+        </MascotBubble>
 
         {/* Tabs row — hint at click-to-translate */}
         <div className="flex items-center gap-3 text-xs flex-wrap text-muted-foreground">

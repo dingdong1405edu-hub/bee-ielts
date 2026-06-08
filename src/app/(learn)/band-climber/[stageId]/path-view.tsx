@@ -21,6 +21,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Leaf } from "@/components/brand";
 import { StageView } from "./stage-view";
 
 export type SkillKey = "reading" | "listening" | "writing" | "speaking";
@@ -281,8 +282,9 @@ function Hero({
             <ChevronLeft className="h-3.5 w-3.5" /> Vượt{" "}
             {stage.fromBand.toFixed(1)} → {stage.toBand.toFixed(1)}
           </Link>
-          <h1 className="font-extrabold text-base sm:text-lg leading-tight mt-0.5 truncate">
-            {stage.title}
+          <h1 className="font-extrabold text-base sm:text-lg leading-tight mt-0.5 flex min-w-0 items-center gap-1.5">
+            <Leaf className="h-4 w-4 shrink-0 text-white/80" />
+            <span className="truncate">{stage.title}</span>
           </h1>
         </div>
         {onShowTips && (

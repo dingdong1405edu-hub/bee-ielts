@@ -11,6 +11,7 @@ import { formatDuration, wordCount, cn } from "@/lib/utils";
 import { TipsCard } from "@/components/learn/tips-card";
 import { WritingFeedback, type WritingResult } from "@/components/learn/writing-feedback";
 import { TaskDiagram } from "@/components/learn/task-diagram";
+import { Honeycomb, Leaf, MascotBubble, BeeMascot } from "@/components/brand";
 
 type Result = WritingResult;
 
@@ -114,10 +115,14 @@ export function WritingSession({ task1, task2 }: Props) {
     return (
       <div className="max-w-3xl mx-auto space-y-4">
         <div className="text-center space-y-2">
+          <BeeMascot className="w-16 mx-auto" />
           <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl gradient-brand text-white shadow-lg shadow-primary/30">
             <Trophy className="h-8 w-8" />
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight">Hoàn thành Writing 🎉</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight flex items-center justify-center gap-2">
+            <Leaf className="h-5 w-5 text-leaf" />
+            Hoàn thành Writing 🎉
+          </h1>
         </div>
 
         <Card className="bg-gradient-to-br from-primary/10 to-accent border-2 border-primary/20">
@@ -170,18 +175,26 @@ export function WritingSession({ task1, task2 }: Props) {
 
   return (
     <div className="max-w-5xl mx-auto space-y-4">
-      <div className="rounded-2xl border bg-honey-deep text-white p-4 flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <PenLine className="h-6 w-6" />
-          <div>
-            <div className="text-xs uppercase tracking-wider opacity-80">IELTS Writing — Task {isTask1 ? "1" : "2"} / 2</div>
-            <div className="font-extrabold">{isTask1 ? "Task 1 (biểu đồ — 150 từ)" : "Task 2 (essay — 250 từ)"}</div>
+      <div className="relative overflow-hidden rounded-2xl border bg-honey-deep text-white p-4">
+        <Honeycomb className="pointer-events-none absolute inset-0 text-[#B6883F]/[0.05]" />
+        <div className="relative flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <PenLine className="h-6 w-6" />
+            <div>
+              <div className="text-xs uppercase tracking-wider opacity-80">IELTS Writing — Task {isTask1 ? "1" : "2"} / 2</div>
+              <div className="font-extrabold flex items-center gap-2">
+                <Leaf className="h-4 w-4 text-leaf" />
+                {isTask1 ? "Task 1 (biểu đồ — 150 từ)" : "Task 2 (essay — 250 từ)"}
+              </div>
+            </div>
           </div>
+          <Badge variant="outline" className="bg-white/15 border-white/30 text-white text-base px-3 py-1">
+            <Clock className="h-4 w-4 mr-1" /> {formatDuration(elapsed)} đã làm
+          </Badge>
         </div>
-        <Badge variant="outline" className="bg-white/15 border-white/30 text-white text-base px-3 py-1">
-          <Clock className="h-4 w-4 mr-1" /> {formatDuration(elapsed)} đã làm
-        </Badge>
       </div>
+
+      <MascotBubble tone="tip">Viết đủ ý, đúng band — mình cùng cố nhé!</MascotBubble>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>

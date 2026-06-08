@@ -3,12 +3,13 @@ import { usePathname } from "next/navigation";
 import { AmbientBackground } from "@/components/ambient-background";
 
 /**
- * Ambient background for learner pages. The Community and Profile pages keep
- * a plain background, so the effect is skipped there.
+ * Ambient background for learner pages. The Community feed keeps a plain white
+ * background, so the effect is skipped there; every other learner page shares
+ * this backdrop so they stay visually in sync.
  */
 export function LearnBackground() {
   const pathname = usePathname();
-  if (pathname.startsWith("/community") || pathname.startsWith("/profile")) {
+  if (pathname.startsWith("/community")) {
     return null;
   }
   return <AmbientBackground />;

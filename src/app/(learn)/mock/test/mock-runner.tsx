@@ -9,6 +9,7 @@ import { MockListening } from "./section-listening";
 import { MockReading } from "./section-reading";
 import { MockWriting } from "./section-writing";
 import { MockSpeaking, type MockSpeakingResult } from "./section-speaking";
+import { Honeycomb, Leaf, MascotBubble, BeeMascot } from "@/components/brand";
 import { toast } from "sonner";
 
 /** Best-effort fullscreen request; ignores failures (some browsers / iframes block). */
@@ -184,13 +185,20 @@ export function MockRunner({ targetBand, listenings, readings, writing, speaking
   if (stage === "intro") {
     return (
       <div className="max-w-2xl mx-auto py-10 space-y-6">
-        <div className="text-center space-y-3">
-          <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl gradient-brand text-white shadow-lg shadow-primary/30">
-            <GraduationCap className="h-8 w-8" />
+        <div className="relative overflow-hidden rounded-3xl">
+          <Honeycomb className="pointer-events-none absolute inset-0 text-[#4C5B8A]/[0.05]" />
+          <div className="relative text-center space-y-3 py-4">
+            <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl gradient-brand text-white shadow-lg shadow-primary/30">
+              <GraduationCap className="h-8 w-8" />
+            </div>
+            <h1 className="flex items-center justify-center gap-2 text-3xl font-extrabold tracking-tight">
+              <Leaf className="h-5 w-5 text-leaf" />
+              Sẵn sàng thi thử?
+            </h1>
+            <p className="text-muted-foreground">Đề được chọn theo target band {targetBand.toFixed(1)} của bạn.</p>
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight">Sẵn sàng thi thử?</h1>
-          <p className="text-muted-foreground">Đề được chọn theo target band {targetBand.toFixed(1)} của bạn.</p>
         </div>
+        <MascotBubble tone="tip">Hít thở sâu nào — cứ làm hết sức, ong sẽ chấm bài cho bạn!</MascotBubble>
         <Card>
           <CardContent className="p-5 text-sm space-y-2">
             <p>📋 Listening → Reading (60′, 4 bài) → nghỉ 15′ → Writing (60′, 2 task) → Speaking (3 part)</p>
@@ -491,15 +499,22 @@ function MockResultView({
       </div>
 
       {/* Hero */}
-      <div className="text-center space-y-2 print:text-left">
-        <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl gradient-brand text-white shadow-lg shadow-primary/30 print:hidden">
-          <Trophy className="h-8 w-8" />
+      <div className="relative overflow-hidden rounded-3xl print:overflow-visible">
+        <Honeycomb className="pointer-events-none absolute inset-0 text-[#4C5B8A]/[0.05] print:hidden" />
+        <div className="relative text-center space-y-2 py-4 print:text-left print:py-0">
+          <BeeMascot className="mx-auto w-16 drop-shadow-sm print:hidden" />
+          <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl gradient-brand text-white shadow-lg shadow-primary/30 print:hidden">
+            <Trophy className="h-8 w-8" />
+          </div>
+          <div className="text-[10px] uppercase tracking-widest font-extrabold text-muted-foreground print:text-foreground">
+            IELTS Bee · Bài thi thử
+          </div>
+          <h1 className="flex items-center justify-center gap-2 text-3xl font-extrabold tracking-tight print:justify-start">
+            <Leaf className="h-5 w-5 text-leaf print:hidden" />
+            Bài thi thử — Kết quả
+          </h1>
+          <p className="text-xs text-muted-foreground print:text-foreground/70">{today}</p>
         </div>
-        <div className="text-[10px] uppercase tracking-widest font-extrabold text-muted-foreground print:text-foreground">
-          IELTS Bee · Bài thi thử
-        </div>
-        <h1 className="text-3xl font-extrabold tracking-tight">Bài thi thử — Kết quả</h1>
-        <p className="text-xs text-muted-foreground print:text-foreground/70">{today}</p>
       </div>
 
       <Card className="bg-gradient-to-br from-primary/10 to-accent border-2 border-primary/20">

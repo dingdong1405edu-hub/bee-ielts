@@ -1,13 +1,21 @@
+import { Honeycomb } from "@/components/brand/textures";
+import { LeafField } from "@/components/brand/leaf";
+
 /**
- * Ambient decorative background — a faint line grid plus a few soft,
- * slowly-animating light glows in the brand colours. Minimal and modern;
- * the motion gives a gentle "living light" effect. Fixed, behind all
- * content (see `.ambient-*` rules in globals.css).
+ * Ambient decorative background shared by every learner page — a faint line
+ * grid, soft animated brand glows, a honeycomb texture, and a scatter of
+ * leaves. Subtle and motivating; fixed behind all content (see `.ambient-*`
+ * rules in globals.css). This is the single backdrop that keeps every study
+ * page visually in sync.
  */
 export function AmbientBackground() {
   return (
     <div aria-hidden className="ambient-bg">
       <div className="ambient-grid" />
+      <div className="ambient-honeycomb">
+        <Honeycomb className="h-full w-full text-gold" />
+      </div>
+      <LeafField className="ambient-leaves absolute inset-0" />
       <div className="ambient-glow ambient-glow-1" />
       <div className="ambient-glow ambient-glow-2" />
       <div className="ambient-glow ambient-glow-3" />

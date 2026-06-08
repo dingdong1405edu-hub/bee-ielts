@@ -12,6 +12,7 @@ import { ReadingShell, type ShellPart, type ShellQ } from "@/components/learn/re
 import { ReadingSolutions } from "@/components/learn/reading-solutions";
 import { ReadingComments } from "@/components/learn/reading-comments";
 import { MotivationalCard } from "@/components/learn/motivational-card";
+import { Honeycomb, Leaf, MascotBubble } from "@/components/brand";
 
 interface Passage {
   id: string;
@@ -100,12 +101,20 @@ export function ReadingSession({ passages, targetBand = 6.0 }: { passages: Passa
 
   return (
     <div className="max-w-3xl mx-auto space-y-4 p-4 md:p-6">
-      <div className="text-center space-y-2">
-        <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl gradient-brand text-white shadow-lg shadow-primary/30">
+      <div className="relative overflow-hidden text-center space-y-2 py-2">
+        <Honeycomb className="pointer-events-none absolute inset-0 text-[#4F7A66]/[0.05]" />
+        <div className="relative mx-auto grid h-16 w-16 place-items-center rounded-2xl gradient-brand text-white shadow-lg shadow-primary/30">
           <Trophy className="h-8 w-8" />
         </div>
-        <h1 className="text-3xl font-extrabold tracking-tight">Hoàn thành Reading 🎉</h1>
+        <h1 className="relative flex items-center justify-center gap-2 text-3xl font-extrabold tracking-tight">
+          <Leaf className="h-4 w-4 text-leaf" />
+          Hoàn thành Reading 🎉
+        </h1>
       </div>
+
+      <MascotBubble tone="tip" className="justify-center">
+        Tuyệt vời! Xem lại đáp án để lên band nhanh hơn nhé.
+      </MascotBubble>
 
       <Card className="bg-gradient-to-br from-primary/10 to-accent border-2 border-primary/20">
         <CardContent className="p-8 text-center">

@@ -13,6 +13,7 @@ import { TipsCard } from "@/components/learn/tips-card";
 import { VocabSuggestions, type VocabItem } from "@/components/learn/writing-feedback";
 import { playExaminerLine, playStartBeep, timeOfDayGreeting, resetTtsPathLock, primeAudioPlayback, stopExaminerLine } from "@/lib/tts";
 import { startWebSpeech, isWebSpeechSupported, type WebSpeechSession } from "@/lib/web-speech";
+import { Honeycomb, Leaf, MascotBubble, BeeMascot } from "@/components/brand";
 
 interface DGWord {
   word: string;
@@ -673,9 +674,19 @@ export function SpeakingPlayer({
     return (
       <div className="max-w-3xl mx-auto py-6">
         <div className="rounded-3xl border bg-card shadow-sm p-6 md:p-8 space-y-6">
-          <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-center">
-            Test {partsLabel} — Thi thử, nhận điểm và sửa lỗi
-          </h1>
+          <div className="relative overflow-hidden rounded-2xl">
+            <Honeycomb className="pointer-events-none absolute inset-0 text-[#C0714E]/[0.05]" />
+            <div className="relative space-y-3">
+              <h1 className="flex items-center justify-center gap-2 text-xl md:text-2xl font-extrabold tracking-tight text-center">
+                <Leaf className="h-4 w-4 text-leaf shrink-0" />
+                Test {partsLabel} — Thi thử, nhận điểm và sửa lỗi
+                <Leaf className="h-4 w-4 text-leaf shrink-0" />
+              </h1>
+              <MascotBubble tone="tip" className="justify-center">
+                Tự tin lên nhé! Cứ trả lời tự nhiên — giám khảo AI luôn ở đây cổ vũ bạn.
+              </MascotBubble>
+            </div>
+          </div>
 
           <div className="grid md:grid-cols-2 gap-6">
             {/* Left column: pitch bullets + part selector */}
@@ -881,10 +892,16 @@ export function SpeakingPlayer({
     return (
       <div className="max-w-2xl mx-auto space-y-4">
         <div className="text-center space-y-2">
-          <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl gradient-brand text-white shadow-lg shadow-primary/30">
-            <Trophy className="h-8 w-8" />
+          <div className="flex items-center justify-center gap-3">
+            <div className="grid h-16 w-16 place-items-center rounded-2xl gradient-brand text-white shadow-lg shadow-primary/30">
+              <Trophy className="h-8 w-8" />
+            </div>
+            <BeeMascot className="w-16" />
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight">Hoàn thành Speaking 🎉</h1>
+          <h1 className="flex items-center justify-center gap-2 text-3xl font-extrabold tracking-tight">
+            <Leaf className="h-5 w-5 text-leaf shrink-0" />
+            Hoàn thành Speaking 🎉
+          </h1>
         </div>
 
         <Card className="bg-gradient-to-br from-primary/10 to-accent border-2 border-primary/20">

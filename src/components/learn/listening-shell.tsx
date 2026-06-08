@@ -33,7 +33,7 @@ import {
 } from "lucide-react";
 import { cn, formatDuration, isAnswerCorrect } from "@/lib/utils";
 import { FormBlanks, TableBlanks, FlowBlanks, groupQuestions } from "@/components/learn/form-blanks";
-import { BeeLogo } from "@/components/brand";
+import { BeeLogo, Honeycomb, Leaf, MascotBubble } from "@/components/brand";
 
 export type ShellQType =
   | "MCQ"
@@ -179,6 +179,11 @@ export function ListeningShell({
 
       <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 pb-28">
         <div className="max-w-4xl mx-auto space-y-5">
+          {!submitted && (
+            <MascotBubble tone="tip" className="hidden sm:flex">
+              Nghe kỹ từ khoá nhé — bạn làm được mà!
+            </MascotBubble>
+          )}
           <PartHeading part={current} />
           {current.instructions && (
             <p className="text-[15px] text-foreground/90 whitespace-pre-wrap">
@@ -493,13 +498,17 @@ function AudioStrip({
 function PartHeading({ part }: { part: ListeningPart }) {
   const last = part.startNum + part.questions.length - 1;
   return (
-    <div className="space-y-1">
-      <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">
-        {part.title || `Part ${part.index}`}
-      </h2>
-      <p className="text-base md:text-lg font-bold text-primary">
-        Questions {part.startNum}-{last}
-      </p>
+    <div className="relative overflow-hidden rounded-2xl">
+      <Honeycomb className="pointer-events-none absolute inset-0 text-[#5B7E9C]/[0.05]" />
+      <div className="relative space-y-1">
+        <h2 className="flex items-center gap-2 text-2xl md:text-3xl font-extrabold tracking-tight">
+          <Leaf className="h-5 w-5 shrink-0 text-leaf" />
+          {part.title || `Part ${part.index}`}
+        </h2>
+        <p className="text-base md:text-lg font-bold text-primary">
+          Questions {part.startNum}-{last}
+        </p>
+      </div>
     </div>
   );
 }
