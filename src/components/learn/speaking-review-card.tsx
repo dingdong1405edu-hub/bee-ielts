@@ -34,7 +34,7 @@ export interface Correction {
 
 export function bandTone(band: number | undefined | null) {
   if (band == null || !Number.isFinite(band) || band <= 0) {
-    return { bg: "bg-zinc-400", text: "text-white", border: "border-zinc-400" };
+    return { bg: "bg-muted-foreground", text: "text-background", border: "border-border" };
   }
   if (band >= 7) {
     return { bg: "bg-emerald-500", text: "text-white", border: "border-emerald-400" };
@@ -42,16 +42,16 @@ export function bandTone(band: number | undefined | null) {
   if (band >= 5) {
     return { bg: "bg-amber-400", text: "text-amber-950", border: "border-amber-300" };
   }
-  return { bg: "bg-zinc-300", text: "text-zinc-700", border: "border-zinc-300" };
+  return { bg: "bg-muted", text: "text-foreground", border: "border-border" };
 }
 
 export function pillTone(band: number | undefined | null) {
   if (band == null || !Number.isFinite(band) || band <= 0) {
-    return "bg-zinc-300 text-zinc-700";
+    return "bg-muted text-foreground";
   }
   if (band >= 7) return "bg-emerald-500 text-white";
   if (band >= 5) return "bg-amber-300 text-amber-950";
-  return "bg-zinc-200 text-zinc-700";
+  return "bg-muted text-foreground";
 }
 
 /** Big round band display (mimics luyennoi.com's score circle). */
@@ -235,7 +235,7 @@ export function QuestionScoreCard({
             </button>
           </div>
           <p className="text-sm font-semibold leading-snug">{tip.question}</p>
-          <div className="rounded-lg bg-zinc-50 dark:bg-zinc-900/40 border p-3">
+          <div className="rounded-lg bg-muted dark:bg-muted/40 border p-3">
             <div className="flex items-start gap-2">
               <Play className="h-4 w-4 text-primary shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">

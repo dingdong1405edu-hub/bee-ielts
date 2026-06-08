@@ -50,9 +50,9 @@ const SKILLS: { value: Skill; label: string; dot: string; chip: string }[] = [
   { value: "READING", label: "Reading", dot: "bg-emerald-500", chip: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
   { value: "LISTENING", label: "Listening", dot: "bg-amber-500", chip: "bg-amber-500/15 text-amber-600 dark:text-amber-400" },
   { value: "WRITING", label: "Writing", dot: "bg-rose-500", chip: "bg-rose-500/15 text-rose-600 dark:text-rose-400" },
-  { value: "SPEAKING", label: "Speaking", dot: "bg-indigo-500", chip: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400" },
-  { value: "VOCAB", label: "Vocab", dot: "bg-fuchsia-500", chip: "bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400" },
-  { value: "GRAMMAR", label: "Grammar", dot: "bg-cyan-500", chip: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400" },
+  { value: "SPEAKING", label: "Speaking", dot: "bg-honey", chip: "bg-honey/15 text-honey-deep dark:text-honey" },
+  { value: "VOCAB", label: "Vocab", dot: "bg-leaf", chip: "bg-leaf/15 text-leaf-deep dark:text-leaf" },
+  { value: "GRAMMAR", label: "Grammar", dot: "bg-primary", chip: "bg-primary/15 text-primary dark:text-primary/70" },
 ];
 
 function skillMeta(skill: Skill | null) {
@@ -229,9 +229,9 @@ export function StudySchedule({
 
   return (
     <div className="rounded-3xl border bg-card overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-3 p-5 md:p-6 border-b bg-gradient-to-br from-indigo-500/5 via-violet-500/5 to-fuchsia-500/5">
+      <div className="flex flex-wrap items-center justify-between gap-3 p-5 md:p-6 border-b bg-gradient-to-br from-honey/5 via-amber-400/5 to-honey-deep/5">
         <div className="flex items-center gap-3">
-          <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-md shadow-indigo-500/30">
+          <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-honey to-honey-deep text-white shadow-md shadow-honey/30">
             <CalendarClock className="h-5 w-5" />
           </div>
           <div>
@@ -254,7 +254,7 @@ export function StudySchedule({
           </Button>
           <Button
             size="sm"
-            className="rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white"
+            className="rounded-xl bg-gradient-to-br from-honey to-honey-deep text-white"
             onClick={() => setShowGenerator((s) => !s)}
           >
             <Wand2 className="h-3.5 w-3.5" /> AI tạo lộ trình
@@ -306,13 +306,13 @@ export function StudySchedule({
                   className={cn(
                     "inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold",
                     isToday && "bg-primary text-primary-foreground",
-                    isExam && !isToday && "bg-gradient-to-br from-sky-500 to-indigo-500 text-white",
+                    isExam && !isToday && "gradient-brand text-primary-foreground",
                   )}
                 >
                   {d.getDate()}
                 </span>
                 {isExam && (
-                  <span className="hidden md:inline text-[10px] font-bold text-sky-600 dark:text-sky-400">
+                  <span className="hidden md:inline text-[10px] font-bold text-primary dark:text-primary/70">
                     Thi
                   </span>
                 )}
@@ -395,7 +395,7 @@ function RoadmapGenerator({
     : null;
 
   return (
-    <div className="border-b bg-gradient-to-br from-indigo-500/5 to-violet-500/5 p-4 md:p-5 space-y-3">
+    <div className="border-b bg-gradient-to-br from-honey/5 to-honey-deep/5 p-4 md:p-5 space-y-3">
       <div className="flex items-start gap-2">
         <Sparkles className="h-5 w-5 text-primary shrink-0 mt-0.5" />
         <div className="text-sm">

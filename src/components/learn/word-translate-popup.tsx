@@ -146,7 +146,7 @@ export function WordTranslatePopup({
                   void loadDecks();
                 }}
                 disabled={saving}
-                className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-violet-100 hover:bg-violet-200 dark:bg-violet-900/30 dark:hover:bg-violet-900/50 text-violet-700 dark:text-violet-300 px-2.5 py-1.5 text-xs font-extrabold transition-colors"
+                className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-honey-tint hover:bg-honey/20 dark:bg-honey/20 dark:hover:bg-honey/30 text-honey-deep dark:text-honey px-2.5 py-1.5 text-xs font-extrabold transition-colors"
               >
                 <BookmarkPlus className="h-3.5 w-3.5" />
                 Lưu vào sổ từ
@@ -186,7 +186,7 @@ export function WordTranslatePopup({
                         key={d.id}
                         onClick={() => saveToDeck(d.id)}
                         disabled={saving}
-                        className="w-full text-left inline-flex items-center justify-between gap-1 rounded-md border-2 border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/30 hover:bg-violet-100 dark:hover:bg-violet-900/40 px-2 py-1 text-xs font-bold transition-colors"
+                        className="w-full text-left inline-flex items-center justify-between gap-1 rounded-md border-2 border-honey/40 dark:border-honey/30 bg-honey-tint dark:bg-honey/10 hover:bg-honey/20 dark:hover:bg-honey/20 px-2 py-1 text-xs font-bold transition-colors"
                       >
                         <span className="truncate">{d.title}</span>
                         <ChevronDown className="h-3 w-3 -rotate-90 shrink-0" />

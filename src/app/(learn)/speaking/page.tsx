@@ -17,7 +17,7 @@ const PART_CARDS = [
     sub: "Câu hỏi cá nhân",
     desc: "4 câu ngắn về bản thân, gia đình, sở thích — luyện trôi chảy.",
     icon: MessageCircle,
-    grad: "from-sky-500 to-indigo-500",
+    grad: "from-honey to-honey-deep",
   },
   {
     num: 2,
@@ -25,7 +25,7 @@ const PART_CARDS = [
     sub: "Cue card · 2 phút",
     desc: "Một thẻ chủ đề — chuẩn bị 1 phút, nói 2 phút liên tục.",
     icon: ClipboardList,
-    grad: "from-violet-500 to-fuchsia-500",
+    grad: "from-leaf to-leaf-deep",
   },
   {
     num: 3,
@@ -44,7 +44,7 @@ export default function SpeakingIntroPage() {
         title="Speaking"
         subtitle="3 part · từng câu hỏi một · AI examiner đọc câu hỏi"
         icon={Mic}
-        grad="from-indigo-500 to-blue-500"
+        grad="from-honey to-honey-deep"
         startHref="/speaking/start"
         ctaLabel="AI chọn đề ngẫu nhiên (cả 3 Part)"
         bullets={[
@@ -124,7 +124,7 @@ async function SpeakingSetList() {
 
   return (
     <TestPicker
-      grad="from-indigo-500 to-blue-500"
+      grad="from-honey to-honey-deep"
       icon={Mic}
       emptyText="Chưa có đề Speaking nào."
       items={sets.map((s) => ({
@@ -133,7 +133,7 @@ async function SpeakingSetList() {
         title: s.topic,
         imageUrl: s.imageUrl,
         attemptCount: counts.get(s.id) ?? 0,
-        pill: { label: "IELTS Speaking", color: "indigo" },
+        pill: { label: "IELTS Speaking", color: "amber" },
         details: ["Part 1 — câu hỏi cá nhân", "Part 2 — cue card", "Part 3 — thảo luận"],
         done: doneIds.has(s.id),
       }))}

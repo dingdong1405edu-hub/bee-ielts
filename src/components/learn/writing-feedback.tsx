@@ -49,9 +49,9 @@ const CATEGORY_LABEL: Record<string, string> = {
 };
 const CATEGORY_COLOR: Record<string, string> = {
   grammar: "bg-rose-500",
-  vocabulary: "bg-violet-500",
+  vocabulary: "bg-honey",
   coherence: "bg-amber-500",
-  task: "bg-sky-500",
+  task: "bg-primary",
 };
 
 export function WritingFeedback({
@@ -76,7 +76,7 @@ export function WritingFeedback({
                 Các cụm <span className="font-bold underline decoration-2">in đậm gạch chân</span> là chỗ
                 viết sai — di chuột vào để xem lỗi &amp; cách sửa.{" "}
                 <span className="font-semibold text-rose-600 dark:text-rose-400">Ngữ pháp / cấu trúc</span> ·{" "}
-                <span className="font-semibold text-violet-600 dark:text-violet-400">Từ vựng</span> ·{" "}
+                <span className="font-semibold text-honey-deep dark:text-honey">Từ vựng</span> ·{" "}
                 <span className="font-semibold text-amber-600 dark:text-amber-400">Mạch ý</span>
               </p>
             )}
@@ -126,7 +126,7 @@ export function WritingFeedback({
                 return (
                   <div key={i} className="rounded-lg border p-3 space-y-1.5">
                     <div className="flex items-center gap-2">
-                      <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-white", CATEGORY_COLOR[cat] ?? "bg-zinc-500")}>
+                      <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-white", CATEGORY_COLOR[cat] ?? "bg-foreground")}>
                         {CATEGORY_LABEL[cat] ?? cat}
                       </span>
                     </div>
@@ -148,13 +148,13 @@ export function WritingFeedback({
         <Card>
           <CardContent className="p-5">
             <div className="flex items-center gap-2 mb-3">
-              <Link2 className="h-5 w-5 text-sky-500" />
+              <Link2 className="h-5 w-5 text-primary" />
               <h3 className="font-extrabold">Câu / cụm từ nối ý</h3>
             </div>
             <div className="grid sm:grid-cols-2 gap-2">
               {result.linkingPhrases.map((l, i) => (
-                <div key={i} className="rounded-lg border bg-sky-50 dark:bg-sky-950/30 p-2.5">
-                  <div className="text-sm font-bold text-sky-700 dark:text-sky-300">{l.phrase}</div>
+                <div key={i} className="rounded-lg border bg-primary/10 dark:bg-primary/10 p-2.5">
+                  <div className="text-sm font-bold text-primary dark:text-primary">{l.phrase}</div>
                   <div className="text-xs text-muted-foreground mt-0.5">{l.use}</div>
                 </div>
               ))}
@@ -168,13 +168,13 @@ export function WritingFeedback({
         <Card>
           <CardContent className="p-5">
             <div className="flex items-center gap-2 mb-3">
-              <Wrench className="h-5 w-5 text-violet-500" />
+              <Wrench className="h-5 w-5 text-honey-deep" />
               <h3 className="font-extrabold">Cấu trúc câu nên dùng</h3>
             </div>
             <div className="space-y-2">
               {result.usefulStructures.map((s, i) => (
                 <div key={i} className="rounded-lg border p-3">
-                  <div className="text-sm font-bold text-violet-700 dark:text-violet-300">{s.structure}</div>
+                  <div className="text-sm font-bold text-honey-deep dark:text-honey">{s.structure}</div>
                   <div className="text-sm italic text-foreground/80 mt-1">"{s.example}"</div>
                   <div className="text-xs text-muted-foreground mt-1">{s.note}</div>
                 </div>

@@ -284,14 +284,15 @@ Ví dụ output schema cho Writing:
 
 ## 7. UI/UX Guidelines
 
-- **Color palette**: primary indigo/violet, success green-500, danger red-500, neutral zinc.
-- **Typography**: Inter (UI), Lexend (đọc lâu — reading passages).
+- **Color palette — "Honey"**: lead = honey gold (`#eda21d`, shadcn `--primary`), co-lead accent = leaf green (`#3fa24c`, `--success`), warm ink text (`#221b12`) on cream (`#fbf5e9`), paper cards (`#fffdf7`). Danger = red, warning = amber (honey-adjacent). Tailwind aliases: `honey`/`honey-deep`/`honey-tint`, `leaf`/`leaf-deep`/`leaf-tint`, `ink`/`ink-soft`/`ink-faint`, `cream`, `paper`. The whole app themes through the shadcn HSL tokens in [globals.css](src/app/globals.css) + the `gradient-brand` utility (now all-honey) — re-skin globally by editing those, not per-page.
+- **Typography**: Bricolage Grotesque (display/headings, `--font-display`), Hanken Grotesk (body, `--font-sans`), Be Vietnam Pro (`--font-vn`) for Vietnamese glyph coverage. All `h1–h4` use the display font globally.
+- **Light-first**: Honey is a light theme by default; a dark-honey variant exists for the manual theme toggle (no auto-switch from OS).
 - **Spacing**: tuân theo Tailwind 4/8 scale.
 - **Mobile-first**: tất cả layout test bằng Chrome DevTools 375px width trước.
 - **Empty states**: minh hoạ + CTA rõ ràng.
 - **Loading**: skeleton, không spinner toàn trang.
 - **Toasts** cho feedback nhanh (sonner).
-- Dark mode optional (giai đoạn 2).
+- Dark mode: dark-honey variant available via the theme toggle (light is the default).
 
 Các component bắt buộc dùng từ shadcn/ui: Button, Card, Dialog, Input, Textarea, Select, Toast, Tabs, Progress, Badge, Sheet (mobile nav).
 

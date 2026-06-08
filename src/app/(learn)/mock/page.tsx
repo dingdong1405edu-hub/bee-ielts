@@ -25,9 +25,9 @@ export default async function MockLandingPage() {
   const sections = [
     { icon: Headphones, label: "Listening", time: "~20 phút", grad: "from-amber-500 to-orange-500" },
     { icon: BookOpen, label: "Reading", time: "60 phút · 4 bài đọc", grad: "from-emerald-500 to-teal-500" },
-    { icon: Coffee, label: "Nghỉ giải lao", time: "15 phút (có thể skip)", grad: "from-zinc-400 to-zinc-500" },
-    { icon: PenLine, label: "Writing", time: "60 phút · Task 1 + Task 2", grad: "from-rose-500 to-pink-500" },
-    { icon: Mic, label: "Speaking", time: "~12 phút · 3 part", grad: "from-indigo-500 to-blue-500" },
+    { icon: Coffee, label: "Nghỉ giải lao", time: "15 phút (có thể skip)", grad: "from-muted-foreground to-foreground" },
+    { icon: PenLine, label: "Writing", time: "60 phút · Task 1 + Task 2", grad: "from-honey to-honey-deep" },
+    { icon: Mic, label: "Speaking", time: "~12 phút · 3 part", grad: "from-leaf to-leaf-deep" },
   ];
 
   return (

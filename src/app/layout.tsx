@@ -1,12 +1,26 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { Bricolage_Grotesque, Hanken_Grotesk, Be_Vietnam_Pro } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 import { Providers } from "./providers";
 
-const jakarta = Plus_Jakarta_Sans({
-  subsets: ["latin", "vietnamese"],
+// Display (headings) — Bricolage Grotesque
+const display = Bricolage_Grotesque({
+  subsets: ["latin", "latin-ext"],
+  variable: "--font-display",
+  display: "swap",
+});
+// Body (UI text) — Hanken Grotesk
+const body = Hanken_Grotesk({
+  subsets: ["latin", "latin-ext"],
   variable: "--font-sans",
+  display: "swap",
+});
+// Vietnamese coverage fallback for both stacks — Be Vietnam Pro
+const vietnamese = Be_Vietnam_Pro({
+  subsets: ["latin", "vietnamese"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-vn",
   display: "swap",
 });
 
@@ -18,15 +32,17 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="vi" className={jakarta.variable}>
+    <html lang="vi" className={`${display.variable} ${body.variable} ${vietnamese.variable}`}>
       <body className="min-h-screen font-sans" suppressHydrationWarning>
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem('theme');var d=t==='dark'||(!t||t==='system')&&window.matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.classList.add('dark')}catch(e){}`,
+            // Honey is a light-first theme: only honour an explicit dark choice,
+            // never auto-switch to dark from the OS preference.
+            __html: `try{if(localStorage.getItem('theme')==='dark')document.documentElement.classList.add('dark')}catch(e){}`,
           }}
         />
         <Providers>{children}</Providers>
-        <Toaster position="top-center" richColors closeButton theme="system" />
+        <Toaster position="top-center" richColors closeButton theme="light" />
       </body>
     </html>
   );

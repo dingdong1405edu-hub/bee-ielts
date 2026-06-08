@@ -189,7 +189,7 @@ export function ReadingShell({ testTitle, parts, timeLimit, onSubmit, submitting
               }}
               disabled={submitting}
               size="sm"
-              className="rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white h-8 md:h-9 px-3 md:px-4 text-xs md:text-sm"
+              className="rounded-xl bg-foreground hover:bg-foreground/90 text-background h-8 md:h-9 px-3 md:px-4 text-xs md:text-sm"
             >
               {activePart < parts.length - 1 ? `Sang Part ${activePart + 2} →` : <>Submit <Send className="h-3.5 w-3.5" /></>}
             </Button>
@@ -198,7 +198,7 @@ export function ReadingShell({ testTitle, parts, timeLimit, onSubmit, submitting
               onClick={() => onSubmit(answers)}
               disabled={submitting}
               size="sm"
-              className="rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white h-8 md:h-9 px-3 md:px-4 text-xs md:text-sm"
+              className="rounded-xl bg-foreground hover:bg-foreground/90 text-background h-8 md:h-9 px-3 md:px-4 text-xs md:text-sm"
             >
               Submit <Send className="h-3.5 w-3.5" />
             </Button>
@@ -255,7 +255,7 @@ export function ReadingShell({ testTitle, parts, timeLimit, onSubmit, submitting
         >
           {/* Handle button — centered, always visible */}
           <div className="absolute z-10 grid h-12 w-7 place-items-center rounded-full border-2 border-primary bg-card shadow-md group-hover:bg-primary group-hover:border-primary group-hover:shadow-lg transition-all">
-            <GripVertical className="h-4 w-4 text-primary group-hover:text-white" />
+            <GripVertical className="h-4 w-4 text-primary group-hover:text-primary-foreground" />
           </div>
         </div>
 

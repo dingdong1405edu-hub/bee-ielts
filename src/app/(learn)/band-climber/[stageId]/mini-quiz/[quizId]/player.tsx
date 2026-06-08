@@ -20,8 +20,8 @@ type Skill = "READING" | "LISTENING" | "WRITING" | "SPEAKING";
 const SKILL_META: Record<Skill, { label: string; icon: React.ElementType; grad: string }> = {
   READING: { label: "Reading", icon: BookOpen, grad: "from-emerald-500 to-teal-600" },
   LISTENING: { label: "Listening", icon: Headphones, grad: "from-amber-500 to-orange-600" },
-  WRITING: { label: "Writing", icon: PenLine, grad: "from-rose-500 to-pink-600" },
-  SPEAKING: { label: "Speaking", icon: Mic, grad: "from-indigo-500 to-violet-600" },
+  WRITING: { label: "Writing", icon: PenLine, grad: "from-rose-500 to-rose-600" },
+  SPEAKING: { label: "Speaking", icon: Mic, grad: "from-honey to-honey-deep" },
 };
 
 interface Q {
@@ -443,11 +443,11 @@ export function MiniQuizPlayer({
         <button
           onClick={exit}
           aria-label="Thoát"
-          className="grid h-10 w-10 place-items-center rounded-full text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100"
+          className="grid h-10 w-10 place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
         >
           <X className="h-6 w-6" />
         </button>
-        <div className="flex-1 h-3 rounded-full bg-zinc-200 overflow-hidden">
+        <div className="flex-1 h-3 rounded-full bg-muted overflow-hidden">
           <div
             className="h-full rounded-full bg-emerald-500 transition-all duration-500 ease-out"
             style={{ width: `${progressPct}%` }}
@@ -456,7 +456,7 @@ export function MiniQuizPlayer({
         {hasTips && (
           <button
             onClick={() => setShowTips(true)}
-            className="hidden sm:inline-flex items-center gap-1.5 rounded-full border-2 border-violet-300 bg-violet-50 text-violet-700 px-3 py-1.5 text-xs font-extrabold uppercase tracking-wider hover:bg-violet-100 transition-all"
+            className="hidden sm:inline-flex items-center gap-1.5 rounded-full border-2 border-honey/40 bg-honey-tint text-honey-deep px-3 py-1.5 text-xs font-extrabold uppercase tracking-wider hover:bg-honey/20 transition-all"
           >
             <ListChecks className="h-3.5 w-3.5" /> Hướng dẫn
           </button>
@@ -465,7 +465,7 @@ export function MiniQuizPlayer({
           <button
             onClick={() => setShowTips(true)}
             aria-label="Hướng dẫn"
-            className="sm:hidden grid h-9 w-9 place-items-center rounded-full border-2 border-violet-300 bg-violet-50 text-violet-700"
+            className="sm:hidden grid h-9 w-9 place-items-center rounded-full border-2 border-honey/40 bg-honey-tint text-honey-deep"
           >
             <ListChecks className="h-4 w-4" />
           </button>
@@ -479,8 +479,8 @@ export function MiniQuizPlayer({
       {/* Question body */}
       <div className="flex-1 overflow-y-auto px-4 md:px-8 flex flex-col items-center justify-center gap-6 max-w-4xl mx-auto w-full">
         <div className="space-y-2 text-center">
-          <div className="inline-flex items-center gap-1.5 rounded-full bg-violet-100 px-3 py-1 text-xs font-extrabold uppercase tracking-wider text-violet-700">
-            <span className="grid h-4 w-4 place-items-center rounded-full bg-violet-500 text-white text-[10px]">
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-honey-tint px-3 py-1 text-xs font-extrabold uppercase tracking-wider text-honey-deep">
+            <span className="grid h-4 w-4 place-items-center rounded-full bg-honey text-white text-[10px]">
               ?
             </span>
             Câu {step + 1}/{total}
@@ -610,12 +610,12 @@ export function MiniQuizPlayer({
                   // backgrounds are hard-coded light tints, so without this
                   // dark-mode would render white-on-white and the user's
                   // typed answer becomes invisible.
-                  "w-full rounded-2xl border-2 px-5 py-4 text-xl font-bold text-center transition-all outline-none placeholder:text-sky-400/70",
+                  "w-full rounded-2xl border-2 px-5 py-4 text-xl font-bold text-center transition-all outline-none placeholder:text-primary/70",
                   verdict === "correct"
                     ? "border-emerald-400 bg-emerald-50 text-emerald-800"
                     : verdict === "wrong"
                       ? "border-rose-400 bg-rose-50 text-rose-800 quiz-shake"
-                      : "border-sky-300 bg-sky-50 text-sky-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-200",
+                      : "border-primary/30 bg-primary/10 text-primary focus:border-primary focus:ring-2 focus:ring-primary",
                 )}
               />
             </div>
@@ -633,8 +633,8 @@ export function MiniQuizPlayer({
                     ? "border-rose-400 bg-rose-50"
                     : "border-input bg-card"
                 : isSelected
-                  ? "border-sky-400 bg-sky-50 ring-2 ring-sky-200"
-                  : "border-input bg-card hover:border-zinc-300";
+                  ? "border-primary bg-primary/10 ring-2 ring-primary"
+                  : "border-input bg-card hover:border-border";
               const wrong = verdict === "wrong" && isSelected;
               return (
                 <button
@@ -658,7 +658,7 @@ export function MiniQuizPlayer({
                   </div>
                   <div className="flex items-center justify-between w-full text-sm">
                     <span className="font-bold">{opt.label}</span>
-                    <span className="grid h-6 w-6 place-items-center rounded-md border text-xs font-bold text-zinc-500">
+                    <span className="grid h-6 w-6 place-items-center rounded-md border text-xs font-bold text-muted-foreground">
                       {i + 1}
                     </span>
                   </div>
@@ -679,8 +679,8 @@ export function MiniQuizPlayer({
                     ? "border-rose-400 bg-rose-50 text-rose-700"
                     : "border-input bg-card"
                 : isSelected
-                  ? "border-sky-400 bg-sky-50 ring-2 ring-sky-200 text-sky-700"
-                  : "border-input bg-card hover:border-zinc-300";
+                  ? "border-primary bg-primary/10 ring-2 ring-primary text-primary"
+                  : "border-input bg-card hover:border-border";
               const wrong = verdict === "wrong" && isSelected;
               return (
                 <button
@@ -788,7 +788,7 @@ export function MiniQuizPlayer({
                   "rounded-full px-8 py-3 font-extrabold uppercase tracking-wider shadow transition-all",
                   canCheck
                     ? "bg-emerald-500 hover:bg-emerald-600 text-white"
-                    : "bg-zinc-200 text-zinc-400 cursor-not-allowed",
+                    : "bg-muted text-muted-foreground cursor-not-allowed",
                 )}
               >
                 {q.type === "SPEAKING" ? "Hoàn thành" : "Kiểm tra"}
@@ -925,7 +925,7 @@ function FillBlankInlinePrompt({
       ? "border-emerald-400 bg-emerald-50 text-emerald-800"
       : verdict === "wrong"
         ? "border-rose-400 bg-rose-50 text-rose-800 quiz-shake"
-        : "border-sky-300 bg-sky-50 text-sky-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-200";
+        : "border-primary/30 bg-primary/10 text-primary focus:border-primary focus:ring-2 focus:ring-primary";
   return (
     <h2 className="text-xl md:text-2xl font-extrabold leading-snug flex flex-wrap items-center justify-center gap-x-2 gap-y-3">
       {parts.flatMap((seg, i) => {
@@ -1003,7 +1003,7 @@ function ParagraphFillInlinePrompt({
   };
   const tone = (i: number): string => {
     if (verdict === "none") {
-      return "border-sky-300 bg-sky-50 text-sky-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-200";
+      return "border-primary/30 bg-primary/10 text-primary focus:border-primary focus:ring-2 focus:ring-primary";
     }
     return blankOk(i)
       ? "border-emerald-400 bg-emerald-50 text-emerald-800"
@@ -1163,8 +1163,8 @@ function AudioButton({ url }: { url: string }) {
         className={cn(
           "inline-flex items-center gap-2 rounded-full border-2 px-5 py-2.5 font-bold shadow-sm transition-all",
           playing
-            ? "bg-sky-500 text-white border-sky-600 animate-pulse"
-            : "bg-sky-50 text-sky-700 border-sky-300 hover:bg-sky-100",
+            ? "bg-primary text-primary-foreground border-primary animate-pulse"
+            : "bg-primary/10 text-primary border-primary/30 hover:bg-primary/15",
         )}
       >
         <Volume2 className="h-5 w-5" />
@@ -1390,7 +1390,7 @@ function SpeakingQuestion({
               type="button"
               onClick={start}
               disabled={locked || transcribing}
-              className="grid h-28 w-28 place-items-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white shadow-xl shadow-indigo-500/30 transition-transform hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="grid h-28 w-28 place-items-center rounded-full bg-gradient-to-br from-honey to-honey-deep hover:from-honey-deep hover:to-honey-deep text-white shadow-xl shadow-honey/30 transition-transform hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed"
               aria-label="Bắt đầu ghi âm"
             >
               <Mic className="h-12 w-12" />
@@ -1406,7 +1406,7 @@ function SpeakingQuestion({
               </>
             ) : (
               <>
-                <div className="font-extrabold text-indigo-700">Bấm mic để bắt đầu nói</div>
+                <div className="font-extrabold text-honey-deep">Bấm mic để bắt đầu nói</div>
                 <div className="text-xs text-muted-foreground">
                   Trả lời bằng tiếng Anh — bấm dừng khi xong, không giới hạn thời gian
                 </div>
@@ -1418,8 +1418,8 @@ function SpeakingQuestion({
 
       {transcribing && (
         <div className="flex flex-col items-center gap-2 py-4">
-          <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
-          <div className="text-sm font-semibold text-indigo-700">
+          <Loader2 className="h-8 w-8 animate-spin text-honey-deep" />
+          <div className="text-sm font-semibold text-honey-deep">
             Đang chuyển giọng nói thành văn bản...
           </div>
         </div>
@@ -1427,11 +1427,11 @@ function SpeakingQuestion({
 
       {/* Live transcript while recording */}
       {recording && liveTranscript && (
-        <div className="rounded-2xl border-2 border-sky-200 bg-sky-50 dark:bg-sky-950/20 dark:border-sky-900 p-4">
-          <div className="text-[11px] font-extrabold uppercase tracking-wider text-sky-600 mb-1">
+        <div className="rounded-2xl border-2 border-primary/30 bg-primary/10 dark:bg-primary/10 dark:border-primary/30 p-4">
+          <div className="text-[11px] font-extrabold uppercase tracking-wider text-primary mb-1">
             Bạn đang nói (live)
           </div>
-          <p className="text-sm leading-relaxed whitespace-pre-wrap text-sky-900 dark:text-sky-100">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap text-primary dark:text-primary">
             {liveTranscript}
           </p>
         </div>
@@ -1741,8 +1741,8 @@ function SpeakingPart2Question({
       </div>
 
       {phase === "prep" && (
-        <div className="rounded-2xl border-2 border-indigo-200 bg-indigo-50 dark:bg-indigo-950/20 dark:border-indigo-900 p-4 text-center space-y-2">
-          <div className="text-[10px] font-extrabold uppercase tracking-widest text-indigo-700 dark:text-indigo-300">
+        <div className="rounded-2xl border-2 border-honey/30 bg-honey-tint dark:bg-honey/10 dark:border-honey/40 p-4 text-center space-y-2">
+          <div className="text-[10px] font-extrabold uppercase tracking-widest text-honey-deep dark:text-honey">
             Chuẩn bị (1 phút)
           </div>
           <div className="text-4xl font-extrabold tabular-nums">
@@ -1755,7 +1755,7 @@ function SpeakingPart2Question({
             type="button"
             onClick={skipPrep}
             disabled={locked}
-            className="inline-flex items-center gap-1.5 rounded-full bg-indigo-500 hover:bg-indigo-600 px-5 py-2 text-white font-bold text-sm shadow disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-full bg-honey hover:bg-honey-deep px-5 py-2 text-white font-bold text-sm shadow disabled:opacity-50"
           >
             <Mic className="h-4 w-4" /> Bỏ qua, nói luôn →
           </button>
@@ -1786,11 +1786,11 @@ function SpeakingPart2Question({
             <Square className="h-4 w-4 fill-current" /> Dừng
           </button>
           {liveTranscript && (
-            <div className="rounded-xl border-2 border-sky-200 bg-sky-50 dark:bg-sky-950/20 dark:border-sky-900 p-3 text-left">
-              <div className="text-[10px] font-extrabold uppercase tracking-wider text-sky-600 mb-1">
+            <div className="rounded-xl border-2 border-primary/30 bg-primary/10 dark:bg-primary/10 dark:border-primary/30 p-3 text-left">
+              <div className="text-[10px] font-extrabold uppercase tracking-wider text-primary mb-1">
                 Bạn đang nói (live)
               </div>
-              <p className="text-sm leading-relaxed whitespace-pre-wrap text-sky-900 dark:text-sky-100">
+              <p className="text-sm leading-relaxed whitespace-pre-wrap text-primary dark:text-primary">
                 {liveTranscript}
               </p>
             </div>
@@ -1799,9 +1799,9 @@ function SpeakingPart2Question({
       )}
 
       {phase === "transcribing" && (
-        <div className="flex items-center justify-center gap-2 rounded-2xl border-2 border-indigo-200 bg-indigo-50 dark:bg-indigo-950/20 dark:border-indigo-900 p-4">
-          <Loader2 className="h-5 w-5 animate-spin text-indigo-600" />
-          <span className="text-sm font-semibold text-indigo-700 dark:text-indigo-200">
+        <div className="flex items-center justify-center gap-2 rounded-2xl border-2 border-honey/30 bg-honey-tint dark:bg-honey/10 dark:border-honey/40 p-4">
+          <Loader2 className="h-5 w-5 animate-spin text-honey-deep" />
+          <span className="text-sm font-semibold text-honey-deep dark:text-honey">
             Đang chuyển giọng nói thành văn bản...
           </span>
         </div>
@@ -1872,8 +1872,8 @@ function ExaminerReplayButton({
         className={cn(
           "inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 text-sm font-bold shadow-sm transition-all",
           playing
-            ? "bg-indigo-500 text-white border-indigo-600 animate-pulse"
-            : "bg-indigo-50 text-indigo-700 border-indigo-300 hover:bg-indigo-100",
+            ? "bg-honey text-white border-honey-deep animate-pulse"
+            : "bg-honey-tint text-honey-deep border-honey/40 hover:bg-honey/20",
         )}
       >
         {playing ? (
@@ -2012,7 +2012,7 @@ function VocabPreviewScreen({
                 {item.definition}
               </p>
               {item.example && (
-                <p className="text-xs italic text-zinc-500 dark:text-zinc-400 mt-2 border-l-2 border-emerald-400 pl-2">
+                <p className="text-xs italic text-muted-foreground dark:text-muted-foreground mt-2 border-l-2 border-emerald-400 pl-2">
                   &ldquo;{item.example}&rdquo;
                 </p>
               )}
@@ -2028,7 +2028,7 @@ function VocabPreviewScreen({
             type="button"
             onClick={onClose}
             disabled={importing}
-            className="rounded-full border-2 border-zinc-300 hover:border-zinc-400 text-zinc-700 dark:text-zinc-300 px-6 py-2.5 text-sm font-bold disabled:opacity-50"
+            className="rounded-full border-2 border-border hover:border-border text-foreground dark:text-muted-foreground px-6 py-2.5 text-sm font-bold disabled:opacity-50"
           >
             Bỏ qua, vào làm bài
           </button>
@@ -2090,9 +2090,9 @@ function SpeakingPerQuestionCard({
   }
   if (state === "loading") {
     return (
-      <div className="w-full max-w-2xl rounded-2xl border-2 border-indigo-200 bg-indigo-50 dark:bg-indigo-950/20 dark:border-indigo-900 p-4 flex items-center gap-3">
-        <Loader2 className="h-5 w-5 animate-spin text-indigo-600 shrink-0" />
-        <div className="text-sm font-semibold text-indigo-800 dark:text-indigo-100">
+      <div className="w-full max-w-2xl rounded-2xl border-2 border-honey/30 bg-honey-tint dark:bg-honey/10 dark:border-honey/40 p-4 flex items-center gap-3">
+        <Loader2 className="h-5 w-5 animate-spin text-honey-deep shrink-0" />
+        <div className="text-sm font-semibold text-honey-deep dark:text-honey">
           AI đang nghe lại và chấm phát âm của bạn...
         </div>
       </div>
@@ -2124,16 +2124,16 @@ function SpeakingPerQuestionCard({
     band >= 7
       ? "bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-200 dark:border-emerald-800"
       : band >= 5.5
-        ? "bg-sky-100 text-sky-700 border-sky-300 dark:bg-sky-950/40 dark:text-sky-200 dark:border-sky-800"
+        ? "bg-primary/10 text-primary border-primary/30 dark:bg-primary/10 dark:text-primary dark:border-primary/30"
         : band >= 4
           ? "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-800"
           : "bg-rose-100 text-rose-700 border-rose-300 dark:bg-rose-950/40 dark:text-rose-200 dark:border-rose-800";
   return (
-    <div className="w-full max-w-2xl rounded-2xl border-2 border-indigo-200 dark:border-indigo-900 bg-indigo-50/60 dark:bg-indigo-950/20 p-4 space-y-3">
+    <div className="w-full max-w-2xl rounded-2xl border-2 border-honey/30 dark:border-honey/40 bg-honey-tint/60 dark:bg-honey/10 p-4 space-y-3">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="inline-flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-indigo-600" />
-          <span className="text-[11px] font-extrabold uppercase tracking-widest text-indigo-700 dark:text-indigo-300">
+          <Sparkles className="h-4 w-4 text-honey-deep" />
+          <span className="text-[11px] font-extrabold uppercase tracking-widest text-honey-deep dark:text-honey">
             AI chấm phát âm
           </span>
         </div>
@@ -2194,11 +2194,11 @@ function SpeakingPerQuestionCard({
       )}
 
       {state.betterPhrasing && (
-        <div className="rounded-lg border-2 border-violet-200 dark:border-violet-900 bg-violet-50 dark:bg-violet-950/30 p-2.5 text-sm">
-          <div className="text-[11px] font-extrabold uppercase tracking-widest text-violet-700 dark:text-violet-300 mb-1 inline-flex items-center gap-1.5">
+        <div className="rounded-lg border-2 border-honey/30 dark:border-honey/40 bg-honey-tint dark:bg-honey/10 p-2.5 text-sm">
+          <div className="text-[11px] font-extrabold uppercase tracking-widest text-honey-deep dark:text-honey mb-1 inline-flex items-center gap-1.5">
             <MessageSquareQuote className="h-3.5 w-3.5" /> Cách nói band 7+
           </div>
-          <p className="text-violet-900 dark:text-violet-100 italic">
+          <p className="text-ink dark:text-honey/90 italic">
             "{state.betterPhrasing}"
           </p>
         </div>
@@ -2377,7 +2377,7 @@ function SpeakingQuizSummary({
             const grade = perQuestionGrade.get(qq.id);
             return (
               <div key={qq.id} className="rounded-xl border bg-card p-4 space-y-2">
-                <div className="text-[10px] font-extrabold uppercase tracking-widest text-violet-700">
+                <div className="text-[10px] font-extrabold uppercase tracking-widest text-honey-deep">
                   Câu {i + 1}
                 </div>
                 <p className="font-semibold leading-snug">{qq.prompt}</p>
@@ -2486,11 +2486,11 @@ function SpeakingQuizSummary({
           finalGrade !== "loading" &&
           finalGrade !== "error" &&
           finalGrade.improvedSample && (
-            <div className="rounded-2xl border-2 border-violet-200 dark:border-violet-900 bg-violet-50 dark:bg-violet-950/20 p-4">
-              <h3 className="font-extrabold inline-flex items-center gap-2 text-violet-700 dark:text-violet-300 mb-2">
+            <div className="rounded-2xl border-2 border-honey/30 dark:border-honey/40 bg-honey-tint dark:bg-honey/10 p-4">
+              <h3 className="font-extrabold inline-flex items-center gap-2 text-honey-deep dark:text-honey mb-2">
                 <MessageSquareQuote className="h-5 w-5" /> Bài trả lời mẫu band 7.5
               </h3>
-              <p className="text-sm leading-relaxed italic text-violet-900 dark:text-violet-100">
+              <p className="text-sm leading-relaxed italic text-ink dark:text-honey/90">
                 {finalGrade.improvedSample}
               </p>
             </div>

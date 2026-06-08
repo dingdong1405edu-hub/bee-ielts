@@ -16,21 +16,21 @@ export type PickerItem = {
 
 const PILL_BG: Record<PillColor, string> = {
   amber: "bg-amber-500",
-  violet: "bg-violet-500",
-  indigo: "bg-indigo-600",
+  violet: "bg-honey",
+  indigo: "bg-leaf",
   emerald: "bg-emerald-600",
-  sky: "bg-sky-600",
+  sky: "bg-primary",
   rose: "bg-rose-500",
 };
 
 // Rotating colors for the per-card detail lines (question types etc).
 const DETAIL_COLORS = [
   "text-emerald-600 dark:text-emerald-400",
-  "text-indigo-600 dark:text-indigo-400",
+  "text-honey-deep dark:text-honey",
   "text-rose-600 dark:text-rose-400",
   "text-amber-600 dark:text-amber-400",
-  "text-cyan-600 dark:text-cyan-400",
-  "text-violet-600 dark:text-violet-400",
+  "text-primary dark:text-primary/70",
+  "text-leaf dark:text-leaf-tint",
 ];
 
 /** IELTS question-type → human label, matching common test-bank wording. */

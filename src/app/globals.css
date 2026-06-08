@@ -4,71 +4,114 @@
 
 @layer base {
   :root {
-    --background: 40 33% 98%;
-    --foreground: 240 10% 8%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 8%;
+    /* ===== Honey theme — shadcn semantic tokens (HSL triplets) ===== */
+    --background: 40 69% 95%;        /* cream  #fbf5e9 */
+    --foreground: 34 31% 10%;        /* ink    #221b12 */
+    --card: 45 100% 98%;             /* paper  #fffdf7 */
+    --card-foreground: 34 31% 10%;
+    --popover: 45 100% 98%;
+    --popover-foreground: 34 31% 10%;
 
-    --primary: 263 86% 60%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 38 85% 52%;           /* honey  #eda21d */
+    --primary-foreground: 40 100% 8%;/* dark warm #2a1c00 */
 
-    --secondary: 240 5% 96%;
-    --secondary-foreground: 240 6% 10%;
+    --secondary: 40 60% 89%;         /* cream-2 #f4e9d3 */
+    --secondary-foreground: 36 17% 30%;
 
-    --muted: 40 20% 95%;
-    --muted-foreground: 240 4% 40%;
+    --muted: 40 60% 89%;
+    --muted-foreground: 37 14% 47%;  /* ink-faint #8a7d68 */
 
-    --accent: 320 95% 96%;
-    --accent-foreground: 263 86% 30%;
+    --accent: 41 89% 86%;            /* honey-tint #fbe7bd (subtle hover bg) */
+    --accent-foreground: 35 86% 41%; /* honey-deep #c1760f */
 
-    --destructive: 0 84% 60%;
+    --destructive: 355 64% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 142 76% 40%;
+    --success: 128 44% 44%;          /* leaf #3fa24c */
     --success-foreground: 0 0% 100%;
 
-    --border: 240 6% 92%;
-    --input: 240 6% 90%;
-    --ring: 263 86% 60%;
+    --border: 37 21% 83%;            /* warm line #ddd6cb */
+    --input: 37 16% 78%;
+    --ring: 38 85% 52%;
 
     --radius: 1rem;
 
-    --brand-1: 263 86% 60%;
-    --brand-2: 320 90% 60%;
-    --brand-3: 36 100% 60%;
+    /* brand gradient (bee logo, avatars, brand buttons) — all-honey */
+    --brand-1: 43 92% 58%;
+    --brand-2: 38 85% 52%;
+    --brand-3: 33 88% 42%;
+
+    /* ===== Raw Honey design tokens (hex) — used by helper classes ===== */
+    --ink:        #221b12;
+    --ink-soft:   #5b5040;
+    --ink-faint:  #8a7d68;
+    --cream:      #fbf5e9;
+    --cream-2:    #f4e9d3;
+    --paper:      #fffdf7;
+    --honey:      #eda21d;
+    --primary-deep:#c1760f;
+    --primary-tint:#fbe7bd;
+    --leaf:       #3fa24c;
+    --accent-deep:#2c7d39;
+    --accent-tint:#d7efd2;
+    --line:       rgba(34,27,18,0.14);
+    --line-soft:  rgba(34,27,18,0.08);
+    --shadow:     34 27 18;
+
+    --r-sm: 10px;
+    --r-md: 16px;
+    --r-lg: 26px;
+    --r-pill: 999px;
+    --grain: 0.4;
+    --maxw: 1200px;
+    --font-body: var(--font-sans);
   }
 
   .dark {
-    --background: 240 12% 6%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 10%;
-    --card-foreground: 0 0% 98%;
+    /* ===== Dark Honey — deep espresso + warm cream + honey/leaf accents ===== */
+    --background: 34 30% 8%;
+    --foreground: 40 50% 92%;
+    --card: 34 26% 12%;
+    --card-foreground: 40 50% 92%;
+    --popover: 34 26% 12%;
+    --popover-foreground: 40 50% 92%;
 
-    --primary: 263 86% 68%;
-    --primary-foreground: 240 10% 6%;
+    --primary: 38 90% 56%;
+    --primary-foreground: 40 100% 8%;
 
-    --secondary: 240 6% 16%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 34 18% 18%;
+    --secondary-foreground: 40 40% 88%;
 
-    --muted: 240 6% 14%;
-    --muted-foreground: 240 5% 65%;
+    --muted: 34 16% 18%;
+    --muted-foreground: 38 16% 64%;
 
-    --accent: 263 40% 20%;
-    --accent-foreground: 263 86% 85%;
+    --accent: 34 30% 20%;
+    --accent-foreground: 38 85% 70%;
 
-    --destructive: 0 70% 55%;
+    --destructive: 355 64% 58%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 142 65% 50%;
-    --success-foreground: 240 10% 6%;
+    --success: 128 44% 50%;
+    --success-foreground: 40 100% 8%;
 
-    --border: 240 6% 20%;
-    --input: 240 6% 20%;
-    --ring: 263 86% 68%;
+    --border: 34 18% 20%;
+    --input: 34 18% 22%;
+    --ring: 38 85% 55%;
 
-    --brand-1: 263 86% 68%;
-    --brand-2: 320 85% 65%;
-    --brand-3: 36 100% 65%;
+    --brand-1: 43 92% 60%;
+    --brand-2: 38 88% 54%;
+    --brand-3: 33 86% 46%;
+
+    /* raw token overrides for dark surfaces */
+    --ink:       #f7eeda;
+    --ink-soft:  #d8cbb2;
+    --ink-faint: #a8997d;
+    --cream:     #1c160d;
+    --cream-2:   #2a2016;
+    --paper:     #241b11;
+    --line:      rgba(247,238,218,0.14);
+    --line-soft: rgba(247,238,218,0.08);
+    --shadow:    0 0 0;
   }
 
   * {
@@ -82,14 +125,104 @@
     /* Background lives on <html> only — a transparent body lets fixed
        decorative background layers (z-index -10) show through. */
     @apply text-foreground antialiased;
+    font-family: var(--font-sans), var(--font-vn), system-ui, sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  /* subtle paper grain — sits above the ambient bg (z-10) but below content */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: -9;
+    opacity: var(--grain);
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E");
+    mix-blend-mode: multiply;
   }
   ::selection {
     background-color: hsl(var(--primary) / 0.25);
   }
   h1, h2, h3, h4 {
+    font-family: var(--font-display), var(--font-vn), system-ui, sans-serif;
+    font-weight: 800;
     letter-spacing: -0.02em;
   }
+}
+
+@layer components {
+  /* ===== Honey design — reusable display helpers ===== */
+  .eyebrow {
+    font-family: var(--font-sans), var(--font-vn), system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--primary-deep);
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .eyebrow::before {
+    content: "";
+    width: 22px; height: 2px;
+    background: var(--honey);
+    border-radius: 2px;
+  }
+
+  /* honey highlight on a word */
+  .hl { position: relative; color: var(--primary-deep); white-space: nowrap; }
+  .hl::after {
+    content: "";
+    position: absolute;
+    left: -2%; right: -2%; bottom: 0.06em;
+    height: 0.34em;
+    background: var(--honey);
+    opacity: 0.34;
+    border-radius: 3px;
+    z-index: -1;
+    transform: rotate(-1.2deg);
+  }
+
+  /* leaf highlight variant */
+  .hl-leaf { color: var(--accent-deep); }
+  .hl-leaf::after { background: var(--leaf); }
+
+  /* ===== Honey buttons (plain-CSS variants used outside <Button>) ===== */
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-family: var(--font-display), var(--font-vn), system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    padding: 15px 26px;
+    border-radius: var(--r-pill);
+    border: 1.5px solid transparent;
+    transition: transform .18s cubic-bezier(.2,.8,.2,1), box-shadow .18s, background .18s, color .18s;
+    white-space: nowrap;
+  }
+  .btn .arr { transition: transform .2s; }
+  .btn:hover .arr { transform: translateX(4px); }
+  .btn-primary {
+    background: var(--ink);
+    color: var(--cream);
+    box-shadow: 0 1px 0 rgb(var(--shadow) / 0.5), 0 14px 30px -16px rgb(var(--shadow) / 0.7);
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 20px 40px -16px rgb(var(--shadow) / 0.8); }
+  .btn-honey {
+    background: var(--honey);
+    color: #2a1c00;
+    box-shadow: 0 1px 0 #fff5, 0 14px 30px -14px var(--primary-deep);
+  }
+  .btn-honey:hover { transform: translateY(-2px); background: var(--primary-deep); color: #fff; }
+  .btn-ghost {
+    background: transparent;
+    color: var(--ink);
+    border-color: var(--line);
+  }
+  .btn-ghost:hover { border-color: var(--ink); transform: translateY(-2px); }
+  .btn-sm { padding: 11px 18px; font-size: 14px; }
 }
 
 @layer utilities {

@@ -29,7 +29,7 @@ export default async function PaymentCancelPage({
 
   return (
     <div className="max-w-md mx-auto py-12 space-y-6 text-center">
-      <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-zinc-500 text-white shadow-lg">
+      <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-foreground text-background shadow-lg">
         <XCircle className="h-8 w-8" />
       </div>
       <div className="space-y-2">

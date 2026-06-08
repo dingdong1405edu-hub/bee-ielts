@@ -20,10 +20,10 @@ const REVIEW_PATH: Record<string, string> = {
 const SKILL_META: Record<string, { label: string; icon: typeof BookOpen; grad: string; unit: string }> = {
   READING: { label: "Reading", icon: BookOpen, grad: "from-emerald-500 to-teal-500", unit: "band" },
   LISTENING: { label: "Listening", icon: Headphones, grad: "from-amber-500 to-orange-500", unit: "band" },
-  WRITING: { label: "Writing", icon: PenLine, grad: "from-rose-500 to-pink-500", unit: "band" },
-  SPEAKING: { label: "Speaking", icon: Mic, grad: "from-indigo-500 to-blue-500", unit: "band" },
-  VOCAB: { label: "Vocabulary", icon: Sparkles, grad: "from-violet-500 to-fuchsia-500", unit: "điểm" },
-  GRAMMAR: { label: "Grammar", icon: BookOpenText, grad: "from-blue-500 to-cyan-500", unit: "điểm" },
+  WRITING: { label: "Writing", icon: PenLine, grad: "from-honey to-honey-deep", unit: "band" },
+  SPEAKING: { label: "Speaking", icon: Mic, grad: "from-leaf to-leaf-deep", unit: "band" },
+  VOCAB: { label: "Vocabulary", icon: Sparkles, grad: "from-honey to-honey-deep", unit: "điểm" },
+  GRAMMAR: { label: "Grammar", icon: BookOpenText, grad: "from-honey to-honey-deep", unit: "điểm" },
 };
 
 export default async function ProfilePage() {
@@ -82,7 +82,7 @@ export default async function ProfilePage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatTile icon={Zap} label="XP" value={String(user.xp)} grad="from-amber-400 to-yellow-500" />
         <StatTile icon={Flame} label="Streak" value={`${user.streakDays} ngày`} grad="from-orange-500 to-red-500" />
-        <StatTile icon={Target} label="Mục tiêu" value={`Band ${user.targetBand.toFixed(1)}`} grad="from-violet-500 to-fuchsia-500" />
+        <StatTile icon={Target} label="Mục tiêu" value={`Band ${user.targetBand.toFixed(1)}`} grad="from-honey to-honey-deep" />
         <StatTile icon={BookOpen} label="Bài đã làm" value={String(attempts.length)} grad="from-emerald-500 to-teal-500" />
       </div>
 

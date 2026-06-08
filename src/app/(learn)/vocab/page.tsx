@@ -24,7 +24,7 @@ export default async function VocabPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-8">
       <div className="flex items-center gap-4">
-        <div className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-lg shadow-violet-500/30">
+        <div className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-honey to-honey-deep text-white shadow-lg shadow-honey/30">
           <Sparkles className="h-6 w-6" />
         </div>
         <div>
@@ -69,7 +69,7 @@ export default async function VocabPage() {
                             ? "bg-gradient-to-br from-emerald-500 to-teal-500"
                             : locked
                               ? "bg-muted"
-                              : "bg-gradient-to-br from-violet-500 to-fuchsia-500"
+                              : "bg-gradient-to-br from-honey to-honey-deep"
                         }`}
                       >
                         {done ? <Check className="h-5 w-5" /> : locked ? <Lock className="h-4 w-4 text-muted-foreground" /> : <Play className="h-4 w-4 fill-current" />}

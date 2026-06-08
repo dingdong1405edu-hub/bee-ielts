@@ -311,7 +311,7 @@ export function VoicesAdminClient({ initialVoices }: { initialVoices: Voice[] })
                       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold transition-all ${
                         v.enabled
                           ? "bg-emerald-100 text-emerald-700"
-                          : "bg-zinc-100 text-zinc-500"
+                          : "bg-muted text-muted-foreground"
                       }`}
                     >
                       {v.enabled ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}

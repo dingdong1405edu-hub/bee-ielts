@@ -21,7 +21,7 @@ export function ThemeToggle({ className }: { className?: string }) {
       {mounted && (
         <>
           <Sun className={cn("h-4 w-4 absolute transition-all", resolvedTheme === "dark" ? "scale-0 rotate-90" : "scale-100 rotate-0 text-amber-500")} />
-          <Moon className={cn("h-4 w-4 absolute transition-all", resolvedTheme === "dark" ? "scale-100 rotate-0 text-indigo-300" : "scale-0 -rotate-90")} />
+          <Moon className={cn("h-4 w-4 absolute transition-all", resolvedTheme === "dark" ? "scale-100 rotate-0 text-honey" : "scale-0 -rotate-90")} />
         </>
       )}
     </button>

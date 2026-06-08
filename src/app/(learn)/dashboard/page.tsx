@@ -11,12 +11,12 @@ import { StudySchedule } from "@/components/learn/study-schedule";
 import { PremiumCouponCards } from "@/components/learn/premium-coupon-cards";
 
 const modules = [
-  { href: "/vocab", label: "Vocabulary", desc: "Vocabulary", icon: Sparkles, grad: "from-violet-500 to-fuchsia-500" },
-  { href: "/grammar", label: "Grammar", desc: "Ngữ pháp ngắn gọn", icon: BookOpenText, grad: "from-blue-500 to-cyan-500" },
+  { href: "/vocab", label: "Vocabulary", desc: "Vocabulary", icon: Sparkles, grad: "from-honey to-honey-deep" },
+  { href: "/grammar", label: "Grammar", desc: "Ngữ pháp ngắn gọn", icon: BookOpenText, grad: "from-honey to-honey-deep" },
   { href: "/reading", label: "Reading", desc: "Đọc hiểu IELTS", icon: BookOpen, grad: "from-emerald-500 to-teal-500" },
   { href: "/listening", label: "Listening", desc: "Nghe + Q&A", icon: Headphones, grad: "from-amber-500 to-orange-500" },
   { href: "/writing", label: "Writing", desc: "AI chấm band IELTS", icon: PenLine, grad: "from-rose-500 to-pink-500" },
-  { href: "/speaking", label: "Speaking", desc: "3 part — AI đánh giá", icon: Mic, grad: "from-indigo-500 to-blue-500" },
+  { href: "/speaking", label: "Speaking", desc: "3 part — AI đánh giá", icon: Mic, grad: "from-leaf to-emerald-600" },
 ];
 
 export default async function DashboardPage() {

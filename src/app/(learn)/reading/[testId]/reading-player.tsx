@@ -220,7 +220,7 @@ export function ReadingPlayer({
               className="text-sm leading-relaxed"
             />
             {tool === "translate" && batchLoading && (
-              <p className="mt-2 text-xs text-violet-700 dark:text-violet-300 italic">
+              <p className="mt-2 text-xs text-honey-deep dark:text-honey italic">
                 Đang AI dịch toàn bộ bài... (1 lần duy nhất, click sau là tức thì)
               </p>
             )}

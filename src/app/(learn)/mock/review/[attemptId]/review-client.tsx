@@ -119,7 +119,7 @@ export function MockReviewClient({ attempt }: { attempt: Attempt }) {
           icon={PenLine}
           label="Writing"
           band={attempt.writingBand}
-          grad="from-rose-500 to-pink-500"
+          grad="from-honey to-honey-deep"
         />
         <TabButton
           active={active === "speaking"}
@@ -127,7 +127,7 @@ export function MockReviewClient({ attempt }: { attempt: Attempt }) {
           icon={Mic}
           label="Speaking"
           band={attempt.speakingBand}
-          grad="from-indigo-500 to-blue-500"
+          grad="from-leaf to-leaf-deep"
         />
       </div>
 

@@ -16,7 +16,7 @@ const SKILL_META: { key: Skill; label: string; icon: React.ElementType; color: s
   { key: "reading", label: "Reading", icon: BookOpen, color: "text-emerald-600" },
   { key: "listening", label: "Listening", icon: Headphones, color: "text-amber-600" },
   { key: "writing", label: "Writing", icon: PenLine, color: "text-rose-600" },
-  { key: "speaking", label: "Speaking", icon: Mic, color: "text-indigo-600" },
+  { key: "speaking", label: "Speaking", icon: Mic, color: "text-honey-deep" },
 ];
 
 export interface BandStageInitial {
@@ -223,8 +223,8 @@ export function BandStageForm({
 
           {/* Visibility toggles: control where the HƯỚNG DẪN drawer surfaces
               the markdown tips to the learner. Both on by default. */}
-          <div className="mt-2 rounded-xl border-2 border-violet-200 bg-violet-50/30 p-3 space-y-2">
-            <div className="text-xs font-extrabold uppercase tracking-wider text-violet-700">
+          <div className="mt-2 rounded-xl border-2 border-honey/30 bg-honey-tint/40 p-3 space-y-2">
+            <div className="text-xs font-extrabold uppercase tracking-wider text-honey-deep">
               Hiện HƯỚNG DẪN ở
             </div>
             <div className="flex flex-wrap gap-4">
@@ -233,7 +233,7 @@ export function BandStageForm({
                   type="checkbox"
                   checked={tipsShowOnTest}
                   onChange={(e) => setTipsShowOnTest(e.target.checked)}
-                  className="h-4 w-4 rounded accent-violet-600"
+                  className="h-4 w-4 rounded accent-honey"
                 />
                 <span className="text-sm font-semibold">
                   Bài dài (long test) — nút trên trang chặng
@@ -244,7 +244,7 @@ export function BandStageForm({
                   type="checkbox"
                   checked={tipsShowOnMiniQuiz}
                   onChange={(e) => setTipsShowOnMiniQuiz(e.target.checked)}
-                  className="h-4 w-4 rounded accent-violet-600"
+                  className="h-4 w-4 rounded accent-honey"
                 />
                 <span className="text-sm font-semibold">
                   Mini-quiz — nút trong player Duolingo

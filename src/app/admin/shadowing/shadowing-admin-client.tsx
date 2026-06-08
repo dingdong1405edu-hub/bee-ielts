@@ -356,7 +356,7 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
               via youtubei.js and Deepgram transcribes it. Costs ~$0.05 per
               video so we surface it explicitly. */}
           <label
-            className="flex items-start gap-3 rounded-xl border-2 border-amber-300 bg-white/60 dark:bg-zinc-900/40 p-3 cursor-pointer select-none"
+            className="flex items-start gap-3 rounded-xl border-2 border-amber-300 bg-white/60 dark:bg-card/40 p-3 cursor-pointer select-none"
           >
             <input
               type="checkbox"

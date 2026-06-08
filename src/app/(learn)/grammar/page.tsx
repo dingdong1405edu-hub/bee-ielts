@@ -52,8 +52,7 @@ export default async function GrammarPathPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Hero path header */}
-      <div className="relative overflow-hidden rounded-3xl p-6 md:p-7 text-white shadow-xl shadow-cyan-500/20"
-        style={{ backgroundImage: "linear-gradient(135deg, hsl(189 90% 50%) 0%, hsl(220 90% 55%) 60%, hsl(263 80% 60%) 100%)" }}>
+      <div className="gradient-brand relative overflow-hidden rounded-3xl p-6 md:p-7 text-white shadow-xl shadow-primary/20">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_15%,rgba(255,255,255,0.2),transparent_50%)]" />
         <div className="relative flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
@@ -79,15 +78,14 @@ export default async function GrammarPathPage() {
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-3">
         <StatPill icon={Heart} value={user?.hearts ?? 5} unit="mạng" color="text-rose-500" bg="bg-rose-500/15" />
-        <StatPill icon={Zap} value={user?.xp ?? 0} unit="lượt" color="text-cyan-400" bg="bg-cyan-500/15" />
+        <StatPill icon={Zap} value={user?.xp ?? 0} unit="lượt" color="text-primary/70" bg="bg-primary/15" />
         <StatPill icon={Flame} value={user?.streakDays ?? 0} unit="ngày" color="text-orange-400" bg="bg-orange-500/15" />
       </div>
 
       {/* Unit/section banner */}
       <Link
         href="#"
-        className="block relative overflow-hidden rounded-2xl p-5 text-white shadow-lg"
-        style={{ backgroundImage: "linear-gradient(120deg, hsl(220 88% 60%) 0%, hsl(263 80% 60%) 100%)" }}
+        className="gradient-brand block relative overflow-hidden rounded-2xl p-5 text-white shadow-lg"
       >
         <div className="flex items-center gap-4">
           <div className="grid h-12 w-12 place-items-center rounded-xl bg-white/20 backdrop-blur">
@@ -112,7 +110,7 @@ export default async function GrammarPathPage() {
       ) : (
         <div className="relative py-6">
           {/* dashed vertical line */}
-          <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 border-l-2 border-dashed border-zinc-300 dark:border-zinc-700" aria-hidden />
+          <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 border-l-2 border-dashed border-border dark:border-border" aria-hidden />
           <div className="relative space-y-12">
             {flat.map((l, i) => {
               const done = !!l.progress?.completed;
@@ -186,8 +184,8 @@ function PathNode({
   const isActive = state === "active";
   const isDone = state === "done";
 
-  const ring = isActive ? "from-cyan-400 to-blue-500" : isDone ? "from-emerald-400 to-teal-500" : "from-zinc-400 to-zinc-500";
-  const ringShadow = isActive ? "shadow-cyan-500/40" : isDone ? "shadow-emerald-500/40" : "shadow-zinc-500/20";
+  const ring = isActive ? "from-honey to-honey-deep" : isDone ? "from-emerald-400 to-teal-500" : "from-muted to-muted-foreground";
+  const ringShadow = isActive ? "shadow-primary/40" : isDone ? "shadow-emerald-500/40" : "shadow-muted-foreground/20";
 
   return (
     <div className={`relative w-fit mx-auto flex flex-col items-center ${offset}`}>
@@ -222,13 +220,13 @@ function PathNode({
         <span
           className={`
             inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-extrabold tracking-wider uppercase border
-            ${isActive ? "bg-cyan-500/15 text-cyan-400 border-cyan-500/40" : isDone ? "bg-emerald-500/15 text-emerald-500 border-emerald-500/40" : "bg-muted text-muted-foreground border-border"}
+            ${isActive ? "bg-primary/15 text-primary border-primary/40" : isDone ? "bg-emerald-500/15 text-emerald-500 border-emerald-500/40" : "bg-muted text-muted-foreground border-border"}
           `}
         >
           {locked ? "KHOÁ" : "NGỮ PHÁP"}
         </span>
         <div className={`max-w-[160px] text-sm font-bold leading-tight ${locked ? "text-muted-foreground" : "text-foreground"}`}>{title}</div>
-        <div className={`text-[11px] font-bold ${isActive ? "text-cyan-400" : isDone ? "text-emerald-500" : "text-muted-foreground"}`}>
+        <div className={`text-[11px] font-bold ${isActive ? "text-primary" : isDone ? "text-emerald-500" : "text-muted-foreground"}`}>
           {isDone ? `+${xp} XP đã nhận` : locked ? `· ${level} ·` : `+${xp} XP`}
         </div>
       </div>

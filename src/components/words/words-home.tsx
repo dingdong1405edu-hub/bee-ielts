@@ -77,7 +77,7 @@ export function WordsHome({ decks, popQuizOn }: { decks: Deck[]; popQuizOn: bool
   return (
     <div className="max-w-3xl mx-auto space-y-5">
       <div className="flex items-center gap-4">
-        <div className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-lg shadow-violet-500/30">
+        <div className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-honey to-honey-deep text-white shadow-lg shadow-honey/30">
           <Layers className="h-6 w-6" />
         </div>
         <div>
@@ -146,7 +146,7 @@ export function WordsHome({ decks, popQuizOn }: { decks: Deck[]; popQuizOn: bool
             <Card key={d.id} className="hover:border-primary/40 transition-colors">
               <CardContent className="p-4 flex items-center gap-3">
                 <Link href={`/words/${d.id}`} className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white">
+                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-honey to-honey-deep text-white">
                     <Layers className="h-5 w-5" />
                   </div>
                   <div className="min-w-0 flex-1">

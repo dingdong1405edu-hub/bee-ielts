@@ -87,7 +87,7 @@ export function GrammarPlayer({
         <div className="text-center space-y-3">
           <div className="relative mx-auto">
             <div className="mx-auto grid h-24 w-24 place-items-center text-6xl animate-float">🐝</div>
-            <div className="absolute -top-2 -right-2 grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 text-white shadow-md">
+            <div className="absolute -top-2 -right-2 grid h-8 w-8 place-items-center rounded-full gradient-brand text-white shadow-md">
               <BookOpenText className="h-4 w-4" />
             </div>
           </div>

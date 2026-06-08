@@ -162,7 +162,7 @@ export function MusicAdminClient({ initial }: { initial: Track[] }) {
                     className={`text-left rounded-lg border-2 px-3 py-1.5 text-xs font-semibold transition-all ${
                       on
                         ? "border-primary bg-primary/10 text-primary"
-                        : "border-input bg-card hover:border-zinc-300"
+                        : "border-input bg-card hover:border-border"
                     }`}
                   >
                     {s.label}
@@ -238,7 +238,7 @@ export function MusicAdminClient({ initial }: { initial: Track[] }) {
                         className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold transition-all ${
                           t.enabled
                             ? "bg-emerald-100 text-emerald-700"
-                            : "bg-zinc-100 text-zinc-500"
+                            : "bg-muted text-muted-foreground"
                         }`}
                       >
                         {t.enabled ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
@@ -342,7 +342,7 @@ function TrackEditor({
                 className={`text-left rounded-lg border-2 px-3 py-1.5 text-xs font-semibold transition-all ${
                   on
                     ? "border-primary bg-primary/10 text-primary"
-                    : "border-input bg-card hover:border-zinc-300"
+                    : "border-input bg-card hover:border-border"
                 }`}
               >
                 {s.label}

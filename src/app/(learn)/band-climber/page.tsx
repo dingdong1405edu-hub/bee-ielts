@@ -159,7 +159,7 @@ export default async function BandClimberPage() {
                       className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl font-extrabold text-lg shadow-md ${
                         isUnlocked
                           ? "gradient-brand text-white shadow-primary/20"
-                          : "bg-zinc-300 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300 shadow-zinc-500/10"
+                          : "bg-muted text-muted-foreground dark:bg-muted dark:text-muted-foreground shadow-border/10"
                       }`}
                     >
                       {s.fromBand.toFixed(1)}
@@ -169,7 +169,7 @@ export default async function BandClimberPage() {
                       className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl font-extrabold text-lg border-2 ${
                         isUnlocked
                           ? "bg-accent text-foreground border-primary/30"
-                          : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 border-zinc-300 dark:border-zinc-700"
+                          : "bg-muted dark:bg-muted text-muted-foreground border-border dark:border-border"
                       }`}
                     >
                       {s.toBand.toFixed(1)}
@@ -183,7 +183,7 @@ export default async function BandClimberPage() {
                           </span>
                         )}
                         {!isUnlocked && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-zinc-400 dark:bg-zinc-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-muted-foreground dark:bg-muted-foreground px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-background">
                             <Lock className="h-2.5 w-2.5" /> Khoá
                           </span>
                         )}

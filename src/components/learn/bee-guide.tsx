@@ -316,13 +316,13 @@ export function BeeGuide({
           e.stopPropagation();
           onFinish();
         }}
-        className="absolute top-4 right-4 z-10 inline-flex items-center gap-1 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold text-zinc-700 shadow-lg hover:bg-white cursor-pointer"
+        className="absolute top-4 right-4 z-10 inline-flex items-center gap-1 rounded-full bg-card/90 px-3 py-1.5 text-xs font-bold text-foreground shadow-lg hover:bg-card cursor-pointer"
       >
         <X className="h-3.5 w-3.5" /> Bỏ qua hướng dẫn
       </button>
 
       {/* Hint pill: tap to advance */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 pointer-events-none rounded-full bg-white/90 px-3 py-1.5 text-[11px] font-bold text-zinc-700 shadow">
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 pointer-events-none rounded-full bg-card/90 px-3 py-1.5 text-[11px] font-bold text-foreground shadow">
         Tap để tiếp tục →
       </div>
 
@@ -352,10 +352,10 @@ export function BeeGuide({
                   <div className="text-[11px] font-bold uppercase tracking-wider text-primary inline-flex items-center gap-1">
                     <Sparkles className="h-3 w-3" /> Bước {idx + 1} / {steps.length}
                   </div>
-                  <h3 className="text-lg md:text-xl font-extrabold tracking-tight mt-0.5 text-zinc-900">
+                  <h3 className="text-lg md:text-xl font-extrabold tracking-tight mt-0.5 text-foreground">
                     {step.title}
                   </h3>
-                  <p className="text-[15px] md:text-base leading-relaxed text-zinc-800 mt-1.5 whitespace-pre-line min-h-[3em]">
+                  <p className="text-[15px] md:text-base leading-relaxed text-foreground mt-1.5 whitespace-pre-line min-h-[3em]">
                     <TypewriterText
                       text={step.body}
                       boldWords={(step.highlights ?? []).flatMap((h) => h.items)}
@@ -517,9 +517,9 @@ function Bee() {
 /** White card with an arrow-tip pointing left (towards the bee). */
 function SpeechBubble({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative flex-1 rounded-2xl bg-white text-zinc-900 p-4 shadow-xl shadow-black/30 border border-zinc-200">
+    <div className="relative flex-1 rounded-2xl bg-card text-card-foreground p-4 shadow-xl shadow-black/30 border border-border">
       {/* Tail */}
-      <div className="absolute -left-2 bottom-6 h-4 w-4 rotate-45 bg-white border-l border-b border-zinc-200" />
+      <div className="absolute -left-2 bottom-6 h-4 w-4 rotate-45 bg-card border-l border-b border-border" />
       {children}
     </div>
   );
@@ -572,7 +572,7 @@ function TypewriterText({
     <>
       <BoldedText text={shown} words={boldWords} />
       {!done && (
-        <span className="inline-block w-[2px] h-[1em] ml-0.5 bg-zinc-700 align-text-bottom animate-pulse" />
+        <span className="inline-block w-[2px] h-[1em] ml-0.5 bg-foreground align-text-bottom animate-pulse" />
       )}
     </>
   );

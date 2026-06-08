@@ -47,7 +47,7 @@ export function TipsCard({ skill, score, context }: { skill: Skill; score?: numb
   if (err || !data) return null;
 
   return (
-    <div className="rounded-3xl border bg-gradient-to-br from-violet-50 via-card to-pink-50 p-6">
+    <div className="rounded-3xl border bg-gradient-to-br from-honey-tint via-card to-amber-50 p-6">
       <div className="flex items-center gap-2 mb-3">
         <div className="grid h-9 w-9 place-items-center rounded-xl gradient-brand text-white">
           <Sparkles className="h-4 w-4" />

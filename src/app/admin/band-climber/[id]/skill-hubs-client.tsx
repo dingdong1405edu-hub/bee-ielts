@@ -182,7 +182,7 @@ function SkillHubCard({
               type="button"
               size="sm"
               variant="outline"
-              className="border-violet-300 text-violet-700 hover:bg-violet-100"
+              className="border-honey/50 text-honey-deep hover:bg-honey-tint"
               onClick={onAddQuiz}
             >
               <Brain className="h-4 w-4" /> Quiz
@@ -228,7 +228,7 @@ function SkillHubCard({
             ))}
             {hub.quizzes.map((q) => (
               <li key={`quiz-${q.id}`} className="flex items-center gap-2 rounded-lg border bg-card p-2.5">
-                <span className="shrink-0 inline-flex items-center gap-1 rounded-md bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider">
+                <span className="shrink-0 inline-flex items-center gap-1 rounded-md bg-gradient-to-br from-honey to-honey-deep text-ink px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider">
                   <Brain className="h-3 w-3" /> Quiz
                 </span>
                 <div className="flex-1 min-w-0">
@@ -296,7 +296,7 @@ function QuizModal({
   // longer dismisses).
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col">
-      <div className="sticky top-0 z-10 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white px-5 md:px-8 py-4 flex items-center justify-between">
+      <div className="sticky top-0 z-10 bg-gradient-to-r from-honey to-honey-deep text-ink px-5 md:px-8 py-4 flex items-center justify-between">
         <div className="min-w-0">
           <div className="text-[10px] uppercase tracking-widest opacity-80 font-bold">
             {mode === "create" ? "Tạo Quiz mới" : "Sửa Quiz"} ·{" "}
@@ -307,7 +307,7 @@ function QuizModal({
         <button
           type="button"
           onClick={onClose}
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/20 hover:bg-white/30 text-white"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-ink/10 hover:bg-ink/20 text-ink"
           aria-label="Đóng"
         >
           <X className="h-5 w-5" />

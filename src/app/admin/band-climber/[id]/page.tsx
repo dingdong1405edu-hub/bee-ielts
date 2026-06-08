@@ -146,9 +146,9 @@ export default async function EditBandStagePage({
             {
               skill: "WRITING",
               title: "Writing",
-              gradFrom: "from-rose-500",
-              gradTo: "to-pink-500",
-              border: "border-rose-200",
+              gradFrom: "from-honey",
+              gradTo: "to-honey-deep",
+              border: "border-honey/30",
               newHref: `/admin/writing/new?stageId=${stage.id}`,
               items: stage.writingTasks.map((t) => ({
                 id: t.id,
@@ -162,9 +162,9 @@ export default async function EditBandStagePage({
             {
               skill: "SPEAKING",
               title: "Speaking",
-              gradFrom: "from-indigo-500",
-              gradTo: "to-violet-500",
-              border: "border-indigo-200",
+              gradFrom: "from-leaf",
+              gradTo: "to-leaf-deep",
+              border: "border-leaf/30",
               newHref: `/admin/speaking/new?stageId=${stage.id}`,
               items: stage.speakingSets.map((s) => ({
                 id: s.id,

@@ -742,7 +742,7 @@ export function SpeakingPlayer({
                     onClick={() => setMode(mode === "cang" ? "thuong" : "cang")}
                     className={cn(
                       "relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors",
-                      mode === "cang" ? "bg-primary" : "bg-zinc-300",
+                      mode === "cang" ? "bg-primary" : "bg-muted",
                     )}
                   >
                     <span
@@ -825,7 +825,7 @@ export function SpeakingPlayer({
                   onClick={() => setEnableFollowUp((v) => !v)}
                   className={cn(
                     "relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors",
-                    enableFollowUp ? "bg-primary" : "bg-zinc-300",
+                    enableFollowUp ? "bg-primary" : "bg-muted",
                   )}
                 >
                   <span
@@ -1056,14 +1056,14 @@ export function SpeakingPlayer({
           <Card>
             <CardContent className="p-5 space-y-3">
               <h3 className="font-extrabold flex items-center gap-2">
-                <MessageSquareQuote className="h-5 w-5 text-violet-500" /> Useful phrases &amp; idioms
+                <MessageSquareQuote className="h-5 w-5 text-leaf" /> Useful phrases &amp; idioms
               </h3>
               <div className="space-y-1.5">
                 {result.usefulPhrases.map((p, i) => (
-                  <div key={i} className="rounded-lg border bg-violet-50 dark:bg-violet-950/30 p-2.5">
+                  <div key={i} className="rounded-lg border bg-leaf-tint dark:bg-leaf-deep/20 p-2.5">
                     <button
                       onClick={() => playTTS(p.phrase)}
-                      className="text-sm font-bold text-violet-700 dark:text-violet-300 inline-flex items-center gap-1 hover:underline"
+                      className="text-sm font-bold text-leaf-deep dark:text-leaf inline-flex items-center gap-1 hover:underline"
                     >
                       <Volume2 className="h-3.5 w-3.5" /> {p.phrase}
                     </button>
@@ -1153,10 +1153,10 @@ export function SpeakingPlayer({
             onExit={() => router.push("/speaking")}
           />
           <div className="grid md:grid-cols-2 gap-4">
-            <Card className="bg-white border-2 border-zinc-200 dark:bg-zinc-900/40 dark:border-zinc-800 shadow-sm">
+            <Card className="bg-white border-2 border-border dark:bg-muted/40 dark:border-border shadow-sm">
               <CardContent className="p-4 space-y-2">
                 <div className="flex items-center justify-between">
-                  <div className="font-bold text-base text-pink-600 dark:text-pink-400">
+                  <div className="font-bold text-base text-honey-deep dark:text-honey">
                     {part2CueCard.topic}
                   </div>
                   <Button
@@ -1178,7 +1178,7 @@ export function SpeakingPlayer({
                     className="w-full max-h-40 rounded-lg border bg-background object-contain"
                   />
                 )}
-                <ul className="list-disc pl-5 text-sm space-y-1 text-zinc-600 dark:text-zinc-400">
+                <ul className="list-disc pl-5 text-sm space-y-1 text-muted-foreground dark:text-muted-foreground">
                   {part2CueCard.points.map((p, i) => (
                     <li key={i}>{p}</li>
                   ))}
@@ -1189,12 +1189,12 @@ export function SpeakingPlayer({
               value={part2Notes}
               onChange={(e) => setPart2Notes(e.target.value)}
               placeholder="Ghi chú ở đây..."
-              className="min-h-[200px] rounded-lg border-2 border-zinc-200 bg-background p-3 text-sm leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-primary/40 dark:border-zinc-800"
+              className="min-h-[200px] rounded-lg border-2 border-border bg-background p-3 text-sm leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-primary/40 dark:border-border"
             />
           </div>
           <div className="border-t pt-4 flex items-center justify-between">
-            <div className="text-sm text-sky-600 inline-flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-sky-500" />
+            <div className="text-sm text-primary inline-flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-primary" />
               {prepElapsed < 60
                 ? `Chuẩn bị ghi chú sau ${Math.max(0, 60 - prepElapsed)} giây`
                 : "Đã sẵn sàng — có thể nhấn 'Bắt đầu nói'"}
@@ -1230,11 +1230,11 @@ export function SpeakingPlayer({
         <div className="flex-1 flex flex-col items-center justify-center text-center gap-6 py-6">
           {/* Cue card content shown alongside notes during Part 2 speak */}
           {phase === "part2-speak" && (
-            <div className="w-full text-left rounded-lg border-2 border-zinc-200 bg-white/60 dark:bg-zinc-900/40 dark:border-zinc-800 p-3 space-y-1">
-              <div className="font-bold text-pink-600 dark:text-pink-400">
+            <div className="w-full text-left rounded-lg border-2 border-border bg-white/60 dark:bg-muted/40 dark:border-border p-3 space-y-1">
+              <div className="font-bold text-honey-deep dark:text-honey">
                 {part2CueCard.topic}
               </div>
-              <ul className="list-disc pl-5 text-sm space-y-0.5 text-zinc-600 dark:text-zinc-400">
+              <ul className="list-disc pl-5 text-sm space-y-0.5 text-muted-foreground dark:text-muted-foreground">
                 {part2CueCard.points.map((p, i) => (
                   <li key={i}>{p}</li>
                 ))}
@@ -1262,7 +1262,7 @@ export function SpeakingPlayer({
                 {phase === "part2-speak" ? part2CueCard.topic : currentQ}
               </p>
               {phase === "part2-speak" && part2CueCard.points.length > 0 && (
-                <ul className="mt-3 inline-block text-left list-disc pl-5 text-sm text-zinc-600 dark:text-zinc-400">
+                <ul className="mt-3 inline-block text-left list-disc pl-5 text-sm text-muted-foreground dark:text-muted-foreground">
                   {part2CueCard.points.map((p, i) => (
                     <li key={i}>{p}</li>
                   ))}
@@ -1275,7 +1275,7 @@ export function SpeakingPlayer({
                     playTTS(phase === "part2-speak" ? part2CueCard.topic : currentQ)
                   }
                   disabled={ttsBusy}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-white hover:bg-zinc-50 dark:bg-zinc-800 dark:hover:bg-zinc-700 border px-4 py-1.5 text-sm font-semibold disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-white hover:bg-muted dark:bg-muted dark:hover:bg-muted border px-4 py-1.5 text-sm font-semibold disabled:opacity-50"
                 >
                   {ttsBusy ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -1303,20 +1303,20 @@ export function SpeakingPlayer({
           ) : recording && liveTranscript ? (
             // Live caption while the candidate speaks — Web Speech updates
             // this in real-time so they SEE their words being captured.
-            <div className="w-full max-w-2xl rounded-2xl border-2 border-sky-200 bg-sky-50 dark:bg-sky-950/20 dark:border-sky-900 p-4 text-left">
-              <div className="text-[11px] font-extrabold uppercase tracking-wider text-sky-600 mb-1">
+            <div className="w-full max-w-2xl rounded-2xl border-2 border-primary/30 bg-primary/10 dark:bg-primary/10 dark:border-primary/30 p-4 text-left">
+              <div className="text-[11px] font-extrabold uppercase tracking-wider text-primary mb-1">
                 Bạn đang nói (live)
               </div>
               <p className="text-sm leading-relaxed whitespace-pre-wrap">{liveTranscript}</p>
             </div>
           ) : recording ? (
-            <p className="text-sm text-sky-600 max-w-md leading-relaxed animate-pulse">
+            <p className="text-sm text-primary max-w-md leading-relaxed animate-pulse">
               Đang nghe bạn nói... cứ trả lời tự nhiên rồi nhấn{" "}
               <span className="font-bold">Ghi nhận câu trả lời</span>.
             </p>
           ) : (
-            <p className="text-sm text-zinc-500 max-w-md leading-relaxed">
-              <span className="text-zinc-400">*</span>Trả lời câu hỏi, sau đó nhấn{" "}
+            <p className="text-sm text-muted-foreground max-w-md leading-relaxed">
+              <span className="text-muted-foreground">*</span>Trả lời câu hỏi, sau đó nhấn{" "}
               <span className="font-bold text-primary">Ghi nhận câu trả lời</span> để sang câu
               tiếp theo.
             </p>
@@ -1327,8 +1327,8 @@ export function SpeakingPlayer({
           <div className="flex items-center gap-2 min-w-[140px]">
             {recording ? (
               <>
-                <span className="h-2.5 w-2.5 rounded-full bg-sky-400 animate-pulse" />
-                <span className="text-sm font-semibold text-sky-600">Đang ghi âm...</span>
+                <span className="h-2.5 w-2.5 rounded-full bg-primary animate-pulse" />
+                <span className="text-sm font-semibold text-primary">Đang ghi âm...</span>
               </>
             ) : transcribing ? (
               <>
@@ -1413,7 +1413,7 @@ function SpeakingTopBar({
             "inline-flex items-center gap-1 rounded-full border-2 px-3 py-1 text-xs font-extrabold",
             mode === "cang"
               ? "border-primary text-primary"
-              : "border-zinc-300 text-zinc-500",
+              : "border-border text-muted-foreground",
           )}
         >
           <Timer className="h-3.5 w-3.5" /> {mode === "cang" ? "Căng" : "Thường"}
@@ -1434,7 +1434,7 @@ function SpeakingTopBar({
         <button
           type="button"
           onClick={onExit}
-          className="rounded-full border-2 border-zinc-300 px-3 py-1 text-xs font-bold text-zinc-600 hover:border-zinc-400"
+          className="rounded-full border-2 border-border px-3 py-1 text-xs font-bold text-muted-foreground hover:border-border"
         >
           Thoát
         </button>
@@ -1489,7 +1489,7 @@ function WaveformBars({
           key={i}
           className={cn(
             "w-1.5 rounded-full transition-all",
-            active ? "bg-sky-400" : "bg-zinc-300 animate-pulse",
+            active ? "bg-primary" : "bg-muted animate-pulse",
           )}
           style={{ height: `${Math.min(28, Math.max(6, l * 28))}px` }}
         />
@@ -1566,7 +1566,7 @@ function ParaphrasingCard({ data }: { data: NonNullable<SpeakingResult["paraphra
     },
     partial: {
       label: "Paraphrase một phần",
-      tone: "bg-sky-100 text-sky-700 border-sky-300",
+      tone: "bg-primary/10 text-primary border-primary/30",
       emoji: "👍",
     },
     strong: {
@@ -1577,11 +1577,11 @@ function ParaphrasingCard({ data }: { data: NonNullable<SpeakingResult["paraphra
   };
   const meta = LEVEL_META[data.level] ?? LEVEL_META.minimal;
   return (
-    <Card className="border-2 border-violet-200 bg-violet-50/30 dark:bg-violet-950/20">
+    <Card className="border-2 border-honey/30 bg-honey-tint/40 dark:bg-honey-deep/15">
       <CardContent className="p-5 space-y-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <h3 className="font-extrabold flex items-center gap-2">
-            <Wand2 className="h-5 w-5 text-violet-600" /> Paraphrasing câu hỏi
+            <Wand2 className="h-5 w-5 text-honey-deep" /> Paraphrasing câu hỏi
           </h3>
           <span
             className={cn(
@@ -1605,7 +1605,7 @@ function ParaphrasingCard({ data }: { data: NonNullable<SpeakingResult["paraphra
                   Bạn đã nói
                 </div>
                 <p className="text-sm font-semibold">&ldquo;{ex.candidateSaid}&rdquo;</p>
-                <div className="text-[11px] font-extrabold uppercase tracking-wider text-violet-700 mt-2">
+                <div className="text-[11px] font-extrabold uppercase tracking-wider text-honey-deep mt-2">
                   Nhận xét
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">{ex.comment}</p>

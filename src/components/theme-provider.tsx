@@ -30,12 +30,13 @@ function applyTheme(t: Theme): "light" | "dark" {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("system");
+  const [theme, setThemeState] = useState<Theme>("light");
   const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("light");
 
   useEffect(() => {
     const raw = typeof window !== "undefined" ? localStorage.getItem("theme") : null;
-    const stored: Theme = raw === "dark" || raw === "light" || raw === "system" ? raw : "system";
+    // Honey defaults to light — an explicit stored choice still wins.
+    const stored: Theme = raw === "dark" || raw === "light" || raw === "system" ? raw : "light";
     setThemeState(stored);
     setResolvedTheme(applyTheme(stored));
   }, []);

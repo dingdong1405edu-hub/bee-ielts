@@ -21,9 +21,9 @@ export default function StagePathLoading() {
       <div className="max-w-md mx-auto px-4 pt-8 animate-pulse">
         {/* Section divider */}
         <div className="flex items-center gap-3 py-3">
-          <div className="flex-1 h-px bg-zinc-300/70" />
+          <div className="flex-1 h-px bg-border/70" />
           <div className="h-6 w-24 rounded-full bg-emerald-200" />
-          <div className="flex-1 h-px bg-zinc-300/70" />
+          <div className="flex-1 h-px bg-border/70" />
         </div>
 
         {/* Path nodes */}

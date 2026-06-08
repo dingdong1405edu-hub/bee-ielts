@@ -48,15 +48,15 @@ const ENTITY_META: Record<
   READING_TEST: { label: "Reading", icon: BookOpen, tone: "bg-emerald-100 text-emerald-700" },
   LISTENING_TEST: { label: "Listening", icon: Headphones, tone: "bg-amber-100 text-amber-700" },
   WRITING_TASK: { label: "Writing", icon: PenLine, tone: "bg-rose-100 text-rose-700" },
-  SPEAKING_SET: { label: "Speaking", icon: Mic, tone: "bg-indigo-100 text-indigo-700" },
-  BAND_STAGE: { label: "Vượt band", icon: TrendingUp, tone: "bg-violet-100 text-violet-700" },
-  MINI_QUIZ: { label: "Mini-quiz", icon: Brain, tone: "bg-fuchsia-100 text-fuchsia-700" },
-  VOCAB_UNIT: { label: "Vocab unit", icon: Sparkles, tone: "bg-violet-100 text-violet-700" },
-  VOCAB_LESSON: { label: "Vocab lesson", icon: Sparkles, tone: "bg-violet-100 text-violet-700" },
-  GRAMMAR_UNIT: { label: "Grammar unit", icon: BookOpenText, tone: "bg-cyan-100 text-cyan-700" },
-  GRAMMAR_LESSON: { label: "Grammar lesson", icon: BookOpenText, tone: "bg-cyan-100 text-cyan-700" },
-  BACKGROUND_MUSIC: { label: "Nhạc nền", icon: Music, tone: "bg-pink-100 text-pink-700" },
-  SPEAKING_VOICE: { label: "Giọng đọc", icon: Volume2, tone: "bg-sky-100 text-sky-700" },
+  SPEAKING_SET: { label: "Speaking", icon: Mic, tone: "bg-honey-tint text-honey-deep" },
+  BAND_STAGE: { label: "Vượt band", icon: TrendingUp, tone: "bg-leaf-tint text-leaf-deep" },
+  MINI_QUIZ: { label: "Mini-quiz", icon: Brain, tone: "bg-honey-tint text-honey-deep" },
+  VOCAB_UNIT: { label: "Vocab unit", icon: Sparkles, tone: "bg-leaf-tint text-leaf-deep" },
+  VOCAB_LESSON: { label: "Vocab lesson", icon: Sparkles, tone: "bg-leaf-tint text-leaf-deep" },
+  GRAMMAR_UNIT: { label: "Grammar unit", icon: BookOpenText, tone: "bg-honey-tint text-honey-deep" },
+  GRAMMAR_LESSON: { label: "Grammar lesson", icon: BookOpenText, tone: "bg-honey-tint text-honey-deep" },
+  BACKGROUND_MUSIC: { label: "Nhạc nền", icon: Music, tone: "bg-honey-tint text-honey-deep" },
+  SPEAKING_VOICE: { label: "Giọng đọc", icon: Volume2, tone: "bg-honey-tint text-honey-deep" },
 };
 
 const ACTION_META: Record<string, { label: string; tone: string }> = {
@@ -136,7 +136,7 @@ export function ActivityClient({
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
-            <Activity className="h-7 w-7 text-violet-600" /> Hoạt động admin
+            <Activity className="h-7 w-7 text-honey-deep" /> Hoạt động admin
           </h1>
           <p className="text-muted-foreground text-sm">
             Theo dõi ai tạo / sửa / xoá bài, đề, quiz — tổng <strong>{total}</strong> mục.

@@ -64,7 +64,7 @@ export default async function ShadowingLandingPage({
           href="/shadowing"
           className="group sm:col-span-2 lg:col-span-2 rounded-3xl bg-gradient-to-br from-amber-100 via-orange-100 to-rose-100 dark:from-amber-900/40 dark:via-orange-900/40 dark:to-rose-900/40 p-6 relative overflow-hidden border-2 border-amber-200 dark:border-amber-700/50 hover:shadow-xl transition-shadow"
         >
-          <span className="absolute top-4 left-4 inline-flex items-center gap-1 rounded-full bg-white/80 dark:bg-zinc-900/80 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-amber-700 dark:text-amber-300 shadow-sm">
+          <span className="absolute top-4 left-4 inline-flex items-center gap-1 rounded-full bg-white/80 dark:bg-card/80 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-amber-700 dark:text-amber-300 shadow-sm">
             <Sparkles className="h-3 w-3" /> Mới
           </span>
           <div className="relative">
@@ -73,11 +73,11 @@ export default async function ShadowingLandingPage({
               nội dung <span className="text-orange-600">bạn</span><br />
               yêu thích
             </h3>
-            <p className="mt-3 text-sm text-zinc-700 dark:text-zinc-300 max-w-xs">
+            <p className="mt-3 text-sm text-foreground dark:text-muted-foreground max-w-xs">
               Upload video hoặc audio của riêng bạn để luyện Shadowing và Dictation với Bee.
             </p>
             <div className="mt-5 inline-flex flex-col">
-              <div className="inline-flex items-center gap-2 rounded-2xl bg-white dark:bg-zinc-900 px-5 py-3 font-extrabold shadow-md group-hover:shadow-lg transition-shadow">
+              <div className="inline-flex items-center gap-2 rounded-2xl bg-white dark:bg-card px-5 py-3 font-extrabold shadow-md group-hover:shadow-lg transition-shadow">
                 <Upload className="h-4 w-4 text-amber-600" />
                 <span className="text-sm">UPLOAD VIDEO / AUDIO</span>
               </div>

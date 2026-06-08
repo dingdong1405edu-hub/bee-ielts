@@ -122,7 +122,7 @@ export function CouponsAdminClient({ initial }: { initial: CouponRow[] }) {
     <div className="max-w-4xl space-y-6">
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight flex items-center gap-2">
-          <Ticket className="h-6 w-6 text-violet-500" /> Coupons
+          <Ticket className="h-6 w-6 text-honey-deep" /> Coupons
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
           Tạo mã khuyến mãi để học viên nhận Premium / XP / hearts. Mỗi user chỉ đổi được mỗi mã 1
@@ -176,7 +176,7 @@ export function CouponsAdminClient({ initial }: { initial: CouponRow[] }) {
                 icon={Sparkles}
                 title="XP"
                 hint="Cộng XP vào tài khoản"
-                colorClass="from-violet-500 to-fuchsia-500"
+                colorClass="from-honey to-honey-deep"
               />
               <RewardOption
                 active={rewardKind === "HEARTS"}
@@ -255,7 +255,7 @@ export function CouponsAdminClient({ initial }: { initial: CouponRow[] }) {
                     className={cn(
                       "grid h-10 w-10 shrink-0 place-items-center rounded-xl text-white",
                       c.rewardKind === "PREMIUM" && "bg-gradient-to-br from-amber-500 to-orange-500",
-                      c.rewardKind === "XP" && "bg-gradient-to-br from-violet-500 to-fuchsia-500",
+                      c.rewardKind === "XP" && "bg-gradient-to-br from-honey to-honey-deep",
                       c.rewardKind === "HEARTS" && "bg-gradient-to-br from-rose-500 to-pink-500",
                       dead && "opacity-50",
                     )}
@@ -274,7 +274,7 @@ export function CouponsAdminClient({ initial }: { initial: CouponRow[] }) {
                             ? `+${c.rewardValue} XP`
                             : `+${c.rewardValue} hearts`}
                       </Badge>
-                      {!c.active && <Badge className="text-[10px] bg-zinc-500">Tắt</Badge>}
+                      {!c.active && <Badge className="text-[10px] bg-muted-foreground">Tắt</Badge>}
                       {expired && <Badge className="text-[10px] bg-rose-600">Hết hạn</Badge>}
                       {exhausted && <Badge className="text-[10px] bg-orange-600">Hết lượt</Badge>}
                     </div>

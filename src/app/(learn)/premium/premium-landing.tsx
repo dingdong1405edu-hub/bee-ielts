@@ -80,10 +80,10 @@ export function PremiumLanding({
 
       {/* Context banner from gate redirect */}
       {!isPremium && from === "band-climber" && (
-        <Card className="border-2 border-violet-300 bg-violet-50 dark:bg-violet-950/20">
+        <Card className="border-2 border-honey/40 bg-honey-tint dark:bg-honey/10">
           <CardContent className="p-4 text-sm flex items-center gap-3">
-            <TrendingUp className="h-5 w-5 text-violet-600 shrink-0" />
-            <p className="text-violet-900 dark:text-violet-300">
+            <TrendingUp className="h-5 w-5 text-honey-deep shrink-0" />
+            <p className="text-ink dark:text-honey">
               Phần <strong>Vượt band</strong> chỉ dành cho tài khoản Premium. Gửi yêu cầu bên dưới
               để được mở khoá.
             </p>

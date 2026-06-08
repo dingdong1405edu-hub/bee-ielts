@@ -76,10 +76,10 @@ const SKILL_META: Record<
   speaking: {
     label: "Speaking",
     icon: Mic,
-    from: "from-indigo-500",
-    to: "to-violet-500",
-    ring: "ring-indigo-400/60",
-    bubble: "from-indigo-500 to-violet-600",
+    from: "from-leaf",
+    to: "to-leaf-deep",
+    ring: "ring-leaf/60",
+    bubble: "from-leaf to-leaf-deep",
   },
 };
 
@@ -311,7 +311,7 @@ function PathSection({
     <div className="space-y-1">
       {/* Skill divider */}
       <div className="flex items-center gap-3 py-3">
-        <div className="flex-1 h-px bg-zinc-300/70" />
+        <div className="flex-1 h-px bg-border/70" />
         <div
           className={cn(
             "inline-flex items-center gap-1.5 rounded-full bg-gradient-to-br text-white px-4 py-1.5 text-[11px] font-extrabold uppercase tracking-widest shadow-md",
@@ -321,7 +321,7 @@ function PathSection({
         >
           <Icon className="h-3.5 w-3.5" /> {meta.label}
         </div>
-        <div className="flex-1 h-px bg-zinc-300/70" />
+        <div className="flex-1 h-px bg-border/70" />
       </div>
 
       {/* All exercises (long tests + mini-quizzes) flow inline in the same
@@ -380,7 +380,7 @@ function QuizNode({
       <Link
         href={ex.href}
         title={ex.title}
-        className="block focus:outline-none focus-visible:ring-4 focus-visible:ring-violet-300/40 rounded-full"
+        className="block focus:outline-none focus-visible:ring-4 focus-visible:ring-honey/40 rounded-full"
       >
         <motion.div
           animate={
@@ -398,7 +398,7 @@ function QuizNode({
           <div
             className={cn(
               "grid h-14 w-14 place-items-center rounded-full border-[4px] border-white shadow-[0_6px_0_rgba(0,0,0,0.08)] transition-transform hover:scale-105 active:scale-100",
-              "bg-gradient-to-br from-violet-500 to-fuchsia-600",
+              "bg-gradient-to-br from-honey via-amber-400 to-honey-deep",
             )}
           >
             {isCurrent ? (
@@ -412,12 +412,12 @@ function QuizNode({
       <span className="mt-1.5 max-w-[140px] text-center text-[10px] font-bold text-muted-foreground line-clamp-2">
         {ex.title}
         {ex.subtitle && (
-          <span className="block text-violet-500 text-[9px] font-extrabold mt-0.5">
+          <span className="block text-honey-deep text-[9px] font-extrabold mt-0.5">
             {ex.subtitle}
           </span>
         )}
       </span>
-      {!isLastInGroup && <div className="mt-1.5 h-2 w-1 rounded-full bg-violet-200" />}
+      {!isLastInGroup && <div className="mt-1.5 h-2 w-1 rounded-full bg-honey-tint" />}
     </div>
   );
 }
@@ -471,7 +471,7 @@ function PathNode({
             className={cn(
               "grid h-20 w-20 place-items-center rounded-full border-[5px] border-white shadow-[0_8px_0_rgba(0,0,0,0.08)] transition-transform hover:scale-105 active:scale-100",
               isCurrent
-                ? "bg-gradient-to-br from-purple-500 to-violet-600 ring-4 ring-purple-300/40"
+                ? "bg-gradient-to-br from-honey via-amber-400 to-honey-deep ring-4 ring-honey/40"
                 : isMilestone
                   ? "bg-gradient-to-br from-yellow-400 to-amber-500"
                   : cn("bg-gradient-to-br", meta.from, meta.to),
@@ -496,7 +496,7 @@ function PathNode({
       </span>
       {!isLastInGroup && (
         // dotted connector — visual link to the next node
-        <div className="mt-2 h-3 w-1 rounded-full bg-zinc-300" />
+        <div className="mt-2 h-3 w-1 rounded-full bg-border" />
       )}
     </div>
   );
@@ -508,10 +508,10 @@ function CurrentBubble() {
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.2 }}
-      className="absolute -top-12 left-1/2 -translate-x-1/2 rounded-2xl border-2 border-purple-300 bg-white px-3 py-1.5 text-xs font-extrabold text-purple-600 shadow-md whitespace-nowrap z-10"
+      className="absolute -top-12 left-1/2 -translate-x-1/2 rounded-2xl border-2 border-honey/50 bg-white px-3 py-1.5 text-xs font-extrabold text-honey-deep shadow-md whitespace-nowrap z-10"
     >
       HỌC VƯỢT?
-      <div className="absolute -bottom-[7px] left-1/2 -translate-x-1/2 h-3 w-3 rotate-45 border-r-2 border-b-2 border-purple-300 bg-white" />
+      <div className="absolute -bottom-[7px] left-1/2 -translate-x-1/2 h-3 w-3 rotate-45 border-r-2 border-b-2 border-honey/50 bg-white" />
     </motion.div>
   );
 }
@@ -519,8 +519,8 @@ function CurrentBubble() {
 function FinishCap() {
   return (
     <div className="flex flex-col items-center pt-8 pb-2">
-      <div className="grid h-16 w-16 place-items-center rounded-full bg-gradient-to-br from-zinc-200 to-zinc-300 border-[5px] border-white shadow-[0_6px_0_rgba(0,0,0,0.08)]">
-        <Trophy className="h-7 w-7 text-zinc-500" />
+      <div className="grid h-16 w-16 place-items-center rounded-full bg-gradient-to-br from-muted to-muted border-[5px] border-white shadow-[0_6px_0_rgba(0,0,0,0.08)]">
+        <Trophy className="h-7 w-7 text-muted-foreground" />
       </div>
       <p className="mt-3 text-xs font-bold text-muted-foreground text-center">
         Hoàn thành tất cả bài tập trong chặng để mở khoá band tiếp theo 🐝

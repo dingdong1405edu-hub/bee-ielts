@@ -74,22 +74,22 @@ export default async function CommunityPage() {
   });
 
   return (
-    <div className="-m-4 min-h-screen bg-white text-zinc-900 md:-m-8">
+    <div className="-m-4 min-h-screen bg-background text-foreground md:-m-8">
       <div className="mx-auto flex max-w-[1000px] gap-6 px-4">
         <main className="mx-auto w-full max-w-[600px]">
-          <h1 className="py-4 text-center text-[15px] font-bold text-zinc-900">Trang chủ</h1>
+          <h1 className="py-4 text-center text-[15px] font-bold text-foreground">Trang chủ</h1>
           <CommunityFeed posts={feed} currentUser={currentUser} />
         </main>
         <aside className="hidden w-[290px] shrink-0 py-4 lg:block">
           <div className="sticky top-20 space-y-3">
-            <div className="rounded-2xl border border-zinc-200 bg-white p-5 text-center shadow-sm">
-              <h2 className="text-base font-bold text-zinc-900">Cộng đồng Bee IELTS 🐝</h2>
-              <p className="mt-1.5 text-[13px] leading-relaxed text-zinc-500">
+            <div className="rounded-2xl border border-border bg-card p-5 text-center shadow-sm">
+              <h2 className="text-base font-bold text-foreground">Cộng đồng Bee IELTS 🐝</h2>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
                 Xem mọi người đang học gì, hỏi đáp và động viên nhau trên hành trình
                 chinh phục IELTS.
               </p>
             </div>
-            <div className="px-3 text-[12px] leading-relaxed text-zinc-400">
+            <div className="px-3 text-[12px] leading-relaxed text-muted-foreground">
               © 2026 Bee IELTS · Điều khoản · Quyền riêng tư · Cookie · Báo cáo sự cố
             </div>
           </div>

@@ -54,11 +54,11 @@ export function ExamCountdown({ examDate }: { examDate: string | null }) {
   const days = examDate ? daysUntil(examDate) : 0;
 
   return (
-    <div className="relative overflow-hidden rounded-3xl border bg-gradient-to-br from-sky-500/15 via-indigo-500/10 to-violet-500/15 p-6 md:p-7">
-      <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-sky-500/20 blur-2xl" />
+    <div className="relative overflow-hidden rounded-3xl border bg-gradient-to-br from-honey/15 via-amber-400/10 to-honey-deep/15 p-6 md:p-7">
+      <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-honey/20 blur-2xl" />
       <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-4 min-w-0">
-          <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-500 text-white shadow-lg shadow-sky-500/30">
+          <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-honey to-honey-deep text-white shadow-lg shadow-honey/30">
             <CalendarDays className="h-7 w-7" />
           </div>
           <div className="min-w-0">

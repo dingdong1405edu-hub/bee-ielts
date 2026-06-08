@@ -973,7 +973,7 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
             <button
               type="button"
               onClick={clearFollow}
-              className="shrink-0 rounded-lg border-2 border-amber-300 bg-white dark:bg-zinc-900 px-3 py-1.5 text-xs font-bold hover:bg-amber-50 dark:hover:bg-amber-950/30"
+              className="shrink-0 rounded-lg border-2 border-amber-300 bg-white dark:bg-card px-3 py-1.5 text-xs font-bold hover:bg-amber-50 dark:hover:bg-amber-950/30"
             >
               Tạm dừng
             </button>

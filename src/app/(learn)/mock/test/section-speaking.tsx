@@ -345,7 +345,7 @@ export function MockSpeaking({
 
   return (
     <div data-mock-pane className="max-w-2xl mx-auto space-y-4">
-      <div className="rounded-2xl border bg-indigo-600 text-white p-4 flex items-center justify-between">
+      <div className="rounded-2xl border bg-primary text-primary-foreground p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Mic className="h-6 w-6" />
           <div>
@@ -364,7 +364,7 @@ export function MockSpeaking({
       {phase === "intro" && (
         <Card>
           <CardContent className="p-8 text-center space-y-3">
-            <div className={`mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-indigo-100 text-indigo-600 ${speaking ? "animate-pulse" : ""}`}>
+            <div className={`mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-honey-tint text-honey-deep ${speaking ? "animate-pulse" : ""}`}>
               <Volume2 className="h-7 w-7" />
             </div>
             <h3 className="text-xl font-bold">Examiner đang nói...</h3>
@@ -380,7 +380,7 @@ export function MockSpeaking({
               Part 1 — Câu {questionIdx + 1}/{part1Questions.length}
             </div>
             <div className="flex items-start gap-3">
-              <div className={`grid h-10 w-10 place-items-center rounded-xl bg-indigo-100 text-indigo-600 ${speaking ? "animate-pulse" : ""}`}>
+              <div className={`grid h-10 w-10 place-items-center rounded-xl bg-honey-tint text-honey-deep ${speaking ? "animate-pulse" : ""}`}>
                 <Volume2 className="h-5 w-5" />
               </div>
               <p className="text-lg font-bold flex-1">{part1Questions[questionIdx]}</p>
@@ -447,7 +447,7 @@ export function MockSpeaking({
             <div className="text-center">
               <div className="text-5xl font-extrabold tabular-nums">{formatDuration(part2Remaining)}</div>
               <div className="flex items-center justify-center gap-2 mt-2">
-                <div className={`h-2 w-2 rounded-full ${recording ? "bg-red-500 animate-pulse" : "bg-zinc-400"}`} />
+                <div className={`h-2 w-2 rounded-full ${recording ? "bg-red-500 animate-pulse" : "bg-muted-foreground"}`} />
                 <span className="text-sm text-muted-foreground">{recording ? "Đang ghi âm" : "Mic tắt"}</span>
               </div>
             </div>
@@ -482,7 +482,7 @@ export function MockSpeaking({
               Part 3 — Câu {questionIdx + 1}/{part3Questions.length}
             </div>
             <div className="flex items-start gap-3">
-              <div className={`grid h-10 w-10 place-items-center rounded-xl bg-indigo-100 text-indigo-600 ${speaking ? "animate-pulse" : ""}`}>
+              <div className={`grid h-10 w-10 place-items-center rounded-xl bg-honey-tint text-honey-deep ${speaking ? "animate-pulse" : ""}`}>
                 <Volume2 className="h-5 w-5" />
               </div>
               <p className="text-lg font-bold flex-1">{part3Questions[questionIdx]}</p>
@@ -513,7 +513,7 @@ export function MockSpeaking({
       {phase === "review" && (
         <Card>
           <CardContent className="p-8 text-center space-y-4">
-            <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-indigo-100 text-indigo-600">
+            <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-honey-tint text-honey-deep">
               <Mic className="h-7 w-7" />
             </div>
             <h3 className="text-xl font-bold">Đã xong phần Speaking</h3>
@@ -556,7 +556,7 @@ function RecordingIndicator({
           </>
         ) : (
           <>
-            <div className={`h-2.5 w-2.5 rounded-full ${recording ? "bg-red-500 animate-pulse" : "bg-zinc-400"}`} />
+            <div className={`h-2.5 w-2.5 rounded-full ${recording ? "bg-red-500 animate-pulse" : "bg-muted-foreground"}`} />
             <span className="text-sm text-muted-foreground">
               {recording ? "Đang ghi âm — cứ nói thoải mái, AI sẽ chấm sau." : "Mic chưa bật. Bấm 'Bắt đầu trả lời' để ghi."}
             </span>
@@ -564,7 +564,7 @@ function RecordingIndicator({
         )}
       </div>
       {recording && liveTranscript && (
-        <div className="rounded-lg border-2 border-sky-200 bg-sky-50 dark:bg-sky-950/20 dark:border-sky-900 p-3 text-sm italic text-sky-900 dark:text-sky-100">
+        <div className="rounded-lg border-2 border-primary/30 bg-primary/10 dark:bg-primary/10 dark:border-primary/30 p-3 text-sm italic text-primary dark:text-primary">
           {liveTranscript}
         </div>
       )}

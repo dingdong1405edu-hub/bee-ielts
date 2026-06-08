@@ -15,9 +15,28 @@ const config: Config = {
     },
     extend: {
       fontFamily: {
-        sans: ["var(--font-sans)", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
+        sans: ["var(--font-sans)", "var(--font-vn)", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
+        display: ["var(--font-display)", "var(--font-vn)", "system-ui", "sans-serif"],
       },
       colors: {
+        /* Honey brand aliases — opacity-modifier friendly where hsl(var(--x)) */
+        honey: {
+          DEFAULT: "hsl(var(--primary))",
+          deep: "hsl(var(--accent-foreground))",
+          tint: "hsl(var(--accent))",
+        },
+        leaf: {
+          DEFAULT: "hsl(var(--success))",
+          deep: "var(--accent-deep)",
+          tint: "var(--accent-tint)",
+        },
+        ink: {
+          DEFAULT: "var(--ink)",
+          soft: "var(--ink-soft)",
+          faint: "var(--ink-faint)",
+        },
+        cream: { DEFAULT: "var(--cream)", soft: "var(--cream-2)" },
+        paper: "var(--paper)",
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

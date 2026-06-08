@@ -53,8 +53,8 @@ export function BreakTimer({ seconds, onDone }: { seconds: number; onDone: () =>
             />
             <defs>
               <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="hsl(263 86% 60%)" />
-                <stop offset="100%" stopColor="hsl(320 90% 60%)" />
+                <stop offset="0%" stopColor="hsl(38 85% 52%)" />
+                <stop offset="100%" stopColor="hsl(35 86% 41%)" />
               </linearGradient>
             </defs>
           </svg>

@@ -19,7 +19,7 @@ export default function WritingIntroPage() {
         title="Writing"
         subtitle="2 task · không giới hạn thời gian · AI chấm 4 tiêu chí IELTS"
         icon={PenLine}
-        grad="from-rose-500 to-pink-500"
+        grad="from-honey to-honey-deep"
         startHref="/writing/start"
         ctaLabel="AI chọn đề ngẫu nhiên"
         bullets={[
@@ -87,7 +87,7 @@ async function WritingTaskList() {
   return (
     <>
       <TestPicker
-        grad="from-rose-500 to-pink-500"
+        grad="from-honey to-honey-deep"
         icon={PenLine}
         emptyText="Chưa có đề Writing nào."
         items={tasks.map((t) => ({
@@ -96,7 +96,7 @@ async function WritingTaskList() {
           title: t.prompt.split("\n")[0].slice(0, 110),
           imageUrl: t.imageUrl,
           attemptCount: counts.get(t.id) ?? 0,
-          pill: { label: `Task ${t.taskType}`, color: t.taskType === 1 ? "amber" : "violet" },
+          pill: { label: `Task ${t.taskType}`, color: t.taskType === 1 ? "amber" : "indigo" },
           details: [
             t.taskType === 1 ? "Mô tả biểu đồ / số liệu" : "Essay nghị luận",
             `≥ ${t.minWords} từ`,
@@ -117,7 +117,7 @@ async function WritingTaskList() {
               <Card key={h.id} className="hover:shadow-md hover:border-primary/40 transition-all">
                 <CardContent className="p-4 flex items-center gap-3">
                   <Link href={`/writing/review/${h.id}`} className="flex items-center gap-3 min-w-0 flex-1">
-                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-rose-500 to-pink-500 text-white font-extrabold">
+                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-honey to-honey-deep text-white font-extrabold">
                       {(h.score ?? 0).toFixed(1)}
                     </div>
                     <div className="min-w-0 flex-1">

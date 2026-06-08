@@ -435,11 +435,11 @@ export function MiniQuizForm({
       {/* Questions list */}
       <div className="space-y-3">
         {questions.map((q, idx) => (
-          <Card key={idx} className="border-2 border-violet-100">
+          <Card key={idx} className="border-2 border-honey/30">
             <CardHeader>
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <span className="grid h-7 w-7 place-items-center rounded-full bg-violet-500 text-white text-sm font-bold">
+                  <span className="grid h-7 w-7 place-items-center rounded-full bg-honey text-ink text-sm font-bold">
                     {idx + 1}
                   </span>
                   Câu {idx + 1}
@@ -480,7 +480,7 @@ export function MiniQuizForm({
                     </span>
                   )}
                   {q.type === "SPEAKING" && (
-                    <span className="ml-1 normal-case text-[10px] font-normal text-indigo-600">
+                    <span className="ml-1 normal-case text-[10px] font-normal text-leaf-deep">
                       — user sẽ ghi âm trả lời, không có đáp án đúng/sai
                     </span>
                   )}
@@ -531,11 +531,11 @@ export function MiniQuizForm({
 
               {q.type === "SPEAKING" ? (
                 <>
-                  <div className="rounded-xl border-2 border-indigo-200 bg-indigo-50/30 p-3 text-sm text-indigo-900">
-                    <div className="font-bold text-indigo-700 inline-flex items-center gap-1.5">
+                  <div className="rounded-xl border-2 border-leaf/30 bg-leaf-tint/40 p-3 text-sm text-ink">
+                    <div className="font-bold text-leaf-deep inline-flex items-center gap-1.5">
                       <Mic className="h-4 w-4" /> Dạng ghi âm
                     </div>
-                    <p className="text-xs text-indigo-700 mt-1">
+                    <p className="text-xs text-leaf-deep mt-1">
                       User ghi âm trả lời — AI sẽ chấm pronunciation + grammar ngay sau khi user
                       nói xong. Khi kết thúc cả quiz, user nghe lại được audio từng câu và được
                       chấm điểm tổng IELTS y chang phần Speaking luyện tập.
@@ -545,18 +545,18 @@ export function MiniQuizForm({
                       player runs the 1-min-prep + 2-min-speak Part 2 flow on
                       this question; bullets empty = standard Part 1/3 record
                       flow. */}
-                  <div className="rounded-xl border-2 border-violet-200 bg-violet-50/30 dark:bg-violet-950/20 p-3 space-y-2">
+                  <div className="rounded-xl border-2 border-honey/40 bg-honey-tint/40 dark:bg-honey/10 p-3 space-y-2">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <div className="font-bold text-violet-700 dark:text-violet-300 inline-flex items-center gap-1.5">
+                      <div className="font-bold text-honey-deep dark:text-honey inline-flex items-center gap-1.5">
                         <Sparkles className="h-4 w-4" /> Speaking Part 2 — Cue card (tùy chọn)
                       </div>
-                      <span className="text-[10px] text-violet-600 dark:text-violet-400">
+                      <span className="text-[10px] text-honey-deep dark:text-honey">
                         {(q.cueCardPoints?.length ?? 0) > 0
                           ? `Đã bật — ${q.cueCardPoints?.length} gạch đầu dòng`
                           : "Để trống = Part 1/3 thường"}
                       </span>
                     </div>
-                    <p className="text-[11px] text-violet-700 dark:text-violet-400 leading-snug">
+                    <p className="text-[11px] text-honey-deep dark:text-honey leading-snug">
                       Thêm các bullet "You should say" — khi user vào quiz sẽ có{" "}
                       <strong>1 phút chuẩn bị</strong> rồi <strong>2 phút nói tự động ghi âm</strong>{" "}
                       y chang Speaking Part 2 luyện tập. AI vẫn chấm theo 4 tiêu chí IELTS như câu
@@ -564,7 +564,7 @@ export function MiniQuizForm({
                     </p>
                     {(q.cueCardPoints ?? []).map((point, pIdx) => (
                       <div key={pIdx} className="flex items-center gap-2">
-                        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-violet-500 text-white text-xs font-bold">
+                        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-honey text-ink text-xs font-bold">
                           {pIdx + 1}
                         </span>
                         <Input
@@ -587,7 +587,7 @@ export function MiniQuizForm({
                         type="button"
                         size="sm"
                         variant="outline"
-                        className="border-violet-300 text-violet-700 hover:bg-violet-100"
+                        className="border-honey/50 text-honey-deep hover:bg-honey-tint"
                         onClick={() => addCuePoint(idx)}
                       >
                         <Plus className="h-3 w-3" /> Thêm gạch đầu dòng
@@ -629,7 +629,7 @@ export function MiniQuizForm({
                           type="button"
                           onClick={() => updateQuestion(idx, { correctIndex: oIdx })}
                           className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${
-                            isCorrect ? "bg-emerald-500 text-white" : "bg-zinc-200 text-zinc-500"
+                            isCorrect ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground"
                           }`}
                           title="Đặt làm đáp án đúng"
                         >
@@ -717,7 +717,7 @@ export function MiniQuizForm({
         <Button
           variant="outline"
           onClick={() => addQuestion("SPEAKING")}
-          className="border-indigo-300 text-indigo-700 hover:bg-indigo-50"
+          className="border-leaf/40 text-leaf-deep hover:bg-leaf-tint/50"
         >
           <Mic className="h-4 w-4" /> Thêm câu — ghi âm (Speaking)
         </Button>

@@ -76,7 +76,7 @@ function timeAgo(iso: string): string {
 function Avatar({ author, size = 36 }: { author: Author; size?: number }) {
   return (
     <div
-      className="shrink-0 overflow-hidden rounded-full bg-zinc-200 grid place-items-center ring-1 ring-zinc-200"
+      className="shrink-0 overflow-hidden rounded-full bg-muted grid place-items-center ring-1 ring-border"
       style={{ width: size, height: size }}
     >
       {author.avatarUrl ? (
@@ -140,9 +140,9 @@ export function CommunityFeed({
   };
 
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white">
+    <div className="rounded-2xl border border-border bg-card">
       {/* Composer */}
-      <div className="flex items-start gap-3 px-4 py-4 border-b border-zinc-200">
+      <div className="flex items-start gap-3 px-4 py-4 border-b border-border">
         <Avatar author={currentUser} />
         <div className="min-w-0 flex-1">
           <textarea
@@ -151,15 +151,15 @@ export function CommunityFeed({
             maxLength={1000}
             rows={2}
             placeholder="Có gì mới?"
-            className="w-full resize-none bg-transparent text-[15px] text-zinc-900 placeholder:text-zinc-400 outline-none"
+            className="w-full resize-none bg-transparent text-[15px] text-foreground placeholder:text-muted-foreground outline-none"
           />
           {image && (
             <div className="relative mt-1 w-fit">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={image} alt="preview" className="max-h-56 rounded-xl border border-zinc-200" />
+              <img src={image} alt="preview" className="max-h-56 rounded-xl border border-border" />
               <button
                 onClick={() => setImage(null)}
-                className="absolute -right-2 -top-2 grid h-7 w-7 place-items-center rounded-full bg-zinc-900 text-white shadow"
+                className="absolute -right-2 -top-2 grid h-7 w-7 place-items-center rounded-full bg-foreground text-background shadow"
                 aria-label="Bỏ ảnh"
               >
                 <X className="h-4 w-4" />
@@ -180,7 +180,7 @@ export function CommunityFeed({
           <div className="mt-2 flex items-center justify-between">
             <button
               onClick={() => fileInput.current?.click()}
-              className="grid h-9 w-9 place-items-center rounded-full text-zinc-500 hover:bg-zinc-100"
+              className="grid h-9 w-9 place-items-center rounded-full text-muted-foreground hover:bg-muted"
               aria-label="Thêm ảnh"
             >
               <ImagePlus className="h-5 w-5" />
@@ -188,7 +188,7 @@ export function CommunityFeed({
             <button
               onClick={submitPost}
               disabled={posting || (!draft.trim() && !image)}
-              className="flex items-center gap-1.5 rounded-full bg-zinc-900 px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-40"
+              className="flex items-center gap-1.5 rounded-full bg-foreground px-4 py-1.5 text-sm font-semibold text-background disabled:opacity-40"
             >
               {posting && <Loader2 className="h-4 w-4 animate-spin" />}
               Đăng
@@ -199,7 +199,7 @@ export function CommunityFeed({
 
       {/* Feed */}
       {posts.length === 0 ? (
-        <div className="px-4 py-16 text-center text-sm text-zinc-400">
+        <div className="px-4 py-16 text-center text-sm text-muted-foreground">
           Chưa có bài viết nào. Hãy là người đầu tiên chia sẻ! 🐝
         </div>
       ) : (
@@ -232,13 +232,13 @@ function ActionButton({
       onClick={onClick}
       aria-label={label}
       className={cn(
-        "flex items-center gap-1 rounded-full px-2 py-1.5 transition-colors hover:bg-zinc-100",
-        active ? activeClass : "text-zinc-700",
+        "flex items-center gap-1 rounded-full px-2 py-1.5 transition-colors hover:bg-muted",
+        active ? activeClass : "text-foreground",
       )}
     >
       <Icon className={cn("h-[19px] w-[19px]", filled && "fill-current")} />
       {count !== undefined && count > 0 && (
-        <span className="text-[13px] text-zinc-500">{count}</span>
+        <span className="text-[13px] text-muted-foreground">{count}</span>
       )}
     </button>
   );
@@ -317,17 +317,17 @@ function PostCard({ post }: { post: FeedPost }) {
   };
 
   return (
-    <article className="flex gap-3 px-4 py-4 border-b border-zinc-200 last:border-b-0">
+    <article className="flex gap-3 px-4 py-4 border-b border-border last:border-b-0">
       <Avatar author={post.author} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <span className="font-semibold text-[15px] text-zinc-900 truncate">{post.author.name}</span>
-          <span className="text-[15px] text-zinc-400">{timeAgo(post.createdAt)}</span>
+          <span className="font-semibold text-[15px] text-foreground truncate">{post.author.name}</span>
+          <span className="text-[15px] text-muted-foreground">{timeAgo(post.createdAt)}</span>
           {post.isMine && (
             <button
               onClick={deletePost}
               disabled={busy}
-              className="ml-auto grid h-7 w-7 place-items-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+              className="ml-auto grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
               aria-label="Tuỳ chọn bài viết"
             >
               <MoreHorizontal className="h-5 w-5" />
@@ -336,7 +336,7 @@ function PostCard({ post }: { post: FeedPost }) {
         </div>
 
         {post.content && (
-          <p className="mt-0.5 text-[15px] leading-normal text-zinc-900 whitespace-pre-wrap break-words">
+          <p className="mt-0.5 text-[15px] leading-normal text-foreground whitespace-pre-wrap break-words">
             {post.content}
           </p>
         )}
@@ -345,7 +345,7 @@ function PostCard({ post }: { post: FeedPost }) {
           <img
             src={post.imageUrl}
             alt="post"
-            className="mt-2 max-h-[430px] w-auto rounded-xl border border-zinc-200"
+            className="mt-2 max-h-[430px] w-auto rounded-xl border border-border"
           />
         )}
 
@@ -376,7 +376,7 @@ function PostCard({ post }: { post: FeedPost }) {
 
         {/* comments */}
         {showComments && (
-          <div className="mt-3 space-y-3 border-t border-zinc-200 pt-3">
+          <div className="mt-3 space-y-3 border-t border-border pt-3">
             {post.comments.map((c) => (
               <CommentNode key={c.id} comment={c} postId={post.id} />
             ))}
@@ -392,12 +392,12 @@ function PostCard({ post }: { post: FeedPost }) {
                 }}
                 maxLength={500}
                 placeholder="Viết bình luận..."
-                className="flex-1 rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-400 outline-none focus:border-zinc-500"
+                className="flex-1 rounded-full border border-border bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-border"
               />
               <button
                 onClick={submitComment}
                 disabled={busy || !commentDraft.trim()}
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-zinc-900 text-white disabled:opacity-40"
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-foreground text-background disabled:opacity-40"
                 aria-label="Gửi bình luận"
               >
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
@@ -457,26 +457,26 @@ function CommentNode({ comment, postId }: { comment: FeedComment; postId: string
     <div className="flex items-start gap-2">
       <Avatar author={comment.author} size={28} />
       <div className="min-w-0 flex-1">
-        <div className="rounded-2xl bg-zinc-100 px-3 py-2">
+        <div className="rounded-2xl bg-muted px-3 py-2">
           <div className="flex items-center gap-1.5">
-            <span className="text-xs font-bold text-zinc-900">{comment.author.name}</span>
-            <span className="text-[10px] text-zinc-400">· {timeAgo(comment.createdAt)}</span>
+            <span className="text-xs font-bold text-foreground">{comment.author.name}</span>
+            <span className="text-[10px] text-muted-foreground">· {timeAgo(comment.createdAt)}</span>
             {comment.isMine && (
               <button
                 onClick={deleteComment}
-                className="ml-auto text-zinc-400 hover:text-rose-500"
+                className="ml-auto text-muted-foreground hover:text-rose-500"
                 aria-label="Xoá bình luận"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
-          <p className="text-sm text-zinc-900 whitespace-pre-wrap break-words">{comment.content}</p>
+          <p className="text-sm text-foreground whitespace-pre-wrap break-words">{comment.content}</p>
         </div>
 
         <button
           onClick={() => setReplying((v) => !v)}
-          className="mt-1 ml-3 text-[11px] font-bold text-zinc-500 hover:text-zinc-900"
+          className="mt-1 ml-3 text-[11px] font-bold text-muted-foreground hover:text-foreground"
         >
           Trả lời
         </button>
@@ -495,12 +495,12 @@ function CommentNode({ comment, postId }: { comment: FeedComment; postId: string
               autoFocus
               maxLength={500}
               placeholder={`Trả lời ${comment.author.name}...`}
-              className="flex-1 rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-400 outline-none focus:border-zinc-500"
+              className="flex-1 rounded-full border border-border bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-border"
             />
             <button
               onClick={submitReply}
               disabled={busy || !replyDraft.trim()}
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-zinc-900 text-white disabled:opacity-40"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-foreground text-background disabled:opacity-40"
               aria-label="Gửi trả lời"
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
@@ -509,7 +509,7 @@ function CommentNode({ comment, postId }: { comment: FeedComment; postId: string
         )}
 
         {comment.replies.length > 0 && (
-          <div className="mt-2 space-y-3 border-l-2 border-zinc-200 pl-3">
+          <div className="mt-2 space-y-3 border-l-2 border-border pl-3">
             {comment.replies.map((r) => (
               <CommentNode key={r.id} comment={r} postId={postId} />
             ))}

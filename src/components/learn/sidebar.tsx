@@ -121,10 +121,10 @@ export function Sidebar({
       collapsed ? "justify-center px-0 py-2.5 mx-auto w-11" : "gap-3 px-3 py-2.5",
       active
         ? community
-          ? "bg-zinc-100 text-zinc-900 shadow-sm border border-zinc-200"
+          ? "bg-muted text-foreground shadow-sm border border-border"
           : "bg-card text-foreground shadow-sm border"
         : community
-          ? "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+          ? "text-muted-foreground hover:bg-muted hover:text-foreground"
           : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
     );
 
@@ -148,7 +148,7 @@ export function Sidebar({
         >
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl gradient-brand text-white font-bold shadow-md shadow-primary/20">🐝</div>
           {!collapsed && (
-            <span className={cn("font-extrabold tracking-tight truncate", community && "text-zinc-900")}>
+            <span className={cn("font-extrabold tracking-tight truncate", community && "text-foreground")}>
               Bee IELTS
             </span>
           )}
@@ -164,7 +164,7 @@ export function Sidebar({
             className={cn(
               "mt-1 grid h-7 w-7 place-items-center rounded-lg transition-colors",
               community
-                ? "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+                ? "text-muted-foreground hover:bg-muted hover:text-foreground"
                 : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
             )}
           >
@@ -182,7 +182,7 @@ export function Sidebar({
             className={cn(
               "shrink-0 grid h-8 w-8 place-items-center rounded-lg transition-colors",
               community
-                ? "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+                ? "text-muted-foreground hover:bg-muted hover:text-foreground"
                 : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
             )}
           >
@@ -198,7 +198,7 @@ export function Sidebar({
             className={cn(
               "shrink-0 grid h-8 w-8 place-items-center rounded-lg transition-colors",
               community
-                ? "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+                ? "text-muted-foreground hover:bg-muted hover:text-foreground"
                 : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
             )}
           >
@@ -282,7 +282,7 @@ export function Sidebar({
           "mt-2 flex items-center rounded-xl text-sm font-semibold",
           collapsed ? "justify-center px-0 py-2.5 mx-auto w-11" : "gap-3 px-3 py-2.5",
           community
-            ? "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+            ? "text-muted-foreground hover:bg-muted hover:text-foreground"
             : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
         )}
       >
@@ -309,7 +309,7 @@ export function Sidebar({
         // an overlay. This is the "từ từ kéo sang bên phải trở lại như
         // ban đầu" behaviour the user asked for.
         collapsedNow ? "md:w-16" : "md:w-64",
-        community && "bg-white border-r border-zinc-200",
+        community && "bg-card border-r border-border",
       )}
     >
       <div

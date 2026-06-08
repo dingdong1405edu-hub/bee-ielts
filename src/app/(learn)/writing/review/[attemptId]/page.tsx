@@ -72,7 +72,7 @@ export default async function WritingReviewPage({ params }: { params: { attemptI
                   Các cụm <span className="font-bold underline decoration-2">in đậm gạch chân</span> là chỗ
                   viết sai — di chuột vào để xem lỗi &amp; cách sửa.{" "}
                   <span className="font-semibold text-rose-600 dark:text-rose-400">Ngữ pháp</span> ·{" "}
-                  <span className="font-semibold text-violet-600 dark:text-violet-400">Từ vựng</span> ·{" "}
+                  <span className="font-semibold text-honey-deep dark:text-honey">Từ vựng</span> ·{" "}
                   <span className="font-semibold text-amber-600 dark:text-amber-400">Mạch ý</span>
                 </p>
               )}

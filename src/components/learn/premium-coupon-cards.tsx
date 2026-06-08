@@ -102,10 +102,10 @@ export function PremiumCouponCards({
       </Card>
 
       {/* Coupon redemption card */}
-      <Card className="border-2 border-violet-300 bg-gradient-to-br from-violet-50/60 to-fuchsia-50/60 dark:from-violet-950/30 dark:to-fuchsia-950/30">
+      <Card className="border-2 border-leaf/40 bg-gradient-to-br from-leaf-tint/60 to-emerald-50/60 dark:from-leaf/15 dark:to-emerald-950/30">
         <CardContent className="p-5 space-y-3">
           <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-md shadow-violet-500/30">
+            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-leaf to-emerald-600 text-white shadow-md shadow-leaf/30">
               <Ticket className="h-5 w-5" />
             </div>
             <div className="flex-1 min-w-0">

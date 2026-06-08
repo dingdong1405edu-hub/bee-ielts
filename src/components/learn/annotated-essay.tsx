@@ -10,9 +10,9 @@ interface Annotation {
 /** Underline + text colour for each error category. */
 const CATEGORY_MARK: Record<string, string> = {
   grammar: "decoration-rose-500 text-rose-600 dark:text-rose-400",
-  vocabulary: "decoration-violet-500 text-violet-600 dark:text-violet-400",
+  vocabulary: "decoration-emerald-500 text-emerald-600 dark:text-emerald-400",
   coherence: "decoration-amber-500 text-amber-600 dark:text-amber-400",
-  task: "decoration-sky-500 text-sky-600 dark:text-sky-400",
+  task: "decoration-primary text-primary dark:text-primary/70",
 };
 
 /**

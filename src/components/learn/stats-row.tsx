@@ -59,7 +59,7 @@ export function StatsRow({ streakDays, streakRestoreRemaining, targetBand, weekM
   return (
     <div className="grid gap-4 sm:grid-cols-3">
       {/* Streak card */}
-      <div className="relative overflow-hidden rounded-3xl bg-slate-900 border border-slate-800 p-5 text-white">
+      <div className="relative overflow-hidden rounded-3xl bg-foreground border border-border p-5 text-background">
         <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-orange-500/20 blur-2xl" />
         <div className="relative flex items-start justify-between">
           <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-orange-400 to-rose-500 shadow-lg shadow-orange-500/30">
@@ -71,12 +71,12 @@ export function StatsRow({ streakDays, streakRestoreRemaining, targetBand, weekM
         </div>
         <div className="relative mt-4">
           <div className="font-bold">Streak</div>
-          <div className="flex items-center justify-between text-xs text-slate-400 mt-0.5">
+          <div className="flex items-center justify-between text-xs text-muted-foreground mt-0.5">
             <span>Restore còn lại: <span className="text-orange-300 font-bold">{streakRestoreRemaining}/5</span></span>
             <button
               onClick={restoreStreak}
               disabled={pending || streakRestoreRemaining <= 0}
-              className="inline-flex items-center gap-1 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-40 px-2 py-1 text-[11px] font-semibold transition-colors"
+              className="inline-flex items-center gap-1 rounded-full bg-background/10 hover:bg-background/20 disabled:opacity-40 px-2 py-1 text-[11px] font-semibold transition-colors"
             >
               <RefreshCw className="h-3 w-3" /> Restore
             </button>
@@ -85,15 +85,15 @@ export function StatsRow({ streakDays, streakRestoreRemaining, targetBand, weekM
       </div>
 
       {/* Target Band card */}
-      <div className="relative overflow-hidden rounded-3xl bg-slate-900 border border-slate-800 p-5 text-white">
-        <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-violet-500/20 blur-2xl" />
+      <div className="relative overflow-hidden rounded-3xl bg-foreground border border-border p-5 text-background">
+        <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-honey/20 blur-2xl" />
         <div className="relative flex items-start justify-between">
-          <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-violet-400 to-fuchsia-500 shadow-lg shadow-violet-500/30">
+          <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-honey to-honey-deep shadow-lg shadow-honey/30">
             <Target className="h-5 w-5" />
           </div>
           {!editingBand ? (
-            <div className="text-3xl md:text-4xl font-extrabold bg-gradient-to-br from-violet-300 to-fuchsia-400 bg-clip-text text-transparent">
-              {targetBand.toFixed(1)} <span className="text-base font-bold text-violet-200">band</span>
+            <div className="text-3xl md:text-4xl font-extrabold bg-gradient-to-br from-honey-tint to-honey bg-clip-text text-transparent">
+              {targetBand.toFixed(1)} <span className="text-base font-bold text-honey-tint">band</span>
             </div>
           ) : (
             <div className="flex items-center gap-2">
@@ -104,7 +104,7 @@ export function StatsRow({ streakDays, streakRestoreRemaining, targetBand, weekM
                 max={9}
                 value={bandDraft}
                 onChange={(e) => setBandDraft(parseFloat(e.target.value) || 0)}
-                className="w-20 rounded-lg bg-slate-800 border border-slate-700 text-white text-xl font-bold px-2 py-1 text-center"
+                className="w-20 rounded-lg bg-foreground border border-border text-background text-xl font-bold px-2 py-1 text-center"
               />
             </div>
           )}
@@ -112,18 +112,18 @@ export function StatsRow({ streakDays, streakRestoreRemaining, targetBand, weekM
         <div className="relative mt-4 flex items-center justify-between">
           <div>
             <div className="font-bold">Target Band</div>
-            <div className="text-xs text-slate-400 mt-0.5">Định hướng lộ trình học</div>
+            <div className="text-xs text-muted-foreground mt-0.5">Định hướng lộ trình học</div>
           </div>
           {!editingBand ? (
             <button
               onClick={() => setEditingBand(true)}
-              className="rounded-full bg-white/10 hover:bg-white/20 px-3 py-1 text-[11px] font-semibold transition-colors"
+              className="rounded-full bg-background/10 hover:bg-background/20 px-3 py-1 text-[11px] font-semibold transition-colors"
             >
               Sửa
             </button>
           ) : (
             <div className="flex gap-1">
-              <Button size="sm" variant="ghost" onClick={() => { setEditingBand(false); setBandDraft(targetBand); }} className="text-white hover:bg-white/10 h-7 px-2">
+              <Button size="sm" variant="ghost" onClick={() => { setEditingBand(false); setBandDraft(targetBand); }} className="text-background hover:bg-background/10 h-7 px-2">
                 <X className="h-3.5 w-3.5" />
               </Button>
               <Button size="sm" onClick={saveBand} disabled={pending} className="h-7 px-2 text-xs">
@@ -135,20 +135,20 @@ export function StatsRow({ streakDays, streakRestoreRemaining, targetBand, weekM
       </div>
 
       {/* Weekly hours card */}
-      <div className="relative overflow-hidden rounded-3xl bg-slate-900 border border-slate-800 p-5 text-white">
-        <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-cyan-400/20 blur-2xl" />
+      <div className="relative overflow-hidden rounded-3xl bg-foreground border border-border p-5 text-background">
+        <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-primary/20 blur-2xl" />
         <div className="relative flex items-start justify-between">
-          <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-cyan-400 to-blue-500 shadow-lg shadow-cyan-500/30">
+          <div className="grid h-11 w-11 place-items-center rounded-xl gradient-brand shadow-lg shadow-primary/30">
             <Clock className="h-5 w-5" />
           </div>
-          <div className="text-3xl md:text-4xl font-extrabold bg-gradient-to-br from-cyan-300 to-blue-400 bg-clip-text text-transparent">
+          <div className="text-3xl md:text-4xl font-extrabold gradient-brand-text">
             {hours > 0 ? `${hours}` : `${mins}`}
-            <span className="text-base font-bold text-cyan-200 ml-1">{hours > 0 ? "giờ" : "phút"}</span>
+            <span className="text-base font-bold text-primary ml-1">{hours > 0 ? "giờ" : "phút"}</span>
           </div>
         </div>
         <div className="relative mt-4">
           <div className="font-bold">Tuần này</div>
-          <div className="text-xs text-slate-400 mt-0.5">
+          <div className="text-xs text-muted-foreground mt-0.5">
             {weekSessions} session{weekSessions === 1 ? "" : "s"}
             {hours > 0 && ` · ${mins} phút thêm`}
           </div>

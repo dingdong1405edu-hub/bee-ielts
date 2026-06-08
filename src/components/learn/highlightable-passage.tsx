@@ -471,7 +471,7 @@ export function HighlightToolbar({
         className={cn(
           "h-7 w-7 rounded-full border-2 grid place-items-center transition-all",
           tool === "translate"
-            ? "border-foreground bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 scale-110 ring-2 ring-foreground/30"
+            ? "border-foreground bg-honey-tint dark:bg-honey-deep/40 text-honey-deep dark:text-honey scale-110 ring-2 ring-foreground/30"
             : "border-border hover:bg-muted text-muted-foreground",
         )}
       >

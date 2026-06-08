@@ -450,7 +450,7 @@ function MockResultView({
       key: "writing",
       label: "Writing",
       icon: PenLine,
-      grad: "from-rose-500 to-pink-500",
+      grad: "from-honey to-honey-deep",
       band: result.perSkill.writing.band,
       note: "AI chấm theo 4 tiêu chí",
     },
@@ -458,7 +458,7 @@ function MockResultView({
       key: "speaking",
       label: "Speaking",
       icon: Mic,
-      grad: "from-indigo-500 to-blue-500",
+      grad: "from-leaf to-leaf-deep",
       band: result.perSkill.speaking.band,
       note: "AI chấm theo 4 tiêu chí",
     },
@@ -517,7 +517,7 @@ function MockResultView({
           return (
             <div
               key={s.key}
-              className="rounded-2xl border bg-card p-3 text-center print:border-zinc-300"
+              className="rounded-2xl border bg-card p-3 text-center print:border-border"
             >
               <div className={`mx-auto grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br ${s.grad} text-white print:hidden`}>
                 <Icon className="h-4 w-4" />
@@ -587,7 +587,7 @@ function MockResultView({
         icon={PenLine}
         label="Writing"
         bandSummary={`Band ${result.perSkill.writing.band.toFixed(1)}`}
-        gradient="from-rose-500 to-pink-500"
+        gradient="from-honey to-honey-deep"
       >
         <WritingTaskBlock
           taskType={1}
@@ -608,7 +608,7 @@ function MockResultView({
         icon={Mic}
         label="Speaking"
         bandSummary={`Band ${result.perSkill.speaking.band.toFixed(1)}`}
-        gradient="from-indigo-500 to-blue-500"
+        gradient="from-leaf to-leaf-deep"
       >
         <SpeakingResultBlock
           topic={speaking.topic}
@@ -647,9 +647,9 @@ function ResultSection({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border-2 overflow-hidden break-inside-avoid print:border-zinc-400">
+    <div className="rounded-2xl border-2 overflow-hidden break-inside-avoid print:border-border">
       <div
-        className={`bg-gradient-to-r ${gradient} text-white px-4 py-2.5 flex items-center justify-between print:bg-zinc-800`}
+        className={`bg-gradient-to-r ${gradient} text-white px-4 py-2.5 flex items-center justify-between print:bg-foreground`}
       >
         <div className="flex items-center gap-2">
           <Icon className="h-4 w-4" />
@@ -688,7 +688,7 @@ function QARow({
               ? "bg-emerald-100 text-emerald-700"
               : hadAnswer
                 ? "bg-rose-100 text-rose-700"
-                : "bg-zinc-100 text-zinc-500"
+                : "bg-muted text-muted-foreground"
           }`}
         >
           {idx}
@@ -705,7 +705,7 @@ function QARow({
                   ? "border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30"
                   : hadAnswer
                     ? "border-rose-300 bg-rose-50 dark:bg-rose-950/30"
-                    : "border-zinc-300 bg-zinc-50 dark:bg-zinc-900/30"
+                    : "border-border bg-muted dark:bg-muted"
               }`}
             >
               <div className="text-[10px] font-bold uppercase tracking-wider opacity-70">
@@ -910,7 +910,7 @@ function PartBlock({
 }) {
   return (
     <div className="rounded-xl border bg-card p-3 space-y-2 break-inside-avoid">
-      <div className="text-[11px] uppercase tracking-wider font-bold text-indigo-700">
+      <div className="text-[11px] uppercase tracking-wider font-bold text-leaf-deep">
         {label}
       </div>
       <ul className="text-xs list-disc pl-4 space-y-0.5 text-muted-foreground">

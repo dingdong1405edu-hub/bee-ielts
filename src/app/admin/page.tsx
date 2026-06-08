@@ -13,12 +13,12 @@ export default async function AdminDashboard() {
     prisma.attempt.count(),
   ]);
   const stats = [
-    { label: "Users", value: users, icon: Users, color: "bg-blue-500" },
+    { label: "Users", value: users, icon: Users, color: "bg-foreground" },
     { label: "Reading tests", value: reading, icon: BookOpen, color: "bg-emerald-500" },
     { label: "Listening tests", value: listening, icon: Headphones, color: "bg-amber-500" },
     { label: "Writing tasks", value: writing, icon: PenLine, color: "bg-rose-500" },
-    { label: "Speaking sets", value: speaking, icon: Mic, color: "bg-indigo-500" },
-    { label: "Vocab lessons", value: vocab, icon: Sparkles, color: "bg-violet-500" },
+    { label: "Speaking sets", value: speaking, icon: Mic, color: "bg-honey" },
+    { label: "Vocab lessons", value: vocab, icon: Sparkles, color: "bg-leaf" },
   ];
 
   return (
