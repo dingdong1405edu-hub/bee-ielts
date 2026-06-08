@@ -38,7 +38,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WordTranslatePopup } from "@/components/learn/word-translate-popup";
-import { Honeycomb, Leaf, MascotBubble } from "@/components/brand";
+import {Leaf, MascotBubble } from "@/components/brand";
 
 interface Lesson {
   id: string;
@@ -682,7 +682,7 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
         </div>
 
         <div className="relative overflow-hidden rounded-2xl">
-          <Honeycomb className="pointer-events-none absolute inset-0 text-[#A560E8]/[0.05]" />
+          
           <div className="relative flex items-center justify-between flex-wrap gap-2">
           <div className="min-w-0">
             <p className="flex items-center gap-1.5 font-bold text-sm truncate">

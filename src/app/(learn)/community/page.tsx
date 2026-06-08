@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { CommunityFeed, type FeedPost, type FeedComment } from "./community-feed";
-import { BeeLogo, Honeycomb, Leaf } from "@/components/brand";
+import { BeeLogo, Leaf } from "@/components/brand";
 
 export const dynamic = "force-dynamic";
 
@@ -79,7 +79,7 @@ export default async function CommunityPage() {
       <div className="mx-auto flex max-w-[1000px] gap-6 px-4">
         <main className="mx-auto w-full max-w-[600px]">
           <header className="relative my-4 overflow-hidden rounded-2xl border border-border bg-card px-4 py-3 text-center">
-            <Honeycomb className="absolute inset-0 text-gold/[0.06]" />
+            
             <h1 className="relative flex items-center justify-center gap-1.5 text-[15px] font-bold text-foreground">
               <Leaf className="h-3.5 w-3.5 text-leaf" aria-hidden />
               Trang chủ

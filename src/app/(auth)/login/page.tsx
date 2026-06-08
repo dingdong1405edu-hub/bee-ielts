@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { BeeLogo, BeeMascot, Honeycomb, LeafField, Leaf } from "@/components/brand";
+import { BeeLogo, BeeMascot, LeafField, Leaf } from "@/components/brand";
 
 export default function LoginPage() {
   return (
@@ -45,7 +45,7 @@ function LoginForm() {
     <div className="relative min-h-screen lg:grid lg:grid-cols-2 overflow-hidden">
       {/* ── Branded panel ── (right on desktop, under the form on mobile) */}
       <aside className="relative order-last hidden overflow-hidden bg-sage text-cream lg:flex lg:flex-col lg:justify-between lg:p-12">
-        <Honeycomb className="absolute inset-0 text-gold/[0.07]" />
+        
         <LeafField className="absolute inset-0" />
         <div className="pointer-events-none absolute -top-16 -right-16 h-72 w-72 rounded-full bg-gold/10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-20 -left-10 h-72 w-72 rounded-full bg-slate/20 blur-3xl" />
@@ -118,7 +118,7 @@ function LoginForm() {
 
           <ScrollReveal delay={150}>
             <div className="relative overflow-hidden rounded-3xl border bg-card/80 p-6 shadow-xl shadow-sage/5 backdrop-blur md:p-8">
-              <Honeycomb className="pointer-events-none absolute -top-8 -right-8 h-40 w-40 text-gold/[0.05]" />
+              
               <form onSubmit={onSubmit} className="relative space-y-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="email">Email</Label>

@@ -33,7 +33,7 @@ import {
 } from "lucide-react";
 import { cn, formatDuration, isAnswerCorrect } from "@/lib/utils";
 import { FormBlanks, TableBlanks, FlowBlanks, groupQuestions } from "@/components/learn/form-blanks";
-import { BeeLogo, Honeycomb, Leaf, MascotBubble } from "@/components/brand";
+import { BeeLogo, Leaf, MascotBubble } from "@/components/brand";
 
 export type ShellQType =
   | "MCQ"
@@ -499,7 +499,7 @@ function PartHeading({ part }: { part: ListeningPart }) {
   const last = part.startNum + part.questions.length - 1;
   return (
     <div className="relative overflow-hidden rounded-2xl">
-      <Honeycomb className="pointer-events-none absolute inset-0 text-[#1CB0F6]/[0.05]" />
+      
       <div className="relative space-y-1">
         <h2 className="flex items-center gap-2 text-2xl md:text-3xl font-extrabold tracking-tight">
           <Leaf className="h-5 w-5 shrink-0 text-leaf" />

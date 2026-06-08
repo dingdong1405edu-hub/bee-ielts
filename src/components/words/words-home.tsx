@@ -7,7 +7,7 @@ import { Plus, Loader2, Layers, Trash2, BellRing, BellOff, ChevronRight } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { BeeLogo, EmptyState, Honeycomb, Leaf } from "@/components/brand";
+import { BeeLogo, EmptyState, Leaf } from "@/components/brand";
 import { cn } from "@/lib/utils";
 
 type Deck = { id: string; title: string; cardCount: number };
@@ -78,7 +78,7 @@ export function WordsHome({ decks, popQuizOn }: { decks: Deck[]; popQuizOn: bool
   return (
     <div className="max-w-3xl mx-auto space-y-5">
       <div className="relative overflow-hidden rounded-3xl border border-border bg-card p-5">
-        <Honeycomb className="absolute inset-0 text-gold/[0.06]" />
+        
         <Leaf className="pointer-events-none absolute -right-3 -top-3 h-20 w-20 rotate-12 text-leaf/10" />
         <div className="relative flex items-center gap-4">
           <div className="grid h-14 w-14 place-items-center rounded-2xl bg-card text-ink shadow-sm ring-1 ring-border">

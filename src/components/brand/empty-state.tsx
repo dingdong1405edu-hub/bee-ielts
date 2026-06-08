@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { BeeMascot } from "./bee-mascot";
-import { Honeycomb } from "./textures";
+import {} from "./textures";
 
 /**
  * Branded empty state — the friendly bee mascot + a clear message + CTA. Use
@@ -30,7 +30,7 @@ export function EmptyState({
         className,
       )}
     >
-      <Honeycomb className="absolute inset-0 text-gold/[0.05]" />
+      
       <div className="relative mx-auto flex max-w-md flex-col items-center">
         <BeeMascot className={cn("drop-shadow-sm", compact ? "w-24" : "w-32 md:w-40")} />
         <h3 className="mt-4 font-display text-xl font-semibold tracking-tight md:text-2xl">{title}</h3>

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowRight, type LucideIcon } from "lucide-react";
-import { Honeycomb, Leaf } from "@/components/brand";
+import {Leaf } from "@/components/brand";
 
 interface IntroProps {
   title: string;
@@ -18,7 +18,7 @@ export function SkillIntro({ title, subtitle, icon: Icon, grad, bullets, startHr
   return (
     <div className="max-w-2xl mx-auto py-6 space-y-6">
       <div className="relative overflow-hidden rounded-3xl text-center space-y-3 py-4">
-        <Honeycomb className="absolute inset-0 text-gold/[0.06]" />
+        
         <div className={`relative mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-gradient-to-br ${grad} text-white shadow-lg shadow-primary/20`}>
           <Icon className="h-8 w-8" />
         </div>

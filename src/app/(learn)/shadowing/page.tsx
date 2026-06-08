@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Headphones, Keyboard, Sparkles, Upload, Clock } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { Honeycomb, EmptyState } from "@/components/brand";
+import {EmptyState } from "@/components/brand";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +25,7 @@ export default async function ShadowingLandingPage({
 
   return (
     <div className="relative max-w-6xl mx-auto space-y-6">
-      <Honeycomb className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 text-[#A560E8]/[0.04]" />
+      
       <div>
         <span
           className="inline-flex items-center gap-1.5 rounded-full bg-[#A560E8]/10 border border-[#A560E8]/20 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider"

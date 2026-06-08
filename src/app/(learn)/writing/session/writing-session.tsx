@@ -11,7 +11,7 @@ import { formatDuration, wordCount, cn } from "@/lib/utils";
 import { TipsCard } from "@/components/learn/tips-card";
 import { WritingFeedback, type WritingResult } from "@/components/learn/writing-feedback";
 import { TaskDiagram } from "@/components/learn/task-diagram";
-import { Honeycomb, Leaf, MascotBubble, BeeMascot } from "@/components/brand";
+import {Leaf, MascotBubble, BeeMascot } from "@/components/brand";
 
 type Result = WritingResult;
 
@@ -176,7 +176,7 @@ export function WritingSession({ task1, task2 }: Props) {
   return (
     <div className="max-w-5xl mx-auto space-y-4">
       <div className="relative overflow-hidden rounded-2xl border bg-honey-deep text-white p-4">
-        <Honeycomb className="pointer-events-none absolute inset-0 text-[#FF9600]/[0.05]" />
+        
         <div className="relative flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
             <PenLine className="h-6 w-6" />

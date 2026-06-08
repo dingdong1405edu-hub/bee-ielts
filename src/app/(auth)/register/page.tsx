@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, ArrowLeft } from "lucide-react";
-import { BeeLogo, BeeMascot, MascotBubble, Honeycomb, LeafField, PaperGrain } from "@/components/brand";
+import { BeeLogo, BeeMascot, MascotBubble, LeafField, PaperGrain } from "@/components/brand";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -52,7 +52,7 @@ export default function RegisterPage() {
       <div className="grid w-full max-w-4xl overflow-hidden rounded-3xl border bg-card/80 shadow-xl shadow-primary/5 backdrop-blur md:grid-cols-2">
         {/* ── Branded panel ── */}
         <div className="relative hidden flex-col justify-between gap-8 bg-sage-50 p-8 text-foreground dark:bg-sage-950 md:flex">
-          <Honeycomb className="absolute inset-0 text-gold/[0.07]" />
+          
           <LeafField className="absolute inset-0" />
           <PaperGrain opacity={0.35} />
 

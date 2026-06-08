@@ -7,7 +7,7 @@ import { TestPickerSkeleton } from "@/components/learn/test-picker-skeleton";
 import { attemptCounts } from "@/lib/attempt-counts";
 import { Card, CardContent } from "@/components/ui/card";
 import { DeleteAttemptButton } from "@/components/learn/delete-attempt-button";
-import { Honeycomb } from "@/components/brand";
+import {} from "@/components/brand";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 
@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 export default function WritingIntroPage() {
   return (
     <div className="relative space-y-6">
-      <Honeycomb className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 text-[#FF9600]/[0.04]" />
+      
       <div className="flex items-center justify-center gap-2 pt-2">
         <span className="h-px w-8 bg-[#FF9600]/40" />
         <span className="inline-flex items-center rounded-full border border-[#FF9600]/30 bg-[#FF9600]/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[#FF9600]">

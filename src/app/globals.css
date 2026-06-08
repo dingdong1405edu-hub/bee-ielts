@@ -327,15 +327,12 @@
     pointer-events: none;
   }
   .ambient-grid {
-    /* fine line grid, masked so it fades softly outward */
-    position: absolute;
-    inset: 0;
-    background-image:
-      linear-gradient(hsl(var(--foreground) / 0.05) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(var(--foreground) / 0.05) 1px, transparent 1px);
-    background-size: 64px 64px;
-    -webkit-mask-image: radial-gradient(circle at 50% 24%, #000 0%, transparent 82%);
-    mask-image: radial-gradient(circle at 50% 24%, #000 0%, transparent 82%);
+    /* Removed: the line grid + faint mask read as a "honeycomb pattern"
+       on cards with translucent backgrounds. Users called it "tổ ong xấu";
+       keep the element so other code referencing it stays valid but no
+       visible pattern. The animated brand glows alone now carry the
+       background ambience. */
+    display: none;
   }
   /* faint honeycomb texture — the bee-brand signature motif behind learn pages */
   .ambient-honeycomb {

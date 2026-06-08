@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { Heart, Zap, Flame, BookOpenText, Play, Lock, Check, Settings } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
-import { Honeycomb, EmptyState } from "@/components/brand";
+import {EmptyState } from "@/components/brand";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +52,7 @@ export default async function GrammarPathPage() {
 
   return (
     <div className="relative max-w-2xl mx-auto space-y-6">
-      <Honeycomb className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 text-[#14B8A6]/[0.04]" />
+      
       {/* Hero path header */}
       <div className="gradient-brand relative overflow-hidden rounded-3xl p-6 md:p-7 text-white shadow-xl shadow-primary/20">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_15%,rgba(255,255,255,0.2),transparent_50%)]" />

@@ -1,4 +1,4 @@
-import { Honeycomb } from "@/components/brand/textures";
+import {} from "@/components/brand/textures";
 import { LeafField } from "@/components/brand/leaf";
 
 /**
@@ -13,7 +13,7 @@ export function AmbientBackground() {
     <div aria-hidden className="ambient-bg">
       <div className="ambient-grid" />
       <div className="ambient-honeycomb">
-        <Honeycomb className="h-full w-full text-gold" />
+        
       </div>
       <LeafField className="ambient-leaves absolute inset-0" />
       <div className="ambient-glow ambient-glow-1" />

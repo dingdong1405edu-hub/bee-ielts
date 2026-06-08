@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Camera, ImageIcon, Loader2, Pencil, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { BeeLogo, Honeycomb, LeafField, Leaf } from "@/components/brand";
+import { BeeLogo, LeafField, Leaf } from "@/components/brand";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -121,7 +121,7 @@ export function ProfileHeader({ name, email, bio, avatarUrl, coverUrl }: Props) 
           <img src={cover} alt="cover" className="h-full w-full object-cover" />
         ) : (
           <div className="relative h-full w-full gradient-brand overflow-hidden">
-            <Honeycomb className="absolute inset-0 text-white/[0.12]" />
+            
             <LeafField className="absolute inset-0 text-white" />
             <BeeLogo
               variant="full"

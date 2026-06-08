@@ -9,7 +9,7 @@ import { StatsRow } from "@/components/learn/stats-row";
 import { ExamCountdown } from "@/components/learn/exam-countdown";
 import { StudySchedule } from "@/components/learn/study-schedule";
 import { PremiumCouponCards } from "@/components/learn/premium-coupon-cards";
-import { BeeMascot, Honeycomb, Leaf } from "@/components/brand";
+import { BeeMascot, Leaf } from "@/components/brand";
 
 // Per-skill accent gradients — vibrant, distinct hue per module (Duolingo
 // energy), matching the tailwind `skill.*` tokens.
@@ -30,6 +30,7 @@ export default async function DashboardPage() {
     where: { id: session.user.id },
     select: {
       name: true,
+      avatarUrl: true,
       streakDays: true,
       lastActiveAt: true,
       targetBand: true,
@@ -76,16 +77,32 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
-      <div className="relative overflow-hidden rounded-3xl">
-        <Honeycomb className="absolute inset-0 text-gold/[0.06]" />
-        <div className="relative flex items-center gap-3">
-          <BeeMascot className="w-16 shrink-0 animate-float" priority />
-          <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-2">
-              Chào {user.name || "bạn"} <span className="inline-block animate-float">👋</span>
-            </h1>
-            <p className="text-muted-foreground mt-1">Chọn một kỹ năng để bắt đầu luyện tập hôm nay.</p>
-          </div>
+      {/* Hero: static bee mascot (or user's uploaded avatar) on the left
+          + heading with ONLY the 👋 emoji animating. User feedback:
+          "logo bên cạnh thì giữ nguyên ko cho di chuyển" — so the
+          mascot does NOT get animate-float anymore. Honeycomb background
+          wrapper was removed for the same reason ("xóa cái tổ ong"). */}
+      <div className="flex items-center gap-4">
+        <div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl ring-2 ring-border bg-card">
+          {user.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={user.avatarUrl}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <BeeMascot className="w-full" priority />
+          )}
+        </div>
+        <div className="min-w-0">
+          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
+            Chào {user.name || "bạn"}{" "}
+            <span className="inline-block animate-float">👋</span>
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Chọn một kỹ năng để bắt đầu luyện tập hôm nay.
+          </p>
         </div>
       </div>
 

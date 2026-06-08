@@ -5,7 +5,7 @@ import { GraduationCap, Headphones, BookOpen, PenLine, Mic, Coffee, Clock, Spark
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { checkMockQuota } from "@/lib/premium";
-import { Honeycomb } from "@/components/brand";
+import {} from "@/components/brand";
 
 export default async function MockLandingPage() {
   const session = await auth();
@@ -33,7 +33,7 @@ export default async function MockLandingPage() {
 
   return (
     <div className="relative max-w-3xl mx-auto space-y-6">
-      <Honeycomb className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 text-[#4B6BFB]/[0.04]" />
+      
       <div className="rounded-3xl gradient-brand p-7 md:p-10 text-white relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(255,255,255,0.18),transparent_50%)]" />
         <div className="relative flex items-start gap-4 flex-wrap">

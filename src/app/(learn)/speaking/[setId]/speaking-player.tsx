@@ -13,7 +13,7 @@ import { TipsCard } from "@/components/learn/tips-card";
 import { VocabSuggestions, type VocabItem } from "@/components/learn/writing-feedback";
 import { playExaminerLine, playStartBeep, timeOfDayGreeting, resetTtsPathLock, primeAudioPlayback, stopExaminerLine } from "@/lib/tts";
 import { startWebSpeech, isWebSpeechSupported, type WebSpeechSession } from "@/lib/web-speech";
-import { Honeycomb, Leaf, MascotBubble, BeeMascot } from "@/components/brand";
+import {Leaf, MascotBubble, BeeMascot } from "@/components/brand";
 
 interface DGWord {
   word: string;
@@ -675,7 +675,7 @@ export function SpeakingPlayer({
       <div className="max-w-3xl mx-auto py-6">
         <div className="rounded-3xl border bg-card shadow-sm p-6 md:p-8 space-y-6">
           <div className="relative overflow-hidden rounded-2xl">
-            <Honeycomb className="pointer-events-none absolute inset-0 text-[#FF4B6E]/[0.05]" />
+            
             <div className="relative space-y-3">
               <h1 className="flex items-center justify-center gap-2 text-xl md:text-2xl font-extrabold tracking-tight text-center">
                 <Leaf className="h-4 w-4 text-leaf shrink-0" />

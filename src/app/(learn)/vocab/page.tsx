@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
 import { auth } from "@/auth";
 import { Check, Lock, Sparkles, Play } from "lucide-react";
-import { Honeycomb, EmptyState } from "@/components/brand";
+import {EmptyState } from "@/components/brand";
 
 export default async function VocabPage() {
   const session = await auth();
@@ -24,7 +24,7 @@ export default async function VocabPage() {
 
   return (
     <div className="relative max-w-3xl mx-auto space-y-8">
-      <Honeycomb className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 text-[#FF5CA8]/[0.04]" />
+      
       <div className="flex items-center gap-4">
         <div
           className="grid h-14 w-14 place-items-center rounded-2xl border bg-[#FF5CA8]/10 border-[#FF5CA8]/20 shadow-sm"

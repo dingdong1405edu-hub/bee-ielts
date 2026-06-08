@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Check, X, Sparkles, Trophy } from "lucide-react";
-import { Honeycomb, Leaf, MascotBubble, BeeMascot } from "@/components/brand";
+import {Leaf, MascotBubble, BeeMascot } from "@/components/brand";
 import { cn } from "@/lib/utils";
 
 type Exercise =
@@ -113,7 +113,7 @@ export function LessonPlayer({
   return (
     <div className="max-w-xl mx-auto space-y-6">
       <div className="relative overflow-hidden rounded-xl">
-        <Honeycomb className="pointer-events-none absolute inset-0 text-[#FF5CA8]/[0.05]" />
+        
         <div className="relative space-y-2">
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <button onClick={() => router.push("/vocab")} className="hover:underline">

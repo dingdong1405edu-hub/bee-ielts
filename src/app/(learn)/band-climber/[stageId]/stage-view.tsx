@@ -3,7 +3,7 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { BookOpen, Headphones, PenLine, Mic } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Honeycomb, Leaf, MascotBubble } from "@/components/brand";
+import {Leaf, MascotBubble } from "@/components/brand";
 import { cn } from "@/lib/utils";
 
 type Skill = "reading" | "listening" | "writing" | "speaking";
@@ -38,7 +38,7 @@ export function StageView({
   return (
     <Card>
       <div className="relative overflow-hidden border-b">
-        <Honeycomb className="pointer-events-none absolute inset-0 text-[#F0A800]/[0.05]" />
+        
         <div className="relative grid grid-cols-2 sm:grid-cols-4">
         {TABS.map((t) => {
           const Icon = t.icon;

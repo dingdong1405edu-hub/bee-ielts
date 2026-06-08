@@ -9,7 +9,7 @@ import { Check, X, BookOpenText, Trophy, Play, Sparkles, ArrowRight, Heart } fro
 import { cn } from "@/lib/utils";
 import { renderMarkdown } from "@/lib/markdown";
 import { TipsCard } from "@/components/learn/tips-card";
-import { BeeMascot, Honeycomb, Leaf, MascotBubble } from "@/components/brand";
+import { BeeMascot, Leaf, MascotBubble } from "@/components/brand";
 
 type FillExercise = { type: "fill"; prompt: string; answer: string };
 
@@ -86,7 +86,7 @@ export function GrammarPlayer({
           ← {unitTitle}
         </button>
         <div className="relative overflow-hidden rounded-3xl">
-          <Honeycomb className="pointer-events-none absolute inset-0 text-[#14B8A6]/[0.05]" />
+          
           <div className="relative text-center space-y-3 py-4">
             <div className="relative mx-auto">
               <BeeMascot priority className="mx-auto w-24 animate-float" />
