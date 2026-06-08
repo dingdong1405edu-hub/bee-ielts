@@ -13,12 +13,12 @@ export const dynamic = "force-dynamic";
 export default function ListeningIntroPage() {
   return (
     <div className="relative space-y-8">
-      <Honeycomb className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 text-[#6E93B5]/[0.04]" />
+      <Honeycomb className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 text-[#1CB0F6]/[0.05]" />
       <SkillIntro
         title="Listening"
         subtitle="1 bài nghe mỗi lần luyện tập · audio + câu hỏi"
         icon={Headphones}
-        grad="from-[#6E93B5] to-[#4C6E92]"
+        grad="from-[#4FC3F7] to-[#1CB0F6]"
         startHref="/listening/start"
         ctaLabel="AI chọn đề ngẫu nhiên"
         bullets={[

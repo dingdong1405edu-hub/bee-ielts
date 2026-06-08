@@ -11,15 +11,15 @@ import { StudySchedule } from "@/components/learn/study-schedule";
 import { PremiumCouponCards } from "@/components/learn/premium-coupon-cards";
 import { BeeMascot, Honeycomb, Leaf } from "@/components/brand";
 
-// Per-skill accent gradients — distinct hue per module, all muted/editorial
-// to harmonise with the sage+gold base (see tailwind `skill.*` tokens).
+// Per-skill accent gradients — vibrant, distinct hue per module (Duolingo
+// energy), matching the tailwind `skill.*` tokens.
 const modules = [
-  { href: "/vocab", label: "Vocabulary", desc: "Từ vựng Duolingo-style", icon: Sparkles, grad: "from-[#C77E7E] to-[#A85656]" },
-  { href: "/grammar", label: "Grammar", desc: "Ngữ pháp ngắn gọn", icon: BookOpenText, grad: "from-[#4FA39A] to-[#357C75]" },
-  { href: "/reading", label: "Reading", desc: "Đọc hiểu IELTS", icon: BookOpen, grad: "from-[#5E8E78] to-[#3F6553]" },
-  { href: "/listening", label: "Listening", desc: "Nghe + Q&A", icon: Headphones, grad: "from-[#6E93B5] to-[#4C6E92]" },
-  { href: "/writing", label: "Writing", desc: "AI chấm band IELTS", icon: PenLine, grad: "from-[#CBA45F] to-[#9A7635]" },
-  { href: "/speaking", label: "Speaking", desc: "3 part — AI đánh giá", icon: Mic, grad: "from-[#CC7D58] to-[#A85B3C]" },
+  { href: "/vocab", label: "Vocabulary", desc: "Từ vựng Duolingo-style", icon: Sparkles, grad: "from-[#FF7DC0] to-[#FF5CA8]" },
+  { href: "/grammar", label: "Grammar", desc: "Ngữ pháp ngắn gọn", icon: BookOpenText, grad: "from-[#2DD4C0] to-[#14B8A6]" },
+  { href: "/reading", label: "Reading", desc: "Đọc hiểu IELTS", icon: BookOpen, grad: "from-[#6FDD2E] to-[#58CC02]" },
+  { href: "/listening", label: "Listening", desc: "Nghe + Q&A", icon: Headphones, grad: "from-[#4FC3F7] to-[#1CB0F6]" },
+  { href: "/writing", label: "Writing", desc: "AI chấm band IELTS", icon: PenLine, grad: "from-[#FFB020] to-[#FF9600]" },
+  { href: "/speaking", label: "Speaking", desc: "3 part — AI đánh giá", icon: Mic, grad: "from-[#FF6B86] to-[#FF4B6E]" },
 ];
 
 export default async function DashboardPage() {

@@ -28,7 +28,7 @@ export default function WritingIntroPage() {
         title="Writing"
         subtitle="2 task · không giới hạn thời gian · AI chấm 4 tiêu chí IELTS"
         icon={PenLine}
-        grad="from-honey to-honey-deep"
+        grad="from-[#FFB020] to-[#FF9600]"
         startHref="/writing/start"
         ctaLabel="AI chọn đề ngẫu nhiên"
         bullets={[
@@ -96,7 +96,7 @@ async function WritingTaskList() {
   return (
     <>
       <TestPicker
-        grad="from-honey to-honey-deep"
+        grad="from-[#FFB020] to-[#FF9600]"
         icon={PenLine}
         emptyText="Chưa có đề Writing nào."
         items={tasks.map((t) => ({

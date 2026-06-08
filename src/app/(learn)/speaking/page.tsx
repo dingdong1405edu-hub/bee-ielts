@@ -55,7 +55,7 @@ export default function SpeakingIntroPage() {
         title="Speaking"
         subtitle="3 part · từng câu hỏi một · AI examiner đọc câu hỏi"
         icon={Mic}
-        grad="from-honey to-honey-deep"
+        grad="from-[#FF6B86] to-[#FF4B6E]"
         startHref="/speaking/start"
         ctaLabel="AI chọn đề ngẫu nhiên (cả 3 Part)"
         bullets={[
@@ -135,7 +135,7 @@ async function SpeakingSetList() {
 
   return (
     <TestPicker
-      grad="from-honey to-honey-deep"
+      grad="from-[#FF6B86] to-[#FF4B6E]"
       icon={Mic}
       emptyText="Chưa có đề Speaking nào."
       items={sets.map((s) => ({

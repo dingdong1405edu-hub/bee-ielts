@@ -20,56 +20,56 @@ const config: Config = {
         serif: ["var(--font-display)", "var(--font-vn)", "Georgia", "serif"],
       },
       colors: {
-        /* ===== Sage + Gold palette — full scales (mechanical swap targets) ===== */
-        /* sage = brand green (mint → forest); replaces emerald/lime */
+        /* ===== Bee × Duolingo palette — full scales (mechanical swap targets) ===== */
+        /* sage = brand green (legacy name) — vibrant grass green */
         sage: {
-          50: "#F0F5F2",
-          100: "#DDEAE3",
-          200: "#BDD4C8",
-          300: "#95B9A8",
-          400: "#6E9A86",
-          500: "#5A7D6F",
-          600: "#4A6A5D",
-          700: "#3F5C50",
-          800: "#344A41",
-          900: "#2E3A33",
-          950: "#1C241F",
-          DEFAULT: "#5A7D6F",
-          deep: "#3F5C50",
-          tint: "#DDEAE3",
+          50: "#F1FCE3",
+          100: "#DDF4C0",
+          200: "#C2EA92",
+          300: "#9FDD5C",
+          400: "#7DD030",
+          500: "#58CC02",
+          600: "#46A302",
+          700: "#3A8500",
+          800: "#2F6A06",
+          900: "#285708",
+          950: "#112E02",
+          DEFAULT: "#58CC02",
+          deep: "#46A302",
+          tint: "#DDF4C0",
         },
-        /* gold = warm accent (cream-gold → bronze); replaces amber/orange/yellow */
+        /* gold = honey accent (XP / streak / brand highlight) */
         gold: {
-          50: "#FBF6EA",
-          100: "#F5EAD0",
-          200: "#ECD9A9",
-          300: "#E0C383",
-          400: "#D2AE66",
-          500: "#C5A05E",
-          600: "#AE8748",
-          700: "#8E6C3A",
-          800: "#6F5530",
-          900: "#5C4729",
-          950: "#342716",
-          DEFAULT: "#C5A05E",
-          deep: "#8E6C3A",
-          soft: "#E6D5AE",
+          50: "#FFF9E5",
+          100: "#FFF0BF",
+          200: "#FFE38A",
+          300: "#FFD24D",
+          400: "#FFC526",
+          500: "#FFC107",
+          600: "#E5A100",
+          700: "#C98A00",
+          800: "#A06E00",
+          900: "#805700",
+          950: "#4A3200",
+          DEFAULT: "#FFC107",
+          deep: "#C98A00",
+          soft: "#FFE38A",
         },
-        mist: { DEFAULT: "#A8C3B5", soft: "#CADCD2" },
-        /* slate-blue (logo wings) + warm kraft (newsprint-leaf texture) */
+        mist: { DEFAULT: "#BCE89A", soft: "#E4F5D2" },
+        /* sky-blue (listening / wings) + warm kraft (leaf texture) */
         slate: { DEFAULT: "var(--slate)", soft: "var(--slate-soft)" },
         kraft: { DEFAULT: "var(--kraft)", soft: "var(--kraft-soft)" },
-        /* ===== Per-skill accent hues (sage+gold base, distinct per module) ===== */
+        /* ===== Per-skill accent hues — vibrant & distinct per module ===== */
         skill: {
-          reading: "#4F7A66",     /* sage green   */
-          listening: "#5B7E9C",   /* slate blue   */
-          writing: "#B6883F",     /* bronze gold  */
-          speaking: "#C0714E",    /* terracotta   */
-          shadowing: "#8A6E9C",   /* plum         */
-          grammar: "#3E8C84",     /* teal         */
-          vocab: "#BD6B6B",       /* dusty rose   */
-          mock: "#4C5B8A",        /* indigo       */
-          climber: "#7A8C46",     /* olive        */
+          reading: "#58CC02",     /* grass green */
+          listening: "#1CB0F6",   /* sky blue    */
+          writing: "#FF9600",     /* orange      */
+          speaking: "#FF4B6E",    /* rose        */
+          shadowing: "#A560E8",   /* violet      */
+          grammar: "#14B8A6",     /* teal        */
+          vocab: "#FF5CA8",       /* pink        */
+          mock: "#4B6BFB",        /* indigo      */
+          climber: "#F0A800",     /* amber       */
         },
         /* Honey aliases kept for back-compat — now resolve to sage/gold tokens */
         honey: {

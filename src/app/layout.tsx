@@ -1,20 +1,20 @@
 import type { Metadata } from "next";
-import { Lora, Hanken_Grotesk, Be_Vietnam_Pro } from "next/font/google";
+import { Baloo_2, Nunito, Be_Vietnam_Pro } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 import { Providers } from "./providers";
 
-// Display (headings) — Lora (editorial serif)
-const display = Lora({
+// Display (headings) — Baloo 2: chunky, rounded, playful (Duolingo energy)
+const display = Baloo_2({
   subsets: ["latin", "latin-ext", "vietnamese"],
-  weight: ["400", "500", "600", "700"],
-  style: ["normal", "italic"],
+  weight: ["500", "600", "700", "800"],
   variable: "--font-display",
   display: "swap",
 });
-// Body (UI text) — Hanken Grotesk
-const body = Hanken_Grotesk({
-  subsets: ["latin", "latin-ext"],
+// Body (UI text) — Nunito: friendly, rounded sans, full weight range
+const body = Nunito({
+  subsets: ["latin", "latin-ext", "vietnamese"],
+  weight: ["400", "500", "600", "700", "800", "900"],
   variable: "--font-sans",
   display: "swap",
 });
@@ -27,9 +27,9 @@ const vietnamese = Be_Vietnam_Pro({
 });
 
 export const metadata: Metadata = {
-  title: "Bee IELTS — Học tiếng Anh nhanh & vui",
+  title: "Bee IELTS — Luyện IELTS vui như chơi, lên band thật",
   description:
-    "Nền tảng học tiếng Anh Gen-Z: từ vựng Duolingo-style, luyện 4 kỹ năng IELTS, AI chấm Writing & Speaking tức thì.",
+    "Nền tảng luyện IELTS gamified: từ vựng & ngữ pháp kiểu Duolingo, luyện đủ 4 kỹ năng, AI chấm Writing & Speaking theo band score tức thì. Bắt đầu miễn phí.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
