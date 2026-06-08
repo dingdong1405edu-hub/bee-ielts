@@ -59,7 +59,7 @@ export function PremiumLanding({
   return (
     <div className="max-w-3xl mx-auto space-y-5">
       {/* Hero */}
-      <div className="rounded-3xl bg-gradient-to-br from-gold-500 via-gold-500 to-rose-500 p-7 md:p-10 text-white relative overflow-hidden">
+      <div className="rounded-3xl bg-gradient-to-br from-[#FF9600] via-[#FF4B6E] to-[#A560E8] p-7 md:p-10 text-white relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(255,255,255,0.2),transparent_50%)]" />
         <div className="relative flex items-start gap-4 flex-wrap">
           <div className="grid h-14 w-14 place-items-center rounded-2xl bg-white/20 backdrop-blur border border-white/30">

@@ -124,7 +124,7 @@ export default async function DashboardPage() {
           videos, AI scores pronunciation per sentence. Sits between Mock
           card and module grid so it's the second-most prominent CTA. */}
       <Link href="/shadowing" className="block group">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#9A7BA8] via-[#8A6E9C] to-[#6E5680] p-6 md:p-8 text-white shadow-xl shadow-[#8A6E9C]/25 transition-all hover:shadow-2xl hover:shadow-[#8A6E9C]/35 hover:-translate-y-0.5">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#B88BF5] via-[#A560E8] to-[#8B3FD9] p-6 md:p-8 text-white shadow-xl shadow-[#A560E8]/30 transition-all hover:shadow-2xl hover:shadow-[#A560E8]/40 hover:-translate-y-0.5">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_85%,rgba(255,255,255,0.25),transparent_55%)]" />
           <div className="absolute -right-8 -top-8 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
           <span className="absolute top-4 right-4 inline-flex items-center gap-1 rounded-full bg-white/20 backdrop-blur px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider border border-white/30">
@@ -133,7 +133,7 @@ export default async function DashboardPage() {
           <div className="relative flex items-center gap-4 flex-wrap">
             <div className="relative grid h-14 w-14 place-items-center rounded-2xl bg-white/15 backdrop-blur border border-white/20">
               <Video className="h-7 w-7" />
-              <span className="absolute -bottom-1 -right-1 grid h-6 w-6 place-items-center rounded-full bg-white text-[#8A6E9C] shadow-md">
+              <span className="absolute -bottom-1 -right-1 grid h-6 w-6 place-items-center rounded-full bg-white text-[#A560E8] shadow-md">
                 <Play className="h-3 w-3 fill-current" />
               </span>
             </div>
