@@ -1,20 +1,13 @@
-import {} from "@/components/brand/textures";
 import { LeafField } from "@/components/brand/leaf";
 
 /**
- * Ambient decorative background shared by every learner page — a faint line
- * grid, soft animated brand glows, a honeycomb texture, and a scatter of
- * leaves. Subtle and motivating; fixed behind all content (see `.ambient-*`
- * rules in globals.css). This is the single backdrop that keeps every study
- * page visually in sync.
+ * Ambient decorative background shared by every learner page — soft animated
+ * brand glows and a scatter of leaves. Honeycomb texture removed (user fb:
+ * "xóa cái background tổ ong"). Fixed behind content via `.ambient-*` rules.
  */
 export function AmbientBackground() {
   return (
     <div aria-hidden className="ambient-bg">
-      <div className="ambient-grid" />
-      <div className="ambient-honeycomb">
-        
-      </div>
       <LeafField className="ambient-leaves absolute inset-0" />
       <div className="ambient-glow ambient-glow-1" />
       <div className="ambient-glow ambient-glow-2" />
