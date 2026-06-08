@@ -238,41 +238,24 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
     }
   }, []);
 
-  /** Play a single segment: seek to start, play, then poll the real YouTube
-   *  current time at 100ms ticks. Pause as soon as the real playback head
-   *  crosses endSec. This is buffer-safe — if YouTube takes 700ms to start
-   *  the segment, the pause still lands at the right audible moment.
-   *
-   *  Errors from the YT IFrame API are caught so a single bad tick can't
-   *  silently kill the interval (which would let the video play through
-   *  segment boundaries with no pause). */
-  const playSegment = useCallback(
+  /** Attach (or re-attach) the end-of-segment pause poll for `seg`. Does NOT
+   *  seek or play — pure tail-end watcher. Polls getCurrentTime every 100ms
+   *  and triggers hardCutAudio when the real playback head crosses endSec.
+   *  Used both inside playSegment (where we just kicked off playback) and
+   *  inside onStateChange (where the user hit YT's own play button). */
+  const attachEndPoll = useCallback(
     (seg: Segment) => {
       const yt = playerRef.current;
       if (!yt) return;
       clearStopPoll();
-      clearFollow();
-      setWaitingForUser(false);
-      try {
-        yt.unMute?.();
-        yt.setPlaybackRate(speed);
-        yt.seekTo(seg.startSec, true);
-        yt.playVideo();
-      } catch (e) {
-        console.error("[shadowing] playSegment YT call failed", e);
-      }
-      // Safety stop: even if YouTube never advances the playhead, never
-      // poll forever — cap at segment-duration * 4 / speed, rounded up.
       const maxWaitMs = Math.max(
         4000,
-        Math.ceil((seg.endSec - seg.startSec) * 4000 / speed),
+        Math.ceil(((seg.endSec - seg.startSec) * 4000) / speed),
       );
       const startedAt = Date.now();
       stopPollRef.current = setInterval(() => {
         try {
           const cur = yt.getCurrentTime?.() ?? 0;
-          // 50ms epsilon — pause at the FIRST tick that crosses endSec so
-          // we don't bleed into the next segment.
           if (cur >= seg.endSec - 0.05) {
             hardCutAudio();
             clearStopPoll();
@@ -302,15 +285,65 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
     [speed, scheduleFollow, hardCutAudio],
   );
 
+  /** Play a single segment: seek to start, play, then attach the tail-end
+   *  poll. Used when the user picks a segment from the list, or when the
+   *  player auto-advances. Catches YT API throws so a single bad tick
+   *  can't silently kill playback. */
+  const playSegment = useCallback(
+    (seg: Segment) => {
+      const yt = playerRef.current;
+      if (!yt) return;
+      clearStopPoll();
+      clearFollow();
+      setWaitingForUser(false);
+      try {
+        yt.unMute?.();
+        yt.setPlaybackRate(speed);
+        yt.seekTo(seg.startSec, true);
+        yt.playVideo();
+      } catch (e) {
+        console.error("[shadowing] playSegment YT call failed", e);
+      }
+      attachEndPoll(seg);
+    },
+    [speed, attachEndPoll],
+  );
+
   // Initialise the YT player when the iframe element mounts.
+  //
+  // Critical: we MUST start polling for the segment-end pause both
+  //   (a) the first time the player is ready (onReady), AND
+  //   (b) any time the player transitions to PLAYING via YT's own
+  //       controls (onStateChange data === 1).
+  //
+  // Without (a): the player loads after our useEffect already ran with a
+  // null playerRef → playSegment early-exits → NO polling → if the user
+  // then hits YT's own play button, the video runs through every segment
+  // without pausing.
+  // Without (b): if the user manually scrubs + plays via YT controls, the
+  // poll we kicked off on (a) is still bound to the OLD segment. The new
+  // PLAYING event re-runs playSegment with the active segment so the cut
+  // lands at the right boundary again.
+  const activeRef = useRef(active);
+  useEffect(() => {
+    activeRef.current = active;
+  }, [active]);
   useEffect(() => {
     let cancelled = false;
     loadYouTubeApi()
       .then((yt) => {
         if (cancelled || !playerContainerRef.current) return;
+        type YTEvent = { data: number };
         type YTPlayerConstructor = new (
           el: HTMLElement,
-          opts: { videoId: string; playerVars: Record<string, unknown>; events: { onReady: () => void } },
+          opts: {
+            videoId: string;
+            playerVars: Record<string, unknown>;
+            events: {
+              onReady: () => void;
+              onStateChange?: (e: YTEvent) => void;
+            };
+          },
         ) => typeof playerRef.current;
         const YT = yt as { Player: YTPlayerConstructor };
         const player = new YT.Player(playerContainerRef.current, {
@@ -319,6 +352,26 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
           events: {
             onReady: () => {
               playerRef.current = player;
+              // Auto-start the first segment now that the player is ready —
+              // covers the race where the activeIdx useEffect ran with a
+              // null playerRef and did nothing.
+              const cur = activeRef.current;
+              if (cur) playSegment(cur);
+            },
+            onStateChange: (e) => {
+              // YT IFrame API: 1 = PLAYING. If a poll is already running
+              // we leave it alone (it's tracking the current segment). If
+              // not — user just hit YT's native play button — attach a
+              // fresh poll for the current active segment so we still
+              // pause at endSec.
+              if (e.data === 1 && !stopPollRef.current) {
+                const cur = activeRef.current;
+                if (cur) {
+                  // Don't seek again — that would interrupt the user's
+                  // manual scrub. Just attach a tail-end poll.
+                  attachEndPoll(cur);
+                }
+              }
             },
           },
         });
