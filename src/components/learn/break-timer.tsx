@@ -19,7 +19,7 @@ export function BreakTimer({ seconds = 900, onDone }: { seconds?: number; onDone
   return (
     <div className="min-h-[70vh] grid place-items-center px-4">
       <div className="text-center max-w-md">
-        <div className="mx-auto grid h-24 w-24 place-items-center rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-2xl shadow-orange-500/40 mb-6 animate-float">
+        <div className="mx-auto grid h-24 w-24 place-items-center rounded-full bg-gradient-to-br from-gold-400 to-gold-500 text-white shadow-2xl shadow-gold-500/40 mb-6 animate-float">
           <Coffee className="h-12 w-12" />
         </div>
         <h2 className="text-3xl font-extrabold tracking-tight">Giờ nghỉ ☕</h2>

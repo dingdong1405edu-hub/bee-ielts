@@ -568,7 +568,7 @@ function PartBody({
                 "space-y-2.5 border-l-4 pl-3.5 py-1",
                 submitted
                   ? isCorrect
-                    ? "border-emerald-500"
+                    ? "border-sage-500"
                     : "border-rose-500"
                   : "border-primary/30",
               )}
@@ -614,7 +614,7 @@ function PartBody({
                         userAns === opt && "border-primary bg-primary/5",
                         submitted &&
                           opt === q.correctAnswer &&
-                          "border-emerald-500 bg-emerald-500/5",
+                          "border-sage-500 bg-sage-500/5",
                         submitted &&
                           userAns === opt &&
                           opt !== q.correctAnswer &&
@@ -647,7 +647,7 @@ function PartBody({
               )}
               {submitted && !isCorrect && (
                 <p className="text-xs ml-8 text-muted-foreground">
-                  Đáp án đúng: <strong className="text-emerald-600">{q.correctAnswer}</strong>
+                  Đáp án đúng: <strong className="text-sage-600">{q.correctAnswer}</strong>
                 </p>
               )}
             </div>
@@ -848,7 +848,7 @@ function HeadingPicker({
         onChange={(e) => onChange(e.target.value)}
         className={cn(
           "h-10 w-full rounded-lg border-2 bg-background px-3 text-sm font-bold",
-          submitted && value === correct && "border-emerald-500",
+          submitted && value === correct && "border-sage-500",
           submitted && value !== correct && "border-rose-500",
         )}
       >
@@ -861,7 +861,7 @@ function HeadingPicker({
       </select>
       {submitted && value !== correct && (
         <p className="text-xs text-muted-foreground">
-          Đáp án đúng: <strong className="text-emerald-600">{correct}</strong>
+          Đáp án đúng: <strong className="text-sage-600">{correct}</strong>
         </p>
       )}
     </div>

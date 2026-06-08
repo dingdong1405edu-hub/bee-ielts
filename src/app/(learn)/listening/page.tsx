@@ -16,7 +16,7 @@ export default function ListeningIntroPage() {
         title="Listening"
         subtitle="1 bài nghe mỗi lần luyện tập · audio + câu hỏi"
         icon={Headphones}
-        grad="from-amber-500 to-orange-500"
+        grad="from-[#6E93B5] to-[#4C6E92]"
         startHref="/listening/start"
         ctaLabel="AI chọn đề ngẫu nhiên"
         bullets={[
@@ -57,7 +57,7 @@ async function ListeningTestList() {
 
   return (
     <TestPicker
-      grad="from-amber-500 to-orange-500"
+      grad="from-gold-400 to-gold-600"
       icon={Headphones}
       emptyText="Chưa có bài nghe nào trong kho luyện tập."
       items={tests.map((t) => ({

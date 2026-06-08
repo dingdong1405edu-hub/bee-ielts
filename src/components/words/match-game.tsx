@@ -206,7 +206,7 @@ function GameBoard({ cards }: { cards: StudyCard[] }) {
       {/* Win panel */}
       {finished && (
         <div className="flex flex-col items-center gap-4 rounded-2xl border bg-card py-10 shadow-sm">
-          <Trophy className="h-12 w-12 text-yellow-400" />
+          <Trophy className="h-12 w-12 text-gold-500 fill-gold-200" />
           <p className="font-extrabold text-2xl">Hoàn thành!</p>
           <p className="text-muted-foreground text-sm">
             Thời gian hoàn thành:{" "}

@@ -75,7 +75,7 @@ export default async function AdminBandClimberPage() {
                     {s.writing.trim() && <Badge variant="outline" className="text-[10px]">Writing</Badge>}
                     {s.speaking.trim() && <Badge variant="outline" className="text-[10px]">Speaking</Badge>}
                     {s.readingTests.length > 0 && (
-                      <Badge className="text-[10px] bg-emerald-600 hover:bg-emerald-700">
+                      <Badge className="text-[10px] bg-sage-600 hover:bg-sage-700">
                         <BookOpen className="h-2.5 w-2.5 mr-0.5" /> {s.readingTests.length} đề Reading
                       </Badge>
                     )}

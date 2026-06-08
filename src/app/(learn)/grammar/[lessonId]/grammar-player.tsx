@@ -125,7 +125,7 @@ export function GrammarPlayer({
         <motion.div
           initial={{ scale: 0.5, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="mx-auto grid h-24 w-24 place-items-center rounded-3xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-xl shadow-orange-500/30"
+          className="mx-auto grid h-24 w-24 place-items-center rounded-3xl bg-gradient-to-br from-gold-400 to-gold-500 text-white shadow-xl shadow-gold-500/30"
         >
           <Trophy className="h-12 w-12" />
         </motion.div>
@@ -141,7 +141,7 @@ export function GrammarPlayer({
             <div className="text-xs text-muted-foreground">Điểm</div>
           </div>
           <div className="rounded-2xl border p-3">
-            <div className="text-2xl font-extrabold text-emerald-500">+{correctCount * 5}</div>
+            <div className="text-2xl font-extrabold text-sage-500">+{correctCount * 5}</div>
             <div className="text-xs text-muted-foreground">XP</div>
           </div>
           <div className="rounded-2xl border p-3">

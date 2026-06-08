@@ -33,13 +33,22 @@ const PART_CARDS = [
     sub: "Thảo luận sâu",
     desc: "1 câu mở rộng từ chủ đề Part 2 — luyện lập luận, ý kiến.",
     icon: MessagesSquare,
-    grad: "from-amber-500 to-rose-500",
+    grad: "from-gold-500 to-rose-500",
   },
 ] as const;
 
 export default function SpeakingIntroPage() {
   return (
     <div className="space-y-8">
+      <div className="max-w-2xl mx-auto flex justify-center pt-2">
+        <span
+          className="inline-flex items-center gap-2 rounded-full border border-[#C0714E]/30 bg-[#C0714E]/10 px-3 py-1 text-xs font-extrabold uppercase tracking-wider"
+          style={{ color: "#C0714E" }}
+        >
+          <Mic className="h-3.5 w-3.5" />
+          Speaking
+        </span>
+      </div>
       <SkillIntro
         title="Speaking"
         subtitle="3 part · từng câu hỏi một · AI examiner đọc câu hỏi"

@@ -98,7 +98,7 @@ export function PremiumAdminClient({
     <div className="max-w-4xl space-y-6">
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight flex items-center gap-2">
-          <Crown className="h-6 w-6 text-amber-500" /> Premium
+          <Crown className="h-6 w-6 text-gold-500" /> Premium
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
           Duyệt yêu cầu Premium từ học viên + xem danh sách user đang Premium. Chỉ OWNER thấy
@@ -109,7 +109,7 @@ export function PremiumAdminClient({
       {/* Pending queue */}
       <section className="space-y-2">
         <h2 className="font-extrabold flex items-center gap-2">
-          <Clock className="h-4 w-4 text-amber-500" /> Yêu cầu đang chờ duyệt ({pending.length})
+          <Clock className="h-4 w-4 text-gold-500" /> Yêu cầu đang chờ duyệt ({pending.length})
         </h2>
         {pending.length === 0 ? (
           <Card>
@@ -145,7 +145,7 @@ export function PremiumAdminClient({
                       size="sm"
                       onClick={() => approve(r)}
                       disabled={busyId === r.id}
-                      className="bg-emerald-600 hover:bg-emerald-700"
+                      className="bg-sage-600 hover:bg-sage-700"
                     >
                       {busyId === r.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
                       Cấp Premium
@@ -170,7 +170,7 @@ export function PremiumAdminClient({
       {/* Active premium learners (revoke) */}
       <section className="space-y-2">
         <h2 className="font-extrabold flex items-center gap-2">
-          <Crown className="h-4 w-4 text-emerald-500" /> Học viên đang Premium ({premiumLearners.length})
+          <Crown className="h-4 w-4 text-sage-500" /> Học viên đang Premium ({premiumLearners.length})
         </h2>
         {premiumLearners.length === 0 ? (
           <Card>
@@ -232,7 +232,7 @@ export function PremiumAdminClient({
                   variant="outline"
                   className={
                     r.status === "APPROVED"
-                      ? "border-emerald-400 text-emerald-700"
+                      ? "border-sage-400 text-sage-700"
                       : "border-rose-400 text-rose-700"
                   }
                 >

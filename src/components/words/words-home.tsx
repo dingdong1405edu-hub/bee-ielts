@@ -94,7 +94,7 @@ export function WordsHome({ decks, popQuizOn }: { decks: Deck[]; popQuizOn: bool
           <div
             className={cn(
               "grid h-10 w-10 place-items-center rounded-xl text-white",
-              quizOn ? "bg-gradient-to-br from-amber-500 to-orange-500" : "bg-muted-foreground/40",
+              quizOn ? "bg-gradient-to-br from-gold-400 to-gold-600" : "bg-muted-foreground/40",
             )}
           >
             {quizOn ? <BellRing className="h-5 w-5" /> : <BellOff className="h-5 w-5" />}

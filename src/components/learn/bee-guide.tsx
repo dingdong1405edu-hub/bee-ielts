@@ -153,7 +153,7 @@ export function BeeGuide({
         if (before) frag.appendChild(document.createTextNode(before));
         const mark = document.createElement("mark");
         mark.className =
-          "bee-anchor rounded px-1 py-0.5 bg-amber-200/90 text-amber-900 font-extrabold ring-1 ring-amber-400/60 shadow-sm";
+          "bee-anchor rounded px-1 py-0.5 bg-gold-200/90 text-gold-900 font-extrabold ring-1 ring-gold-400/60 shadow-sm";
         mark.textContent = m[0];
         frag.appendChild(mark);
         created.push(mark);
@@ -298,7 +298,7 @@ export function BeeGuide({
       {/* Highlight ring around the target */}
       {rect && (
         <motion.div
-          className="absolute rounded-2xl pointer-events-none ring-4 ring-yellow-300/80 shadow-[0_0_0_4px_rgba(250,204,21,0.25),0_0_60px_8px_rgba(250,204,21,0.45)]"
+          className="absolute rounded-2xl pointer-events-none ring-4 ring-gold-300/80 shadow-[0_0_0_4px_rgba(250,204,21,0.25),0_0_60px_8px_rgba(250,204,21,0.45)]"
           initial={false}
           animate={{
             top: rect.top - SPOTLIGHT_PAD,
@@ -364,13 +364,13 @@ export function BeeGuide({
                   {step.highlights?.map((h, i) => (
                     <div
                       key={i}
-                      className="mt-3 rounded-xl border-2 border-amber-400 bg-gradient-to-br from-amber-50 to-yellow-100 px-3.5 py-2.5 shadow-md shadow-amber-200/60"
+                      className="mt-3 rounded-xl border-2 border-gold-400 bg-gradient-to-br from-gold-50 to-gold-100 px-3.5 py-2.5 shadow-md shadow-gold-200/60"
                     >
                       <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <div className="text-xs font-extrabold uppercase tracking-wider text-amber-700 inline-flex items-center gap-1">
-                          <Sparkles className="h-3.5 w-3.5 text-amber-600" /> {h.label}
+                        <div className="text-xs font-extrabold uppercase tracking-wider text-gold-700 inline-flex items-center gap-1">
+                          <Sparkles className="h-3.5 w-3.5 text-gold-600" /> {h.label}
                         </div>
-                        <div className="text-[10px] font-bold text-amber-700/70 inline-flex items-center gap-1">
+                        <div className="text-[10px] font-bold text-gold-700/70 inline-flex items-center gap-1">
                           <Plus className="h-3 w-3" /> Bấm để thêm vào từ vựng
                         </div>
                       </div>
@@ -486,7 +486,7 @@ function Bee() {
         style={{ width: 72, height: 72 }}
       >
         {imgFailed ? (
-          <div className="grid h-full w-full place-items-center rounded-full bg-gradient-to-br from-amber-300 to-amber-500 text-4xl shadow-lg shadow-amber-500/40">
+          <div className="grid h-full w-full place-items-center rounded-full bg-gradient-to-br from-gold-300 to-gold-500 text-4xl shadow-lg shadow-gold-500/40">
             🐝
           </div>
         ) : (
@@ -501,12 +501,12 @@ function Bee() {
       </motion.div>
       {/* Trail dots */}
       <motion.span
-        className="absolute -bottom-1 left-1 h-1.5 w-1.5 rounded-full bg-amber-300/80"
+        className="absolute -bottom-1 left-1 h-1.5 w-1.5 rounded-full bg-gold-300/80"
         animate={{ opacity: [0.8, 0, 0.8] }}
         transition={{ duration: 1.4, repeat: Infinity }}
       />
       <motion.span
-        className="absolute -bottom-1 left-4 h-1 w-1 rounded-full bg-amber-300/60"
+        className="absolute -bottom-1 left-4 h-1 w-1 rounded-full bg-gold-300/60"
         animate={{ opacity: [0.6, 0, 0.6] }}
         transition={{ duration: 1.4, repeat: Infinity, delay: 0.4 }}
       />
@@ -598,7 +598,7 @@ function BoldedText({ text, words }: { text: string; words: string[] }) {
         p && testRe.test(p) ? (
           <strong
             key={i}
-            className="font-extrabold text-amber-700 bg-amber-100 rounded px-1 py-0.5"
+            className="font-extrabold text-gold-700 bg-gold-100 rounded px-1 py-0.5"
           >
             {p}
           </strong>
@@ -672,8 +672,8 @@ function AnchorChip({ term, delayIndex }: { term: string; delayIndex: number }) 
       title={state === "added" ? "Đã thêm vào từ vựng" : `Thêm "${term}" vào học từ`}
       className={`group inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-extrabold shadow-sm ring-1 transition-all ${
         state === "added"
-          ? "bg-gradient-to-br from-emerald-300 to-emerald-400 text-emerald-950 shadow-emerald-400/40 ring-emerald-500/40"
-          : "bg-gradient-to-br from-yellow-300 to-amber-400 text-amber-950 shadow-amber-400/40 ring-amber-500/40 hover:scale-105 active:scale-95"
+          ? "bg-gradient-to-br from-sage-300 to-sage-400 text-sage-950 shadow-sage-400/40 ring-sage-500/40"
+          : "bg-gradient-to-br from-gold-300 to-gold-400 text-gold-950 shadow-gold-400/40 ring-gold-500/40 hover:scale-105 active:scale-95"
       }`}
       style={
         state === "added"
@@ -685,10 +685,10 @@ function AnchorChip({ term, delayIndex }: { term: string; delayIndex: number }) 
       <span
         className={`inline-grid h-4 w-4 place-items-center rounded-md ${
           state === "added"
-            ? "bg-emerald-700/20 text-emerald-900"
+            ? "bg-sage-700/20 text-sage-900"
             : state === "loading"
-              ? "bg-amber-700/20 text-amber-900"
-              : "bg-amber-700/20 text-amber-900 group-hover:bg-amber-700/40"
+              ? "bg-gold-700/20 text-gold-900"
+              : "bg-gold-700/20 text-gold-900 group-hover:bg-gold-700/40"
         }`}
       >
         {state === "loading" ? (

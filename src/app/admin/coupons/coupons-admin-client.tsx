@@ -168,7 +168,7 @@ export function CouponsAdminClient({ initial }: { initial: CouponRow[] }) {
                 icon={Crown}
                 title="Premium"
                 hint="Mở khoá Vượt band + thi không giới hạn"
-                colorClass="from-amber-500 to-orange-500"
+                colorClass="from-gold-400 to-gold-600"
               />
               <RewardOption
                 active={rewardKind === "XP"}
@@ -254,7 +254,7 @@ export function CouponsAdminClient({ initial }: { initial: CouponRow[] }) {
                   <div
                     className={cn(
                       "grid h-10 w-10 shrink-0 place-items-center rounded-xl text-white",
-                      c.rewardKind === "PREMIUM" && "bg-gradient-to-br from-amber-500 to-orange-500",
+                      c.rewardKind === "PREMIUM" && "bg-gradient-to-br from-gold-400 to-gold-600",
                       c.rewardKind === "XP" && "bg-gradient-to-br from-honey to-honey-deep",
                       c.rewardKind === "HEARTS" && "bg-gradient-to-br from-rose-500 to-pink-500",
                       dead && "opacity-50",
@@ -276,7 +276,7 @@ export function CouponsAdminClient({ initial }: { initial: CouponRow[] }) {
                       </Badge>
                       {!c.active && <Badge className="text-[10px] bg-muted-foreground">Tắt</Badge>}
                       {expired && <Badge className="text-[10px] bg-rose-600">Hết hạn</Badge>}
-                      {exhausted && <Badge className="text-[10px] bg-orange-600">Hết lượt</Badge>}
+                      {exhausted && <Badge className="text-[10px] bg-gold-600">Hết lượt</Badge>}
                     </div>
                     {c.description && (
                       <p className="text-xs text-muted-foreground mt-0.5">{c.description}</p>

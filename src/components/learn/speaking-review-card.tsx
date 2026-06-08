@@ -37,21 +37,21 @@ export function bandTone(band: number | undefined | null) {
     return { bg: "bg-muted-foreground", text: "text-background", border: "border-border" };
   }
   if (band >= 7) {
-    return { bg: "bg-emerald-500", text: "text-white", border: "border-emerald-400" };
+    return { bg: "bg-success", text: "text-success-foreground", border: "border-success" };
   }
   if (band >= 5) {
-    return { bg: "bg-amber-400", text: "text-amber-950", border: "border-amber-300" };
+    return { bg: "bg-gold-400", text: "text-gold-950", border: "border-gold-300" };
   }
-  return { bg: "bg-muted", text: "text-foreground", border: "border-border" };
+  return { bg: "bg-destructive/15", text: "text-destructive", border: "border-border" };
 }
 
 export function pillTone(band: number | undefined | null) {
   if (band == null || !Number.isFinite(band) || band <= 0) {
     return "bg-muted text-foreground";
   }
-  if (band >= 7) return "bg-emerald-500 text-white";
-  if (band >= 5) return "bg-amber-300 text-amber-950";
-  return "bg-muted text-foreground";
+  if (band >= 7) return "bg-success text-success-foreground";
+  if (band >= 5) return "bg-gold-300 text-gold-950";
+  return "bg-destructive/15 text-destructive";
 }
 
 /** Big round band display (mimics luyennoi.com's score circle). */
@@ -103,7 +103,7 @@ export function CriteriaPills({
             className={cn(
               "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold",
               pillTone(v),
-              isLow && "ring-2 ring-amber-500 shadow",
+              isLow && "ring-2 ring-destructive/50 shadow",
             )}
           >
             {label}:{" "}
@@ -183,7 +183,7 @@ export function AnnotatedTranscript({
     out.push(
       <span
         key={`c-${i}`}
-        className="inline rounded bg-emerald-100 text-emerald-800 px-1 mx-0.5 font-semibold"
+        className="inline rounded bg-sage-100 text-sage-800 px-1 mx-0.5 font-semibold"
       >
         {m.corrected}
       </span>,
@@ -210,12 +210,12 @@ export function QuestionScoreCard({
     <div
       className={cn(
         "rounded-2xl border-2 bg-card transition-all",
-        isWeakest ? "border-amber-400 ring-2 ring-amber-300/40 shadow-md" : "border-border",
+        isWeakest ? "ring-2 ring-destructive/50 border-border shadow-md" : "border-border",
       )}
     >
       {isWeakest && (
         <div className="px-4 pt-3">
-          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wider">
+          <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 text-destructive px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wider">
             <Star className="h-3 w-3 fill-current" /> Câu yếu nhất
           </span>
         </div>
@@ -245,12 +245,12 @@ export function QuestionScoreCard({
           </div>
           <CriteriaPills criteria={tip.criteria} weakest={isWeakest} />
           {open && (tip.opener || tip.advice) && (
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 p-3 space-y-1.5">
-              <div className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 inline-flex items-center gap-1">
+            <div className="rounded-lg border border-sage-200 bg-sage-50 dark:bg-sage-950/20 p-3 space-y-1.5">
+              <div className="text-[11px] font-extrabold uppercase tracking-wider text-sage-700 dark:text-sage-400 inline-flex items-center gap-1">
                 <Lightbulb className="h-3.5 w-3.5" /> Gợi ý cải thiện
               </div>
               {tip.opener && (
-                <p className="text-sm italic text-emerald-800 dark:text-emerald-300">
+                <p className="text-sm italic text-sage-800 dark:text-sage-300">
                   &quot;{tip.opener}&quot;
                 </p>
               )}

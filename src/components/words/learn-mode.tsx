@@ -229,7 +229,7 @@ export function LearnMode({
           size="xl"
           className={cn(
             "gap-2 rounded-2xl text-white text-lg h-16",
-            "bg-amber-500 hover:bg-amber-600 active:bg-amber-700",
+            "bg-gold-500 hover:bg-gold-600 active:bg-gold-700",
           )}
           onClick={handleNotMastered}
           aria-label="Chưa thuộc"

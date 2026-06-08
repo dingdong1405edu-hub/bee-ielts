@@ -52,18 +52,18 @@ const SKILL_META: Record<
   reading: {
     label: "Reading",
     icon: BookOpen,
-    from: "from-emerald-500",
+    from: "from-sage-500",
     to: "to-teal-500",
-    ring: "ring-emerald-400/60",
-    bubble: "from-emerald-500 to-teal-600",
+    ring: "ring-sage-400/60",
+    bubble: "from-sage-500 to-teal-600",
   },
   listening: {
     label: "Listening",
     icon: Headphones,
-    from: "from-amber-500",
-    to: "to-orange-500",
-    ring: "ring-amber-400/60",
-    bubble: "from-amber-500 to-orange-600",
+    from: "from-[#6E93B5]",
+    to: "to-[#4C6E92]",
+    ring: "ring-gold-400/60",
+    bubble: "from-gold-500 to-gold-600",
   },
   writing: {
     label: "Writing",
@@ -156,7 +156,7 @@ export function PathView({
   return (
     // Solid bg-card so the global .ambient-bg (fixed grid + brand glows
     // sitting at z-index: -10) doesn't bleed through. The previous
-    // `from-emerald-50/60` gradient was 60% alpha at the top — that's
+    // `from-sage-50/60` gradient was 60% alpha at the top — that's
     // where the ambient grid + center glow showed through and produced
     // the dim "fog" effect over the path. A subtle emerald accent strip
     // lives inside Hero, so we don't need a body-level tint anymore.
@@ -173,7 +173,7 @@ export function PathView({
 
       {!hasAny ? (
         <div className="max-w-md mx-auto px-4 pt-10 text-center">
-          <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-amber-100 text-amber-700 mb-3">
+          <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-gold-100 text-gold-700 mb-3">
             <Package className="h-8 w-8" />
           </div>
           <p className="font-bold text-lg">Chặng chưa có bài tập</p>
@@ -207,7 +207,7 @@ export function PathView({
           <div className="flex flex-col items-center gap-2 pb-4">
             {completed ? (
               <>
-                <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500 text-white px-5 py-2.5 font-extrabold uppercase tracking-wider text-sm shadow-md shadow-emerald-500/30">
+                <div className="inline-flex items-center gap-2 rounded-full bg-sage-500 text-white px-5 py-2.5 font-extrabold uppercase tracking-wider text-sm shadow-md shadow-sage-500/30">
                   <Check className="h-4 w-4" /> Đã hoàn thành chặng
                 </div>
                 <Link
@@ -226,8 +226,8 @@ export function PathView({
                   className={cn(
                     "inline-flex items-center gap-2 rounded-full px-6 py-3 font-extrabold uppercase tracking-wider text-sm shadow-md transition-all",
                     marking
-                      ? "bg-emerald-400 text-white cursor-wait"
-                      : "bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-emerald-500/30",
+                      ? "bg-sage-400 text-white cursor-wait"
+                      : "bg-gradient-to-r from-sage-500 to-teal-600 hover:from-sage-600 hover:to-teal-700 text-white shadow-sage-500/30",
                   )}
                 >
                   {marking ? (
@@ -271,7 +271,7 @@ function Hero({
   onShowTips: (() => void) | null;
 }) {
   return (
-    <div className="sticky top-0 z-20 bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md">
+    <div className="sticky top-0 z-20 bg-gradient-to-r from-sage-500 to-teal-600 text-white shadow-md">
       <div className="max-w-md mx-auto px-4 py-3.5 flex items-center justify-between gap-3">
         <div className="min-w-0">
           <Link
@@ -288,7 +288,7 @@ function Hero({
         {onShowTips && (
           <button
             onClick={onShowTips}
-            className="shrink-0 inline-flex items-center gap-1.5 rounded-2xl bg-white text-emerald-700 px-3.5 py-2 shadow-md font-extrabold text-sm hover:bg-emerald-50 active:translate-y-0.5"
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-2xl bg-white text-sage-700 px-3.5 py-2 shadow-md font-extrabold text-sm hover:bg-sage-50 active:translate-y-0.5"
           >
             <ListChecks className="h-4 w-4" /> HƯỚNG DẪN
           </button>
@@ -398,7 +398,7 @@ function QuizNode({
           <div
             className={cn(
               "grid h-14 w-14 place-items-center rounded-full border-[4px] border-white shadow-[0_6px_0_rgba(0,0,0,0.08)] transition-transform hover:scale-105 active:scale-100",
-              "bg-gradient-to-br from-honey via-amber-400 to-honey-deep",
+              "bg-gradient-to-br from-honey via-gold-400 to-honey-deep",
             )}
           >
             {isCurrent ? (
@@ -471,9 +471,9 @@ function PathNode({
             className={cn(
               "grid h-20 w-20 place-items-center rounded-full border-[5px] border-white shadow-[0_8px_0_rgba(0,0,0,0.08)] transition-transform hover:scale-105 active:scale-100",
               isCurrent
-                ? "bg-gradient-to-br from-honey via-amber-400 to-honey-deep ring-4 ring-honey/40"
+                ? "bg-gradient-to-br from-honey via-gold-400 to-honey-deep ring-4 ring-honey/40"
                 : isMilestone
-                  ? "bg-gradient-to-br from-yellow-400 to-amber-500"
+                  ? "bg-gradient-to-br from-gold-400 to-gold-500"
                   : cn("bg-gradient-to-br", meta.from, meta.to),
             )}
           >
@@ -487,7 +487,7 @@ function PathNode({
           </div>
           {/* Mini star badge under the node — like Duolingo's "stars earned" */}
           {!isCurrent && !isMilestone && (
-            <Star className="absolute -bottom-1 right-0 h-5 w-5 text-amber-400 fill-amber-300 drop-shadow" />
+            <Star className="absolute -bottom-1 right-0 h-5 w-5 text-gold-600 fill-gold-300 drop-shadow" />
           )}
         </motion.div>
       </Link>
@@ -547,7 +547,7 @@ function TipsDrawer({
         className="relative bg-card w-full sm:max-w-2xl max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="sticky top-0 z-10 bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-5 py-4 flex items-center justify-between rounded-t-3xl">
+        <div className="sticky top-0 z-10 bg-gradient-to-r from-sage-500 to-teal-600 text-white px-5 py-4 flex items-center justify-between rounded-t-3xl">
           <div>
             <div className="text-[10px] uppercase tracking-widest opacity-80 font-bold">
               Hướng dẫn vượt band

@@ -25,7 +25,14 @@ export default async function ShadowingLandingPage({
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div>
-        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">
+        <span
+          className="inline-flex items-center gap-1.5 rounded-full bg-[#8A6E9C]/10 border border-[#8A6E9C]/20 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider"
+          style={{ color: "#8A6E9C" }}
+        >
+          <Headphones className="h-3 w-3" />
+          {mode === "SHADOWING" ? "Shadowing" : "Dictation"}
+        </span>
+        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight mt-2">
           {mode === "SHADOWING" ? "Luyện Shadowing" : "Luyện Dictation"}
         </h1>
         <p className="text-muted-foreground mt-1.5">
@@ -53,7 +60,7 @@ export default async function ShadowingLandingPage({
 
       <div className="flex items-center gap-3 flex-wrap">
         <h2 className="text-lg font-extrabold tracking-tight">Tất cả bài học</h2>
-        <span className="rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-3 py-1 text-xs font-extrabold">
+        <span className="rounded-full bg-sage-500/10 text-sage-700 dark:text-sage-300 px-3 py-1 text-xs font-extrabold">
           {lessons.length} bài học
         </span>
       </div>
@@ -62,15 +69,15 @@ export default async function ShadowingLandingPage({
         {/* Featured "Luyện với nội dung bạn yêu thích" card */}
         <Link
           href="/shadowing"
-          className="group sm:col-span-2 lg:col-span-2 rounded-3xl bg-gradient-to-br from-amber-100 via-orange-100 to-rose-100 dark:from-amber-900/40 dark:via-orange-900/40 dark:to-rose-900/40 p-6 relative overflow-hidden border-2 border-amber-200 dark:border-amber-700/50 hover:shadow-xl transition-shadow"
+          className="group sm:col-span-2 lg:col-span-2 rounded-3xl bg-gradient-to-br from-gold-100 via-gold-100 to-rose-100 dark:from-gold-900/40 dark:via-gold-900/40 dark:to-rose-900/40 p-6 relative overflow-hidden border-2 border-gold-200 dark:border-gold-700/50 hover:shadow-xl transition-shadow"
         >
-          <span className="absolute top-4 left-4 inline-flex items-center gap-1 rounded-full bg-white/80 dark:bg-card/80 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-amber-700 dark:text-amber-300 shadow-sm">
+          <span className="absolute top-4 left-4 inline-flex items-center gap-1 rounded-full bg-white/80 dark:bg-card/80 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-gold-700 dark:text-gold-300 shadow-sm">
             <Sparkles className="h-3 w-3" /> Mới
           </span>
           <div className="relative">
             <h3 className="text-2xl font-extrabold tracking-tight leading-tight mt-6">
               Luyện với<br />
-              nội dung <span className="text-orange-600">bạn</span><br />
+              nội dung <span className="text-gold-600">bạn</span><br />
               yêu thích
             </h3>
             <p className="mt-3 text-sm text-foreground dark:text-muted-foreground max-w-xs">
@@ -78,10 +85,10 @@ export default async function ShadowingLandingPage({
             </p>
             <div className="mt-5 inline-flex flex-col">
               <div className="inline-flex items-center gap-2 rounded-2xl bg-white dark:bg-card px-5 py-3 font-extrabold shadow-md group-hover:shadow-lg transition-shadow">
-                <Upload className="h-4 w-4 text-amber-600" />
+                <Upload className="h-4 w-4 text-gold-600" />
                 <span className="text-sm">UPLOAD VIDEO / AUDIO</span>
               </div>
-              <span className="text-[11px] text-amber-700 dark:text-amber-300 mt-1.5 ml-2 italic">
+              <span className="text-[11px] text-gold-700 dark:text-gold-300 mt-1.5 ml-2 italic">
                 Sắp ra mắt
               </span>
             </div>
@@ -110,7 +117,7 @@ export default async function ShadowingLandingPage({
                 </span>
               </div>
               <div className="absolute top-2 right-2">
-                <span className="rounded-md bg-emerald-600 text-white px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider shadow-sm">
+                <span className="rounded-md bg-sage-600 text-white px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider shadow-sm">
                   Cộng đồng
                 </span>
               </div>

@@ -108,7 +108,7 @@ export function WordTranslatePopup({
 
   return (
     <div
-      className="fixed z-50 max-w-[280px] rounded-2xl border-2 border-amber-300 bg-card shadow-2xl p-3"
+      className="fixed z-50 max-w-[280px] rounded-2xl border-2 border-gold-300 bg-card shadow-2xl p-3"
       style={{
         left: Math.max(8, Math.min(window.innerWidth - 300, x - 140)),
         top: Math.min(window.innerHeight - 220, y + 8),
@@ -128,7 +128,7 @@ export function WordTranslatePopup({
       ) : hint ? (
         <div className="space-y-1.5">
           {hint.pos && (
-            <span className="inline-block text-[10px] uppercase tracking-wider font-extrabold rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 px-1.5 py-0.5">
+            <span className="inline-block text-[10px] uppercase tracking-wider font-extrabold rounded bg-gold-100 dark:bg-gold-900/40 text-gold-700 dark:text-gold-300 px-1.5 py-0.5">
               {hint.pos}
             </span>
           )}
@@ -153,7 +153,7 @@ export function WordTranslatePopup({
               </button>
             )}
             {saved && (
-              <div className="text-xs font-bold text-emerald-700 dark:text-emerald-300 text-center py-1">
+              <div className="text-xs font-bold text-sage-700 dark:text-sage-300 text-center py-1">
                 ✓ Đã lưu vào sổ từ
               </div>
             )}
@@ -170,7 +170,7 @@ export function WordTranslatePopup({
                   <button
                     onClick={() => saveToDeck(null)}
                     disabled={saving}
-                    className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2.5 py-1.5 text-xs font-extrabold"
+                    className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-gold-100 hover:bg-gold-200 dark:bg-gold-900/30 text-gold-800 dark:text-gold-200 px-2.5 py-1.5 text-xs font-extrabold"
                   >
                     {saving ? (
                       <Loader2 className="h-3 w-3 animate-spin" />
@@ -195,7 +195,7 @@ export function WordTranslatePopup({
                     <button
                       onClick={() => saveToDeck(null)}
                       disabled={saving}
-                      className="w-full inline-flex items-center justify-center gap-1.5 rounded-md bg-amber-50 dark:bg-amber-950/20 hover:bg-amber-100 px-2 py-1 text-[10px] font-bold text-amber-700 dark:text-amber-300 mt-1"
+                      className="w-full inline-flex items-center justify-center gap-1.5 rounded-md bg-gold-50 dark:bg-gold-950/20 hover:bg-gold-100 px-2 py-1 text-[10px] font-bold text-gold-700 dark:text-gold-300 mt-1"
                     >
                       + Vào bộ mặc định &ldquo;Tự thu thập&rdquo;
                     </button>

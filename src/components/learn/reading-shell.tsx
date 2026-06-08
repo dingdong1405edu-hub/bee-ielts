@@ -563,13 +563,13 @@ function InlineBlankSentence({
           replaced = true;
           return (
             <span key={i} className="inline-flex items-center gap-1 align-middle mx-0.5">
-              <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-600 text-white text-[11px] font-bold shrink-0">
+              <span className="grid h-5 w-5 place-items-center rounded-full bg-sage-600 text-white text-[11px] font-bold shrink-0">
                 {num}
               </span>
               <input
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
-                className="inline-block min-w-[120px] rounded-full border-2 border-emerald-600/60 focus:border-emerald-600 outline-none bg-background px-3 py-0.5 text-sm font-medium"
+                className="inline-block min-w-[120px] rounded-full border-2 border-sage-600/60 focus:border-sage-600 outline-none bg-background px-3 py-0.5 text-sm font-medium"
               />
             </span>
           );
@@ -613,7 +613,7 @@ function InlineBlankGroup({
 
 function NumberPill({ num }: { num: number }) {
   return (
-    <span className="shrink-0 grid h-6 w-6 place-items-center rounded-full bg-emerald-600 text-white text-xs font-extrabold">
+    <span className="shrink-0 grid h-6 w-6 place-items-center rounded-full bg-sage-600 text-white text-xs font-extrabold">
       {num}
     </span>
   );
@@ -673,7 +673,7 @@ function BottomNav({
                         className={cn(
                           "grid h-5 w-5 md:h-6 md:w-6 place-items-center rounded-full text-[10px] md:text-[11px] font-bold border",
                           filled
-                            ? "bg-emerald-600 text-white border-emerald-600"
+                            ? "bg-sage-600 text-white border-sage-600"
                             : "bg-background border-border text-muted-foreground",
                         )}
                       >

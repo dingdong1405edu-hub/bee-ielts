@@ -243,8 +243,8 @@ export function Sidebar({
             className={linkClass(pathname.startsWith("/premium"), collapsed)}
             title={collapsed ? "Premium" : undefined}
           >
-            <Crown className="h-5 w-5 shrink-0 text-amber-500" />
-            {!collapsed && <span className="text-amber-600 dark:text-amber-400">Premium</span>}
+            <Crown className="h-5 w-5 shrink-0 text-gold-500" />
+            {!collapsed && <span className="font-bold text-gold-700 dark:text-gold-400">Premium</span>}
           </Link>
         )}
         {isPremium && (
@@ -253,11 +253,11 @@ export function Sidebar({
             className={linkClass(pathname.startsWith("/premium"), collapsed)}
             title={collapsed ? "Premium" : undefined}
           >
-            <Crown className="h-5 w-5 shrink-0 text-amber-500" />
+            <Crown className="h-5 w-5 shrink-0 text-gold-500" />
             {!collapsed && (
               <span className="flex items-center gap-1.5">
                 Premium
-                <span className="text-[9px] font-bold uppercase tracking-wider bg-amber-500 text-white rounded px-1 py-px">
+                <span className="text-[9px] font-bold uppercase tracking-wider bg-gold-500 text-white rounded px-1 py-px">
                   ON
                 </span>
               </span>

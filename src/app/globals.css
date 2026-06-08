@@ -4,113 +4,132 @@
 
 @layer base {
   :root {
-    /* ===== Honey theme — shadcn semantic tokens (HSL triplets) ===== */
-    --background: 40 69% 95%;        /* cream  #fbf5e9 */
-    --foreground: 34 31% 10%;        /* ink    #221b12 */
-    --card: 45 100% 98%;             /* paper  #fffdf7 */
-    --card-foreground: 34 31% 10%;
-    --popover: 45 100% 98%;
-    --popover-foreground: 34 31% 10%;
+    /* ===== Sage + Gold theme — shadcn semantic tokens (HSL triplets) ===== */
+    --background: 42 26% 94%;        /* canvas #F4F1EA (warm linen) */
+    --foreground: 150 11% 20%;       /* forest ink #2E3A33 */
+    --card: 40 33% 98%;              /* paper  #FBFAF6 */
+    --card-foreground: 150 11% 20%;
+    --popover: 40 33% 98%;
+    --popover-foreground: 150 11% 20%;
 
-    --primary: 38 85% 52%;           /* honey  #eda21d */
-    --primary-foreground: 40 100% 8%;/* dark warm #2a1c00 */
+    --primary: 156 18% 42%;          /* sage   #5A7D6F */
+    --primary-foreground: 42 33% 97%;/* near-white cream */
 
-    --secondary: 40 60% 89%;         /* cream-2 #f4e9d3 */
-    --secondary-foreground: 36 17% 30%;
+    --secondary: 150 18% 88%;        /* soft mist */
+    --secondary-foreground: 155 19% 27%;
 
-    --muted: 40 60% 89%;
-    --muted-foreground: 37 14% 47%;  /* ink-faint #8a7d68 */
+    --muted: 42 22% 90%;             /* warm muted linen */
+    --muted-foreground: 145 7% 44%;  /* ink-faint #7C887F */
 
-    --accent: 41 89% 86%;            /* honey-tint #fbe7bd (subtle hover bg) */
-    --accent-foreground: 35 86% 41%; /* honey-deep #c1760f */
+    --accent: 42 48% 88%;            /* soft gold (subtle hover bg) */
+    --accent-foreground: 36 42% 39%; /* gold-deep #8E6C3A */
 
-    --destructive: 355 64% 55%;
+    --destructive: 355 62% 52%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 128 44% 44%;          /* leaf #3fa24c */
+    --success: 150 34% 39%;          /* clean leaf green */
     --success-foreground: 0 0% 100%;
 
-    --border: 37 21% 83%;            /* warm line #ddd6cb */
-    --input: 37 16% 78%;
-    --ring: 38 85% 52%;
+    --border: 40 20% 85%;            /* warm line #E2DDD1 */
+    --input: 40 16% 80%;
+    --ring: 156 18% 42%;
 
     --radius: 1rem;
 
-    /* brand gradient (bee logo, avatars, brand buttons) — all-honey */
-    --brand-1: 43 92% 58%;
-    --brand-2: 38 85% 52%;
-    --brand-3: 33 88% 42%;
+    /* brand gradient (logo mark, avatars, brand buttons) — sage → gold */
+    --brand-1: 156 22% 50%;          /* sage-400 */
+    --brand-2: 156 18% 42%;          /* sage-500 */
+    --brand-3: 38 47% 50%;           /* gold     */
 
-    /* ===== Raw Honey design tokens (hex) — used by helper classes ===== */
-    --ink:        #221b12;
-    --ink-soft:   #5b5040;
-    --ink-faint:  #8a7d68;
-    --cream:      #fbf5e9;
-    --cream-2:    #f4e9d3;
-    --paper:      #fffdf7;
-    --honey:      #eda21d;
-    --primary-deep:#c1760f;
-    --primary-tint:#fbe7bd;
-    --leaf:       #3fa24c;
-    --accent-deep:#2c7d39;
-    --accent-tint:#d7efd2;
-    --line:       rgba(34,27,18,0.14);
-    --line-soft:  rgba(34,27,18,0.08);
-    --shadow:     34 27 18;
+    /* ===== Raw Sage+Gold design tokens (hex) — used by helper classes ===== */
+    --ink:        #2E3A33;           /* forest */
+    --ink-soft:   #51605A;
+    --ink-faint:  #7C887F;
+    --cream:      #F4F1EA;           /* canvas */
+    --cream-2:    #EAE5D8;           /* deeper linen (marquee / secondary) */
+    --paper:      #FBFAF6;
+    --honey:      #C5A05E;           /* now = gold (warm accent) */
+    --primary-deep:#3F5C50;          /* sage-deep */
+    --primary-tint:#DDEAE3;          /* sage tint */
+    --leaf:       #4F8A63;           /* success green */
+    --accent-deep:#2C7D49;
+    --accent-tint:#DCEFE0;
+    /* sage + gold + mist named tokens (parity with design system) */
+    --sage:       #5A7D6F;
+    --sage-deep:  #3F5C50;
+    --gold:       #C5A05E;
+    --gold-soft:  #E6D5AE;
+    --gold-deep:  #8E6C3A;
+    --mist:       #A8C3B5;
+    --mist-soft:  #CADCD2;
+    --forest:     #2E3A33;
+    --line:       rgba(46,58,51,0.12);
+    --line-soft:  rgba(46,58,51,0.07);
+    --shadow:     46 58 51;
 
     --r-sm: 10px;
     --r-md: 16px;
     --r-lg: 26px;
     --r-pill: 999px;
-    --grain: 0.4;
+    --grain: 0.28;
     --maxw: 1200px;
     --font-body: var(--font-sans);
   }
 
   .dark {
-    /* ===== Dark Honey — deep espresso + warm cream + honey/leaf accents ===== */
-    --background: 34 30% 8%;
-    --foreground: 40 50% 92%;
-    --card: 34 26% 12%;
-    --card-foreground: 40 50% 92%;
-    --popover: 34 26% 12%;
-    --popover-foreground: 40 50% 92%;
+    /* ===== Dark Sage — deep forest + warm cream text + sage/gold accents ===== */
+    --background: 150 14% 9%;        /* deep forest #15201A */
+    --foreground: 42 28% 92%;
+    --card: 150 12% 13%;
+    --card-foreground: 42 28% 92%;
+    --popover: 150 12% 13%;
+    --popover-foreground: 42 28% 92%;
 
-    --primary: 38 90% 56%;
-    --primary-foreground: 40 100% 8%;
+    --primary: 156 26% 54%;          /* brighter sage on dark */
+    --primary-foreground: 150 30% 8%;
 
-    --secondary: 34 18% 18%;
-    --secondary-foreground: 40 40% 88%;
+    --secondary: 150 12% 18%;
+    --secondary-foreground: 42 26% 88%;
 
-    --muted: 34 16% 18%;
-    --muted-foreground: 38 16% 64%;
+    --muted: 150 10% 18%;
+    --muted-foreground: 145 10% 62%;
 
-    --accent: 34 30% 20%;
-    --accent-foreground: 38 85% 70%;
+    --accent: 150 14% 20%;
+    --accent-foreground: 38 50% 66%; /* gold on dark */
 
-    --destructive: 355 64% 58%;
+    --destructive: 355 62% 56%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 128 44% 50%;
-    --success-foreground: 40 100% 8%;
+    --success: 150 40% 50%;
+    --success-foreground: 150 30% 8%;
 
-    --border: 34 18% 20%;
-    --input: 34 18% 22%;
-    --ring: 38 85% 55%;
+    --border: 150 10% 21%;
+    --input: 150 10% 23%;
+    --ring: 156 26% 54%;
 
-    --brand-1: 43 92% 60%;
-    --brand-2: 38 88% 54%;
-    --brand-3: 33 86% 46%;
+    --brand-1: 156 30% 56%;
+    --brand-2: 156 24% 46%;
+    --brand-3: 38 50% 56%;
 
     /* raw token overrides for dark surfaces */
-    --ink:       #f7eeda;
-    --ink-soft:  #d8cbb2;
-    --ink-faint: #a8997d;
-    --cream:     #1c160d;
-    --cream-2:   #2a2016;
-    --paper:     #241b11;
-    --line:      rgba(247,238,218,0.14);
-    --line-soft: rgba(247,238,218,0.08);
+    --ink:        #EAF1EC;
+    --ink-soft:   #C2CFC7;
+    --ink-faint:  #8FA096;
+    --cream:      #15201A;
+    --cream-2:    #1E2A24;
+    --paper:      #1A241E;
+    --honey:      #D2B26E;           /* gold lighter on dark */
+    --primary-deep:#7CA391;
+    --primary-tint:#243630;
+    --leaf:       #5AA873;
+    --accent-tint:#1F2E27;
+    --sage:       #7CA391;
+    --sage-deep:  #5A7D6F;
+    --gold:       #D2B26E;
+    --gold-soft:  #E6D5AE;
+    --gold-deep:  #B6883F;
+    --line:      rgba(234,241,236,0.12);
+    --line-soft: rgba(234,241,236,0.06);
     --shadow:    0 0 0;
   }
 
@@ -146,9 +165,11 @@
     background-color: hsl(var(--primary) / 0.25);
   }
   h1, h2, h3, h4 {
-    font-family: var(--font-display), var(--font-vn), system-ui, sans-serif;
-    font-weight: 800;
-    letter-spacing: -0.02em;
+    /* Lora serif — editorial headings */
+    font-family: var(--font-display), var(--font-vn), Georgia, serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.12;
   }
 }
 
@@ -158,45 +179,45 @@
     font-family: var(--font-sans), var(--font-vn), system-ui, sans-serif;
     font-weight: 700;
     font-size: 13px;
-    letter-spacing: 0.16em;
+    letter-spacing: 0.22em;
     text-transform: uppercase;
-    color: var(--primary-deep);
+    color: var(--sage-deep);
     display: inline-flex;
     align-items: center;
-    gap: 9px;
+    gap: 10px;
   }
   .eyebrow::before {
     content: "";
-    width: 22px; height: 2px;
-    background: var(--honey);
+    width: 26px; height: 1.5px;
+    background: currentColor;
     border-radius: 2px;
   }
 
-  /* honey highlight on a word */
-  .hl { position: relative; color: var(--primary-deep); white-space: nowrap; }
+  /* gold highlight on a word (editorial underline) */
+  .hl { position: relative; color: var(--sage-deep); white-space: nowrap; font-style: italic; }
   .hl::after {
     content: "";
     position: absolute;
-    left: -2%; right: -2%; bottom: 0.06em;
-    height: 0.34em;
-    background: var(--honey);
-    opacity: 0.34;
+    left: -2%; right: -2%; bottom: 0.04em;
+    height: 0.32em;
+    background: var(--gold);
+    opacity: 0.42;
     border-radius: 3px;
     z-index: -1;
     transform: rotate(-1.2deg);
   }
 
-  /* leaf highlight variant */
-  .hl-leaf { color: var(--accent-deep); }
+  /* leaf/sage highlight variant */
+  .hl-leaf { color: var(--accent-deep); font-style: italic; }
   .hl-leaf::after { background: var(--leaf); }
 
   /* ===== Honey buttons (plain-CSS variants used outside <Button>) ===== */
   .btn {
-    display: inline-flex; align-items: center; gap: 10px;
-    font-family: var(--font-display), var(--font-vn), system-ui, sans-serif;
-    font-weight: 700;
-    font-size: 16px;
-    padding: 15px 26px;
+    display: inline-flex; align-items: center; gap: 9px;
+    font-family: var(--font-sans), var(--font-vn), system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    padding: 14px 26px;
     border-radius: var(--r-pill);
     border: 1.5px solid transparent;
     transition: transform .18s cubic-bezier(.2,.8,.2,1), box-shadow .18s, background .18s, color .18s;
@@ -204,18 +225,27 @@
   }
   .btn .arr { transition: transform .2s; }
   .btn:hover .arr { transform: translateX(4px); }
+  /* dark forest button */
   .btn-primary {
     background: var(--ink);
     color: var(--cream);
-    box-shadow: 0 1px 0 rgb(var(--shadow) / 0.5), 0 14px 30px -16px rgb(var(--shadow) / 0.7);
+    box-shadow: 0 1px 0 rgb(var(--shadow) / 0.4), 0 14px 30px -16px rgb(var(--shadow) / 0.55);
   }
-  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 20px 40px -16px rgb(var(--shadow) / 0.8); }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 20px 40px -16px rgb(var(--shadow) / 0.7); }
+  /* gold = the warm primary action CTA (legacy name kept) */
   .btn-honey {
-    background: var(--honey);
-    color: #2a1c00;
-    box-shadow: 0 1px 0 #fff5, 0 14px 30px -14px var(--primary-deep);
+    background: var(--gold);
+    color: #2C2008;
+    box-shadow: 0 1px 0 #fff7, 0 16px 34px -16px var(--gold-deep);
   }
-  .btn-honey:hover { transform: translateY(-2px); background: var(--primary-deep); color: #fff; }
+  .btn-honey:hover { transform: translateY(-2px); background: var(--gold-deep); color: #fff; }
+  /* sage filled button */
+  .btn-sage {
+    background: var(--sage);
+    color: var(--cream);
+    box-shadow: 0 1px 0 #fff3, 0 16px 34px -16px var(--sage-deep);
+  }
+  .btn-sage:hover { transform: translateY(-2px); background: var(--sage-deep); color: #fff; }
   .btn-ghost {
     background: transparent;
     color: var(--ink);
@@ -403,10 +433,10 @@ body.mock-exam [data-mock-pane] {
    anchor words ("từ neo") shown inside the tour's speech bubble. */
 @keyframes bee-keyword-pulse {
   0%, 100% {
-    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.5), 0 1px 2px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 0 0 0 rgba(197, 160, 94, 0.5), 0 1px 2px rgba(0, 0, 0, 0.06);
   }
   50% {
-    box-shadow: 0 0 0 6px rgba(251, 191, 36, 0), 0 1px 2px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 0 0 6px rgba(197, 160, 94, 0), 0 1px 2px rgba(0, 0, 0, 0.06);
   }
 }
 
@@ -456,8 +486,8 @@ body.mock-exam [data-mock-pane] {
  * "you should say" box as soon as the page lands. Pulses on the outer
  * box-shadow only so it doesn't shift layout. */
 @keyframes cuecard-glow-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.0), 0 4px 14px -2px rgba(245, 158, 11, 0.15); }
-  50% { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.18), 0 8px 22px -2px rgba(245, 158, 11, 0.35); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(197, 160, 94, 0.0), 0 4px 14px -2px rgba(197, 160, 94, 0.15); }
+  50% { box-shadow: 0 0 0 6px rgba(197, 160, 94, 0.18), 0 8px 22px -2px rgba(197, 160, 94, 0.35); }
 }
 .cuecard-glow { animation: cuecard-glow-pulse 2400ms ease-in-out infinite; }
 

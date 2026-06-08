@@ -176,7 +176,7 @@ function BlankInput({
   const correct = isAnswerCorrect(value, correctAnswer, "FILL_BLANK");
   return (
     <span className="inline-flex items-center gap-1 align-middle mx-0.5">
-      <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-600 text-white text-[11px] font-bold shrink-0">
+      <span className="grid h-5 w-5 place-items-center rounded-full bg-sage-600 text-white text-[11px] font-bold shrink-0">
         {num}
       </span>
       <input
@@ -189,7 +189,7 @@ function BlankInput({
             ? correct
               ? "border-success"
               : "border-destructive"
-            : "border-emerald-600/60 focus:border-emerald-600",
+            : "border-sage-600/60 focus:border-sage-600",
         )}
       />
       {submitted && !correct && (

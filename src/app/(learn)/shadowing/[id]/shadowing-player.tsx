@@ -655,7 +655,7 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
                   "flex items-center gap-3 rounded-full px-5 py-2.5 shadow-2xl ring-2 text-white",
                   recording
                     ? "bg-rose-500/95 ring-rose-200 animate-pulse"
-                    : "bg-amber-500/95 ring-amber-200",
+                    : "bg-gold-500/95 ring-gold-200",
                 )}
               >
                 <span className="text-xl leading-none">{recording ? "🔴" : "⏸"}</span>
@@ -731,7 +731,7 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
                     setAutoFollow(e.target.checked);
                     if (!e.target.checked) clearFollow();
                   }}
-                  className="h-4 w-7 appearance-none rounded-full bg-muted checked:bg-amber-500 relative transition-colors before:absolute before:top-0.5 before:left-0.5 before:h-3 before:w-3 before:rounded-full before:bg-white before:transition-transform checked:before:translate-x-3"
+                  className="h-4 w-7 appearance-none rounded-full bg-muted checked:bg-gold-500 relative transition-colors before:absolute before:top-0.5 before:left-0.5 before:h-3 before:w-3 before:rounded-full before:bg-white before:transition-transform checked:before:translate-x-3"
                 />
               </label>
               <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
@@ -754,7 +754,7 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
                   type="checkbox"
                   checked={showVi}
                   onChange={(e) => setShowVi(e.target.checked)}
-                  className="h-4 w-7 appearance-none rounded-full bg-muted checked:bg-emerald-500 relative transition-colors before:absolute before:top-0.5 before:left-0.5 before:h-3 before:w-3 before:rounded-full before:bg-white before:transition-transform checked:before:translate-x-3"
+                  className="h-4 w-7 appearance-none rounded-full bg-muted checked:bg-sage-500 relative transition-colors before:absolute before:top-0.5 before:left-0.5 before:h-3 before:w-3 before:rounded-full before:bg-white before:transition-transform checked:before:translate-x-3"
                 />
               </label>
             </div>
@@ -785,9 +785,9 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
                   className={cn(
                     "w-full text-left rounded-xl border-2 p-3 transition-all",
                     isActive
-                      ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 shadow-sm"
+                      ? "border-sage-500 bg-sage-50 dark:bg-sage-950/30 shadow-sm"
                       : done
-                        ? "border-emerald-200 bg-emerald-50/40 dark:bg-emerald-950/10"
+                        ? "border-sage-200 bg-sage-50/40 dark:bg-sage-950/10"
                         : "border-transparent bg-muted/30 hover:border-primary/30",
                   )}
                 >
@@ -796,9 +796,9 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
                       className={cn(
                         "grid h-4 w-4 place-items-center rounded-full text-[10px] font-bold",
                         isActive
-                          ? "bg-emerald-500 text-white"
+                          ? "bg-sage-500 text-white"
                           : done
-                            ? "bg-emerald-200 text-emerald-800"
+                            ? "bg-sage-200 text-sage-800"
                             : "bg-muted text-muted-foreground",
                       )}
                     >
@@ -806,7 +806,7 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
                     </span>
                     <span className="text-xs font-extrabold text-muted-foreground">#{s.order}</span>
                     {isActive && (
-                      <span className="text-[10px] font-extrabold rounded bg-emerald-500 text-white px-1.5 py-0.5 uppercase tracking-wider">
+                      <span className="text-[10px] font-extrabold rounded bg-sage-500 text-white px-1.5 py-0.5 uppercase tracking-wider">
                         Đang học
                       </span>
                     )}
@@ -858,7 +858,7 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
 
         {/* Tabs row — hint at click-to-translate */}
         <div className="flex items-center gap-3 text-xs flex-wrap text-muted-foreground">
-          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 dark:bg-amber-950/40 px-2.5 py-1 font-bold text-amber-700 dark:text-amber-300">
+          <span className="inline-flex items-center gap-1 rounded-full bg-gold-100 dark:bg-gold-950/40 px-2.5 py-1 font-bold text-gold-700 dark:text-gold-300">
             <Sparkles className="h-3 w-3" /> Click vào từ để dịch
           </span>
           {active?.ipa && (
@@ -875,7 +875,7 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
               <span
                 key={i}
                 onClick={(e) => onWordClick(tok.text, active.textEn, e)}
-                className="cursor-pointer hover:bg-amber-200/60 dark:hover:bg-amber-900/40 rounded transition-colors px-0.5"
+                className="cursor-pointer hover:bg-gold-200/60 dark:hover:bg-gold-900/40 rounded transition-colors px-0.5"
               >
                 {tok.text}
               </span>
@@ -902,8 +902,8 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
             recording
               ? "border-rose-400 bg-rose-50 dark:bg-rose-950/30 animate-pulse"
               : waitingForUser && !scoring
-                ? "border-amber-400 bg-amber-50 dark:bg-amber-950/30 ring-2 ring-amber-200 dark:ring-amber-900"
-                : "border-emerald-400 bg-emerald-50/60 dark:bg-emerald-950/30",
+                ? "border-gold-400 bg-gold-50 dark:bg-gold-950/30 ring-2 ring-gold-200 dark:ring-gold-900"
+                : "border-sage-400 bg-sage-50/60 dark:bg-sage-950/30",
           )}
         >
           <button
@@ -915,8 +915,8 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
               recording
                 ? "bg-rose-500"
                 : waitingForUser
-                  ? "bg-amber-500 hover:bg-amber-600 animate-bounce"
-                  : "bg-emerald-500 hover:bg-emerald-600",
+                  ? "bg-gold-500 hover:bg-gold-600 animate-bounce"
+                  : "bg-sage-500 hover:bg-sage-600",
               scoring && "opacity-50 cursor-wait",
             )}
           >
@@ -962,7 +962,7 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
             <button
               type="button"
               onClick={() => mediaRef.current?.stop()}
-              className="shrink-0 rounded-xl bg-emerald-500 hover:bg-emerald-600 px-5 py-3 text-white font-extrabold uppercase tracking-wider shadow-lg ring-2 ring-emerald-300 active:scale-95"
+              className="shrink-0 rounded-xl bg-sage-500 hover:bg-sage-600 px-5 py-3 text-white font-extrabold uppercase tracking-wider shadow-lg ring-2 ring-sage-300 active:scale-95"
             >
               XONG
             </button>
@@ -973,7 +973,7 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
             <button
               type="button"
               onClick={clearFollow}
-              className="shrink-0 rounded-lg border-2 border-amber-300 bg-white dark:bg-card px-3 py-1.5 text-xs font-bold hover:bg-amber-50 dark:hover:bg-amber-950/30"
+              className="shrink-0 rounded-lg border-2 border-gold-300 bg-white dark:bg-card px-3 py-1.5 text-xs font-bold hover:bg-gold-50 dark:hover:bg-gold-950/30"
             >
               Tạm dừng
             </button>
@@ -986,9 +986,9 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
             className={cn(
               "rounded-2xl border-2 p-4 space-y-2",
               score.score >= 80
-                ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20"
+                ? "border-sage-400 bg-sage-50 dark:bg-sage-950/20"
                 : score.score >= 50
-                  ? "border-amber-400 bg-amber-50 dark:bg-amber-950/20"
+                  ? "border-gold-400 bg-gold-50 dark:bg-gold-950/20"
                   : "border-rose-400 bg-rose-50 dark:bg-rose-950/20",
             )}
           >
@@ -1000,9 +1000,9 @@ export function ShadowingPlayer({ lesson, segments }: ShadowingPlayerProps) {
                 className={cn(
                   "text-2xl font-extrabold",
                   score.score >= 80
-                    ? "text-emerald-600"
+                    ? "text-sage-600"
                     : score.score >= 50
-                      ? "text-amber-600"
+                      ? "text-gold-600"
                       : "text-rose-600",
                 )}
               >
@@ -1119,8 +1119,8 @@ function NavCard({
         disabled
           ? "opacity-40 cursor-not-allowed border-muted bg-muted/40"
           : primary
-            ? "border-emerald-500 bg-emerald-100 dark:bg-emerald-950/40 hover:bg-emerald-200"
-            : "border-emerald-300 bg-emerald-50 dark:bg-emerald-950/20 hover:bg-emerald-100",
+            ? "border-sage-500 bg-sage-100 dark:bg-sage-950/40 hover:bg-sage-200"
+            : "border-sage-300 bg-sage-50 dark:bg-sage-950/20 hover:bg-sage-100",
       )}
     >
       <Icon className="h-5 w-5" />
@@ -1133,9 +1133,9 @@ function NavCard({
 }
 
 /**
- * Bee progress trail — branded replacement for the Mario screenshot. A
- * honey-gold gradient track fills from 0..pct%, the bee SVG sits at the
- * head of the fill, and a honey jar marks the finish line. Pure CSS so
+ * Progress trail — branded replacement for the Mario screenshot. A
+ * sage-gold progress track fills from 0..pct%, a marker sits at the
+ * head of the fill, and a goal flag marks the finish line. Pure CSS so
  * we don't pay for framer-motion on every render.
  */
 function BeeProgress({ pct }: { pct: number }) {
@@ -1144,34 +1144,34 @@ function BeeProgress({ pct }: { pct: number }) {
     <div className="relative pt-3 pb-1">
       <div className="relative h-6">
         {/* Track */}
-        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-2.5 rounded-full bg-gradient-to-r from-amber-100 via-orange-100 to-rose-100 dark:from-amber-950/40 dark:via-orange-950/40 dark:to-rose-950/40 border border-amber-200 dark:border-amber-800/40 overflow-hidden">
+        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-2.5 rounded-full bg-gradient-to-r from-gold-100 to-rose-100 dark:from-gold-950/40 dark:to-rose-950/40 border border-gold-200 dark:border-gold-800/40 overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400 transition-all duration-500"
+            className="h-full bg-gradient-to-r from-gold-400 to-rose-400 transition-all duration-500"
             style={{ width: `${safePct}%` }}
           />
         </div>
 
-        {/* Bee — flies along the progress */}
+        {/* Marker — moves along the progress */}
         <div
           className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 transition-all duration-500"
           style={{ left: `calc(${safePct}% )` }}
         >
-          <div className="grid h-7 w-7 place-items-center rounded-full bg-amber-300 border-2 border-amber-500 shadow-lg shadow-amber-500/30 text-base leading-none animate-float">
-            🐝
+          <div className="grid h-7 w-7 place-items-center rounded-full bg-gold-300 border-2 border-gold-500 shadow-lg shadow-gold-500/30 text-base leading-none animate-float">
+            🌱
           </div>
         </div>
 
-        {/* Honey jar — destination */}
+        {/* Goal flag — destination */}
         <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2">
           <div className="grid h-7 w-7 place-items-center rounded-full bg-rose-100 dark:bg-rose-950/40 border-2 border-rose-400 text-base leading-none">
-            🍯
+            🏁
           </div>
         </div>
       </div>
 
       <div className="flex justify-between text-xs text-muted-foreground mt-1">
         <span className="font-bold">Tiến độ</span>
-        <span className="font-extrabold text-amber-700 dark:text-amber-300">{safePct}%</span>
+        <span className="font-extrabold text-gold-700 dark:text-gold-300">{safePct}%</span>
       </div>
     </div>
   );

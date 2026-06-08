@@ -237,7 +237,7 @@ export function MusicAdminClient({ initial }: { initial: Track[] }) {
                         disabled={busyId === t.id}
                         className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold transition-all ${
                           t.enabled
-                            ? "bg-emerald-100 text-emerald-700"
+                            ? "bg-sage-100 text-sage-700"
                             : "bg-muted text-muted-foreground"
                         }`}
                       >

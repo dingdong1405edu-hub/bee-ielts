@@ -54,7 +54,7 @@ export function ExamCountdown({ examDate }: { examDate: string | null }) {
   const days = examDate ? daysUntil(examDate) : 0;
 
   return (
-    <div className="relative overflow-hidden rounded-3xl border bg-gradient-to-br from-honey/15 via-amber-400/10 to-honey-deep/15 p-6 md:p-7">
+    <div className="relative overflow-hidden rounded-3xl border bg-gradient-to-br from-honey/15 via-gold-400/10 to-honey-deep/15 p-6 md:p-7">
       <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-honey/20 blur-2xl" />
       <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-4 min-w-0">

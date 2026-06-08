@@ -51,7 +51,7 @@ export function ReadingGroupHeader({
   return (
     <div className="my-4 first:mt-0">
       {/* Big green title like IELTS sample: 'Questions 27–29' */}
-      <h3 className="text-lg md:text-xl font-extrabold text-emerald-600 dark:text-emerald-400">
+      <h3 className="text-lg md:text-xl font-extrabold text-sage-600 dark:text-sage-400">
         {range}
       </h3>
       <div className="mt-1 flex items-center gap-2">

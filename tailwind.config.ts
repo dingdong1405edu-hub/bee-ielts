@@ -16,10 +16,59 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: ["var(--font-sans)", "var(--font-vn)", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
-        display: ["var(--font-display)", "var(--font-vn)", "system-ui", "sans-serif"],
+        display: ["var(--font-display)", "var(--font-vn)", "Georgia", "serif"],
+        serif: ["var(--font-display)", "var(--font-vn)", "Georgia", "serif"],
       },
       colors: {
-        /* Honey brand aliases — opacity-modifier friendly where hsl(var(--x)) */
+        /* ===== Sage + Gold palette — full scales (mechanical swap targets) ===== */
+        /* sage = brand green (mint → forest); replaces emerald/lime */
+        sage: {
+          50: "#F0F5F2",
+          100: "#DDEAE3",
+          200: "#BDD4C8",
+          300: "#95B9A8",
+          400: "#6E9A86",
+          500: "#5A7D6F",
+          600: "#4A6A5D",
+          700: "#3F5C50",
+          800: "#344A41",
+          900: "#2E3A33",
+          950: "#1C241F",
+          DEFAULT: "#5A7D6F",
+          deep: "#3F5C50",
+          tint: "#DDEAE3",
+        },
+        /* gold = warm accent (cream-gold → bronze); replaces amber/orange/yellow */
+        gold: {
+          50: "#FBF6EA",
+          100: "#F5EAD0",
+          200: "#ECD9A9",
+          300: "#E0C383",
+          400: "#D2AE66",
+          500: "#C5A05E",
+          600: "#AE8748",
+          700: "#8E6C3A",
+          800: "#6F5530",
+          900: "#5C4729",
+          950: "#342716",
+          DEFAULT: "#C5A05E",
+          deep: "#8E6C3A",
+          soft: "#E6D5AE",
+        },
+        mist: { DEFAULT: "#A8C3B5", soft: "#CADCD2" },
+        /* ===== Per-skill accent hues (sage+gold base, distinct per module) ===== */
+        skill: {
+          reading: "#4F7A66",     /* sage green   */
+          listening: "#5B7E9C",   /* slate blue   */
+          writing: "#B6883F",     /* bronze gold  */
+          speaking: "#C0714E",    /* terracotta   */
+          shadowing: "#8A6E9C",   /* plum         */
+          grammar: "#3E8C84",     /* teal         */
+          vocab: "#BD6B6B",       /* dusty rose   */
+          mock: "#4C5B8A",        /* indigo       */
+          climber: "#7A8C46",     /* olive        */
+        },
+        /* Honey aliases kept for back-compat — now resolve to sage/gold tokens */
         honey: {
           DEFAULT: "hsl(var(--primary))",
           deep: "hsl(var(--accent-foreground))",

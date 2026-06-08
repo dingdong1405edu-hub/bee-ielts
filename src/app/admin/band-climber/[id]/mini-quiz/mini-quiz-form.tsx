@@ -417,10 +417,10 @@ export function MiniQuizForm({
 
       {/* Vocab pack — admin curates a short word list shown to learners on
           the pre-quiz preview screen. Empty list = no preview screen. */}
-      <Card className="border-2 border-emerald-200">
+      <Card className="border-2 border-sage-200">
         <CardHeader>
           <CardTitle className="text-base inline-flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-emerald-600" /> File từ vựng cho bài này
+            <Sparkles className="h-4 w-4 text-sage-600" /> File từ vựng cho bài này
           </CardTitle>
           <p className="text-xs text-muted-foreground">
             Hiện trước khi user vào quiz. Bấm 1 lần là user import được nguyên file vào "Học từ"
@@ -470,7 +470,7 @@ export function MiniQuizForm({
                 <span className="text-xs font-bold uppercase text-muted-foreground">
                   Đề câu hỏi
                   {q.type === "FILL_BLANK" && (
-                    <span className="ml-1 normal-case text-[10px] font-normal text-amber-600">
+                    <span className="ml-1 normal-case text-[10px] font-normal text-gold-600">
                       — dùng <code>___</code> (3 underscores) để đánh dấu chỗ điền
                     </span>
                   )}
@@ -515,7 +515,7 @@ export function MiniQuizForm({
 
               <label className="block">
                 <span className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-1.5">
-                  <Volume2 className="h-3.5 w-3.5 text-amber-500" />
+                  <Volume2 className="h-3.5 w-3.5 text-gold-500" />
                   Audio URL (Listening — tùy chọn)
                 </span>
                 <Input
@@ -622,14 +622,14 @@ export function MiniQuizForm({
                       <div
                         key={oIdx}
                         className={`flex items-center gap-2 rounded-lg border-2 p-2 ${
-                          isCorrect ? "border-emerald-400 bg-emerald-50" : "border-input"
+                          isCorrect ? "border-sage-400 bg-sage-50" : "border-input"
                         }`}
                       >
                         <button
                           type="button"
                           onClick={() => updateQuestion(idx, { correctIndex: oIdx })}
                           className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${
-                            isCorrect ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground"
+                            isCorrect ? "bg-sage-500 text-white" : "bg-muted text-muted-foreground"
                           }`}
                           title="Đặt làm đáp án đúng"
                         >
@@ -668,7 +668,7 @@ export function MiniQuizForm({
                   away knowing WHY, not just what. For SPEAKING this doubles
                   as a target-band/focus hint for the inline grader. */}
               <label className="block">
-                <span className="text-xs font-bold uppercase text-amber-700 flex items-center gap-1.5">
+                <span className="text-xs font-bold uppercase text-gold-700 flex items-center gap-1.5">
                   <Sparkles className="h-3.5 w-3.5" />
                   {q.type === "SPEAKING"
                     ? "Gợi ý chấm điểm cho AI (tùy chọn)"
@@ -765,9 +765,9 @@ function FillBlankAnswers({
   const alts = options.slice(1).map((o) => o.label).join(", ");
 
   return (
-    <div className="space-y-2 rounded-xl border-2 border-emerald-200 bg-emerald-50/30 p-3">
+    <div className="space-y-2 rounded-xl border-2 border-sage-200 bg-sage-50/30 p-3">
       <label className="block">
-        <span className="text-xs font-bold uppercase text-emerald-700 flex items-center gap-1.5">
+        <span className="text-xs font-bold uppercase text-sage-700 flex items-center gap-1.5">
           <CheckCircle2 className="h-3.5 w-3.5" />
           Đáp án chính
         </span>
@@ -919,7 +919,7 @@ function VocabPackEditor({
           size="sm"
           onClick={add}
           disabled={items.length >= 80}
-          className="border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+          className="border-sage-300 text-sage-700 hover:bg-sage-50"
         >
           <Plus className="h-4 w-4" /> Thêm từ
         </Button>

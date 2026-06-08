@@ -292,16 +292,16 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
       </div>
 
       {/* AI auto-create — primary path */}
-      <Card className="border-2 border-amber-400/60 bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-amber-950/30 dark:via-orange-950/20 dark:to-rose-950/20">
+      <Card className="border-2 border-gold-400/60 bg-gradient-to-br from-gold-100 via-gold-50 to-rose-50 dark:from-gold-950/30 dark:via-gold-900/20 dark:to-rose-950/20">
         <CardContent className="p-5 space-y-4">
           <div className="flex items-start gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-amber-500 to-rose-500 text-white shadow-md shrink-0">
+            <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-gold-500 to-rose-500 text-white shadow-md shrink-0">
               <Wand2 className="h-5 w-5" />
             </div>
             <div className="flex-1">
               <h2 className="font-extrabold flex items-center gap-2 text-lg">
                 AI tạo bài tự động
-                <span className="text-[10px] uppercase tracking-wider font-extrabold rounded-full bg-amber-500 text-white px-2 py-0.5">Mới</span>
+                <span className="text-[10px] uppercase tracking-wider font-extrabold rounded-full bg-gold-500 text-white px-2 py-0.5">Mới</span>
               </h2>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Chỉ cần URL — AI lo phần phụ đề, dịch nghĩa và IPA cho mọi câu.
@@ -356,14 +356,14 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
               via youtubei.js and Deepgram transcribes it. Costs ~$0.05 per
               video so we surface it explicitly. */}
           <label
-            className="flex items-start gap-3 rounded-xl border-2 border-amber-300 bg-white/60 dark:bg-card/40 p-3 cursor-pointer select-none"
+            className="flex items-start gap-3 rounded-xl border-2 border-gold-300 bg-white/60 dark:bg-card/40 p-3 cursor-pointer select-none"
           >
             <input
               type="checkbox"
               checked={allowAudioFallback}
               onChange={(e) => setAllowAudioFallback(e.target.checked)}
               disabled={aiBusy}
-              className="mt-0.5 h-4 w-4 accent-amber-500"
+              className="mt-0.5 h-4 w-4 accent-gold-500"
             />
             <div className="flex-1">
               <p className="text-sm font-bold">
@@ -380,13 +380,13 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
           <Button
             onClick={createWithAI}
             disabled={aiBusy}
-            className="rounded-xl bg-gradient-to-br from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white shadow-md"
+            className="rounded-xl bg-gradient-to-br from-gold-500 to-rose-500 hover:from-gold-600 hover:to-rose-600 text-white shadow-md"
           >
             {aiBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             {aiBusy ? aiStep || "Đang xử lý..." : "AI tạo bài tự động"}
           </Button>
           {aiBusy && (
-            <p className="text-xs text-amber-700 dark:text-amber-300 italic">
+            <p className="text-xs text-gold-700 dark:text-gold-300 italic">
               Đừng đóng tab — quá trình này chạy nền và lấy 30s tới vài phút
               cho video dài. Audio fallback có thể mất tới 3-5 phút cho video 20+ phút.
             </p>

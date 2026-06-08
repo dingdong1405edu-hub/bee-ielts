@@ -8,8 +8,8 @@ import { cn } from "@/lib/utils";
 type Skill = "reading" | "listening" | "writing" | "speaking";
 
 const TABS: { key: Skill; label: string; icon: React.ElementType; color: string }[] = [
-  { key: "reading", label: "Reading", icon: BookOpen, color: "text-emerald-600" },
-  { key: "listening", label: "Listening", icon: Headphones, color: "text-amber-600" },
+  { key: "reading", label: "Reading", icon: BookOpen, color: "text-sage-600" },
+  { key: "listening", label: "Listening", icon: Headphones, color: "text-gold-600" },
   { key: "writing", label: "Writing", icon: PenLine, color: "text-rose-600" },
   { key: "speaking", label: "Speaking", icon: Mic, color: "text-leaf" },
 ];

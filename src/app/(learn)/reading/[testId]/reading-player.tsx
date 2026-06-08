@@ -225,7 +225,7 @@ export function ReadingPlayer({
               </p>
             )}
             {tool === "translate" && !batchLoading && Object.keys(translateMap).length > 0 && (
-              <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-300">
+              <p className="mt-2 text-xs text-sage-700 dark:text-sage-300">
                 ✓ Đã dịch {Object.keys(translateMap).length} từ — click từ trong bài để xem nghĩa.
               </p>
             )}

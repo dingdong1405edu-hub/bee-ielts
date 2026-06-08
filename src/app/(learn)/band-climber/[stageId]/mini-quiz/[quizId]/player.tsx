@@ -18,8 +18,8 @@ import { playExaminerLine, stopExaminerLine, primeAudioPlayback } from "@/lib/tt
 type Skill = "READING" | "LISTENING" | "WRITING" | "SPEAKING";
 
 const SKILL_META: Record<Skill, { label: string; icon: React.ElementType; grad: string }> = {
-  READING: { label: "Reading", icon: BookOpen, grad: "from-emerald-500 to-teal-600" },
-  LISTENING: { label: "Listening", icon: Headphones, grad: "from-amber-500 to-orange-600" },
+  READING: { label: "Reading", icon: BookOpen, grad: "from-sage-500 to-teal-600" },
+  LISTENING: { label: "Listening", icon: Headphones, grad: "from-gold-500 to-gold-600" },
   WRITING: { label: "Writing", icon: PenLine, grad: "from-rose-500 to-rose-600" },
   SPEAKING: { label: "Speaking", icon: Mic, grad: "from-honey to-honey-deep" },
 };
@@ -398,12 +398,12 @@ export function MiniQuizPlayer({
         </div>
         <h1 className="text-3xl font-extrabold">Hoàn thành!</h1>
         <p className="text-lg">
-          Đúng <span className="font-extrabold text-emerald-600">{correctCount}</span> /{" "}
+          Đúng <span className="font-extrabold text-success">{correctCount}</span> /{" "}
           {total} ({score}%)
         </p>
         <button
           onClick={exit}
-          className="mt-4 rounded-full bg-emerald-500 hover:bg-emerald-600 px-8 py-3 text-white font-extrabold uppercase tracking-wider shadow-md"
+          className="mt-4 rounded-full bg-success hover:bg-success/90 text-success-foreground px-8 py-3 font-extrabold uppercase tracking-wider shadow-md"
         >
           Tiếp tục
         </button>
@@ -449,7 +449,7 @@ export function MiniQuizPlayer({
         </button>
         <div className="flex-1 h-3 rounded-full bg-muted overflow-hidden">
           <div
-            className="h-full rounded-full bg-emerald-500 transition-all duration-500 ease-out"
+            className="h-full rounded-full bg-sage-500 transition-all duration-500 ease-out"
             style={{ width: `${progressPct}%` }}
           />
         </div>
@@ -612,7 +612,7 @@ export function MiniQuizPlayer({
                   // typed answer becomes invisible.
                   "w-full rounded-2xl border-2 px-5 py-4 text-xl font-bold text-center transition-all outline-none placeholder:text-primary/70",
                   verdict === "correct"
-                    ? "border-emerald-400 bg-emerald-50 text-emerald-800"
+                    ? "border-success/50 bg-success/10 text-success"
                     : verdict === "wrong"
                       ? "border-rose-400 bg-rose-50 text-rose-800 quiz-shake"
                       : "border-primary/30 bg-primary/10 text-primary focus:border-primary focus:ring-2 focus:ring-primary",
@@ -628,7 +628,7 @@ export function MiniQuizPlayer({
               const showResult = verdict !== "none";
               const tone = showResult
                 ? isCorrect
-                  ? "border-emerald-400 bg-emerald-50"
+                  ? "border-success/50 bg-success/10"
                   : isSelected
                     ? "border-rose-400 bg-rose-50"
                     : "border-input bg-card"
@@ -674,7 +674,7 @@ export function MiniQuizPlayer({
               const showResult = verdict !== "none";
               const tone = showResult
                 ? isCorrect
-                  ? "border-emerald-400 bg-emerald-50 text-emerald-700"
+                  ? "border-success/50 bg-success/10 text-success"
                   : isSelected
                     ? "border-rose-400 bg-rose-50 text-rose-700"
                     : "border-input bg-card"
@@ -710,7 +710,7 @@ export function MiniQuizPlayer({
       <div
         className={cn(
           "px-4 md:px-8 py-4 border-t-2 transition-colors",
-          verdict === "correct" && "bg-emerald-100 border-emerald-300",
+          verdict === "correct" && "bg-success/15 border-success/40",
           verdict === "wrong" && "bg-rose-100 border-rose-300",
           verdict === "none" && "bg-card border-input",
         )}
@@ -719,13 +719,13 @@ export function MiniQuizPlayer({
           <div className="flex items-center gap-3 flex-wrap">
           {verdict === "correct" && (
             <>
-              <div className="grid h-12 w-12 place-items-center rounded-full bg-white text-emerald-600 shadow">
+              <div className="grid h-12 w-12 place-items-center rounded-full bg-white text-success shadow">
                 <Check className="h-7 w-7 stroke-[3]" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="font-extrabold text-lg text-emerald-700">Làm tốt lắm!</div>
+                <div className="font-extrabold text-lg text-success">Làm tốt lắm!</div>
                 {q.type !== "SPEAKING" && (
-                  <div className="text-xs text-emerald-700/80 mt-0.5">
+                  <div className="text-xs text-sage-700/80 mt-0.5">
                     Đáp án đúng:{" "}
                     <span className="font-bold">
                       {q.type === "FILL_BLANK"
@@ -738,13 +738,13 @@ export function MiniQuizPlayer({
                     </span>
                   </div>
                 )}
-                <button className="text-xs font-bold text-emerald-700/70 inline-flex items-center gap-1 mt-0.5">
+                <button className="text-xs font-bold text-sage-700/70 inline-flex items-center gap-1 mt-0.5">
                   <Flag className="h-3 w-3" /> BÁO CÁO
                 </button>
               </div>
               <button
                 onClick={next}
-                className="rounded-full bg-emerald-500 hover:bg-emerald-600 px-8 py-3 text-white font-extrabold uppercase tracking-wider shadow"
+                className="rounded-full bg-success hover:bg-success/90 text-success-foreground px-8 py-3 font-extrabold uppercase tracking-wider shadow"
               >
                 Tiếp tục
               </button>
@@ -787,7 +787,7 @@ export function MiniQuizPlayer({
                 className={cn(
                   "rounded-full px-8 py-3 font-extrabold uppercase tracking-wider shadow transition-all",
                   canCheck
-                    ? "bg-emerald-500 hover:bg-emerald-600 text-white"
+                    ? "bg-sage-500 hover:bg-sage-600 text-white"
                     : "bg-muted text-muted-foreground cursor-not-allowed",
                 )}
               >
@@ -804,7 +804,7 @@ export function MiniQuizPlayer({
               className={cn(
                 "rounded-xl border-2 p-3 text-sm leading-relaxed",
                 verdict === "correct"
-                  ? "border-emerald-300 bg-white/70 text-emerald-900"
+                  ? "border-sage-300 bg-white/70 text-sage-900"
                   : "border-rose-300 bg-white/70 text-rose-900",
               )}
             >
@@ -922,7 +922,7 @@ function FillBlankInlinePrompt({
   // white-on-white in dark theme.
   const inputTone =
     verdict === "correct"
-      ? "border-emerald-400 bg-emerald-50 text-emerald-800"
+      ? "border-success/50 bg-success/10 text-success"
       : verdict === "wrong"
         ? "border-rose-400 bg-rose-50 text-rose-800 quiz-shake"
         : "border-primary/30 bg-primary/10 text-primary focus:border-primary focus:ring-2 focus:ring-primary";
@@ -1006,7 +1006,7 @@ function ParagraphFillInlinePrompt({
       return "border-primary/30 bg-primary/10 text-primary focus:border-primary focus:ring-2 focus:ring-primary";
     }
     return blankOk(i)
-      ? "border-emerald-400 bg-emerald-50 text-emerald-800"
+      ? "border-success/50 bg-success/10 text-success"
       : "border-rose-400 bg-rose-50 text-rose-800";
   };
   return (
@@ -1059,7 +1059,7 @@ function ParagraphFillInlinePrompt({
                   )}
                 />
                 {wrong && (
-                  <span className="ml-1 text-xs font-bold text-emerald-700">
+                  <span className="ml-1 text-xs font-bold text-sage-700">
                     → {options[idx]?.label.split("/")[0] ?? ""}
                   </span>
                 )}
@@ -1090,7 +1090,7 @@ function CorrectBurst() {
   return (
     <div className="pointer-events-none fixed inset-0 z-[70] overflow-hidden">
       {/* Tinted flash — gives a satisfying screen pulse on correct. */}
-      <div className="absolute inset-0 bg-emerald-300/25 quiz-flash-green" />
+      <div className="absolute inset-0 bg-sage-300/25 quiz-flash-green" />
       {/* Central trophy emoji pops in/out from the middle of the screen. */}
       <div
         className="absolute top-1/2 left-1/2 text-7xl md:text-8xl drop-shadow-[0_4px_12px_rgba(16,185,129,0.4)] quiz-pop-in"
@@ -1439,11 +1439,11 @@ function SpeakingQuestion({
 
       {/* Final transcript */}
       {hasTranscript && (
-        <div className="rounded-2xl border-2 border-emerald-300 bg-emerald-50 dark:bg-emerald-950/20 dark:border-emerald-900 p-4">
-          <div className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-600 mb-1 inline-flex items-center gap-1">
+        <div className="rounded-2xl border-2 border-sage-300 bg-sage-50 dark:bg-sage-950/20 dark:border-sage-900 p-4">
+          <div className="text-[11px] font-extrabold uppercase tracking-wider text-sage-600 mb-1 inline-flex items-center gap-1">
             <Check className="h-3.5 w-3.5" /> Bạn đã nói
           </div>
-          <p className="text-sm leading-relaxed whitespace-pre-wrap text-emerald-900 dark:text-emerald-100">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap text-sage-900 dark:text-sage-100">
             {transcript}
           </p>
           {!locked && (
@@ -1453,7 +1453,7 @@ function SpeakingQuestion({
                 onReset();
                 setLiveTranscript("");
               }}
-              className="mt-2 inline-flex items-center gap-1 rounded-full border border-emerald-400 px-3 py-1 text-xs font-bold text-emerald-700 hover:bg-emerald-100"
+              className="mt-2 inline-flex items-center gap-1 rounded-full border border-sage-400 px-3 py-1 text-xs font-bold text-sage-700 hover:bg-sage-100"
             >
               <Mic className="h-3 w-3" /> Ghi âm lại
             </button>
@@ -1708,13 +1708,13 @@ function SpeakingPart2Question({
       <div className="relative">
         <div
           data-tour="cuecard"
-          className="cuecard-glow relative rounded-2xl border-2 border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-4 space-y-2"
+          className="cuecard-glow relative rounded-2xl border-2 border-gold-300 bg-gold-50 dark:bg-gold-950/30 dark:border-gold-800 p-4 space-y-2"
         >
-          <div className="text-[10px] font-extrabold uppercase tracking-widest text-amber-700 dark:text-amber-300 pr-12">
+          <div className="text-[10px] font-extrabold uppercase tracking-widest text-gold-700 dark:text-gold-300 pr-12">
             IELTS Speaking · Part 2 · Cue card
           </div>
           <div className="font-extrabold text-lg leading-snug pr-12">{cueCardTopic}</div>
-          <div className="text-xs font-bold text-amber-700 dark:text-amber-300">
+          <div className="text-xs font-bold text-gold-700 dark:text-gold-300">
             You should say:
           </div>
           <ul className="list-disc pl-5 text-sm space-y-0.5">
@@ -1731,10 +1731,10 @@ function SpeakingPart2Question({
           aria-hidden
           className="pointer-events-none absolute -top-4 -right-2 sm:-right-3 flex items-start gap-1"
         >
-          <div className="cuecard-bee-bubble hidden sm:block rounded-2xl bg-amber-500 text-white text-[10px] font-extrabold uppercase tracking-widest px-2 py-1 shadow-lg shadow-amber-500/40">
+          <div className="cuecard-bee-bubble hidden sm:block rounded-2xl bg-gold-500 text-white text-[10px] font-extrabold uppercase tracking-widest px-2 py-1 shadow-lg shadow-gold-500/40">
             Đề Part 2 ↓
           </div>
-          <div className="cuecard-bee grid h-10 w-10 sm:h-11 sm:w-11 place-items-center rounded-full bg-gradient-to-br from-amber-300 to-yellow-400 text-2xl shadow-xl shadow-amber-500/40 ring-2 ring-amber-500/50">
+          <div className="cuecard-bee grid h-10 w-10 sm:h-11 sm:w-11 place-items-center rounded-full bg-gradient-to-br from-gold-300 to-gold-400 text-2xl shadow-xl shadow-gold-500/40 ring-2 ring-gold-500/50">
             🐝
           </div>
         </div>
@@ -1808,18 +1808,18 @@ function SpeakingPart2Question({
       )}
 
       {phase === "done" && transcript && (
-        <div className="rounded-2xl border-2 border-emerald-300 bg-emerald-50 dark:bg-emerald-950/20 dark:border-emerald-900 p-4">
-          <div className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-600 mb-1 inline-flex items-center gap-1">
+        <div className="rounded-2xl border-2 border-sage-300 bg-sage-50 dark:bg-sage-950/20 dark:border-sage-900 p-4">
+          <div className="text-[11px] font-extrabold uppercase tracking-wider text-sage-600 mb-1 inline-flex items-center gap-1">
             <Check className="h-3.5 w-3.5" /> Bạn đã nói
           </div>
-          <p className="text-sm leading-relaxed whitespace-pre-wrap text-emerald-900 dark:text-emerald-100">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap text-sage-900 dark:text-sage-100">
             {transcript}
           </p>
           {!locked && (
             <button
               type="button"
               onClick={restart}
-              className="mt-2 inline-flex items-center gap-1 rounded-full border border-emerald-400 px-3 py-1 text-xs font-bold text-emerald-700 hover:bg-emerald-100"
+              className="mt-2 inline-flex items-center gap-1 rounded-full border border-sage-400 px-3 py-1 text-xs font-bold text-sage-700 hover:bg-sage-100"
             >
               <Mic className="h-3 w-3" /> Làm lại Part 2
             </button>
@@ -1990,7 +1990,7 @@ function VocabPreviewScreen({
         <div className="mb-4 flex items-center justify-between flex-wrap gap-2">
           <p className="text-sm text-muted-foreground max-w-xl">
             Admin đã chuẩn bị <strong className="text-foreground">{pack.length} từ</strong> mới
-            cho phần này. Bấm <strong className="text-emerald-700">Thêm vào học từ</strong> để
+            cho phần này. Bấm <strong className="text-sage-700">Thêm vào học từ</strong> để
             lưu cả file thành bộ thẻ flashcard trong "Từ vựng của tôi".
           </p>
         </div>
@@ -2012,7 +2012,7 @@ function VocabPreviewScreen({
                 {item.definition}
               </p>
               {item.example && (
-                <p className="text-xs italic text-muted-foreground dark:text-muted-foreground mt-2 border-l-2 border-emerald-400 pl-2">
+                <p className="text-xs italic text-muted-foreground dark:text-muted-foreground mt-2 border-l-2 border-sage-400 pl-2">
                   &ldquo;{item.example}&rdquo;
                 </p>
               )}
@@ -2036,7 +2036,7 @@ function VocabPreviewScreen({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-full bg-emerald-500 hover:bg-emerald-600 px-6 py-2.5 text-white font-extrabold uppercase tracking-wider shadow inline-flex items-center gap-2"
+              className="rounded-full bg-sage-500 hover:bg-sage-600 px-6 py-2.5 text-white font-extrabold uppercase tracking-wider shadow inline-flex items-center gap-2"
             >
               <Check className="h-4 w-4" /> Đã thêm — vào làm bài
             </button>
@@ -2052,8 +2052,8 @@ function VocabPreviewScreen({
               className={cn(
                 "rounded-full px-6 py-2.5 font-extrabold uppercase tracking-wider shadow inline-flex items-center gap-2 transition-all",
                 importing
-                  ? "bg-emerald-400 text-white cursor-wait"
-                  : "bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white",
+                  ? "bg-sage-400 text-white cursor-wait"
+                  : "bg-gradient-to-r from-sage-500 to-teal-600 hover:from-sage-600 hover:to-teal-700 text-white",
               )}
             >
               {importing ? (
@@ -2100,7 +2100,7 @@ function SpeakingPerQuestionCard({
   }
   if (state === "error") {
     return (
-      <div className="w-full max-w-2xl rounded-2xl border-2 border-amber-300 bg-amber-50 dark:bg-amber-950/20 p-4 text-sm text-amber-900 dark:text-amber-100">
+      <div className="w-full max-w-2xl rounded-2xl border-2 border-gold-300 bg-gold-50 dark:bg-gold-950/20 p-4 text-sm text-gold-900 dark:text-gold-100">
         AI tạm thời không chấm được câu này — bạn vẫn có thể nghe lại bản ghi ở
         màn hình kết thúc quiz.
       </div>
@@ -2112,7 +2112,7 @@ function SpeakingPerQuestionCard({
     state.grammarFixes.length === 0;
   if (tooShort) {
     return (
-      <div className="w-full max-w-2xl rounded-2xl border-2 border-amber-300 bg-amber-50 dark:bg-amber-950/20 p-4 text-sm text-amber-900 dark:text-amber-100">
+      <div className="w-full max-w-2xl rounded-2xl border-2 border-gold-300 bg-gold-50 dark:bg-gold-950/20 p-4 text-sm text-gold-900 dark:text-gold-100">
         {state.summary}
       </div>
     );
@@ -2122,11 +2122,11 @@ function SpeakingPerQuestionCard({
   const band = state.quickBand;
   const tone =
     band >= 7
-      ? "bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-200 dark:border-emerald-800"
+      ? "bg-sage-100 text-sage-700 border-sage-300 dark:bg-sage-950/40 dark:text-sage-200 dark:border-sage-800"
       : band >= 5.5
         ? "bg-primary/10 text-primary border-primary/30 dark:bg-primary/10 dark:text-primary dark:border-primary/30"
         : band >= 4
-          ? "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-800"
+          ? "bg-gold-100 text-gold-800 border-gold-300 dark:bg-gold-950/40 dark:text-gold-200 dark:border-gold-800"
           : "bg-rose-100 text-rose-700 border-rose-300 dark:bg-rose-950/40 dark:text-rose-200 dark:border-rose-800";
   return (
     <div className="w-full max-w-2xl rounded-2xl border-2 border-honey/30 dark:border-honey/40 bg-honey-tint/60 dark:bg-honey/10 p-4 space-y-3">
@@ -2175,7 +2175,7 @@ function SpeakingPerQuestionCard({
 
       {state.grammarFixes.length > 0 && (
         <div className="space-y-1.5">
-          <div className="text-[11px] font-extrabold uppercase tracking-widest text-emerald-700 dark:text-emerald-300 inline-flex items-center gap-1.5">
+          <div className="text-[11px] font-extrabold uppercase tracking-widest text-sage-700 dark:text-sage-300 inline-flex items-center gap-1.5">
             <Wand2 className="h-3.5 w-3.5" /> Lỗi & cách sửa
           </div>
           <div className="space-y-1.5">
@@ -2185,7 +2185,7 @@ function SpeakingPerQuestionCard({
                 className="rounded-lg border bg-card p-2.5 text-sm space-y-1"
               >
                 <p className="text-rose-600 line-through">{g.original}</p>
-                <p className="text-emerald-700 font-semibold">✅ {g.corrected}</p>
+                <p className="text-sage-700 font-semibold">✅ {g.corrected}</p>
                 <p className="text-xs text-muted-foreground">{g.explanation}</p>
               </div>
             ))}
@@ -2394,12 +2394,12 @@ function SpeakingQuizSummary({
                     dạng được lời nói qua Web Speech)
                   </p>
                 ) : (
-                  <p className="text-xs text-amber-700 italic">
+                  <p className="text-xs text-gold-700 italic">
                     Bạn đã bỏ qua không ghi âm câu này.
                   </p>
                 )}
                 {rec?.transcript && (
-                  <p className="text-sm rounded-lg border-l-2 border-emerald-400 bg-emerald-50/40 dark:bg-emerald-950/20 pl-3 py-2 italic">
+                  <p className="text-sm rounded-lg border-l-2 border-sage-400 bg-sage-50/40 dark:bg-sage-950/20 pl-3 py-2 italic">
                     "{rec.transcript}"
                   </p>
                 )}
@@ -2424,7 +2424,7 @@ function SpeakingQuizSummary({
                             {g.original}
                           </span>{" "}
                           →{" "}
-                          <span className="text-emerald-700 font-semibold">
+                          <span className="text-sage-700 font-semibold">
                             {g.corrected}
                           </span>
                           <div className="text-muted-foreground">
@@ -2466,13 +2466,13 @@ function SpeakingQuizSummary({
             {finalGrade.corrections && finalGrade.corrections.length > 0 && (
               <div className="rounded-2xl border bg-card p-4 space-y-2">
                 <h3 className="font-extrabold flex items-center gap-2">
-                  <Wand2 className="h-5 w-5 text-emerald-500" /> Tổng hợp ngữ pháp
+                  <Wand2 className="h-5 w-5 text-sage-500" /> Tổng hợp ngữ pháp
                 </h3>
                 <div className="space-y-2">
                   {finalGrade.corrections.map((c, i) => (
                     <div key={i} className="rounded-lg border p-2.5 text-sm space-y-1">
                       <p className="text-rose-600 line-through">{c.original}</p>
-                      <p className="text-emerald-700 font-semibold">✅ {c.corrected}</p>
+                      <p className="text-sage-700 font-semibold">✅ {c.corrected}</p>
                       <p className="text-xs text-muted-foreground">{c.explanation}</p>
                     </div>
                   ))}
@@ -2499,7 +2499,7 @@ function SpeakingQuizSummary({
         <div className="pt-2 pb-6 flex justify-center">
           <button
             onClick={onExit}
-            className="rounded-full bg-emerald-500 hover:bg-emerald-600 px-8 py-3 text-white font-extrabold uppercase tracking-wider shadow"
+            className="rounded-full bg-sage-500 hover:bg-sage-600 px-8 py-3 text-white font-extrabold uppercase tracking-wider shadow"
           >
             Hoàn tất
           </button>

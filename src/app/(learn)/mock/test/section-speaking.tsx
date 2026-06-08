@@ -418,7 +418,7 @@ export function MockSpeaking({
               <div className="text-5xl font-extrabold tabular-nums">{formatDuration(part2Remaining)}</div>
               <div className="text-sm text-muted-foreground mt-1">Còn lại để chuẩn bị</div>
             </div>
-            <Card className="bg-amber-50 border-amber-200">
+            <Card className="bg-gold-50 border-gold-200">
               <CardContent className="p-4 space-y-2">
                 <div className="font-bold">{part2CueCard.topic}</div>
                 {imageUrl && (
@@ -451,7 +451,7 @@ export function MockSpeaking({
                 <span className="text-sm text-muted-foreground">{recording ? "Đang ghi âm" : "Mic tắt"}</span>
               </div>
             </div>
-            <Card className="bg-amber-50 border-amber-200">
+            <Card className="bg-gold-50 border-gold-200">
               <CardContent className="p-4 space-y-2">
                 <div className="font-bold">{part2CueCard.topic}</div>
                 <ul className="list-disc pl-5 text-sm space-y-1">

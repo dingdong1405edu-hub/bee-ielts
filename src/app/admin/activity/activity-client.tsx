@@ -45,8 +45,8 @@ const ENTITY_META: Record<
   string,
   { label: string; icon: React.ElementType; tone: string }
 > = {
-  READING_TEST: { label: "Reading", icon: BookOpen, tone: "bg-emerald-100 text-emerald-700" },
-  LISTENING_TEST: { label: "Listening", icon: Headphones, tone: "bg-amber-100 text-amber-700" },
+  READING_TEST: { label: "Reading", icon: BookOpen, tone: "bg-sage-100 text-sage-700" },
+  LISTENING_TEST: { label: "Listening", icon: Headphones, tone: "bg-gold-100 text-gold-700" },
   WRITING_TASK: { label: "Writing", icon: PenLine, tone: "bg-rose-100 text-rose-700" },
   SPEAKING_SET: { label: "Speaking", icon: Mic, tone: "bg-honey-tint text-honey-deep" },
   BAND_STAGE: { label: "Vượt band", icon: TrendingUp, tone: "bg-leaf-tint text-leaf-deep" },
@@ -60,8 +60,8 @@ const ENTITY_META: Record<
 };
 
 const ACTION_META: Record<string, { label: string; tone: string }> = {
-  CREATE: { label: "Tạo mới", tone: "bg-emerald-500 text-white" },
-  UPDATE: { label: "Cập nhật", tone: "bg-amber-500 text-white" },
+  CREATE: { label: "Tạo mới", tone: "bg-sage-500 text-white" },
+  UPDATE: { label: "Cập nhật", tone: "bg-gold-500 text-white" },
   DELETE: { label: "Xoá", tone: "bg-rose-500 text-white" },
 };
 

@@ -395,7 +395,7 @@ function QABlock({
           </div>
         )}
         <div className="flex items-start gap-1.5 pt-1 text-xs text-muted-foreground">
-          <Lightbulb className="h-3.5 w-3.5 mt-0.5 shrink-0 text-amber-500" />
+          <Lightbulb className="h-3.5 w-3.5 mt-0.5 shrink-0 text-gold-500" />
           <span><strong className="text-foreground">Phương pháp: </strong>{method}</span>
         </div>
       </div>

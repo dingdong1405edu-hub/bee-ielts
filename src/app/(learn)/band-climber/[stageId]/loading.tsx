@@ -5,9 +5,9 @@
  */
 export default function StagePathLoading() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-50/60 via-card to-card -mx-4 md:-mx-8 -mt-4 md:-mt-8 pb-20">
+    <div className="min-h-screen bg-gradient-to-b from-sage-50/60 via-card to-card -mx-4 md:-mx-8 -mt-4 md:-mt-8 pb-20">
       {/* Hero banner */}
-      <div className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md">
+      <div className="bg-gradient-to-r from-sage-500 to-teal-600 text-white shadow-md">
         <div className="max-w-md mx-auto px-4 py-3.5 flex items-center justify-between gap-3 animate-pulse">
           <div className="space-y-1">
             <div className="h-3 w-24 rounded bg-white/30" />
@@ -22,7 +22,7 @@ export default function StagePathLoading() {
         {/* Section divider */}
         <div className="flex items-center gap-3 py-3">
           <div className="flex-1 h-px bg-border/70" />
-          <div className="h-6 w-24 rounded-full bg-emerald-200" />
+          <div className="h-6 w-24 rounded-full bg-sage-200" />
           <div className="flex-1 h-px bg-border/70" />
         </div>
 

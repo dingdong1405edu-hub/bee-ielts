@@ -47,8 +47,8 @@ function defaultWeekdays(count: number): number[] {
 }
 
 const SKILLS: { value: Skill; label: string; dot: string; chip: string }[] = [
-  { value: "READING", label: "Reading", dot: "bg-emerald-500", chip: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
-  { value: "LISTENING", label: "Listening", dot: "bg-amber-500", chip: "bg-amber-500/15 text-amber-600 dark:text-amber-400" },
+  { value: "READING", label: "Reading", dot: "bg-sage-500", chip: "bg-sage-500/15 text-sage-600 dark:text-sage-400" },
+  { value: "LISTENING", label: "Listening", dot: "bg-gold-500", chip: "bg-gold-500/15 text-gold-700 dark:text-gold-400" },
   { value: "WRITING", label: "Writing", dot: "bg-rose-500", chip: "bg-rose-500/15 text-rose-600 dark:text-rose-400" },
   { value: "SPEAKING", label: "Speaking", dot: "bg-honey", chip: "bg-honey/15 text-honey-deep dark:text-honey" },
   { value: "VOCAB", label: "Vocab", dot: "bg-leaf", chip: "bg-leaf/15 text-leaf-deep dark:text-leaf" },
@@ -229,7 +229,7 @@ export function StudySchedule({
 
   return (
     <div className="rounded-3xl border bg-card overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-3 p-5 md:p-6 border-b bg-gradient-to-br from-honey/5 via-amber-400/5 to-honey-deep/5">
+      <div className="flex flex-wrap items-center justify-between gap-3 p-5 md:p-6 border-b bg-gradient-to-br from-honey/5 via-gold-400/5 to-honey-deep/5">
         <div className="flex items-center gap-3">
           <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-honey to-honey-deep text-white shadow-md shadow-honey/30">
             <CalendarClock className="h-5 w-5" />
@@ -449,7 +449,7 @@ function RoadmapGenerator({
         />
         <div className="flex items-center justify-between text-[11px] text-muted-foreground">
           <span>AI sẽ ưu tiên những gì bạn ghi ở đây hơn cả điểm yếu phân tích từ dữ liệu luyện tập.</span>
-          <span className={cn("font-mono", focusNotes.length > 700 && "text-amber-600")}>
+          <span className={cn("font-mono", focusNotes.length > 700 && "text-gold-600")}>
             {focusNotes.length}/800
           </span>
         </div>

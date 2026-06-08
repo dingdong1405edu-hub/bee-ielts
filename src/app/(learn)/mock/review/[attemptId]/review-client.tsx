@@ -103,7 +103,7 @@ export function MockReviewClient({ attempt }: { attempt: Attempt }) {
           icon={Headphones}
           label="Listening"
           band={attempt.listeningBand}
-          grad="from-amber-500 to-orange-500"
+          grad="from-gold-400 to-gold-600"
         />
         <TabButton
           active={active === "reading"}
@@ -111,7 +111,7 @@ export function MockReviewClient({ attempt }: { attempt: Attempt }) {
           icon={BookOpen}
           label="Reading"
           band={attempt.readingBand}
-          grad="from-emerald-500 to-teal-500"
+          grad="from-sage-500 to-teal-500"
         />
         <TabButton
           active={active === "writing"}
@@ -507,7 +507,7 @@ function SpeakingReview({ payload, band }: { payload: SpeakingPayload; band: num
             <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
               Part 2 — Cue card
             </div>
-            <div className="rounded-lg border bg-amber-50 dark:bg-amber-900/10 p-3 text-sm">
+            <div className="rounded-lg border bg-gold-50 dark:bg-gold-900/10 p-3 text-sm">
               <div className="font-semibold">{payload.part2CueCard.topic}</div>
               <ul className="list-disc pl-5 mt-1 space-y-0.5">
                 {payload.part2CueCard.points.map((p, i) => (

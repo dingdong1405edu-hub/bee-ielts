@@ -87,7 +87,7 @@ export function AccessManager({ users }: { users: U[] }) {
                   </div>
                   <div className="mt-1">
                     {owner ? (
-                      <Badge className="bg-amber-500 hover:bg-amber-500">
+                      <Badge className="bg-gold-500 hover:bg-gold-500">
                         <Crown className="h-3 w-3" /> Owner
                       </Badge>
                     ) : (

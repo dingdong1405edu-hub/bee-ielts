@@ -557,7 +557,7 @@ export function ReadingTestForm({
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 mt-1">
                   {Array.from({ length: blankCount }).map((_, i) => (
                     <div key={i} className="flex items-center gap-1.5">
-                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-600 text-white text-xs font-bold">
+                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-sage-600 text-white text-xs font-bold">
                         {i + 1}
                       </span>
                       <Input
@@ -647,7 +647,7 @@ export function ReadingTestForm({
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 mt-1">
                   {Array.from({ length: tableBlankCount }).map((_, i) => (
                     <div key={i} className="flex items-center gap-1.5">
-                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-600 text-white text-xs font-bold">
+                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-sage-600 text-white text-xs font-bold">
                         {i + 1}
                       </span>
                       <Input

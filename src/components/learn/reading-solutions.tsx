@@ -188,7 +188,7 @@ function PassageView({ passage, highlight }: { passage: string; highlight?: Expl
   return (
     <div className={box}>
       {before}
-      <mark ref={markRef} className="rounded bg-yellow-300/80 dark:bg-yellow-500/40 px-0.5">
+      <mark ref={markRef} className="rounded bg-gold-300/80 dark:bg-gold-500/40 px-0.5">
         <BoldKeywords text={matched} keywords={highlight?.keywords ?? []} />
       </mark>
       {after}
@@ -210,7 +210,7 @@ function BoldKeywords({ text, keywords }: { text: string; keywords: string[] }) 
     <>
       {parts.map((p, i) =>
         i % 2 === 1 ? (
-          <strong key={i} className="font-extrabold underline decoration-2 decoration-amber-500">
+          <strong key={i} className="font-extrabold underline decoration-2 decoration-gold-500">
             {p}
           </strong>
         ) : (
@@ -252,7 +252,7 @@ function QuestionRow({
     >
       <CardContent className="p-4 space-y-3">
         <div className="flex items-start gap-2">
-          <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-600 text-white text-xs font-extrabold">
+          <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-sage-600 text-white text-xs font-extrabold">
             {num}
           </span>
           <span className="flex-1 text-sm font-medium leading-relaxed">{q.prompt}</span>
@@ -364,7 +364,7 @@ function HighlightedQuote({ text, keywords }: { text: string; keywords: string[]
         i % 2 === 1 ? (
           <mark
             key={i}
-            className="rounded bg-yellow-300/80 dark:bg-yellow-500/40 px-0.5 font-semibold text-foreground"
+            className="rounded bg-gold-300/80 dark:bg-gold-500/40 px-0.5 font-semibold text-foreground"
           >
             {p}
           </mark>

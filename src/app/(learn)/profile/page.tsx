@@ -18,8 +18,8 @@ const REVIEW_PATH: Record<string, string> = {
 };
 
 const SKILL_META: Record<string, { label: string; icon: typeof BookOpen; grad: string; unit: string }> = {
-  READING: { label: "Reading", icon: BookOpen, grad: "from-emerald-500 to-teal-500", unit: "band" },
-  LISTENING: { label: "Listening", icon: Headphones, grad: "from-amber-500 to-orange-500", unit: "band" },
+  READING: { label: "Reading", icon: BookOpen, grad: "from-sage-500 to-teal-500", unit: "band" },
+  LISTENING: { label: "Listening", icon: Headphones, grad: "from-gold-400 to-gold-600", unit: "band" },
   WRITING: { label: "Writing", icon: PenLine, grad: "from-honey to-honey-deep", unit: "band" },
   SPEAKING: { label: "Speaking", icon: Mic, grad: "from-leaf to-leaf-deep", unit: "band" },
   VOCAB: { label: "Vocabulary", icon: Sparkles, grad: "from-honey to-honey-deep", unit: "điểm" },
@@ -80,10 +80,10 @@ export default async function ProfilePage() {
 
       {/* Quick stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatTile icon={Zap} label="XP" value={String(user.xp)} grad="from-amber-400 to-yellow-500" />
-        <StatTile icon={Flame} label="Streak" value={`${user.streakDays} ngày`} grad="from-orange-500 to-red-500" />
+        <StatTile icon={Zap} label="XP" value={String(user.xp)} grad="from-gold-400 to-gold-500" />
+        <StatTile icon={Flame} label="Streak" value={`${user.streakDays} ngày`} grad="from-gold-500 to-red-500" />
         <StatTile icon={Target} label="Mục tiêu" value={`Band ${user.targetBand.toFixed(1)}`} grad="from-honey to-honey-deep" />
-        <StatTile icon={BookOpen} label="Bài đã làm" value={String(attempts.length)} grad="from-emerald-500 to-teal-500" />
+        <StatTile icon={BookOpen} label="Bài đã làm" value={String(attempts.length)} grad="from-sage-500 to-teal-500" />
       </div>
 
       {/* Mock test history */}

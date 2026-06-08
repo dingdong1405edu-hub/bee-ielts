@@ -57,8 +57,8 @@ export function PremiumCouponCards({
       <Card
         className={
           isPremium
-            ? "border-2 border-emerald-400 bg-gradient-to-br from-emerald-50/60 to-teal-50/60 dark:from-emerald-950/30 dark:to-teal-950/30"
-            : "border-2 border-amber-300 bg-gradient-to-br from-amber-50/60 to-orange-50/60 dark:from-amber-950/30 dark:to-orange-950/30"
+            ? "border-2 border-sage-400 bg-gradient-to-br from-sage-50/60 to-teal-50/60 dark:from-sage-950/30 dark:to-teal-950/30"
+            : "border-2 border-gold-300 bg-gradient-to-br from-gold-50/60 to-gold-200/60 dark:from-gold-950/30 dark:to-gold-900/30"
         }
       >
         <CardContent className="p-5 space-y-3">
@@ -66,8 +66,8 @@ export function PremiumCouponCards({
             <div
               className={
                 isPremium
-                  ? "grid h-11 w-11 place-items-center rounded-2xl bg-emerald-500 text-white shadow-md shadow-emerald-500/30"
-                  : "grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/30"
+                  ? "grid h-11 w-11 place-items-center rounded-2xl bg-sage-500 text-white shadow-md shadow-sage-500/30"
+                  : "grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-gold-400 to-gold-600 text-white shadow-md shadow-gold-500/30"
               }
             >
               {isPremium ? <Check className="h-5 w-5" /> : <Crown className="h-5 w-5" />}
@@ -102,10 +102,10 @@ export function PremiumCouponCards({
       </Card>
 
       {/* Coupon redemption card */}
-      <Card className="border-2 border-leaf/40 bg-gradient-to-br from-leaf-tint/60 to-emerald-50/60 dark:from-leaf/15 dark:to-emerald-950/30">
+      <Card className="border-2 border-leaf/40 bg-gradient-to-br from-leaf-tint/60 to-sage-50/60 dark:from-leaf/15 dark:to-sage-950/30">
         <CardContent className="p-5 space-y-3">
           <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-leaf to-emerald-600 text-white shadow-md shadow-leaf/30">
+            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-leaf to-sage-600 text-white shadow-md shadow-leaf/30">
               <Ticket className="h-5 w-5" />
             </div>
             <div className="flex-1 min-w-0">

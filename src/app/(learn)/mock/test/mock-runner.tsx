@@ -434,7 +434,7 @@ function MockResultView({
       key: "listening",
       label: "Listening",
       icon: Headphones,
-      grad: "from-amber-500 to-orange-500",
+      grad: "from-gold-400 to-gold-600",
       band: result.perSkill.listening.band,
       note: `${result.perSkill.listening.correct}/${result.perSkill.listening.total} câu đúng`,
     },
@@ -442,7 +442,7 @@ function MockResultView({
       key: "reading",
       label: "Reading",
       icon: BookOpen,
-      grad: "from-emerald-500 to-teal-500",
+      grad: "from-sage-500 to-teal-500",
       band: result.perSkill.reading.band,
       note: `${result.perSkill.reading.correct}/${result.perSkill.reading.total} câu đúng`,
     },
@@ -535,7 +535,7 @@ function MockResultView({
         icon={Headphones}
         label="Listening"
         bandSummary={`Band ${result.perSkill.listening.band.toFixed(1)} · ${result.perSkill.listening.correct}/${result.perSkill.listening.total} đúng`}
-        gradient="from-amber-500 to-orange-500"
+        gradient="from-gold-400 to-gold-600"
       >
         {listenings.flatMap((sec) =>
           sec.questions.map((q, i) => {
@@ -561,7 +561,7 @@ function MockResultView({
         icon={BookOpen}
         label="Reading"
         bandSummary={`Band ${result.perSkill.reading.band.toFixed(1)} · ${result.perSkill.reading.correct}/${result.perSkill.reading.total} đúng`}
-        gradient="from-emerald-500 to-teal-500"
+        gradient="from-sage-500 to-teal-500"
       >
         {readings.flatMap((sec) =>
           sec.questions.map((q, i) => {
@@ -685,7 +685,7 @@ function QARow({
         <div
           className={`shrink-0 grid h-6 w-6 place-items-center rounded-md text-[11px] font-extrabold ${
             isCorrect
-              ? "bg-emerald-100 text-emerald-700"
+              ? "bg-sage-100 text-sage-700"
               : hadAnswer
                 ? "bg-rose-100 text-rose-700"
                 : "bg-muted text-muted-foreground"
@@ -702,7 +702,7 @@ function QARow({
             <div
               className={`rounded-md border px-2 py-1 ${
                 isCorrect
-                  ? "border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30"
+                  ? "border-sage-300 bg-sage-50 dark:bg-sage-950/30"
                   : hadAnswer
                     ? "border-rose-300 bg-rose-50 dark:bg-rose-950/30"
                     : "border-border bg-muted dark:bg-muted"
@@ -715,7 +715,7 @@ function QARow({
                 {hadAnswer ? userAnswer : <span className="opacity-60 italic">(bỏ trống)</span>}
               </div>
             </div>
-            <div className="rounded-md border border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-1">
+            <div className="rounded-md border border-sage-400 bg-sage-50 dark:bg-sage-950/30 px-2 py-1">
               <div className="text-[10px] font-bold uppercase tracking-wider opacity-70">
                 Đáp án đúng
               </div>
@@ -875,14 +875,14 @@ function SpeakingResultBlock({
 
       {ai?.corrections && ai.corrections.length > 0 && (
         <div className="rounded-xl border bg-card p-3 break-inside-avoid">
-          <div className="text-[11px] uppercase tracking-wider font-bold text-emerald-700 mb-1.5">
+          <div className="text-[11px] uppercase tracking-wider font-bold text-sage-700 mb-1.5">
             Lỗi & cách sửa
           </div>
           <div className="space-y-1.5">
             {ai.corrections.map((c, i) => (
               <div key={i} className="rounded-md border p-1.5 text-xs space-y-0.5">
                 <p className="text-rose-600 line-through">{c.original}</p>
-                <p className="text-emerald-700 font-semibold">✅ {c.corrected}</p>
+                <p className="text-sage-700 font-semibold">✅ {c.corrected}</p>
                 <p className="text-[11px] text-muted-foreground">{c.explanation}</p>
               </div>
             ))}
@@ -926,7 +926,7 @@ function PartBlock({
         </p>
       )}
       {transcript ? (
-        <p className="text-xs rounded-md border-l-2 border-emerald-400 bg-emerald-50/40 dark:bg-emerald-950/20 pl-2.5 py-1.5 italic">
+        <p className="text-xs rounded-md border-l-2 border-sage-400 bg-sage-50/40 dark:bg-sage-950/20 pl-2.5 py-1.5 italic">
           "{transcript}"
         </p>
       ) : (

@@ -73,7 +73,7 @@ export default async function WritingReviewPage({ params }: { params: { attemptI
                   viết sai — di chuột vào để xem lỗi &amp; cách sửa.{" "}
                   <span className="font-semibold text-rose-600 dark:text-rose-400">Ngữ pháp</span> ·{" "}
                   <span className="font-semibold text-honey-deep dark:text-honey">Từ vựng</span> ·{" "}
-                  <span className="font-semibold text-amber-600 dark:text-amber-400">Mạch ý</span>
+                  <span className="font-semibold text-gold-600 dark:text-gold-400">Mạch ý</span>
                 </p>
               )}
               <AnnotatedEssay essay={essay} annotations={result?.annotations ?? []} />

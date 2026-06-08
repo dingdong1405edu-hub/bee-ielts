@@ -41,7 +41,7 @@ export default function RegisterPage() {
     <div className="relative min-h-screen grid place-items-center px-4 overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute top-10 left-10 h-72 w-72 rounded-full bg-honey blob" />
-        <div className="absolute bottom-10 right-10 h-72 w-72 rounded-full bg-amber-200 blob" />
+        <div className="absolute bottom-10 right-10 h-72 w-72 rounded-full bg-gold-200 blob" />
       </div>
 
       <Link href="/" className="absolute top-6 left-6 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">

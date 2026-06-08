@@ -59,7 +59,7 @@ export function PremiumLanding({
   return (
     <div className="max-w-3xl mx-auto space-y-5">
       {/* Hero */}
-      <div className="rounded-3xl bg-gradient-to-br from-amber-500 via-orange-500 to-rose-500 p-7 md:p-10 text-white relative overflow-hidden">
+      <div className="rounded-3xl bg-gradient-to-br from-gold-500 via-gold-500 to-rose-500 p-7 md:p-10 text-white relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(255,255,255,0.2),transparent_50%)]" />
         <div className="relative flex items-start gap-4 flex-wrap">
           <div className="grid h-14 w-14 place-items-center rounded-2xl bg-white/20 backdrop-blur border border-white/30">
@@ -135,11 +135,11 @@ export function PremiumLanding({
 
       {/* State-dependent action card */}
       {isPremium ? (
-        <Card className="border-2 border-emerald-400 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30">
+        <Card className="border-2 border-sage-400 bg-gradient-to-br from-sage-50 to-teal-50 dark:from-sage-950/30 dark:to-teal-950/30">
           <CardContent className="p-5 space-y-2">
             <div className="flex items-center gap-2">
-              <Check className="h-5 w-5 text-emerald-600" />
-              <h3 className="font-extrabold text-emerald-900 dark:text-emerald-200">
+              <Check className="h-5 w-5 text-sage-600" />
+              <h3 className="font-extrabold text-sage-900 dark:text-sage-200">
                 {isOwner
                   ? "Bạn là OWNER — premium mặc định"
                   : isAdmin
@@ -147,7 +147,7 @@ export function PremiumLanding({
                     : "Tài khoản của bạn đang ở gói Premium"}
               </h3>
             </div>
-            <p className="text-sm text-emerald-900/80 dark:text-emerald-300/80">
+            <p className="text-sm text-sage-900/80 dark:text-sage-300/80">
               {premiumGrantedAt
                 ? `Cấp lúc ${new Date(premiumGrantedAt).toLocaleString("vi-VN")}.`
                 : "Bạn có toàn quyền dùng mọi tính năng."}
@@ -167,15 +167,15 @@ export function PremiumLanding({
           </CardContent>
         </Card>
       ) : hasPending ? (
-        <Card className="border-2 border-amber-300 bg-amber-50 dark:bg-amber-950/20">
+        <Card className="border-2 border-gold-300 bg-gold-50 dark:bg-gold-950/20">
           <CardContent className="p-5 space-y-2">
             <div className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-amber-600 animate-pulse" />
-              <h3 className="font-extrabold text-amber-900 dark:text-amber-200">
+              <Clock className="h-5 w-5 text-gold-600 animate-pulse" />
+              <h3 className="font-extrabold text-gold-900 dark:text-gold-200">
                 Yêu cầu của bạn đang chờ owner duyệt
               </h3>
             </div>
-            <p className="text-sm text-amber-900/80 dark:text-amber-300/80">
+            <p className="text-sm text-gold-900/80 dark:text-gold-300/80">
               Gửi lúc {new Date(latestRequest!.createdAt).toLocaleString("vi-VN")}. Owner sẽ duyệt
               sớm — bạn có thể cập nhật lời nhắn bên dưới và bấm gửi lại nếu cần.
             </p>
@@ -272,7 +272,7 @@ function RequestForm({
         disabled={submitting}
       />
       <div className="flex items-center justify-between">
-        <span className={cn("text-[11px] font-mono text-muted-foreground", message.length > 700 && "text-amber-600")}>
+        <span className={cn("text-[11px] font-mono text-muted-foreground", message.length > 700 && "text-gold-600")}>
           {message.length}/800
         </span>
         <Button onClick={submit} disabled={submitting} className="rounded-xl">

@@ -49,9 +49,9 @@ const CATEGORY_LABEL: Record<string, string> = {
 };
 const CATEGORY_COLOR: Record<string, string> = {
   grammar: "bg-rose-500",
-  vocabulary: "bg-honey",
-  coherence: "bg-amber-500",
-  task: "bg-primary",
+  vocabulary: "bg-gold-500",
+  coherence: "bg-sage-500",
+  task: "bg-[#5B7E9C]",
 };
 
 export function WritingFeedback({
@@ -76,8 +76,8 @@ export function WritingFeedback({
                 Các cụm <span className="font-bold underline decoration-2">in đậm gạch chân</span> là chỗ
                 viết sai — di chuột vào để xem lỗi &amp; cách sửa.{" "}
                 <span className="font-semibold text-rose-600 dark:text-rose-400">Ngữ pháp / cấu trúc</span> ·{" "}
-                <span className="font-semibold text-honey-deep dark:text-honey">Từ vựng</span> ·{" "}
-                <span className="font-semibold text-amber-600 dark:text-amber-400">Mạch ý</span>
+                <span className="font-semibold text-gold-700 dark:text-gold-400">Từ vựng</span> ·{" "}
+                <span className="font-semibold text-sage-700 dark:text-sage-400">Mạch ý</span>
               </p>
             )}
             <AnnotatedEssay essay={essay} annotations={result.annotations ?? []} />
@@ -195,12 +195,12 @@ export function WritingFeedback({
             <h3 className="font-extrabold">Câu mở bài & kết bài mẫu (tiếng Anh)</h3>
             {result.openingSentences && result.openingSentences.length > 0 && (
               <div>
-                <div className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-emerald-600 mb-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-sage-600 mb-1.5">
                   <ArrowRightToLine className="h-3.5 w-3.5" /> Mở bài (Introduction)
                 </div>
                 <ul className="space-y-1.5">
                   {result.openingSentences.map((s, i) => (
-                    <li key={i} className="rounded-lg border bg-emerald-50 dark:bg-emerald-950/30 p-2.5 text-sm italic">
+                    <li key={i} className="rounded-lg border bg-sage-50 dark:bg-sage-950/30 p-2.5 text-sm italic">
                       "{s}"
                     </li>
                   ))}
@@ -252,7 +252,7 @@ export function VocabSuggestions({
     <Card>
       <CardContent className="p-5 space-y-3">
         <div className="flex items-center gap-2">
-          <BookMarked className="h-5 w-5 text-emerald-500" />
+          <BookMarked className="h-5 w-5 text-sage-500" />
           <h3 className="font-extrabold">Mở rộng vốn từ — Collocations &amp; Phrasal verbs</h3>
         </div>
         {hasC && (
@@ -277,22 +277,22 @@ function VocabGroup({
 }) {
   return (
     <div>
-      <div className="text-xs font-extrabold uppercase tracking-wider text-emerald-600 mb-1.5">
+      <div className="text-xs font-extrabold uppercase tracking-wider text-sage-600 mb-1.5">
         {label}
       </div>
       <div className="space-y-1.5">
         {items.map((it, i) => (
-          <div key={i} className="rounded-lg border bg-emerald-50 dark:bg-emerald-950/30 p-2.5">
+          <div key={i} className="rounded-lg border bg-sage-50 dark:bg-sage-950/30 p-2.5">
             <div className="flex flex-wrap items-baseline gap-x-2">
               {onSpeak ? (
                 <button
                   onClick={() => onSpeak(it.phrase)}
-                  className="text-sm font-bold text-emerald-700 dark:text-emerald-300 inline-flex items-center gap-1 hover:underline"
+                  className="text-sm font-bold text-sage-700 dark:text-sage-300 inline-flex items-center gap-1 hover:underline"
                 >
                   <Volume2 className="h-3.5 w-3.5" /> {it.phrase}
                 </button>
               ) : (
-                <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300">{it.phrase}</span>
+                <span className="text-sm font-bold text-sage-700 dark:text-sage-300">{it.phrase}</span>
               )}
               <span className="text-xs text-muted-foreground">{it.meaning}</span>
             </div>

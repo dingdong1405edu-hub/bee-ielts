@@ -23,8 +23,8 @@ export default async function MockLandingPage() {
     : { allowed: true, isPremium: false, nextAllowedAt: null, lastAttemptAt: null };
 
   const sections = [
-    { icon: Headphones, label: "Listening", time: "~20 phút", grad: "from-amber-500 to-orange-500" },
-    { icon: BookOpen, label: "Reading", time: "60 phút · 4 bài đọc", grad: "from-emerald-500 to-teal-500" },
+    { icon: Headphones, label: "Listening", time: "~20 phút", grad: "from-gold-400 to-gold-600" },
+    { icon: BookOpen, label: "Reading", time: "60 phút · 4 bài đọc", grad: "from-sage-500 to-teal-500" },
     { icon: Coffee, label: "Nghỉ giải lao", time: "15 phút (có thể skip)", grad: "from-muted-foreground to-foreground" },
     { icon: PenLine, label: "Writing", time: "60 phút · Task 1 + Task 2", grad: "from-honey to-honey-deep" },
     { icon: Mic, label: "Speaking", time: "~12 phút · 3 part", grad: "from-leaf to-leaf-deep" },
@@ -39,7 +39,13 @@ export default async function MockLandingPage() {
             <GraduationCap className="h-7 w-7" />
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">Thi thử IELTS Full</h1>
+            <span
+              className="inline-flex items-center rounded-full bg-white/15 border border-white/30 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider"
+              style={{ color: "#4C5B8A" }}
+            >
+              Mock Test
+            </span>
+            <h1 className="mt-2 text-3xl md:text-4xl font-extrabold tracking-tight">Thi thử IELTS Full</h1>
             <p className="mt-2 text-white/90 max-w-md">
               4 kỹ năng theo trình tự thi thật: Listening → Reading → Writing → Speaking. Bấm giờ chuẩn, có break giữa các phần.
             </p>
@@ -84,23 +90,23 @@ export default async function MockLandingPage() {
         <Card
           className={
             quota.allowed
-              ? "border-2 border-amber-300 bg-amber-50/50 dark:bg-amber-950/20"
+              ? "border-2 border-gold-300 bg-gold-50/50 dark:bg-gold-950/20"
               : "border-2 border-rose-300 bg-rose-50/50 dark:bg-rose-950/20"
           }
         >
           <CardContent className="p-4 flex items-start gap-3 text-sm">
             {quota.allowed ? (
               <>
-                <Sparkles className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                <Sparkles className="h-5 w-5 text-gold-600 shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-amber-900 dark:text-amber-300">
+                  <p className="font-bold text-gold-900 dark:text-gold-300">
                     Bạn đang dùng tài khoản miễn phí — 1 lượt thi thử / tuần
                   </p>
-                  <p className="text-amber-900/80 dark:text-amber-300/80 text-xs mt-0.5">
+                  <p className="text-gold-900/80 dark:text-gold-300/80 text-xs mt-0.5">
                     Nâng cấp Premium để thi thử không giới hạn + mở khoá toàn bộ phần “Vượt band”.
                   </p>
                 </div>
-                <Button asChild size="sm" variant="outline" className="shrink-0 border-amber-500 text-amber-700 hover:bg-amber-100">
+                <Button asChild size="sm" variant="outline" className="shrink-0 border-gold-500 text-gold-700 hover:bg-gold-100">
                   <Link href="/premium">
                     <Crown className="h-3.5 w-3.5" /> Nâng cấp
                   </Link>

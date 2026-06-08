@@ -16,8 +16,8 @@ export interface Highlight {
 }
 
 const COLOR_CLASSES: Record<HighlightColor, string> = {
-  yellow: "bg-yellow-300/70 dark:bg-yellow-400/60 text-foreground",
-  green: "bg-emerald-300/70 dark:bg-emerald-400/60 text-foreground",
+  yellow: "bg-gold-300/70 dark:bg-gold-400/60 text-foreground",
+  green: "bg-sage-300/70 dark:bg-sage-400/60 text-foreground",
   pink: "bg-pink-300/70 dark:bg-pink-400/60 text-foreground",
 };
 
@@ -247,7 +247,7 @@ export function HighlightablePassage({
       onTouchEnd={handleMouseUp}
       className={cn(
         "text-[15px] leading-relaxed whitespace-pre-wrap text-foreground",
-        tool !== "none" && tool !== "eraser" && tool !== "translate" && "cursor-text selection:bg-yellow-200/60",
+        tool !== "none" && tool !== "eraser" && tool !== "translate" && "cursor-text selection:bg-gold-200/60",
         tool === "eraser" && "cursor-cell",
         tool === "translate" && "cursor-help",
         className,
@@ -416,8 +416,8 @@ export function HighlightToolbar({
   setTool: (t: HighlightTool) => void;
 }) {
   const colors: { key: HighlightColor; cls: string; label: string }[] = [
-    { key: "yellow", cls: "bg-yellow-300", label: "Vàng" },
-    { key: "green", cls: "bg-emerald-300", label: "Xanh" },
+    { key: "yellow", cls: "bg-gold-300", label: "Vàng" },
+    { key: "green", cls: "bg-sage-300", label: "Xanh" },
     { key: "pink", cls: "bg-pink-300", label: "Hồng" },
   ];
   return (

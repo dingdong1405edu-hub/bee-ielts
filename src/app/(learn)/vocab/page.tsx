@@ -24,7 +24,10 @@ export default async function VocabPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-8">
       <div className="flex items-center gap-4">
-        <div className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-honey to-honey-deep text-white shadow-lg shadow-honey/30">
+        <div
+          className="grid h-14 w-14 place-items-center rounded-2xl border bg-[#BD6B6B]/10 border-[#BD6B6B]/20 shadow-sm"
+          style={{ color: "#BD6B6B" }}
+        >
           <Sparkles className="h-6 w-6" />
         </div>
         <div>
@@ -66,7 +69,7 @@ export default async function VocabPage() {
                       <div
                         className={`grid h-12 w-12 place-items-center rounded-xl text-white font-extrabold ${
                           done
-                            ? "bg-gradient-to-br from-emerald-500 to-teal-500"
+                            ? "bg-gradient-to-br from-sage-500 to-teal-500"
                             : locked
                               ? "bg-muted"
                               : "bg-gradient-to-br from-honey to-honey-deep"

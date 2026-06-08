@@ -26,7 +26,7 @@ export default async function PaymentSuccessPage({
 
   return (
     <div className="max-w-md mx-auto py-12 space-y-6 text-center">
-      <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/30">
+      <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-sage-500 text-white shadow-lg shadow-sage-500/30">
         <CheckCircle2 className="h-8 w-8" />
       </div>
       <div className="space-y-2">

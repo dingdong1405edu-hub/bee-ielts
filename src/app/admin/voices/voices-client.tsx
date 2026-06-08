@@ -294,12 +294,12 @@ export function VoicesAdminClient({ initialVoices }: { initialVoices: Voice[] })
                       disabled={busyId === v.id}
                       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold transition-all ${
                         v.isDefault
-                          ? "bg-amber-100 text-amber-700"
+                          ? "bg-gold-100 text-gold-700"
                           : "bg-muted text-muted-foreground hover:bg-muted/70"
                       }`}
                       title={v.isDefault ? "Đang là default" : "Đặt làm default"}
                     >
-                      <Star className={`h-3 w-3 ${v.isDefault ? "fill-amber-500" : ""}`} />
+                      <Star className={`h-3 w-3 ${v.isDefault ? "fill-gold-500" : ""}`} />
                       {v.isDefault ? "Default" : "Đặt default"}
                     </button>
                   </td>
@@ -310,7 +310,7 @@ export function VoicesAdminClient({ initialVoices }: { initialVoices: Voice[] })
                       disabled={busyId === v.id}
                       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold transition-all ${
                         v.enabled
-                          ? "bg-emerald-100 text-emerald-700"
+                          ? "bg-sage-100 text-sage-700"
                           : "bg-muted text-muted-foreground"
                       }`}
                     >

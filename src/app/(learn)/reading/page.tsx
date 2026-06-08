@@ -22,11 +22,20 @@ const LEVEL_COLOR: Record<CEFRLevel, PillColor> = {
 export default function ReadingIntroPage() {
   return (
     <div className="space-y-8">
+      <div className="flex justify-center">
+        <span
+          className="inline-flex items-center gap-2 rounded-full border border-[#4F7A66]/30 bg-[#4F7A66]/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider"
+          style={{ color: "#4F7A66" }}
+        >
+          <span className="h-1.5 w-1.5 rounded-full bg-[#4F7A66]" />
+          Reading
+        </span>
+      </div>
       <SkillIntro
         title="Reading"
         subtitle="1 bài đọc mỗi lần luyện tập · không giới hạn thời gian"
         icon={BookOpen}
-        grad="from-emerald-500 to-teal-500"
+        grad="from-sage-500 to-teal-500"
         startHref="/reading/start"
         ctaLabel="AI chọn đề ngẫu nhiên"
         bullets={[
@@ -67,7 +76,7 @@ async function ReadingTestList() {
 
   return (
     <TestPicker
-      grad="from-emerald-500 to-teal-500"
+      grad="from-sage-500 to-teal-500"
       icon={BookOpen}
       emptyText="Chưa có bài đọc nào trong kho luyện tập."
       items={tests.map((t) => ({

@@ -60,19 +60,19 @@ export function StatsRow({ streakDays, streakRestoreRemaining, targetBand, weekM
     <div className="grid gap-4 sm:grid-cols-3">
       {/* Streak card */}
       <div className="relative overflow-hidden rounded-3xl bg-foreground border border-border p-5 text-background">
-        <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-orange-500/20 blur-2xl" />
+        <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-gold-500/20 blur-2xl" />
         <div className="relative flex items-start justify-between">
-          <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-orange-400 to-rose-500 shadow-lg shadow-orange-500/30">
+          <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-gold-400 to-rose-500 shadow-lg shadow-gold-500/30">
             <Flame className="h-5 w-5 fill-white" />
           </div>
-          <div className="text-3xl md:text-4xl font-extrabold bg-gradient-to-br from-orange-300 to-rose-400 bg-clip-text text-transparent">
-            {streakDays} <span className="text-base font-bold text-orange-200">ngày</span>
+          <div className="text-3xl md:text-4xl font-extrabold bg-gradient-to-br from-gold-300 to-rose-400 bg-clip-text text-transparent">
+            {streakDays} <span className="text-base font-bold text-gold-200">ngày</span>
           </div>
         </div>
         <div className="relative mt-4">
           <div className="font-bold">Streak</div>
           <div className="flex items-center justify-between text-xs text-muted-foreground mt-0.5">
-            <span>Restore còn lại: <span className="text-orange-300 font-bold">{streakRestoreRemaining}/5</span></span>
+            <span>Restore còn lại: <span className="text-gold-300 font-bold">{streakRestoreRemaining}/5</span></span>
             <button
               onClick={restoreStreak}
               disabled={pending || streakRestoreRemaining <= 0}
@@ -156,7 +156,7 @@ export function StatsRow({ streakDays, streakRestoreRemaining, targetBand, weekM
       </div>
 
       <style jsx global>{`
-        .gradient-text-streak { background: linear-gradient(135deg,#fb923c,#f43f5e); }
+        .gradient-text-streak { background: linear-gradient(135deg,#C5A05E,#f43f5e); }
       `}</style>
 
       {pending && <span className="sr-only"><Sparkles /></span>}

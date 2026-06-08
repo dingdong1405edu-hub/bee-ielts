@@ -57,7 +57,8 @@ export default async function GrammarPathPage() {
         <div className="relative flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">Beginner Path</h1>
-            <p className="text-white/85 text-sm mt-1">
+            <span className="mt-2 block h-1 w-12 rounded-full" style={{ backgroundColor: "#3E8C84" }} aria-hidden />
+            <p className="text-white/85 text-sm mt-2">
               Từ A1 → C2 · {totalLessons} bài học
             </p>
           </div>
@@ -79,7 +80,7 @@ export default async function GrammarPathPage() {
       <div className="grid grid-cols-3 gap-3">
         <StatPill icon={Heart} value={user?.hearts ?? 5} unit="mạng" color="text-rose-500" bg="bg-rose-500/15" />
         <StatPill icon={Zap} value={user?.xp ?? 0} unit="lượt" color="text-primary/70" bg="bg-primary/15" />
-        <StatPill icon={Flame} value={user?.streakDays ?? 0} unit="ngày" color="text-orange-400" bg="bg-orange-500/15" />
+        <StatPill icon={Flame} value={user?.streakDays ?? 0} unit="ngày" color="text-gold-600" bg="bg-gold-500/15" />
       </div>
 
       {/* Unit/section banner */}
@@ -184,8 +185,8 @@ function PathNode({
   const isActive = state === "active";
   const isDone = state === "done";
 
-  const ring = isActive ? "from-honey to-honey-deep" : isDone ? "from-emerald-400 to-teal-500" : "from-muted to-muted-foreground";
-  const ringShadow = isActive ? "shadow-primary/40" : isDone ? "shadow-emerald-500/40" : "shadow-muted-foreground/20";
+  const ring = isActive ? "from-honey to-honey-deep" : isDone ? "from-sage-400 to-teal-500" : "from-muted to-muted-foreground";
+  const ringShadow = isActive ? "shadow-primary/40" : isDone ? "shadow-sage-500/40" : "shadow-muted-foreground/20";
 
   return (
     <div className={`relative w-fit mx-auto flex flex-col items-center ${offset}`}>
@@ -220,13 +221,13 @@ function PathNode({
         <span
           className={`
             inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-extrabold tracking-wider uppercase border
-            ${isActive ? "bg-primary/15 text-primary border-primary/40" : isDone ? "bg-emerald-500/15 text-emerald-500 border-emerald-500/40" : "bg-muted text-muted-foreground border-border"}
+            ${isActive ? "bg-primary/15 text-primary border-primary/40" : isDone ? "bg-sage-500/15 text-sage-700 dark:text-sage-300 border-sage-500/40" : "bg-muted text-muted-foreground border-border"}
           `}
         >
           {locked ? "KHOÁ" : "NGỮ PHÁP"}
         </span>
         <div className={`max-w-[160px] text-sm font-bold leading-tight ${locked ? "text-muted-foreground" : "text-foreground"}`}>{title}</div>
-        <div className={`text-[11px] font-bold ${isActive ? "text-primary" : isDone ? "text-emerald-500" : "text-muted-foreground"}`}>
+        <div className={`text-[11px] font-bold ${isActive ? "text-primary" : isDone ? "text-sage-600 dark:text-sage-400" : "text-muted-foreground"}`}>
           {isDone ? `+${xp} XP đã nhận` : locked ? `· ${level} ·` : `+${xp} XP`}
         </div>
       </div>

@@ -114,9 +114,9 @@ export default async function EditBandStagePage({
             {
               skill: "READING",
               title: "Reading",
-              gradFrom: "from-emerald-500",
+              gradFrom: "from-sage-500",
               gradTo: "to-teal-500",
-              border: "border-emerald-200",
+              border: "border-sage-200",
               newHref: `/admin/reading/new?stageId=${stage.id}`,
               items: stage.readingTests.map((t) => ({
                 id: t.id,
@@ -130,9 +130,9 @@ export default async function EditBandStagePage({
             {
               skill: "LISTENING",
               title: "Listening",
-              gradFrom: "from-amber-500",
-              gradTo: "to-orange-500",
-              border: "border-amber-200",
+              gradFrom: "from-gold-500",
+              gradTo: "to-gold-500",
+              border: "border-gold-200",
               newHref: `/admin/listening/new?stageId=${stage.id}`,
               items: stage.listeningTests.map((t) => ({
                 id: t.id,

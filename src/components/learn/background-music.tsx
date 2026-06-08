@@ -243,7 +243,7 @@ export function BackgroundMusicPlayer() {
             <button
               type="button"
               onClick={unlock}
-              className="inline-flex items-center gap-1 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1 font-bold"
+              className="inline-flex items-center gap-1 rounded-full bg-sage-500 hover:bg-sage-600 text-white px-3 py-1 font-bold"
             >
               <Play className="h-3 w-3 fill-current" />
               Bật nhạc

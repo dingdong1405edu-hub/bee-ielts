@@ -682,19 +682,19 @@ export function SpeakingPlayer({
             <div className="space-y-4">
               <ul className="space-y-2.5 text-sm">
                 <li className="flex items-start gap-2">
-                  <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-100 text-emerald-600 shrink-0 mt-0.5">
+                  <span className="grid h-5 w-5 place-items-center rounded-full bg-sage-100 text-sage-600 shrink-0 mt-0.5">
                     <Check className="h-3.5 w-3.5" />
                   </span>
                   <span>Làm quen với cấu trúc bài thi, áp lực như thi thật.</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-100 text-emerald-600 shrink-0 mt-0.5">
+                  <span className="grid h-5 w-5 place-items-center rounded-full bg-sage-100 text-sage-600 shrink-0 mt-0.5">
                     <Check className="h-3.5 w-3.5" />
                   </span>
                   <span>Nhận đánh giá điểm sát như thi thật.</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-100 text-emerald-600 shrink-0 mt-0.5">
+                  <span className="grid h-5 w-5 place-items-center rounded-full bg-sage-100 text-sage-600 shrink-0 mt-0.5">
                     <Check className="h-3.5 w-3.5" />
                   </span>
                   <span>AI examiner đọc câu hỏi như người thật — bạn chỉ cần trả lời.</span>
@@ -987,7 +987,7 @@ export function SpeakingPlayer({
           <Card>
             <CardContent className="p-5 space-y-3">
               <h3 className="font-extrabold flex items-center gap-2">
-                <Wand2 className="h-5 w-5 text-emerald-500" /> Lỗi & cách sửa
+                <Wand2 className="h-5 w-5 text-sage-500" /> Lỗi & cách sửa
               </h3>
               <div className="space-y-2">
                 {result.corrections.map((c, i) => (
@@ -1012,7 +1012,7 @@ export function SpeakingPlayer({
           <Card>
             <CardContent className="p-5 space-y-3">
               <h3 className="font-extrabold flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-amber-500" /> Tips for each question
+                <Sparkles className="h-5 w-5 text-gold-500" /> Tips for each question
               </h3>
               <p className="text-xs text-muted-foreground -mt-1">
                 Câu mở đầu gợi ý và cách triển khai cho từng câu hỏi. Nhấn loa để nghe.
@@ -1031,14 +1031,14 @@ export function SpeakingPlayer({
                       </button>
                       <p className="text-sm font-bold">{t.question}</p>
                     </div>
-                    <div className="rounded-md bg-emerald-50 dark:bg-emerald-950/30 p-2.5">
-                      <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-emerald-600 mb-1">
+                    <div className="rounded-md bg-sage-50 dark:bg-sage-950/30 p-2.5">
+                      <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-sage-600 mb-1">
                         <ArrowRightToLine className="h-3.5 w-3.5" /> Opening sentence
                       </div>
                       <button
                         onClick={() => playTTS(t.opener)}
                         disabled={ttsBusy}
-                        className="text-sm italic text-emerald-800 dark:text-emerald-200 hover:underline text-left inline-flex items-start gap-1.5"
+                        className="text-sm italic text-sage-800 dark:text-sage-200 hover:underline text-left inline-flex items-start gap-1.5"
                       >
                         <Volume2 className="h-3.5 w-3.5 mt-0.5 shrink-0" /> &ldquo;{t.opener}&rdquo;
                       </button>
@@ -1240,8 +1240,8 @@ export function SpeakingPlayer({
                 ))}
               </ul>
               {part2Notes.trim() && (
-                <div className="mt-2 rounded-md bg-amber-50 dark:bg-amber-950/20 px-2.5 py-1.5">
-                  <div className="text-[10px] font-extrabold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                <div className="mt-2 rounded-md bg-gold-50 dark:bg-gold-950/20 px-2.5 py-1.5">
+                  <div className="text-[10px] font-extrabold uppercase tracking-wider text-gold-700 dark:text-gold-300">
                     Ghi chú của bạn
                   </div>
                   <p className="whitespace-pre-wrap text-xs leading-relaxed">{part2Notes}</p>
@@ -1337,8 +1337,8 @@ export function SpeakingPlayer({
               </>
             ) : currentResult.transcript ? (
               <>
-                <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                <span className="text-sm font-semibold text-emerald-600">Đã ghi xong</span>
+                <span className="h-2.5 w-2.5 rounded-full bg-sage-500" />
+                <span className="text-sm font-semibold text-sage-600">Đã ghi xong</span>
               </>
             ) : (
               <span className="text-sm text-muted-foreground">Sẵn sàng</span>
@@ -1561,7 +1561,7 @@ function ParaphrasingCard({ data }: { data: NonNullable<SpeakingResult["paraphra
     },
     minimal: {
       label: "Paraphrase rất ít",
-      tone: "bg-amber-100 text-amber-700 border-amber-300",
+      tone: "bg-gold-100 text-gold-700 border-gold-300",
       emoji: "⚠️",
     },
     partial: {
@@ -1571,7 +1571,7 @@ function ParaphrasingCard({ data }: { data: NonNullable<SpeakingResult["paraphra
     },
     strong: {
       label: "Paraphrase tốt",
-      tone: "bg-emerald-100 text-emerald-700 border-emerald-300",
+      tone: "bg-sage-100 text-sage-700 border-sage-300",
       emoji: "⭐",
     },
   };
@@ -1601,7 +1601,7 @@ function ParaphrasingCard({ data }: { data: NonNullable<SpeakingResult["paraphra
                   Câu hỏi gốc
                 </div>
                 <p className="text-sm italic">{ex.question}</p>
-                <div className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-700 mt-2">
+                <div className="text-[11px] font-extrabold uppercase tracking-wider text-sage-700 mt-2">
                   Bạn đã nói
                 </div>
                 <p className="text-sm font-semibold">&ldquo;{ex.candidateSaid}&rdquo;</p>

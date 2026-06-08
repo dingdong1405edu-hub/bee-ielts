@@ -15,20 +15,20 @@ export type PickerItem = {
 };
 
 const PILL_BG: Record<PillColor, string> = {
-  amber: "bg-amber-500",
+  amber: "bg-gold-500",
   violet: "bg-honey",
   indigo: "bg-leaf",
-  emerald: "bg-emerald-600",
+  emerald: "bg-sage-600",
   sky: "bg-primary",
   rose: "bg-rose-500",
 };
 
 // Rotating colors for the per-card detail lines (question types etc).
 const DETAIL_COLORS = [
-  "text-emerald-600 dark:text-emerald-400",
+  "text-sage-600 dark:text-sage-400",
   "text-honey-deep dark:text-honey",
   "text-rose-600 dark:text-rose-400",
-  "text-amber-600 dark:text-amber-400",
+  "text-gold-700 dark:text-gold-400",
   "text-primary dark:text-primary/70",
   "text-leaf dark:text-leaf-tint",
 ];

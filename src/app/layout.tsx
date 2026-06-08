@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
-import { Bricolage_Grotesque, Hanken_Grotesk, Be_Vietnam_Pro } from "next/font/google";
+import { Lora, Hanken_Grotesk, Be_Vietnam_Pro } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 import { Providers } from "./providers";
 
-// Display (headings) — Bricolage Grotesque
-const display = Bricolage_Grotesque({
-  subsets: ["latin", "latin-ext"],
+// Display (headings) — Lora (editorial serif)
+const display = Lora({
+  subsets: ["latin", "latin-ext", "vietnamese"],
+  weight: ["400", "500", "600", "700"],
+  style: ["normal", "italic"],
   variable: "--font-display",
   display: "swap",
 });
@@ -36,7 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen font-sans" suppressHydrationWarning>
         <script
           dangerouslySetInnerHTML={{
-            // Honey is a light-first theme: only honour an explicit dark choice,
+            // Sage is a light-first theme: only honour an explicit dark choice,
             // never auto-switch to dark from the OS preference.
             __html: `try{if(localStorage.getItem('theme')==='dark')document.documentElement.classList.add('dark')}catch(e){}`,
           }}

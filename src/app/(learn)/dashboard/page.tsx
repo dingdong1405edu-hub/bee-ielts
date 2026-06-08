@@ -10,13 +10,15 @@ import { ExamCountdown } from "@/components/learn/exam-countdown";
 import { StudySchedule } from "@/components/learn/study-schedule";
 import { PremiumCouponCards } from "@/components/learn/premium-coupon-cards";
 
+// Per-skill accent gradients — distinct hue per module, all muted/editorial
+// to harmonise with the sage+gold base (see tailwind `skill.*` tokens).
 const modules = [
-  { href: "/vocab", label: "Vocabulary", desc: "Vocabulary", icon: Sparkles, grad: "from-honey to-honey-deep" },
-  { href: "/grammar", label: "Grammar", desc: "Ngữ pháp ngắn gọn", icon: BookOpenText, grad: "from-honey to-honey-deep" },
-  { href: "/reading", label: "Reading", desc: "Đọc hiểu IELTS", icon: BookOpen, grad: "from-emerald-500 to-teal-500" },
-  { href: "/listening", label: "Listening", desc: "Nghe + Q&A", icon: Headphones, grad: "from-amber-500 to-orange-500" },
-  { href: "/writing", label: "Writing", desc: "AI chấm band IELTS", icon: PenLine, grad: "from-rose-500 to-pink-500" },
-  { href: "/speaking", label: "Speaking", desc: "3 part — AI đánh giá", icon: Mic, grad: "from-leaf to-emerald-600" },
+  { href: "/vocab", label: "Vocabulary", desc: "Từ vựng Duolingo-style", icon: Sparkles, grad: "from-[#C77E7E] to-[#A85656]" },
+  { href: "/grammar", label: "Grammar", desc: "Ngữ pháp ngắn gọn", icon: BookOpenText, grad: "from-[#4FA39A] to-[#357C75]" },
+  { href: "/reading", label: "Reading", desc: "Đọc hiểu IELTS", icon: BookOpen, grad: "from-[#5E8E78] to-[#3F6553]" },
+  { href: "/listening", label: "Listening", desc: "Nghe + Q&A", icon: Headphones, grad: "from-[#6E93B5] to-[#4C6E92]" },
+  { href: "/writing", label: "Writing", desc: "AI chấm band IELTS", icon: PenLine, grad: "from-[#CBA45F] to-[#9A7635]" },
+  { href: "/speaking", label: "Speaking", desc: "3 part — AI đánh giá", icon: Mic, grad: "from-[#CC7D58] to-[#A85B3C]" },
 ];
 
 export default async function DashboardPage() {
@@ -115,7 +117,7 @@ export default async function DashboardPage() {
           videos, AI scores pronunciation per sentence. Sits between Mock
           card and module grid so it's the second-most prominent CTA. */}
       <Link href="/shadowing" className="block group">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-rose-500 via-orange-500 to-amber-500 p-6 md:p-8 text-white shadow-xl shadow-orange-500/25 transition-all hover:shadow-2xl hover:shadow-orange-500/35 hover:-translate-y-0.5">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#9A7BA8] via-[#8A6E9C] to-[#6E5680] p-6 md:p-8 text-white shadow-xl shadow-[#8A6E9C]/25 transition-all hover:shadow-2xl hover:shadow-[#8A6E9C]/35 hover:-translate-y-0.5">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_85%,rgba(255,255,255,0.25),transparent_55%)]" />
           <div className="absolute -right-8 -top-8 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
           <span className="absolute top-4 right-4 inline-flex items-center gap-1 rounded-full bg-white/20 backdrop-blur px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider border border-white/30">
@@ -124,7 +126,7 @@ export default async function DashboardPage() {
           <div className="relative flex items-center gap-4 flex-wrap">
             <div className="relative grid h-14 w-14 place-items-center rounded-2xl bg-white/15 backdrop-blur border border-white/20">
               <Video className="h-7 w-7" />
-              <span className="absolute -bottom-1 -right-1 grid h-6 w-6 place-items-center rounded-full bg-white text-rose-600 shadow-md">
+              <span className="absolute -bottom-1 -right-1 grid h-6 w-6 place-items-center rounded-full bg-white text-[#8A6E9C] shadow-md">
                 <Play className="h-3 w-3 fill-current" />
               </span>
             </div>
