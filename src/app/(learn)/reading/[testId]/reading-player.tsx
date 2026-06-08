@@ -138,7 +138,10 @@ export function ReadingPlayer({
           <h1 className="text-xl md:text-2xl font-bold mt-1">{title}</h1>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          {!submitted && <HighlightToolbar tool={tool} setTool={setTool} />}
+          {/* Toolbar stays visible after submit — user explicitly asked the
+              translate tool to work during "chữa bài" (review) too, and
+              there's no harm letting them keep highlighting at that stage. */}
+          <HighlightToolbar tool={tool} setTool={setTool} />
           <Badge variant="outline" className="text-base px-3 py-1">
             <Clock className="h-4 w-4 mr-1" /> Đã làm {formatDuration(elapsed)}
           </Badge>
@@ -161,7 +164,7 @@ export function ReadingPlayer({
             <HighlightablePassage
               passage={passage}
               highlights={highlights}
-              tool={submitted ? "none" : tool}
+              tool={tool}
               onChangeHighlights={setHighlights}
               onWordClick={({ word, sentence, x, y }) => {
                 const w = word.replace(/[^A-Za-z'-]/g, "").toLowerCase();
