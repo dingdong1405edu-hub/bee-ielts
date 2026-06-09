@@ -379,65 +379,6 @@ function resolveDuration(info: {
   return Math.max(...candidates) / 1000;
 }
 
-/** Order matters. WEB first — this is youtubei.js's session default and it
- *  was the client used at commit 510d5f0 era when this admin's videos
- *  uploaded successfully. After that I experimented with IOS-first and
- *  TV_EMBEDDED-first; both regressed normal videos that WEB had been
- *  handling fine. So WEB is the primary again, with IOS / TV_EMBEDDED /
- *  ANDROID as fallbacks for cases where WEB returns LOGIN_REQUIRED or
- *  UNPLAYABLE. WEB_EMBEDDED + MWEB are last-resort. */
-const YT_CLIENTS = [
-  "WEB",
-  "IOS",
-  "TV_EMBEDDED",
-  "ANDROID",
-  "WEB_EMBEDDED",
-  "MWEB",
-] as const;
-
-function isRecoverableError(e: unknown): boolean {
-  const msg = (e instanceof Error ? e.message : String(e)).toLowerCase();
-  // Retry on auth / bot detection / client-level blocks. TV_EMBEDDED can
-  // often play videos IOS reports as "UNPLAYABLE" (e.g. embed restrictions
-  // that TVs ignore). "ERROR" is the generic UNPLAYABLE wrapper; "age" and
-  // "content_check" are age-gate variants TV_EMBEDDED also bypasses.
-  // DON'T retry on private/unavailable (truly gone — no client helps).
-  return (
-    msg.includes("login") ||
-    msg.includes("sign in") ||
-    msg.includes("po_token") ||
-    msg.includes("po token") ||
-    msg.includes("403") ||
-    msg.includes("forbidden") ||
-    msg.includes("unplayable") ||
-    msg.includes("playabilityerror") ||
-    msg.includes("age_verification") ||
-    msg.includes("age-restricted") ||
-    msg.includes("content_check") ||
-    msg.includes("inappropriate") ||
-    msg.includes("playability") // catch-all for any other PLAYABILITY_STATUS
-  );
-}
-
-/** Inspect the playability_status that YouTube embeds in the player
- *  response. Some clients (notably IOS) return a 200 from getBasicInfo but
- *  with playability_status.status === "UNPLAYABLE" / "ERROR", which means
- *  yt.download() will explode mid-flight with "Video is unplayable". Throw
- *  an Error that `isRecoverableError` will pick up so we retry on
- *  TV_EMBEDDED / WEB_EMBEDDED (which often play these). */
-function ensurePlayable(
-  info: { playability_status?: { status?: string; reason?: string } | null },
-  videoId: string,
-  client: string,
-): void {
-  const status = info.playability_status?.status?.toUpperCase();
-  if (!status || status === "OK") return;
-  const reason = info.playability_status?.reason ?? "";
-  throw new Error(
-    `[${client}] Video unplayable status=${status} reason=${reason || "(none)"} ytId=${videoId}`,
-  );
-}
-
 /**
  * Pull caption cues via youtubei.js's getInfo().getTranscript() endpoint.
  * Used as a SECOND captions path when `youtube-transcript` returns empty —
@@ -453,36 +394,13 @@ function ensurePlayable(
 export async function getYouTubeTranscriptViaInnertube(
   videoId: string,
 ): Promise<RawCue[]> {
+  // Single getInfo() call using the session default — no per-call client
+  // override (the multi-client retry layer above was masking real bugs
+  // for this admin's videos). getInfo (vs getBasicInfo) is still required
+  // because getTranscript() lives on VideoInfo and needs the full
+  // watch_next response.
   const yt = await getInnertube();
-  let info: Awaited<ReturnType<typeof yt.getInfo>> | null = null;
-  let lastErr: Error | null = null;
-  const txPerClient: string[] = [];
-  // getInfo (vs getBasicInfo) is required because getTranscript() lives on
-  // VideoInfo and needs the full watch_next response, not the player one.
-  for (const client of YT_CLIENTS) {
-    try {
-      info = await yt.getInfo(videoId, { client });
-      ensurePlayable(info, videoId, client);
-      if (client !== "WEB") {
-        console.log(
-          `[yt-tx] info fallback client ${client} succeeded for ${videoId}`,
-        );
-      }
-      break;
-    } catch (e) {
-      lastErr = e instanceof Error ? e : new Error(String(e));
-      txPerClient.push(`${client}: ${lastErr.message.slice(0, 100)}`);
-      console.warn(
-        `[yt-tx] info client=${client} failed for ${videoId}: ${lastErr.message}`,
-      );
-      if (!isRecoverableError(e)) throw lastErr;
-    }
-  }
-  if (!info) {
-    throw new Error(
-      `Tất cả ${YT_CLIENTS.length} client fail khi lấy transcript info: ${txPerClient.join(" | ")}`,
-    );
-  }
+  const info = await yt.getInfo(videoId);
 
   let txInfo;
   try {
@@ -542,35 +460,19 @@ export async function getYouTubeTranscriptViaInnertube(
 }
 
 export async function getYouTubeBasicInfo(videoId: string): Promise<YouTubeBasicInfo> {
+  // Reverted to the 510d5f0 shape (the version that was uploading this
+  // admin's videos successfully) — no per-call client option, no
+  // multi-client retry loop. Let youtubei.js use the session default.
   const yt = await getInnertube();
-  let lastError: Error | null = null;
-  const perClient: string[] = [];
-  for (const client of YT_CLIENTS) {
-    try {
-      const info = await yt.getBasicInfo(videoId, { client });
-      ensurePlayable(info, videoId, client);
-      const basic = info.basic_info;
-      if (client !== "WEB") {
-        console.log(`[yt-info] fallback client ${client} succeeded for ${videoId}`);
-      }
-      return {
-        videoId,
-        title: basic.title ?? "",
-        durationSec: resolveDuration(info),
-        isLive: !!basic.is_live,
-        channelTitle: basic.author ?? null,
-      };
-    } catch (e) {
-      lastError = e instanceof Error ? e : new Error(String(e));
-      const shortMsg = lastError.message.slice(0, 120);
-      perClient.push(`${client}: ${shortMsg}`);
-      console.warn(`[yt-info] client=${client} failed for ${videoId}: ${lastError.message}`);
-      if (!isRecoverableError(e)) throw lastError;
-    }
-  }
-  throw new Error(
-    `Tất cả ${YT_CLIENTS.length} YouTube client fail cho ${videoId}: ${perClient.join(" | ")}`,
-  );
+  const info = await yt.getBasicInfo(videoId);
+  const basic = info.basic_info;
+  return {
+    videoId,
+    title: basic.title ?? "",
+    durationSec: resolveDuration(info),
+    isLive: !!basic.is_live,
+    channelTitle: basic.author ?? null,
+  };
 }
 
 // MAX_AUDIO_FALLBACK_SEC lives in shadowing-constants.ts so client
@@ -595,40 +497,13 @@ export interface YouTubeAudio {
   title: string;
 }
 export async function getYouTubeAudioBuffer(videoId: string): Promise<YouTubeAudio> {
+  // Reverted to the 510d5f0 shape — single yt.getBasicInfo() call (no
+  // per-call client override) + IOS client for the audio download itself.
+  // That combination was uploading this admin's videos successfully; the
+  // multi-client retry + ensurePlayable layers I added in 48d4ffb / 1249be7
+  // / a73a464 introduced regressions on otherwise-fine videos.
   const yt = await getInnertube();
-
-  // Pull info with the same multi-client retry as getYouTubeBasicInfo so a
-  // login_required on IOS doesn't kill the whole flow.
-  let info: Awaited<ReturnType<typeof yt.getBasicInfo>> | null = null;
-  let infoClient: (typeof YT_CLIENTS)[number] | null = null;
-  let lastInfoErr: Error | null = null;
-  const infoPerClient: string[] = [];
-  for (const client of YT_CLIENTS) {
-    try {
-      info = await yt.getBasicInfo(videoId, { client });
-      ensurePlayable(info, videoId, client);
-      infoClient = client;
-      if (client !== "WEB") {
-        console.log(
-          `[yt-audio] info fallback client ${client} succeeded for ${videoId}`,
-        );
-      }
-      break;
-    } catch (e) {
-      lastInfoErr = e instanceof Error ? e : new Error(String(e));
-      infoPerClient.push(`${client}: ${lastInfoErr.message.slice(0, 100)}`);
-      console.warn(
-        `[yt-audio] info client=${client} failed for ${videoId}: ${lastInfoErr.message}`,
-      );
-      if (!isRecoverableError(e)) throw lastInfoErr;
-    }
-  }
-  if (!info) {
-    throw new Error(
-      `Tất cả ${YT_CLIENTS.length} client fail khi lấy info: ${infoPerClient.join(" | ")}`,
-    );
-  }
-
+  const info = await yt.getBasicInfo(videoId);
   if (info.basic_info.is_live) {
     throw new Error("Video đang livestream — không tải audio được.");
   }
@@ -643,62 +518,30 @@ export async function getYouTubeAudioBuffer(videoId: string): Promise<YouTubeAud
       `[yt-audio] duration unknown for ${videoId} — relying on streaming size guard.`,
     );
   }
-
-  // Try download with each client in turn. We START with the one that got
-  // us the info (high chance it owns the formats too), then fall back
-  // through the rest. Streams that begin then fail mid-flight are also
-  // counted as a failure — we catch the chunk-iteration error.
+  const stream = await yt.download(videoId, {
+    type: "audio",
+    quality: "best",
+    format: "any",
+    client: "IOS",
+  });
   const HARD_CAP_BYTES = 45 * 1024 * 1024;
-  const downloadOrder = (() => {
-    if (!infoClient) return YT_CLIENTS;
-    return [infoClient, ...YT_CLIENTS.filter((c) => c !== infoClient)];
-  })();
-
-  let lastDownloadErr: Error | null = null;
-  const dlPerClient: string[] = [];
-  for (const client of downloadOrder) {
-    try {
-      const stream = await yt.download(videoId, {
-        type: "audio",
-        quality: "best",
-        format: "any",
-        client,
-      });
-      const chunks: Uint8Array[] = [];
-      let total = 0;
-      for await (const chunk of Utils.streamToIterable(stream)) {
-        total += chunk.byteLength;
-        if (total > HARD_CAP_BYTES) {
-          throw new Error(
-            `Audio vượt ${Math.round(HARD_CAP_BYTES / 1024 / 1024)}MB — video quá dài cho AI nghe (~> 45 phút).`,
-          );
-        }
-        chunks.push(chunk);
-      }
-      if (client !== "WEB") {
-        console.log(
-          `[yt-audio] download fallback client ${client} succeeded for ${videoId}`,
-        );
-      }
-      const buffer = Buffer.concat(chunks);
-      const finalDur = dur > 0 ? dur : Math.max(1, buffer.byteLength / 16000);
-      return {
-        buffer,
-        contentType: "audio/webm",
-        durationSec: finalDur,
-        title: info.basic_info.title ?? "",
-      };
-    } catch (e) {
-      lastDownloadErr = e instanceof Error ? e : new Error(String(e));
-      dlPerClient.push(`${client}: ${lastDownloadErr.message.slice(0, 100)}`);
-      console.warn(
-        `[yt-audio] download client=${client} failed for ${videoId}: ${lastDownloadErr.message}`,
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for await (const chunk of Utils.streamToIterable(stream)) {
+    total += chunk.byteLength;
+    if (total > HARD_CAP_BYTES) {
+      throw new Error(
+        `Audio vượt ${Math.round(HARD_CAP_BYTES / 1024 / 1024)}MB — video quá dài cho AI nghe (~> 45 phút).`,
       );
-      // Don't retry on size-cap or non-auth errors — those are real failures.
-      if (!isRecoverableError(e)) throw lastDownloadErr;
     }
+    chunks.push(chunk);
   }
-  throw new Error(
-    `Tất cả ${downloadOrder.length} client fail khi download: ${dlPerClient.join(" | ")}`,
-  );
+  const buffer = Buffer.concat(chunks);
+  const finalDur = dur > 0 ? dur : Math.max(1, buffer.byteLength / 16000);
+  return {
+    buffer,
+    contentType: "audio/webm",
+    durationSec: finalDur,
+    title: info.basic_info.title ?? "",
+  };
 }
