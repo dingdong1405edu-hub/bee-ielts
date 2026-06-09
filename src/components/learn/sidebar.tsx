@@ -71,6 +71,11 @@ export function Sidebar({
   // On the Community page the feed is white — make the sidebar white too so
   // the left panel blends with the page instead of staying dark.
   const community = pathname === "/community" || pathname.startsWith("/community/");
+  // Speaking Roulette uses a deep-green felt-table background; tint the
+  // sidebar to match so the left rail blends into the felt instead of
+  // jarring against it. User feedback: "thanh có nút home cùng màu hòa
+  // vào màu với cái màu xanh đó (chỉ khi nhân vào chơi bài)".
+  const roulette = pathname.startsWith("/speaking/roulette");
 
   const autoCollapse = useMemo(() => shouldAutoCollapse(pathname), [pathname]);
 
@@ -121,12 +126,16 @@ export function Sidebar({
       "flex items-center rounded-xl text-sm font-semibold transition-all",
       collapsed ? "justify-center px-0 py-2.5 mx-auto w-11" : "gap-3 px-3 py-2.5",
       active
-        ? community
-          ? "bg-muted text-foreground shadow-sm border border-border"
-          : "bg-card text-foreground shadow-sm border"
-        : community
-          ? "text-muted-foreground hover:bg-muted hover:text-foreground"
-          : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
+        ? roulette
+          ? "bg-white/15 text-white shadow-sm border border-white/20 backdrop-blur"
+          : community
+            ? "bg-muted text-foreground shadow-sm border border-border"
+            : "bg-card text-foreground shadow-sm border"
+        : roulette
+          ? "text-white/75 hover:bg-white/10 hover:text-white"
+          : community
+            ? "text-muted-foreground hover:bg-muted hover:text-foreground"
+            : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
     );
 
   // Reusable nav content — rendered into either the rail itself or the
@@ -147,9 +156,30 @@ export function Sidebar({
           )}
           title="Bee IELTS"
         >
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-cream border border-gold/30 shadow-sm shadow-primary/10"><BeeLogo variant="bare" className="h-7 w-7 text-ink" /></div>
+          <div
+            className={cn(
+              "grid h-10 w-10 shrink-0 place-items-center rounded-2xl border shadow-sm shadow-primary/10",
+              roulette
+                ? "bg-white/20 border-white/30 backdrop-blur"
+                : "bg-cream border-gold/30",
+            )}
+          >
+            <BeeLogo
+              variant="bare"
+              className={cn("h-7 w-7", roulette ? "text-white" : "text-ink")}
+            />
+          </div>
           {!collapsed && (
-            <span className={cn("font-extrabold tracking-tight truncate", community && "text-foreground")}>
+            <span
+              className={cn(
+                "font-extrabold tracking-tight truncate",
+                roulette
+                  ? "text-white"
+                  : community
+                    ? "text-foreground"
+                    : undefined,
+              )}
+            >
               Bee IELTS
             </span>
           )}
@@ -164,9 +194,11 @@ export function Sidebar({
             title="Mở rộng thanh bên"
             className={cn(
               "mt-1 grid h-7 w-7 place-items-center rounded-lg transition-colors",
-              community
-                ? "text-muted-foreground hover:bg-muted hover:text-foreground"
-                : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
+              roulette
+                ? "text-white/75 hover:bg-white/10 hover:text-white"
+                : community
+                  ? "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
             )}
           >
             <PanelLeftOpen className="h-4 w-4" />
@@ -182,9 +214,11 @@ export function Sidebar({
             title="Ghim mở thanh bên"
             className={cn(
               "shrink-0 grid h-8 w-8 place-items-center rounded-lg transition-colors",
-              community
-                ? "text-muted-foreground hover:bg-muted hover:text-foreground"
-                : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
+              roulette
+                ? "text-white/75 hover:bg-white/10 hover:text-white"
+                : community
+                  ? "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
             )}
           >
             <PanelLeftOpen className="h-4 w-4" />
@@ -198,8 +232,10 @@ export function Sidebar({
             title="Thu gọn thanh bên"
             className={cn(
               "shrink-0 grid h-8 w-8 place-items-center rounded-lg transition-colors",
-              community
-                ? "text-muted-foreground hover:bg-muted hover:text-foreground"
+              roulette
+                ? "text-white/75 hover:bg-white/10 hover:text-white"
+                : community
+                  ? "text-muted-foreground hover:bg-muted hover:text-foreground"
                 : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
             )}
           >
@@ -228,7 +264,12 @@ export function Sidebar({
                   : undefined
               }
             >
-              <Icon className={cn("h-5 w-5 shrink-0", active && "text-primary")} />
+              <Icon
+                className={cn(
+                  "h-5 w-5 shrink-0",
+                  active && (roulette ? "text-cream" : "text-primary"),
+                )}
+              />
               {!collapsed && (
                 <span className="flex items-center gap-1.5">
                   {item.label}
@@ -282,9 +323,11 @@ export function Sidebar({
         className={cn(
           "mt-2 flex items-center rounded-xl text-sm font-semibold",
           collapsed ? "justify-center px-0 py-2.5 mx-auto w-11" : "gap-3 px-3 py-2.5",
-          community
-            ? "text-muted-foreground hover:bg-muted hover:text-foreground"
-            : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
+          roulette
+            ? "text-white/75 hover:bg-white/10 hover:text-white"
+            : community
+              ? "text-muted-foreground hover:bg-muted hover:text-foreground"
+              : "text-muted-foreground hover:bg-card/60 hover:text-foreground",
         )}
       >
         <LogOut className="h-5 w-5 shrink-0" />
@@ -303,14 +346,22 @@ export function Sidebar({
     <aside
       onMouseEnter={() => isRail && setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      style={
+        roulette
+          ? {
+              // Match the felt-table radial used in roulette-deck.tsx so the
+              // sidebar dissolves into the page. Same green palette, mirrored
+              // top→bottom so the lit centre lines up with the deck centre.
+              background:
+                "linear-gradient(180deg, #4d6735 0%, #3b5128 100%)",
+            }
+          : undefined
+      }
       className={cn(
         "hidden md:flex md:flex-col md:h-screen md:sticky md:top-0 transition-[width] duration-300 ease-out overflow-hidden",
-        // Single source of truth for width — grows from rail to full panel
-        // on hover so the main column reflows instead of being covered by
-        // an overlay. This is the "từ từ kéo sang bên phải trở lại như
-        // ban đầu" behaviour the user asked for.
         collapsedNow ? "md:w-16" : "md:w-64",
         community && "bg-card border-r border-border",
+        roulette && "border-r border-white/10 text-white",
       )}
     >
       <div

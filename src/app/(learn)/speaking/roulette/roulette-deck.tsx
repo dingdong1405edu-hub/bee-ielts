@@ -52,18 +52,29 @@ const PART_LABELS: Record<PartTab, { name: string; sub: string }> = {
   3: { name: "Part 3", sub: "Discussion" },
 };
 
-/** Tailwind-friendly hue→class map. Keys must match the seed file's
- *  HUES tuple so adding a new colour stays a one-line change. */
-const HUE_STYLES: Record<
-  string,
-  { bg: string; bgSoft: string; ring: string; text: string; chipBg: string }
-> = {
+/** Tailwind-friendly hue→class map. tintLight/Mid/Dark are raw hex stops
+ *  the playing-card back uses to render a diagonal sheen. Tailwind class
+ *  versions stay for the overlay (modal) where flat fills look fine. */
+interface HueStyle {
+  bg: string;
+  bgSoft: string;
+  ring: string;
+  text: string;
+  chipBg: string;
+  tintLight: string;
+  tintMid: string;
+  tintDark: string;
+}
+const HUE_STYLES: Record<string, HueStyle> = {
   rose: {
     bg: "bg-rose-500",
     bgSoft: "bg-rose-100 dark:bg-rose-950/40",
     ring: "ring-rose-300",
     text: "text-rose-50",
     chipBg: "bg-rose-700/40",
+    tintLight: "#fb7185",
+    tintMid: "#e11d48",
+    tintDark: "#9f1239",
   },
   amber: {
     bg: "bg-amber-500",
@@ -71,6 +82,9 @@ const HUE_STYLES: Record<
     ring: "ring-amber-300",
     text: "text-amber-50",
     chipBg: "bg-amber-700/40",
+    tintLight: "#fbbf24",
+    tintMid: "#d97706",
+    tintDark: "#92400e",
   },
   emerald: {
     bg: "bg-emerald-600",
@@ -78,6 +92,9 @@ const HUE_STYLES: Record<
     ring: "ring-emerald-300",
     text: "text-emerald-50",
     chipBg: "bg-emerald-800/40",
+    tintLight: "#34d399",
+    tintMid: "#059669",
+    tintDark: "#065f46",
   },
   sky: {
     bg: "bg-sky-600",
@@ -85,6 +102,9 @@ const HUE_STYLES: Record<
     ring: "ring-sky-300",
     text: "text-sky-50",
     chipBg: "bg-sky-800/40",
+    tintLight: "#38bdf8",
+    tintMid: "#0284c7",
+    tintDark: "#0c4a6e",
   },
   violet: {
     bg: "bg-violet-600",
@@ -92,6 +112,9 @@ const HUE_STYLES: Record<
     ring: "ring-violet-300",
     text: "text-violet-50",
     chipBg: "bg-violet-800/40",
+    tintLight: "#a78bfa",
+    tintMid: "#7c3aed",
+    tintDark: "#4c1d95",
   },
   teal: {
     bg: "bg-teal-600",
@@ -99,6 +122,9 @@ const HUE_STYLES: Record<
     ring: "ring-teal-300",
     text: "text-teal-50",
     chipBg: "bg-teal-800/40",
+    tintLight: "#2dd4bf",
+    tintMid: "#0d9488",
+    tintDark: "#134e4a",
   },
 };
 
@@ -278,12 +304,15 @@ export function RouletteDeck({ cards }: { cards: RouletteCard[] }) {
           highlightedId={spinning ? pickedId : null}
         />
 
-        <div className="flex flex-col items-center gap-2 mt-2">
+        <div className="flex flex-col items-center gap-3 -mt-2">
           <button
             type="button"
             onClick={spin}
             disabled={spinning || filtered.length === 0}
-            className="inline-flex items-center gap-2 rounded-full bg-cream text-[#3b5128] px-8 py-3 font-extrabold text-lg shadow-xl shadow-black/20 hover:scale-105 transition-transform disabled:opacity-50 font-display"
+            className={cn(
+              "relative inline-flex items-center gap-2 rounded-full bg-gradient-to-b from-cream to-amber-100 text-[#3b5128] px-10 py-4 font-extrabold text-lg shadow-xl shadow-black/30 hover:scale-105 transition-transform disabled:opacity-50 font-display",
+              "before:absolute before:inset-0 before:rounded-full before:ring-2 before:ring-white/60 before:pointer-events-none",
+            )}
           >
             {spinning ? (
               <>
@@ -295,7 +324,7 @@ export function RouletteDeck({ cards }: { cards: RouletteCard[] }) {
               </>
             )}
           </button>
-          <p className="text-xs text-white/70">
+          <p className="text-xs text-white/70 italic">
             Tap a card or the button to draw a random question
           </p>
         </div>
@@ -411,18 +440,17 @@ function FanOfCards({
     );
   }
   const n = cards.length;
-  // Spread cards along an arc spanning ARC degrees. ~5-7° per card looks
-  // like a real hand of cards in a casino — cards close to centre overlap
-  // gently, edges fan out cleanly. transform-origin sits 520px below the
-  // bottom of each card so rotation traces a wide arc instead of pivoting
-  // the cards on themselves (the previous version spun each card around
-  // its own corner, hence the "jumbled fan" the user complained about).
-  const PER_CARD = n > 16 ? 4.5 : 6;
-  const ARC = Math.min(110, n * PER_CARD);
-  const PIVOT = 520;
+  // Pivot 540px under cards traces a wide arc; PER_CARD shrinks slightly
+  // for larger decks so 12+ cards still fit cleanly.
+  const PER_CARD = n > 16 ? 4.5 : 6.5;
+  const ARC = Math.min(120, n * PER_CARD);
+  const PIVOT = 540;
 
   return (
-    <div className="relative h-[380px] md:h-[420px] flex items-end justify-center select-none px-4">
+    // Container has extra bottom padding (`pb-24`) so the lowest visible
+    // edge of any card sits above the Spin button — user asked the fan
+    // not to crowd the CTA.
+    <div className="relative h-[420px] md:h-[460px] flex items-end justify-center select-none px-4 pb-24">
       {cards.map((c, i) => {
         const t = n === 1 ? 0.5 : i / (n - 1);
         const angle = -ARC / 2 + ARC * t;
@@ -434,7 +462,7 @@ function FanOfCards({
             type="button"
             onClick={() => onPick(c.id)}
             className={cn(
-              "absolute bottom-0 left-1/2 -ml-[68px] md:-ml-[80px] transition-transform duration-300 ease-out",
+              "absolute bottom-24 left-1/2 -ml-[72px] md:-ml-[84px] transition-transform duration-300 ease-out",
               highlighted
                 ? "z-50 scale-[1.08]"
                 : "z-0 hover:z-30 hover:-translate-y-3 hover:scale-105",
@@ -445,46 +473,93 @@ function FanOfCards({
             }}
             aria-label={`Topic: ${c.topic}`}
           >
-            <div
-              className={cn(
-                "h-52 w-[136px] md:h-64 md:w-40 rounded-2xl shadow-xl shadow-black/30 ring-1 ring-black/20 relative overflow-hidden flex flex-col items-center",
-                hue.bg,
-                hue.text,
-                highlighted && "ring-4 ring-white shadow-2xl",
-              )}
-            >
-              {/* Subtle inner border ring — gives the card a printed-edge feel */}
-              <span
-                aria-hidden
-                className="pointer-events-none absolute inset-2 rounded-xl border border-white/25"
-              />
-              {/* Hue radial glow top-right for depth */}
-              <span
-                aria-hidden
-                className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_15%,rgba(255,255,255,0.18),transparent_55%)]"
-              />
-              {/* Topic label arched along the top edge */}
-              <span className="relative mt-4 text-[10px] md:text-[11px] font-extrabold uppercase tracking-[0.22em] line-clamp-1 max-w-[80%] text-center px-1">
-                {c.topic}
-              </span>
-              {/* Big "?" centerpiece */}
-              <div className="absolute inset-0 grid place-items-center text-white/40 text-6xl md:text-7xl font-display font-extrabold leading-none drop-shadow-lg">
-                ?
-              </div>
-              {/* Decorative concentric arcs at the bottom — IELTS roulette
-                  branding without an asset. */}
-              <span
-                aria-hidden
-                className="absolute -bottom-12 -left-12 h-28 w-28 rounded-full border-2 border-white/20"
-              />
-              <span
-                aria-hidden
-                className="absolute -bottom-16 -right-16 h-32 w-32 rounded-full border-2 border-white/15"
-              />
-            </div>
+            <PlayingCardBack
+              topic={c.topic}
+              hue={hue}
+              highlighted={highlighted}
+            />
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/** Playing-card back — gradient face + double border + corner pips + a
+ *  bee-logo monogram in the centre. Designed to read as a "real" deck
+ *  back rather than a flat colour rectangle. */
+function PlayingCardBack({
+  topic,
+  hue,
+  highlighted,
+}: {
+  topic: string;
+  hue: ReturnType<typeof hueOf>;
+  highlighted: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "h-56 w-[144px] md:h-72 md:w-44 rounded-[18px] relative overflow-hidden flex flex-col items-stretch shadow-xl shadow-black/40 ring-1 ring-black/30 transition-shadow",
+        highlighted && "ring-4 ring-cream shadow-2xl shadow-cream/30",
+      )}
+      style={{
+        // Subtle vertical sheen so cards look glossier than a flat fill.
+        backgroundImage: `linear-gradient(155deg, var(--card-light) 0%, var(--card-mid) 55%, var(--card-dark) 100%)`,
+        ...({
+          "--card-light": hue.tintLight,
+          "--card-mid": hue.tintMid,
+          "--card-dark": hue.tintDark,
+        } as React.CSSProperties),
+      }}
+    >
+      {/* Outer double border — printed-edge feel like a real card. */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-2 rounded-[12px] border-2 border-white/30"
+      />
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-3.5 rounded-[8px] border border-white/15"
+      />
+
+      {/* Top-left pip: topic label vertical-ish chip */}
+      <span className="absolute top-2.5 left-2.5 inline-flex items-center rounded-md bg-white/25 backdrop-blur-sm px-1.5 py-0.5 text-[8px] md:text-[9px] font-extrabold uppercase tracking-[0.18em] text-white max-w-[80%] line-clamp-1">
+        {topic}
+      </span>
+      {/* Bottom-right pip mirrored 180° (like real cards) */}
+      <span className="absolute bottom-2.5 right-2.5 rotate-180 inline-flex items-center rounded-md bg-white/25 backdrop-blur-sm px-1.5 py-0.5 text-[8px] md:text-[9px] font-extrabold uppercase tracking-[0.18em] text-white max-w-[80%] line-clamp-1">
+        {topic}
+      </span>
+
+      {/* Diamond lattice pattern overlay — classic playing-card back. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-3.5 opacity-[0.18]"
+        style={{
+          backgroundImage:
+            "linear-gradient(45deg, rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(-45deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
+          backgroundSize: "10px 10px",
+        }}
+      />
+
+      {/* Centre monogram — a circular medallion with a 🐝 emoji. Cleaner
+          identity than a plain "?" question mark. */}
+      <div className="absolute inset-0 grid place-items-center">
+        <div className="relative grid place-items-center h-16 w-16 md:h-20 md:w-20 rounded-full bg-white/15 backdrop-blur-sm border-2 border-white/40 shadow-inner">
+          <span className="text-2xl md:text-3xl">🐝</span>
+          <span
+            aria-hidden
+            className="absolute -inset-1.5 rounded-full border border-white/20"
+          />
+        </div>
+      </div>
+
+      {/* Edge shine highlight along the top — gives glassy depth */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-x-2 top-2 h-1/2 rounded-t-[10px] bg-gradient-to-b from-white/15 to-transparent"
+      />
     </div>
   );
 }
