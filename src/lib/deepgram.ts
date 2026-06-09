@@ -37,11 +37,41 @@ function extForCt(ct: string): string {
   return "webm";
 }
 
+/** Extract content words (>=3 chars, not stopwords) for STT priming. We use
+ *  these as Deepgram `keywords` + Whisper `prompt` so the recogniser knows
+ *  what vocabulary to expect. Mild bias only — we DON'T force exact match
+ *  or the model would hallucinate the expected text and the scoring becomes
+ *  meaningless. */
+const STT_STOPWORDS = new Set([
+  "the", "and", "for", "but", "you", "are", "was", "with", "his", "her",
+  "she", "him", "all", "any", "can", "had", "has", "have", "let", "not",
+  "one", "our", "out", "she", "that", "their", "this", "what", "when",
+  "where", "which", "who", "will", "your", "from", "they", "them", "were",
+  "been", "being", "than", "then", "into", "just", "like", "some", "such",
+  "very", "well", "also", "more", "most", "much", "only", "over", "under",
+]);
+function extractPrimingKeywords(text: string): string[] {
+  return Array.from(
+    new Set(
+      text
+        .toLowerCase()
+        .replace(/[^a-z' ]/g, " ")
+        .split(/\s+/)
+        .map((w) => w.replace(/^'+|'+$/g, ""))
+        .filter((w) => w.length >= 3 && !STT_STOPWORDS.has(w)),
+    ),
+  ).slice(0, 40);
+}
+
 /** Fallback transcription via Groq Whisper-large-v3-turbo. Groq doesn't return
  *  per-word confidence, so we synthesise a flat 0.9 score for every token —
  *  enough for the player's downstream "low-confidence underlined word"
  *  feature to leave them all unhighlighted, which is the safest default. */
-async function groqWhisperTranscribe(audio: ArrayBuffer, contentType: string): Promise<DGTranscript> {
+async function groqWhisperTranscribe(
+  audio: ArrayBuffer,
+  contentType: string,
+  primingKeywords: string[] = [],
+): Promise<DGTranscript> {
   const groqKey = process.env.GROQ_API_KEY;
   if (!groqKey) throw new Error("GROQ_API_KEY not set");
 
@@ -55,6 +85,13 @@ async function groqWhisperTranscribe(audio: ArrayBuffer, contentType: string): P
   form.append("language", "en");
   form.append("response_format", "verbose_json");
   form.append("temperature", "0");
+  // Whisper "prompt" primes the decoder with vocabulary it should expect.
+  // Pass ONLY the content-word list (no surrounding sentence) — feeding the
+  // literal expected sentence causes hallucination where Whisper echoes the
+  // prompt even for silence. A 40-word vocab hint is enough.
+  if (primingKeywords.length > 0) {
+    form.append("prompt", `Vocabulary: ${primingKeywords.join(", ")}.`);
+  }
 
   console.log(`[groq-stt] POST whisper bytes=${audio.byteLength} ext=${ext}`);
   const res = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
@@ -88,16 +125,43 @@ async function groqWhisperTranscribe(audio: ArrayBuffer, contentType: string): P
 
 /** Transcribe an audio buffer. Tries Deepgram nova-2 first; on auth/network
  *  failure (or empty result) falls through to Groq Whisper so a missing
- *  DEEPGRAM_API_KEY can't take the whole Speaking feature down. */
-export async function deepgramTranscribe(audio: ArrayBuffer, contentType: string): Promise<DGTranscript> {
+ *  DEEPGRAM_API_KEY can't take the whole Speaking feature down.
+ *
+ *  `expectedText` (optional) is the target sentence the user is shadowing.
+ *  When provided we extract content words and pass them as Deepgram
+ *  `keywords` (intensifier 2 — mild) and as Whisper `prompt` so the
+ *  recogniser has a vocabulary hint. This typically halves word-error rate
+ *  on 3-10s shadowing clips. Soft bias only — wrong pronunciation still
+ *  shows up as wrong in the transcript. */
+export async function deepgramTranscribe(
+  audio: ArrayBuffer,
+  contentType: string,
+  expectedText?: string,
+): Promise<DGTranscript> {
+  const primingKeywords = expectedText ? extractPrimingKeywords(expectedText) : [];
   // Deepgram first — gives us per-word confidence, which the UI uses to
   // underline mispronounced words. Only one model: nova-2 → nova-3 was a
   // pointless retry when both share the same auth token (a 401 stays 401).
   const dgKey = process.env.DEEPGRAM_API_KEY;
   if (dgKey) {
-    const url = `${DG_LISTEN}?model=nova-2&language=en&punctuate=true&smart_format=true`;
+    const params = new URLSearchParams({
+      model: "nova-2",
+      language: "en",
+      punctuate: "true",
+      smart_format: "true",
+    });
+    // Deepgram `keywords=word:intensifier` boosts the model's prior on
+    // these tokens. Intensifier 2 = mild (range is 1-10). Higher than 3-4
+    // starts causing false positives where the model "hears" the keyword
+    // even when the user said something else — bad for accurate scoring.
+    for (const w of primingKeywords) {
+      params.append("keywords", `${w}:2`);
+    }
+    const url = `${DG_LISTEN}?${params.toString()}`;
     const ct = contentType || "audio/webm";
-    console.log(`[deepgram-stt] POST nova-2 content-type=${ct} bytes=${audio.byteLength}`);
+    console.log(
+      `[deepgram-stt] POST nova-2 content-type=${ct} bytes=${audio.byteLength} keywords=${primingKeywords.length}`,
+    );
     try {
       const res = await fetch(url, {
         method: "POST",
@@ -135,7 +199,7 @@ export async function deepgramTranscribe(audio: ArrayBuffer, contentType: string
   }
 
   // Groq Whisper fallback — same audio bytes, no extra fetch from the client.
-  return groqWhisperTranscribe(audio, contentType);
+  return groqWhisperTranscribe(audio, contentType, primingKeywords);
 }
 
 /** One sentence-shaped chunk with audio timestamps, used by the Shadowing
