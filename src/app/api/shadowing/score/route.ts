@@ -170,11 +170,15 @@ export async function POST(req: Request) {
 
   let transcript = "";
   try {
-    // Pass the expected sentence so Deepgram/Whisper can prime its decoder
-    // with the target vocabulary — typically halves WER on these 3-10s
-    // shadowing clips.
-    const result = await deepgramTranscribe(audio, rawCt, segment.textEn);
+    // preferFast=true → Groq Whisper turbo first (~300-800ms vs Deepgram
+    // 500-2000ms). The shadowing score doesn't use per-word confidence,
+    // so we trade nothing for the speed win. Deepgram is the fallback.
+    // expectedText primes either provider for ~50% WER reduction on
+    // short shadowing clips.
+    const t0 = Date.now();
+    const result = await deepgramTranscribe(audio, rawCt, segment.textEn, true);
     transcript = result.transcript || "";
+    console.log(`[shadowing/score] STT done in ${Date.now() - t0}ms`);
   } catch (e) {
     console.error("[shadowing/score]", e);
     return NextResponse.json(

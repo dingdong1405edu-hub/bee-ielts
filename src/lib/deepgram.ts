@@ -132,13 +132,34 @@ async function groqWhisperTranscribe(
  *  `keywords` (intensifier 2 — mild) and as Whisper `prompt` so the
  *  recogniser has a vocabulary hint. This typically halves word-error rate
  *  on 3-10s shadowing clips. Soft bias only — wrong pronunciation still
- *  shows up as wrong in the transcript. */
+ *  shows up as wrong in the transcript.
+ *
+ *  `preferFast: true` flips the order — Groq Whisper turbo runs first,
+ *  Deepgram is only the fallback. Groq is ~300-800ms vs Deepgram's
+ *  500-2000ms for 3-10s clips, and the shadowing score endpoint doesn't
+ *  use per-word confidence, so the speed win is free. Speaking grading
+ *  keeps the default (Deepgram first) because the player uses confidence
+ *  to underline mispronounced words. */
 export async function deepgramTranscribe(
   audio: ArrayBuffer,
   contentType: string,
   expectedText?: string,
+  preferFast: boolean = false,
 ): Promise<DGTranscript> {
   const primingKeywords = expectedText ? extractPrimingKeywords(expectedText) : [];
+
+  // FAST PATH — Groq Whisper turbo first. On any failure, fall through to
+  // Deepgram so a Groq outage doesn't take scoring down.
+  if (preferFast) {
+    try {
+      console.log("[stt] fast-path: Groq Whisper first");
+      return await groqWhisperTranscribe(audio, contentType, primingKeywords);
+    } catch (e) {
+      console.warn(
+        `[stt] Groq fast-path failed, falling back to Deepgram: ${e instanceof Error ? e.message : e}`,
+      );
+    }
+  }
   // Deepgram first — gives us per-word confidence, which the UI uses to
   // underline mispronounced words. Only one model: nova-2 → nova-3 was a
   // pointless retry when both share the same auth token (a 401 stays 401).

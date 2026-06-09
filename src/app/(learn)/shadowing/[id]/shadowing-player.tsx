@@ -130,6 +130,11 @@ export function ShadowingPlayer({ lesson, segments, mode = "shadowing" }: Shadow
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
   const [recording, setRecording] = useState(false);
   const [scoring, setScoring] = useState(false);
+  // Elapsed milliseconds since `scoring` flipped to true. We tick every
+  // 100ms while scoring is active and surface this in the UI so the user
+  // knows the request is alive even when STT takes 1-2s. Avoids the
+  // "did it freeze?" feeling.
+  const [scoringMs, setScoringMs] = useState(0);
   const [score, setScore] = useState<ScoreResult | null>(null);
   const [tab, setTab] = useState<"subtitles" | "notes">("subtitles");
   const [noteText, setNoteText] = useState("");
@@ -148,6 +153,22 @@ export function ShadowingPlayer({ lesson, segments, mode = "shadowing" }: Shadow
   const [autoNextIn, setAutoNextIn] = useState<number | null>(null);
   const autoNextTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoNextTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Tick the scoring elapsed-time counter so the UI can show "Đang chấm
+  // … 1.2s". 100ms cadence — smooth enough to look alive, cheap enough
+  // to not matter.
+  useEffect(() => {
+    if (!scoring) {
+      setScoringMs(0);
+      return;
+    }
+    const startedAt = Date.now();
+    const id = window.setInterval(() => {
+      setScoringMs(Date.now() - startedAt);
+    }, 100);
+    return () => window.clearInterval(id);
+  }, [scoring]);
+
   const clearAutoNext = () => {
     if (autoNextTimerRef.current) clearTimeout(autoNextTimerRef.current);
     if (autoNextTickRef.current) clearInterval(autoNextTickRef.current);
@@ -1110,7 +1131,7 @@ export function ShadowingPlayer({ lesson, segments, mode = "shadowing" }: Shadow
           <div className="flex-1 min-w-0">
             <p className="font-extrabold">
               {scoring
-                ? "Đang chấm..."
+                ? `Đang chấm... ${(scoringMs / 1000).toFixed(1)}s`
                 : recording
                   ? "🔴 Đang ghi âm — nói theo câu vừa nghe"
                   : waitingForUser
@@ -1123,7 +1144,9 @@ export function ShadowingPlayer({ lesson, segments, mode = "shadowing" }: Shadow
               {recording
                 ? "Bấm XONG bên phải khi đọc xong • tối đa 60 giây"
                 : scoring
-                  ? "Đang gửi đi chấm..."
+                  ? scoringMs > 4000
+                    ? "AI hơi chậm hôm nay — đang đợi server STT…"
+                    : "Đang gửi audio + AI nhận dạng giọng nói…"
                   : followCountdown != null
                     ? "Bấm mic để dừng đếm ngược + thu âm chấm phát âm"
                     : waitingForUser
