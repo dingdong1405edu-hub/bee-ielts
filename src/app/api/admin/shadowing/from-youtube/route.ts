@@ -157,7 +157,7 @@ function translateYoutubeError(raw: string): string {
     msg.includes("login required") ||
     msg.includes("sign in")
   )
-    return "YouTube yêu cầu đăng nhập cho video này (age-gate hoặc bot detection). Đã thử nhiều client — vẫn fail. Chọn video công khai khác hoặc dùng video có phụ đề EN sẵn.";
+    return "YouTube đang chặn server (bot detection). Đã thử 5 client (IOS/ANDROID/TV_EMBEDDED/WEB_EMBEDDED/MWEB), tất cả đều fail. Cần set env var YT_COOKIE trên Railway: mở YouTube logged-in trên browser → F12 → Network → request youtube.com → copy header `cookie:` → dán làm YT_COOKIE env. Sau đó video sẽ tải được.";
   if (msg.includes("private")) return "Video ở chế độ private — không tải được.";
   if (msg.includes("not available") || msg.includes("unavailable"))
     return "Video không khả dụng (đã xoá hoặc bị chặn vùng cho server).";

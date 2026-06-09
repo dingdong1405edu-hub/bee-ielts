@@ -317,13 +317,48 @@ async function getInnertube(): Promise<Innertube> {
   // Concurrent callers must share the same in-flight create() promise or
   // we'd init twice on the very first burst of requests.
   if (g.__beeInnertubePromise) return g.__beeInnertubePromise;
+  // YouTube has been tightening bot detection — videos that used to download
+  // fine now return "login required" on bare IOS client. Three escape hatches,
+  // applied IF the matching env var is set:
+  //   YT_COOKIE        — paste a logged-in browser's "cookie:" header from a
+  //                      YouTube request. Most reliable bypass.
+  //   YT_VISITOR_DATA  — alternative when full cookie isn't available; grab
+  //                      from a YT request's response (X-YouTube-Visitor-Id).
+  //   YT_PO_TOKEN      — Proof of Origin Token. Pair with YT_VISITOR_DATA.
+  // Also flip generate_session_locally OFF so the session pulls a fresh
+  // visitor_data from YouTube on init — that alone bypasses some of the
+  // less aggressive checks even without cookies.
+  const cookie = process.env.YT_COOKIE?.trim() || undefined;
+  const visitor_data = process.env.YT_VISITOR_DATA?.trim() || undefined;
+  const po_token = process.env.YT_PO_TOKEN?.trim() || undefined;
+  if (cookie) console.log("[yt-init] using YT_COOKIE (authenticated session)");
+  if (po_token) console.log("[yt-init] using YT_PO_TOKEN");
+  if (visitor_data) console.log("[yt-init] using YT_VISITOR_DATA");
   g.__beeInnertubePromise = Innertube.create({
     cache: new UniversalCache(false),
-    generate_session_locally: true,
-  }).then((c) => {
-    g.__beeInnertube = c;
-    return c;
-  });
+    generate_session_locally: false,
+    ...(cookie ? { cookie } : {}),
+    ...(visitor_data ? { visitor_data } : {}),
+    ...(po_token ? { po_token } : {}),
+  })
+    .catch(async (e) => {
+      // If retrieving the session from YouTube fails (network blip / 4xx),
+      // fall back to local generation so we don't hard-break on init.
+      console.warn(
+        `[yt-init] remote session failed, falling back to local: ${e instanceof Error ? e.message : e}`,
+      );
+      return Innertube.create({
+        cache: new UniversalCache(false),
+        generate_session_locally: true,
+        ...(cookie ? { cookie } : {}),
+        ...(visitor_data ? { visitor_data } : {}),
+        ...(po_token ? { po_token } : {}),
+      });
+    })
+    .then((c) => {
+      g.__beeInnertube = c;
+      return c;
+    });
   return g.__beeInnertubePromise;
 }
 
