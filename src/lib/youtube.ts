@@ -397,24 +397,55 @@ function resolveDuration(info: {
   return Math.max(...candidates) / 1000;
 }
 
-/** Order matters: IOS is most permissive for normal videos, ANDROID is a
- *  good fallback when IOS gets `login_required`, TV_EMBEDDED bypasses
- *  age-gates on most "you must sign in" videos, WEB_EMBEDDED is the last
- *  resort for embedded-only content. Skipping IOS_MUSIC / ANDROID_MUSIC
- *  because they 4xx on non-music content. */
-const YT_CLIENTS = ["IOS", "ANDROID", "TV_EMBEDDED", "WEB_EMBEDDED", "MWEB"] as const;
+/** Order matters. TV_EMBEDDED bypasses the widest range of restrictions
+ *  (age-gates, embed-only, "UNPLAYABLE" embed flags, login_required) so it
+ *  goes FIRST — earlier ordering had it 3rd which meant videos that only
+ *  it could play were getting blocked by the IOS/ANDROID failures ahead of
+ *  it. IOS / ANDROID still come next for normal videos (full audio
+ *  qualities). WEB_EMBEDDED + MWEB last as a safety net. Skipping
+ *  IOS_MUSIC / ANDROID_MUSIC because they 4xx on non-music content. */
+const YT_CLIENTS = ["TV_EMBEDDED", "IOS", "ANDROID", "WEB_EMBEDDED", "MWEB"] as const;
 
 function isRecoverableError(e: unknown): boolean {
   const msg = (e instanceof Error ? e.message : String(e)).toLowerCase();
-  // Retry on auth / bot detection — DON'T retry on private/unavailable
-  // (no client can bypass those).
+  // Retry on auth / bot detection / client-level blocks. TV_EMBEDDED can
+  // often play videos IOS reports as "UNPLAYABLE" (e.g. embed restrictions
+  // that TVs ignore). "ERROR" is the generic UNPLAYABLE wrapper; "age" and
+  // "content_check" are age-gate variants TV_EMBEDDED also bypasses.
+  // DON'T retry on private/unavailable (truly gone — no client helps).
   return (
     msg.includes("login") ||
     msg.includes("sign in") ||
     msg.includes("po_token") ||
     msg.includes("po token") ||
     msg.includes("403") ||
-    msg.includes("forbidden")
+    msg.includes("forbidden") ||
+    msg.includes("unplayable") ||
+    msg.includes("playabilityerror") ||
+    msg.includes("age_verification") ||
+    msg.includes("age-restricted") ||
+    msg.includes("content_check") ||
+    msg.includes("inappropriate") ||
+    msg.includes("playability") // catch-all for any other PLAYABILITY_STATUS
+  );
+}
+
+/** Inspect the playability_status that YouTube embeds in the player
+ *  response. Some clients (notably IOS) return a 200 from getBasicInfo but
+ *  with playability_status.status === "UNPLAYABLE" / "ERROR", which means
+ *  yt.download() will explode mid-flight with "Video is unplayable". Throw
+ *  an Error that `isRecoverableError` will pick up so we retry on
+ *  TV_EMBEDDED / WEB_EMBEDDED (which often play these). */
+function ensurePlayable(
+  info: { playability_status?: { status?: string; reason?: string } | null },
+  videoId: string,
+  client: string,
+): void {
+  const status = info.playability_status?.status?.toUpperCase();
+  if (!status || status === "OK") return;
+  const reason = info.playability_status?.reason ?? "";
+  throw new Error(
+    `[${client}] Video unplayable status=${status} reason=${reason || "(none)"} ytId=${videoId}`,
   );
 }
 
@@ -441,7 +472,8 @@ export async function getYouTubeTranscriptViaInnertube(
   for (const client of YT_CLIENTS) {
     try {
       info = await yt.getInfo(videoId, { client });
-      if (client !== "IOS") {
+      ensurePlayable(info, videoId, client);
+      if (client !== "TV_EMBEDDED") {
         console.log(
           `[yt-tx] info fallback client ${client} succeeded for ${videoId}`,
         );
@@ -520,8 +552,9 @@ export async function getYouTubeBasicInfo(videoId: string): Promise<YouTubeBasic
   for (const client of YT_CLIENTS) {
     try {
       const info = await yt.getBasicInfo(videoId, { client });
+      ensurePlayable(info, videoId, client);
       const basic = info.basic_info;
-      if (client !== "IOS") {
+      if (client !== "TV_EMBEDDED") {
         console.log(`[yt-info] fallback client ${client} succeeded for ${videoId}`);
       }
       return {
@@ -574,8 +607,9 @@ export async function getYouTubeAudioBuffer(videoId: string): Promise<YouTubeAud
   for (const client of YT_CLIENTS) {
     try {
       info = await yt.getBasicInfo(videoId, { client });
+      ensurePlayable(info, videoId, client);
       infoClient = client;
-      if (client !== "IOS") {
+      if (client !== "TV_EMBEDDED") {
         console.log(
           `[yt-audio] info fallback client ${client} succeeded for ${videoId}`,
         );
@@ -636,7 +670,7 @@ export async function getYouTubeAudioBuffer(videoId: string): Promise<YouTubeAud
         }
         chunks.push(chunk);
       }
-      if (client !== "IOS") {
+      if (client !== "TV_EMBEDDED") {
         console.log(
           `[yt-audio] download fallback client ${client} succeeded for ${videoId}`,
         );
