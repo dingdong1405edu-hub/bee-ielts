@@ -35,7 +35,6 @@ import {
   extractYoutubeId,
   getYouTubeAudioBuffer,
   getYouTubeBasicInfo,
-  getYouTubeTranscriptViaInnertube,
   MAX_AUDIO_FALLBACK_SEC,
   mergeCuesIntoSegments,
   refineSegmentsForShadowing,
@@ -314,52 +313,23 @@ export async function POST(req: Request) {
   const finalTitle = (parsed.data.title?.trim() || ytTitle || `Video ${ytId}`).slice(0, 200);
   const finalSource = (parsed.data.source?.trim() || ytChannel || "YouTube").slice(0, 80);
 
-  // 1. Captions FIRST — try the more-reliable Innertube path before the
-  //    flakier `youtube-transcript` package. Innertube has multi-client
-  //    retry built in (IOS → ANDROID → TV_EMBEDDED → ...) so videos that
-  //    YouTube has flagged for bot detection still get through.
-  //    `youtube-transcript` was the old default but it returns "no track"
-  //    silently when bot-flagged, with no retry — that was the cause of
-  //    "video used to upload but doesn't anymore". Now it's the FALLBACK.
+  // 1. Captions path first — free + fast.
   let merged: MergedSegment[] = [];
   let method: "captions" | "audio" = "captions";
   let sttSource: "deepgram" | "groq-whisper" | null = null;
 
-  // Path 1a — Innertube getTranscript (with retry, primary).
-  let innertubeCaptionsErr: string | null = null;
-  try {
-    const cues = await getYouTubeTranscriptViaInnertube(ytId);
-    console.log(
-      `[from-youtube] innertube transcript ytId=${ytId} cues=${cues.length}`,
-    );
-    merged = refineSegmentsForShadowing(mergeCuesIntoSegments(cues));
-  } catch (e) {
-    innertubeCaptionsErr = e instanceof Error ? e.message : String(e);
-    console.warn(
-      `[from-youtube] innertube transcript fail ytId=${ytId}: ${innertubeCaptionsErr}`,
-    );
+  const captionAttempt = await tryCaptions(ytId);
+  if (captionAttempt.kind === "ok") {
+    // Same refine pass as the audio path: comma-splits + interjection
+    // merge make caption-based lessons drillable, not just transcribed.
+    merged = refineSegmentsForShadowing(mergeCuesIntoSegments(captionAttempt.cues));
   }
 
-  // Path 1b — youtube-transcript fallback (legacy, no retry — but a
-  //    different endpoint, so it sometimes works when Innertube doesn't).
-  // `captionAttempt` is declared unconditionally so the langsMsg below
-  // still has something to read regardless of which path ran.
-  let captionAttempt: CaptionsResult | CaptionsFail | null = null;
-  if (merged.length === 0) {
-    captionAttempt = await tryCaptions(ytId);
-    if (captionAttempt.kind === "ok") {
-      console.log(
-        `[from-youtube] youtube-transcript rescued ytId=${ytId} cues=${captionAttempt.cues.length}`,
-      );
-      merged = refineSegmentsForShadowing(mergeCuesIntoSegments(captionAttempt.cues));
-    }
-  }
-
-  // 2. Audio fallback — only if BOTH captions paths failed AND admin allowed it.
+  // 2. Audio fallback — only if captions failed AND admin allowed it.
   if (merged.length === 0) {
     if (!parsed.data.allowAudioFallback) {
       const langsMsg =
-        captionAttempt?.kind === "fail" && captionAttempt.availableLangs.length > 0
+        captionAttempt.kind === "fail" && captionAttempt.availableLangs.length > 0
           ? ` Track có sẵn: ${captionAttempt.availableLangs.join(", ")}.`
           : "";
       return NextResponse.json(
@@ -376,17 +346,12 @@ export async function POST(req: Request) {
     const audioAttempt = await tryAudioTranscription(ytId);
     if (audioAttempt.kind === "fail") {
       const langsMsg =
-        captionAttempt?.kind === "fail" && captionAttempt.availableLangs.length > 0
+        captionAttempt.kind === "fail" && captionAttempt.availableLangs.length > 0
           ? ` (Captions có: ${captionAttempt.availableLangs.join(", ")})`
           : "";
-      const innertubeMsg = innertubeCaptionsErr
-        ? ` (Innertube transcript: ${innertubeCaptionsErr})`
-        : "";
       return NextResponse.json(
         {
-          error:
-            `Cả 2 path captions và AI nghe đều fail. ${audioAttempt.message}${langsMsg}${innertubeMsg} ` +
-            `Nếu admin có transcript sẵn: mở "Chế độ nâng cao — dán transcript thủ công" ở trên và dán VTT/SRT.`,
+          error: `Cả captions và AI nghe đều fail. ${audioAttempt.message}${langsMsg}`,
         },
         { status: 422 },
       );
