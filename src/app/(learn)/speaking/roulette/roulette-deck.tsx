@@ -137,6 +137,10 @@ export function RouletteDeck({ cards }: { cards: RouletteCard[] }) {
   const [part, setPart] = useState<PartTab>(1);
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [spinning, setSpinning] = useState(false);
+  // After spinning resolves, the picked card visually LIFTS OUT of the fan
+  // for ~750ms before the question overlay opens — gives a real "draw a
+  // card" feel instead of cards-then-modal-pops-in.
+  const [liftingId, setLiftingId] = useState<string | null>(null);
   const [mpOpen, setMpOpen] = useState(false);
   const [mpBusy, setMpBusy] = useState(false);
   const [joinCode, setJoinCode] = useState("");
@@ -188,18 +192,41 @@ export function RouletteDeck({ cards }: { cards: RouletteCard[] }) {
   const spin = () => {
     if (filtered.length === 0) return;
     setSpinning(true);
-    // Cycle the highlight a few times for a "spinning" feel, then settle.
-    let hops = 0;
-    const HOPS = 12;
-    const interval = window.setInterval(() => {
-      hops++;
-      const idx = Math.floor(Math.random() * filtered.length);
-      setPickedId(filtered[idx].id);
-      if (hops >= HOPS) {
-        window.clearInterval(interval);
-        setSpinning(false);
+    setLiftingId(null);
+    setPickedId(null);
+    // Hop timings ease OUT — fast at first, then slower and slower so the
+    // last 2-3 highlights feel like a roulette wheel coming to rest. After
+    // the final hop, the picked card lifts out of the fan for 750ms before
+    // the overlay opens.
+    const timings = [
+      55, 55, 60, 65, 75, 90, 115, 150, 200, 280, 400, 560,
+    ];
+    let hopIdx = 0;
+    let lastIdx = -1;
+    const doHop = () => {
+      // Avoid landing on the same index twice in a row so the highlight
+      // visibly hops every tick (otherwise late hops with single-card decks
+      // can stick).
+      let idx = Math.floor(Math.random() * filtered.length);
+      if (filtered.length > 1 && idx === lastIdx) {
+        idx = (idx + 1) % filtered.length;
       }
-    }, 90);
+      lastIdx = idx;
+      setPickedId(filtered[idx].id);
+      hopIdx++;
+      if (hopIdx < timings.length) {
+        window.setTimeout(doHop, timings[hopIdx]);
+      } else {
+        // Final settle → lift phase. setLiftingId triggers a CSS transition
+        // on the picked card that floats it up + un-rotates it.
+        setLiftingId(filtered[idx].id);
+        window.setTimeout(() => {
+          setSpinning(false);
+          setLiftingId(null);
+        }, 750);
+      }
+    };
+    window.setTimeout(doHop, timings[0]);
   };
 
   // Reset selection when part tab changes.
@@ -302,6 +329,7 @@ export function RouletteDeck({ cards }: { cards: RouletteCard[] }) {
             if (!spinning) setPickedId(id);
           }}
           highlightedId={spinning ? pickedId : null}
+          liftingId={liftingId}
         />
 
         <div className="flex flex-col items-center gap-3 -mt-2">
@@ -324,8 +352,12 @@ export function RouletteDeck({ cards }: { cards: RouletteCard[] }) {
               </>
             )}
           </button>
-          <p className="text-xs text-white/70 italic">
-            Tap a card or the button to draw a random question
+          <p className="text-xs text-white/80 italic">
+            {spinning
+              ? liftingId
+                ? "Đang lấy thẻ ra…"
+                : "Finding your question…"
+              : "Tap a card or the button to draw a random question"}
           </p>
         </div>
       </div>
@@ -427,10 +459,12 @@ function FanOfCards({
   cards,
   onPick,
   highlightedId,
+  liftingId,
 }: {
   cards: RouletteCard[];
   onPick: (id: string) => void;
   highlightedId: string | null;
+  liftingId: string | null;
 }) {
   if (cards.length === 0) {
     return (
@@ -456,27 +490,42 @@ function FanOfCards({
         const angle = -ARC / 2 + ARC * t;
         const hue = hueOf(c.hue);
         const highlighted = highlightedId === c.id;
+        const lifting = liftingId === c.id;
+        // While lifting, override the fan rotation: float the card up to
+        // the centre of the panel + un-rotate + scale up. CSS transition
+        // (700ms cubic-bezier) handles the actual animation. The longer
+        // duration on lift vs spin-hop sells "drawing a card out".
+        const transform = lifting
+          ? `translateY(-180px) scale(1.25) rotate(0deg)`
+          : `rotate(${angle}deg)`;
         return (
           <button
             key={c.id}
             type="button"
             onClick={() => onPick(c.id)}
             className={cn(
-              "absolute bottom-24 left-1/2 -ml-[72px] md:-ml-[84px] transition-transform duration-300 ease-out",
-              highlighted
+              "absolute bottom-24 left-1/2 -ml-[72px] md:-ml-[84px]",
+              lifting
+                ? "z-[60] transition-transform duration-[700ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
+                : "transition-transform duration-300 ease-out",
+              !lifting && highlighted
                 ? "z-50 scale-[1.08]"
-                : "z-0 hover:z-30 hover:-translate-y-3 hover:scale-105",
+                : !lifting
+                  ? "z-0 hover:z-30 hover:-translate-y-3 hover:scale-105"
+                  : null,
             )}
             style={{
-              transform: `rotate(${angle}deg)`,
-              transformOrigin: `50% calc(100% + ${PIVOT}px)`,
+              transform,
+              transformOrigin: lifting
+                ? "center"
+                : `50% calc(100% + ${PIVOT}px)`,
             }}
             aria-label={`Topic: ${c.topic}`}
           >
             <PlayingCardBack
               topic={c.topic}
               hue={hue}
-              highlighted={highlighted}
+              highlighted={highlighted || lifting}
             />
           </button>
         );
