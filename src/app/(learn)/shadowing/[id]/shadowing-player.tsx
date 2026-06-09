@@ -35,7 +35,6 @@ import {
   NotebookPen,
   Sparkles,
   X,
-  Headphones,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WordTranslatePopup } from "@/components/learn/word-translate-popup";
@@ -944,12 +943,13 @@ export function ShadowingPlayer({ lesson, segments, mode = "shadowing" }: Shadow
                     )}
                     <Volume2 className="h-3 w-3 text-muted-foreground ml-auto" />
                   </div>
-                  {/* In dictation mode, mask the English/Vi for segments the
-                      user hasn't finished — showing them would let learners
-                      pre-read the answer before opening the segment. */}
+                  {/* Dictation mode: blur the English for segments not yet
+                      done. User can see length + word shapes (so segments are
+                      distinguishable in the list) but can't read the answer.
+                      Vietnamese is fully hidden — too easy a spoiler. */}
                   {isDictation && !done ? (
-                    <p className="text-sm font-medium leading-snug text-muted-foreground italic">
-                      🔒 {s.textEn.split(/\s+/).filter(Boolean).length} từ — chưa làm
+                    <p className="text-sm font-medium leading-snug blur-sm select-none">
+                      {s.textEn}
                     </p>
                   ) : (
                     <>
@@ -1050,23 +1050,6 @@ export function ShadowingPlayer({ lesson, segments, mode = "shadowing" }: Shadow
           </>
         )}
 
-        {/* DICTATION: small placeholder where the answer used to live so
-            the layout doesn't jump. Shows segment number + "listen and type"
-            cue, no spoilers. */}
-        {isDictation && active && (
-          <div className="flex items-center gap-3 rounded-2xl border-2 border-dashed border-gold-300 bg-gold-50/40 dark:bg-gold-950/20 px-4 py-3 text-sm">
-            <Headphones className="h-5 w-5 text-gold-600 shrink-0" />
-            <div>
-              <p className="font-bold text-gold-700 dark:text-gold-300">
-                Câu #{(activeIdx ?? 0) + 1} · Nghe và gõ lại
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Bấm <span className="font-bold">▶</span> để nghe lại bao nhiêu lần
-                cũng được. Đáp án sẽ hiện ở dưới khi bạn gõ đúng.
-              </p>
-            </div>
-          </div>
-        )}
 
         {/* DICTATION MODE — letter-by-letter reveal panel. Hidden in
             shadowing mode; shown instead of the record card. */}
@@ -1330,18 +1313,20 @@ function NavCard({
 }
 
 /**
- * Progress trail — branded replacement for the Mario screenshot. A
- * sage-gold progress track fills from 0..pct%, a marker sits at the
- * head of the fill, and a goal flag marks the finish line. Pure CSS so
- * we don't pay for framer-motion on every render.
- */
-/**
- * Dictation panel. Renders the sentence with already-typed letters
- * REVEALED (foreground colour) and not-yet-typed letters HIDDEN behind a
- * blur + grey box so the user has to actually listen + type. Shake
- * animation on wrong key. Buttons: Hiện đáp án (reveal everything, no
- * completion credit), Làm lại (reset typing). Auto-advance happens at
- * the parent level when typed === expected.length.
+ * Dictation panel. 3 visual layers stacked vertically:
+ *
+ *   1) Blurred preview of the full sentence — the user can see word *shapes*
+ *      (length, capitalization) but not read the answer until they've typed
+ *      enough to clear the blur on each letter.
+ *   2) Per-letter slot boxes — every letter the user must type is its own
+ *      empty box; typed letters fill green, current-cursor box outlined
+ *      gold. Spaces + punctuation always show.
+ *   3) Mario-style bee + obstacle trail — bee walks left→right along a grass
+ *      track as `typedLetters / totalLetters` progresses, finish-flag at
+ *      the right. Pure CSS, no canvas.
+ *
+ * Shake on wrong key, "Hiện đáp án" reveals everything, "Làm lại" resets.
+ * Auto-advance happens at the parent level when typed === expected.length.
  */
 function DictationCard({
   expected,
@@ -1358,10 +1343,21 @@ function DictationCard({
   onReveal: () => void;
   onReset: () => void;
 }) {
-  // Compute a coarse "match %" — count of correct letters / total letters.
   const totalLetters = (expected.match(/[A-Za-z0-9]/g) ?? []).length;
   const typedLetters = (expected.slice(0, typed).match(/[A-Za-z0-9]/g) ?? []).length;
   const pct = totalLetters === 0 ? 0 : Math.round((typedLetters / totalLetters) * 100);
+
+  // Static obstacle pattern derived from the sentence length so it looks
+  // varied but reproducible. Each obstacle has a left% and an emoji.
+  const obstacles = useMemo(() => {
+    const count = Math.min(6, Math.max(3, Math.floor(totalLetters / 6)));
+    const icons = ["☁️", "📦", "🌳", "☁️", "🍯", "🌿"];
+    return Array.from({ length: count }).map((_, i) => ({
+      left: 10 + ((i + 1) * (80 / (count + 1))),
+      icon: icons[i % icons.length],
+    }));
+  }, [totalLetters]);
+
   return (
     <div
       className={cn(
@@ -1381,37 +1377,94 @@ function DictationCard({
         </span>
       </div>
 
-      {/* Reveal area */}
-      <div className="rounded-xl bg-card border p-4 min-h-[120px] font-mono text-lg md:text-xl leading-relaxed">
+      {/* Layer 1: blurred preview. Lets the learner see how long the
+          sentence is + where the word breaks are without revealing the
+          spelling. Once everything is typed (or revealed), unblur. */}
+      <div
+        className={cn(
+          "text-xl md:text-2xl font-extrabold tracking-wide leading-relaxed select-none transition-all text-foreground/70",
+          !revealed && typedLetters < totalLetters && "blur-md",
+        )}
+      >
+        {expected}
+      </div>
+
+      {/* Layer 2: per-letter slot row. */}
+      <div className="flex flex-wrap items-end gap-y-2 gap-x-0.5 rounded-xl bg-card border p-3 min-h-[64px]">
         {expected.split("").map((ch, i) => {
           const isLetter = /[A-Za-z0-9]/.test(ch);
           const isRevealed = i < typed || revealed;
+          const isCursor = i === typed && !revealed;
           if (!isLetter) {
-            // Spaces + punctuation always visible — they're free.
+            // Spaces + punctuation render outside boxes so word boundaries
+            // stay readable.
             return (
-              <span key={i} className="text-muted-foreground">
-                {ch}
+              <span
+                key={i}
+                className={cn(
+                  "inline-block text-base font-bold pb-1 px-0.5",
+                  ch === " " ? "w-2" : "text-muted-foreground",
+                )}
+              >
+                {ch === " " ? "" : ch}
               </span>
             );
           }
-          if (isRevealed) {
-            return (
-              <span key={i} className="text-emerald-600 dark:text-emerald-400 font-bold">
-                {ch}
-              </span>
-            );
-          }
-          // Hidden letter: small slot rendered so the user sees how many
-          // remain. Acts like the dot rows in the reference screenshot.
           return (
             <span
               key={i}
-              className="inline-block w-[0.8em] h-[1.2em] mx-[1px] align-middle border-b-2 border-foreground/30 text-transparent select-none"
+              className={cn(
+                "inline-grid place-items-center h-8 w-6 md:h-9 md:w-7 rounded-md text-sm md:text-base font-extrabold border-2 transition-all",
+                isRevealed
+                  ? "bg-emerald-500/15 border-emerald-500 text-emerald-700 dark:text-emerald-300"
+                  : isCursor
+                    ? "border-amber-500 bg-amber-100/50 dark:bg-amber-950/30 animate-pulse"
+                    : "border-foreground/15 bg-muted/40 text-transparent",
+              )}
             >
-              ·
+              {isRevealed ? ch : "·"}
             </span>
           );
         })}
+      </div>
+
+      {/* Layer 3: Mario-style trail. Bee walks across a grass-on-dirt
+          track; obstacles scatter the path; finish flag at the right.
+          Pure CSS — no canvas. */}
+      <div className="relative h-20 rounded-xl overflow-hidden border-2 border-amber-200 dark:border-amber-800/40 bg-gradient-to-b from-sky-100 via-sky-50 to-amber-100 dark:from-sky-950/40 dark:via-sky-950/20 dark:to-amber-950/40">
+        {/* Sky decoration — drifting clouds */}
+        <span className="absolute top-1 left-[20%] text-base opacity-50">☁️</span>
+        <span className="absolute top-2 left-[55%] text-sm opacity-40">☁️</span>
+        <span className="absolute top-1 left-[80%] text-base opacity-50">☁️</span>
+
+        {/* Ground line */}
+        <div className="absolute bottom-0 left-0 right-0 h-3 bg-gradient-to-b from-amber-300 to-amber-500 dark:from-amber-700 dark:to-amber-900" />
+        <div className="absolute bottom-3 left-0 right-0 h-1 bg-emerald-400 dark:bg-emerald-700" />
+
+        {/* Obstacles sit on the ground line. */}
+        {obstacles.map((o, i) => (
+          <span
+            key={i}
+            className="absolute bottom-3 -translate-x-1/2 text-lg leading-none"
+            style={{ left: `${o.left}%` }}
+          >
+            {o.icon}
+          </span>
+        ))}
+
+        {/* Finish flag at the right. */}
+        <span className="absolute bottom-3 right-1 text-xl leading-none">🏁</span>
+
+        {/* The bee — its left% = match%. Smooth transition so it visibly
+            walks each time the user types a letter. */}
+        <div
+          className="absolute bottom-3 -translate-x-1/2 transition-all duration-300 ease-out"
+          style={{ left: `${Math.min(95, pct)}%` }}
+        >
+          <div className="grid h-8 w-8 place-items-center rounded-full bg-amber-300 border-2 border-amber-500 shadow-md shadow-amber-500/40 text-base leading-none animate-float">
+            🐝
+          </div>
+        </div>
       </div>
 
       <div className="flex items-center gap-2 flex-wrap">
@@ -1429,8 +1482,8 @@ function DictationCard({
         >
           ↻ Làm lại
         </button>
-        <p className="text-xs text-muted-foreground ml-auto">
-          Gõ chữ trên bàn phím — dấu cách + dấu câu tự thêm.
+        <p className="text-xs text-muted-foreground ml-auto hidden sm:block">
+          Gõ chữ — dấu cách + dấu câu tự thêm.
         </p>
       </div>
     </div>
