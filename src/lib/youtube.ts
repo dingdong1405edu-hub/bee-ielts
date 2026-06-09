@@ -438,25 +438,49 @@ export async function getYouTubeAudioBuffer(videoId: string): Promise<YouTubeAud
       `[yt-audio] duration unknown for ${videoId} — relying on streaming size guard.`,
     );
   }
-  const stream = await yt.download(videoId, {
-    type: "audio",
-    quality: "best",
-    format: "any",
-    client: "IOS",
-  });
+  // Try IOS first (was the working client at 510d5f0 era). If it errors
+  // with "Video is unplayable" — which started happening on June 10 for
+  // videos that worked the day before — fall through to TV_EMBEDDED which
+  // bypasses most embed-only / playability-flagged content. ANY other
+  // error bubbles up unchanged (so private/region-block don't burn the
+  // retry budget).
   const HARD_CAP_BYTES = 45 * 1024 * 1024;
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  for await (const chunk of Utils.streamToIterable(stream)) {
-    total += chunk.byteLength;
-    if (total > HARD_CAP_BYTES) {
-      throw new Error(
-        `Audio vượt ${Math.round(HARD_CAP_BYTES / 1024 / 1024)}MB — video quá dài cho AI nghe (~> 45 phút).`,
-      );
+  const downloadWith = async (
+    client: "IOS" | "TV_EMBEDDED",
+  ): Promise<Buffer> => {
+    const stream = await yt.download(videoId, {
+      type: "audio",
+      quality: "best",
+      format: "any",
+      client,
+    });
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    for await (const chunk of Utils.streamToIterable(stream)) {
+      total += chunk.byteLength;
+      if (total > HARD_CAP_BYTES) {
+        throw new Error(
+          `Audio vượt ${Math.round(HARD_CAP_BYTES / 1024 / 1024)}MB — video quá dài cho AI nghe (~> 45 phút).`,
+        );
+      }
+      chunks.push(chunk);
     }
-    chunks.push(chunk);
+    return Buffer.concat(chunks);
+  };
+  let buffer: Buffer;
+  try {
+    buffer = await downloadWith("IOS");
+  } catch (e) {
+    const msg = (e instanceof Error ? e.message : String(e)).toLowerCase();
+    if (msg.includes("unplayable") || msg.includes("playability")) {
+      console.warn(
+        `[yt-audio] IOS=unplayable for ${videoId}, retrying with TV_EMBEDDED`,
+      );
+      buffer = await downloadWith("TV_EMBEDDED");
+    } else {
+      throw e;
+    }
   }
-  const buffer = Buffer.concat(chunks);
   const finalDur = dur > 0 ? dur : Math.max(1, buffer.byteLength / 16000);
   return {
     buffer,
