@@ -467,6 +467,7 @@ export async function getYouTubeTranscriptViaInnertube(
   const yt = await getInnertube();
   let info: Awaited<ReturnType<typeof yt.getInfo>> | null = null;
   let lastErr: Error | null = null;
+  const txPerClient: string[] = [];
   // getInfo (vs getBasicInfo) is required because getTranscript() lives on
   // VideoInfo and needs the full watch_next response, not the player one.
   for (const client of YT_CLIENTS) {
@@ -481,13 +482,18 @@ export async function getYouTubeTranscriptViaInnertube(
       break;
     } catch (e) {
       lastErr = e instanceof Error ? e : new Error(String(e));
+      txPerClient.push(`${client}: ${lastErr.message.slice(0, 100)}`);
       console.warn(
         `[yt-tx] info client=${client} failed for ${videoId}: ${lastErr.message}`,
       );
       if (!isRecoverableError(e)) throw lastErr;
     }
   }
-  if (!info) throw lastErr ?? new Error("Tất cả YouTube client đều fail (transcript info)");
+  if (!info) {
+    throw new Error(
+      `Tất cả ${YT_CLIENTS.length} client fail khi lấy transcript info: ${txPerClient.join(" | ")}`,
+    );
+  }
 
   let txInfo;
   try {
@@ -549,6 +555,7 @@ export async function getYouTubeTranscriptViaInnertube(
 export async function getYouTubeBasicInfo(videoId: string): Promise<YouTubeBasicInfo> {
   const yt = await getInnertube();
   let lastError: Error | null = null;
+  const perClient: string[] = [];
   for (const client of YT_CLIENTS) {
     try {
       const info = await yt.getBasicInfo(videoId, { client });
@@ -566,13 +573,15 @@ export async function getYouTubeBasicInfo(videoId: string): Promise<YouTubeBasic
       };
     } catch (e) {
       lastError = e instanceof Error ? e : new Error(String(e));
-      console.warn(
-        `[yt-info] client=${client} failed for ${videoId}: ${lastError.message}`,
-      );
+      const shortMsg = lastError.message.slice(0, 120);
+      perClient.push(`${client}: ${shortMsg}`);
+      console.warn(`[yt-info] client=${client} failed for ${videoId}: ${lastError.message}`);
       if (!isRecoverableError(e)) throw lastError;
     }
   }
-  throw lastError ?? new Error("Tất cả YouTube client đều fail");
+  throw new Error(
+    `Tất cả ${YT_CLIENTS.length} YouTube client fail cho ${videoId}: ${perClient.join(" | ")}`,
+  );
 }
 
 // MAX_AUDIO_FALLBACK_SEC lives in shadowing-constants.ts so client
@@ -604,6 +613,7 @@ export async function getYouTubeAudioBuffer(videoId: string): Promise<YouTubeAud
   let info: Awaited<ReturnType<typeof yt.getBasicInfo>> | null = null;
   let infoClient: (typeof YT_CLIENTS)[number] | null = null;
   let lastInfoErr: Error | null = null;
+  const infoPerClient: string[] = [];
   for (const client of YT_CLIENTS) {
     try {
       info = await yt.getBasicInfo(videoId, { client });
@@ -617,13 +627,18 @@ export async function getYouTubeAudioBuffer(videoId: string): Promise<YouTubeAud
       break;
     } catch (e) {
       lastInfoErr = e instanceof Error ? e : new Error(String(e));
+      infoPerClient.push(`${client}: ${lastInfoErr.message.slice(0, 100)}`);
       console.warn(
         `[yt-audio] info client=${client} failed for ${videoId}: ${lastInfoErr.message}`,
       );
       if (!isRecoverableError(e)) throw lastInfoErr;
     }
   }
-  if (!info) throw lastInfoErr ?? new Error("Tất cả YouTube client đều fail");
+  if (!info) {
+    throw new Error(
+      `Tất cả ${YT_CLIENTS.length} client fail khi lấy info: ${infoPerClient.join(" | ")}`,
+    );
+  }
 
   if (info.basic_info.is_live) {
     throw new Error("Video đang livestream — không tải audio được.");
@@ -651,6 +666,7 @@ export async function getYouTubeAudioBuffer(videoId: string): Promise<YouTubeAud
   })();
 
   let lastDownloadErr: Error | null = null;
+  const dlPerClient: string[] = [];
   for (const client of downloadOrder) {
     try {
       const stream = await yt.download(videoId, {
@@ -685,6 +701,7 @@ export async function getYouTubeAudioBuffer(videoId: string): Promise<YouTubeAud
       };
     } catch (e) {
       lastDownloadErr = e instanceof Error ? e : new Error(String(e));
+      dlPerClient.push(`${client}: ${lastDownloadErr.message.slice(0, 100)}`);
       console.warn(
         `[yt-audio] download client=${client} failed for ${videoId}: ${lastDownloadErr.message}`,
       );
@@ -692,5 +709,7 @@ export async function getYouTubeAudioBuffer(videoId: string): Promise<YouTubeAud
       if (!isRecoverableError(e)) throw lastDownloadErr;
     }
   }
-  throw lastDownloadErr ?? new Error("Tất cả YouTube download client đều fail");
+  throw new Error(
+    `Tất cả ${downloadOrder.length} client fail khi download: ${dlPerClient.join(" | ")}`,
+  );
 }
