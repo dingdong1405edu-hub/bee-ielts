@@ -368,6 +368,65 @@ export interface ShadowingEnrichItem {
   textVi: string;
 }
 
+const SHADOWING_FIX_SYSTEM = `You are an English transcription cleaner + phonetics + Vietnamese translation assistant for an IELTS shadowing app.
+
+You receive a list of English shadowing segments numbered 1..N. The English text usually comes from automatic speech recognition (Whisper / Deepgram) so it may have:
+- Wrong or missing capitalization (e.g. "i don't" → "I don't").
+- Missing or misplaced punctuation (e.g. "Hello world how are you" → "Hello world. How are you?").
+- Homophone errors ("there/their/they're", "your/you're", "to/too", "speaker/speak", "principle/principal").
+- Concatenated spoken words like "gonna", "wanna" — KEEP these as-is, they are valid spoken English.
+- Filler tokens like "uh", "um", "er" — REMOVE these from textEn.
+
+For each segment, output:
+- textEn: the cleaned English sentence. Fix capitalization + punctuation + obvious word errors. Do NOT paraphrase or change the meaning. Keep contractions ("don't", "I'm", "you're"). Preserve numbers as written in the input (digit vs word).
+- ipa: General American IPA of the CLEANED textEn (no slashes, single space between words, stress marks ˈ ˌ where natural).
+- textVi: natural Vietnamese translation of the CLEANED textEn — concise, neutral tone, do NOT translate proper nouns.
+
+Return ONLY valid JSON — no markdown, no commentary — matching this exact TypeScript type:
+
+type FixResult = {
+  items: { index: number; textEn: string; ipa: string; textVi: string }[];
+};
+
+"index" MUST match the 1-based number we gave you. Items MUST appear in ascending index order and cover every segment exactly once.`;
+
+export interface ShadowingFixItem {
+  index: number;
+  textEn: string;
+  ipa: string;
+  textVi: string;
+}
+
+/** Like enrichShadowingSegments but ALSO cleans the English text. Use when
+ *  the source transcript came from STT and may have capitalization,
+ *  punctuation, or homophone errors. The returned textEn replaces the
+ *  input textEn; admin reviews before saving. */
+export async function fixShadowingSegments(
+  input: ShadowingEnrichInput,
+): Promise<ShadowingFixItem[]> {
+  if (input.segments.length === 0) return [];
+  const lines = input.segments
+    .map((s, i) => `${i + 1}. ${s.textEn.replace(/\s+/g, " ").trim()}`)
+    .join("\n");
+  const userMessage = `Here are ${input.segments.length} shadowing segments from automatic speech recognition. Clean each English sentence, then produce IPA + Vietnamese for the cleaned version. Return the JSON:\n\n${lines}`;
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: Math.min(8000, 200 + input.segments.length * 180),
+    temperature: 0.2,
+    system: SHADOWING_FIX_SYSTEM,
+    messages: [{ role: "user", content: userMessage }],
+  });
+  const text = response.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("");
+  const parsed = extractJSON(text) as { items?: ShadowingFixItem[] };
+  return (parsed.items ?? []).filter(
+    (x) => x && typeof x.index === "number" && typeof x.textEn === "string",
+  );
+}
+
 /** Send a batch of shadowing sentences to Claude and get IPA + Vietnamese back for each. */
 export async function enrichShadowingSegments(
   input: ShadowingEnrichInput,

@@ -3,18 +3,29 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { isAdminOrOwner } from "@/lib/premium";
-import { enrichShadowingSegments } from "@/lib/claude";
+import { enrichShadowingSegments, fixShadowingSegments } from "@/lib/claude";
 
 /**
  * POST /api/admin/shadowing/[id]/ai-fill
  *
- * Re-runs Claude on a subset of segments to refresh IPA + Vietnamese after
- * the admin edits the English text. Stateless: the client sends the rows it
- * wants filled (with a stable `key` so we can match the response back),
- * we never read or write segments here. The edit page applies the result
- * to local state and saves it later through the PATCH endpoint.
+ * Two modes:
+ *
+ * - mode: "fill" (default) — keeps textEn as-is, returns ipa + textVi.
+ *   Use after admin manually edited textEn and wants AI to refresh the
+ *   secondary fields.
+ *
+ * - mode: "fix" — Claude ALSO cleans textEn (capitalization, punctuation,
+ *   obvious Whisper homophones like "your/you're"), then returns the
+ *   cleaned textEn together with ipa + textVi. Use when the segments came
+ *   from STT and the English itself is messy.
+ *
+ * Stateless: the client sends the rows it wants processed (with a stable
+ * `key` so we can match the response back), we never read or write segments
+ * here. The edit page applies the result to local state and saves it later
+ * through the PATCH endpoint.
  */
 const bodySchema = z.object({
+  mode: z.enum(["fill", "fix"]).optional().default("fill"),
   items: z
     .array(
       z.object({
@@ -26,7 +37,7 @@ const bodySchema = z.object({
     .max(60),
 });
 
-export const maxDuration = 90;
+export const maxDuration = 120;
 
 export async function POST(
   req: Request,
@@ -57,6 +68,22 @@ export async function POST(
   }
 
   try {
+    if (parsed.data.mode === "fix") {
+      const fixed = await fixShadowingSegments({
+        segments: parsed.data.items.map((x) => ({ textEn: x.textEn })),
+      });
+      const items = parsed.data.items.map((x, i) => {
+        const match = fixed.find((e) => e.index === i + 1);
+        return {
+          key: x.key,
+          textEn: match?.textEn ?? x.textEn,
+          ipa: match?.ipa ?? "",
+          textVi: match?.textVi ?? "",
+        };
+      });
+      return NextResponse.json({ items, mode: "fix" });
+    }
+
     const enriched = await enrichShadowingSegments({
       segments: parsed.data.items.map((x) => ({ textEn: x.textEn })),
     });
@@ -64,11 +91,12 @@ export async function POST(
       const match = enriched.find((e) => e.index === i + 1);
       return {
         key: x.key,
+        textEn: x.textEn,
         ipa: match?.ipa ?? "",
         textVi: match?.textVi ?? "",
       };
     });
-    return NextResponse.json({ items });
+    return NextResponse.json({ items, mode: "fill" });
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "AI lỗi" },

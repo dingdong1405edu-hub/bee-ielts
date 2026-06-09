@@ -13,6 +13,7 @@ import {
   Sparkles,
   Trash2,
   ExternalLink,
+  Wand2,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -106,7 +107,7 @@ export function ShadowingEditor({ lesson }: { lesson: EditorLesson }) {
     lesson.segments.map(toDraft),
   );
   const [saving, setSaving] = useState(false);
-  const [bulkAiBusy, setBulkAiBusy] = useState(false);
+  const [bulkAiBusy, setBulkAiBusy] = useState<"fill" | "fix" | null>(null);
   const savingRef = useRef(false);
 
   const updateRow = (i: number, patch: Partial<DraftSegment>) => {
@@ -235,8 +236,10 @@ export function ShadowingEditor({ lesson }: { lesson: EditorLesson }) {
     }
   };
 
-  /** Re-run Claude on a single row to refresh IPA + Vietnamese. */
-  const aiFillOne = async (i: number) => {
+  /** Re-run Claude on a single row. mode="fill" keeps textEn, fills IPA + vi.
+   *  mode="fix" lets Claude clean textEn (capitalization, punctuation, obvious
+   *  homophones) then fills IPA + vi for the cleaned version. */
+  const aiRowAction = async (i: number, mode: "fill" | "fix") => {
     const row = drafts[i];
     if (!row.textEn.trim()) {
       toast.error("Cần có câu tiếng Anh trước");
@@ -248,30 +251,37 @@ export function ShadowingEditor({ lesson }: { lesson: EditorLesson }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          mode,
           items: [{ key: row.uiKey, textEn: row.textEn.trim() }],
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "AI lỗi");
-      const item = (data.items as { key: string; ipa: string; textVi: string }[]).find(
-        (x) => x.key === row.uiKey,
-      );
+      const item = (
+        data.items as { key: string; textEn: string; ipa: string; textVi: string }[]
+      ).find((x) => x.key === row.uiKey);
       if (!item) throw new Error("AI không trả về dữ liệu");
       setDrafts((arr) =>
         arr.map((x) =>
           x.uiKey === row.uiKey
-            ? { ...x, ipa: item.ipa, textVi: item.textVi, aiBusy: false }
+            ? {
+                ...x,
+                textEn: mode === "fix" ? item.textEn : x.textEn,
+                ipa: item.ipa,
+                textVi: item.textVi,
+                aiBusy: false,
+              }
             : x,
         ),
       );
-      toast.success("AI đã cập nhật IPA + dịch");
+      toast.success(mode === "fix" ? "AI đã sửa cả câu" : "AI đã cập nhật IPA + dịch");
     } catch (e) {
       updateRow(i, { aiBusy: false });
       toast.error(e instanceof Error ? e.message : "Lỗi");
     }
   };
 
-  /** Re-run Claude on every row missing IPA OR textVi (bulk fix-up). */
+  /** Re-run Claude on every row missing IPA OR textVi (bulk fill-up). */
   const aiFillMissing = async () => {
     const needs = drafts
       .map((d, idx) => ({ d, idx }))
@@ -280,22 +290,22 @@ export function ShadowingEditor({ lesson }: { lesson: EditorLesson }) {
       toast("Không có đoạn nào cần fill");
       return;
     }
-    setBulkAiBusy(true);
+    setBulkAiBusy("fill");
     try {
       const res = await fetch(`/api/admin/shadowing/${lesson.id}/ai-fill`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          mode: "fill",
           items: needs.map(({ d }) => ({ key: d.uiKey, textEn: d.textEn.trim() })),
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "AI lỗi");
       const byKey = new Map<string, { ipa: string; textVi: string }>(
-        (data.items as { key: string; ipa: string; textVi: string }[]).map((x) => [
-          x.key,
-          { ipa: x.ipa, textVi: x.textVi },
-        ]),
+        (data.items as { key: string; textEn: string; ipa: string; textVi: string }[]).map(
+          (x) => [x.key, { ipa: x.ipa, textVi: x.textVi }],
+        ),
       );
       setDrafts((arr) =>
         arr.map((x) => {
@@ -312,7 +322,65 @@ export function ShadowingEditor({ lesson }: { lesson: EditorLesson }) {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Lỗi");
     } finally {
-      setBulkAiBusy(false);
+      setBulkAiBusy(null);
+    }
+  };
+
+  /** Run Claude in "fix" mode on EVERY row with textEn. Cleans English,
+   *  re-translates Vietnamese, regenerates IPA. Overwrites manual edits —
+   *  hence the confirm prompt. Use after pulling rough text from STT. */
+  const aiFixAll = async () => {
+    const targets = drafts
+      .map((d, idx) => ({ d, idx }))
+      .filter(({ d }) => d.textEn.trim());
+    if (targets.length === 0) {
+      toast.error("Chưa có đoạn nào có câu tiếng Anh");
+      return;
+    }
+    if (
+      !confirm(
+        `AI sẽ làm sạch English + dịch + IPA cho ${targets.length} đoạn. Mọi chỉnh sửa thủ công sẽ bị thay thế. Tiếp tục?`,
+      )
+    ) {
+      return;
+    }
+    setBulkAiBusy("fix");
+    try {
+      const res = await fetch(`/api/admin/shadowing/${lesson.id}/ai-fill`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "fix",
+          items: targets.map(({ d }) => ({ key: d.uiKey, textEn: d.textEn.trim() })),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "AI lỗi");
+      const byKey = new Map<
+        string,
+        { textEn: string; ipa: string; textVi: string }
+      >(
+        (
+          data.items as { key: string; textEn: string; ipa: string; textVi: string }[]
+        ).map((x) => [x.key, { textEn: x.textEn, ipa: x.ipa, textVi: x.textVi }]),
+      );
+      setDrafts((arr) =>
+        arr.map((x) => {
+          const got = byKey.get(x.uiKey);
+          if (!got) return x;
+          return {
+            ...x,
+            textEn: got.textEn || x.textEn,
+            ipa: got.ipa,
+            textVi: got.textVi,
+          };
+        }),
+      );
+      toast.success(`AI đã làm sạch ${targets.length} đoạn — nhớ kiểm tra rồi lưu`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Lỗi");
+    } finally {
+      setBulkAiBusy(null);
     }
   };
 
@@ -394,20 +462,37 @@ export function ShadowingEditor({ lesson }: { lesson: EditorLesson }) {
         <CardContent className="p-5 space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <h2 className="font-extrabold">Danh sách đoạn ({drafts.length})</h2>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={aiFixAll}
+                disabled={bulkAiBusy !== null}
+                className="border-rose-300 text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                title="AI làm sạch English + dịch + IPA cho toàn bộ bài. Ghi đè lên chỉnh sửa thủ công."
+              >
+                {bulkAiBusy === "fix" ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Wand2 className="h-3.5 w-3.5" />
+                )}
+                AI làm sạch toàn bài
+              </Button>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={aiFillMissing}
-                disabled={bulkAiBusy}
+                disabled={bulkAiBusy !== null}
+                title="AI tự fill IPA + dịch cho các đoạn còn trống. Không đụng English."
               >
-                {bulkAiBusy ? (
+                {bulkAiBusy === "fill" ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
                   <Sparkles className="h-3.5 w-3.5" />
                 )}
-                AI fill thiếu IPA / dịch
+                AI fill thiếu
               </Button>
               <Button
                 type="button"
@@ -419,6 +504,12 @@ export function ShadowingEditor({ lesson }: { lesson: EditorLesson }) {
               </Button>
             </div>
           </div>
+          <p className="text-xs text-muted-foreground -mt-2">
+            <strong>AI làm sạch</strong>: sửa English (viết hoa, dấu câu, từ
+            đồng âm) + dịch lại + IPA. <strong>AI fill</strong>: chỉ thêm IPA
+            + dịch khi đang trống. Trong từng đoạn, nút <Wand2 className="inline h-3 w-3" /> sửa cả câu,
+            nút <Sparkles className="inline h-3 w-3" /> chỉ refresh IPA + dịch.
+          </p>
 
           <div className="space-y-2">
             {drafts.map((d, i) => (
@@ -469,17 +560,27 @@ export function ShadowingEditor({ lesson }: { lesson: EditorLesson }) {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-7 px-2 text-xs"
-                      onClick={() => aiFillOne(i)}
+                      className="h-7 w-7 p-0 text-rose-700"
+                      onClick={() => aiRowAction(i, "fix")}
                       disabled={!!d.aiBusy}
-                      title="AI tạo lại IPA + dịch cho đoạn này"
+                      title="AI sửa cả câu: làm sạch English + dịch + IPA"
                     >
                       {d.aiBusy ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (
-                        <Sparkles className="h-3.5 w-3.5" />
+                        <Wand2 className="h-3.5 w-3.5" />
                       )}
-                      AI
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0"
+                      onClick={() => aiRowAction(i, "fill")}
+                      disabled={!!d.aiBusy}
+                      title="AI tạo lại IPA + dịch (giữ nguyên English)"
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
                     </Button>
                     <Button
                       type="button"
