@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { Mic, Clock, Volume2, Brain, Trophy, MessageCircle, ClipboardList, MessagesSquare, ArrowRight } from "lucide-react";
+import { Mic, Clock, Volume2, Brain, Trophy, MessageCircle, ClipboardList, MessagesSquare, ArrowRight, Sparkles } from "lucide-react";
 import { SkillIntro } from "@/components/learn/skill-intro";
 import { TestPicker } from "@/components/learn/test-picker";
 import { TestPickerSkeleton } from "@/components/learn/test-picker-skeleton";
@@ -104,6 +104,29 @@ export default function SpeakingIntroPage() {
           })}
         </div>
       </section>
+
+      {/* Roulette hero — fanned-deck "rút thẻ" game. Sits before the full
+          set list so it gets prominent play; multiplayer ships in v2. */}
+      <Link
+        href="/speaking/roulette"
+        className="group max-w-4xl mx-auto block relative overflow-hidden rounded-3xl p-5 md:p-6 text-white shadow-xl bg-gradient-to-br from-[#5e7a3f] via-[#4d6735] to-[#3b5128] hover:-translate-y-0.5 transition-transform"
+      >
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_15%,rgba(255,255,255,0.18),transparent_55%)]" />
+        <div className="absolute -left-2 bottom-0 text-6xl rotate-[-18deg] opacity-30 select-none">🎴</div>
+        <div className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/20 backdrop-blur px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider border border-white/30">
+          <Sparkles className="h-3 w-3" /> Mới
+        </div>
+        <div className="relative flex items-center gap-4">
+          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-white/15 backdrop-blur border border-white/30 shrink-0">
+            <span className="text-2xl">🎲</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-xl md:text-2xl font-extrabold tracking-tight">Speaking Roulette</h2>
+            <p className="text-white/90 text-sm mt-0.5">Rút thẻ chủ đề ngẫu nhiên — Part 1 / 2 / 3 + vocab in context.</p>
+          </div>
+          <ArrowRight className="h-6 w-6 group-hover:translate-x-1 transition-transform" />
+        </div>
+      </Link>
 
       <Suspense fallback={<TestPickerSkeleton />}>
         <SpeakingSetList />

@@ -10,6 +10,7 @@ import { READING_V3_C } from "./data/reading-v3c";
 import { READING_V3_D } from "./data/reading-v3d";
 import { LISTENING_TESTS } from "./data/listening";
 import { WRITING_TASKS, SPEAKING_SETS } from "./data/writing-speaking";
+import { SPEAKING_ROULETTE_CARDS } from "./data/speaking-roulette-cards";
 
 const prisma = new PrismaClient();
 
@@ -168,6 +169,29 @@ async function main() {
     console.log("Writing: seeded.");
   } else {
     console.log("Writing: skipped (đã có dữ liệu).");
+  }
+
+  // Speaking Roulette cards — static deck for /speaking/roulette. Only
+  // seeded on a fresh DB; once admin curates (future feature) we leave it
+  // alone. Cards are unrelated to SpeakingSet (that's the existing IELTS
+  // band-set flow).
+  if ((await prisma.speakingTopicCard.count()) === 0) {
+    for (const c of SPEAKING_ROULETTE_CARDS) {
+      await prisma.speakingTopicCard.create({
+        data: {
+          part: c.part,
+          topic: c.topic,
+          question: c.question,
+          talkPoints: c.talkPoints,
+          vocab: c.vocab,
+          hue: c.hue,
+          order: c.order,
+        },
+      });
+    }
+    console.log("Speaking Roulette: seeded.");
+  } else {
+    console.log("Speaking Roulette: skipped (đã có dữ liệu).");
   }
 
   // Speaking — only on a fresh DB.

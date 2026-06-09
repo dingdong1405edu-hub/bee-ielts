@@ -1,12 +1,25 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
-import { Heart, Zap, Flame, BookOpenText, Play, Lock, Check, Settings } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
-import {EmptyState } from "@/components/brand";
+import {
+  Heart,
+  Zap,
+  Flame,
+  BookOpenText,
+  Lock,
+  Check,
+  Settings,
+} from "lucide-react";
+import { EmptyState } from "@/components/brand";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Beginner Path — full A1→C2 grammar progression. Redesigned per user
+ * mockup: lime-emerald gradient hero, big rounded white stat pills, single
+ * full-width section banner per unit with embedded progress bar, then a
+ * zigzag node trail for individual lessons.
+ */
 export default async function GrammarPathPage() {
   const session = await auth();
   const userId = session?.user?.id;
@@ -31,80 +44,169 @@ export default async function GrammarPathPage() {
       : Promise.resolve(null),
   ]);
 
-  // Flatten all lessons across units to a single path
   const flat = units.flatMap((u) =>
     u.lessons.map((l) => ({
       id: l.id,
       title: l.title,
       unitTitle: u.title,
       level: u.level,
-      progress: (l as { progress?: { completed: boolean; score: number | null }[] }).progress?.[0],
+      progress: (
+        l as { progress?: { completed: boolean; score: number | null }[] }
+      ).progress?.[0],
     })),
   );
 
   const totalLessons = flat.length;
   const completed = flat.filter((l) => l.progress?.completed).length;
   const totalXP = completed * 40;
-  const firstUnitTitle = units[0]?.title ?? "Grammar";
+  const pct = totalLessons === 0 ? 0 : (completed / totalLessons) * 100;
 
-  // Find first non-completed lesson
+  // First not-yet-done lesson is "current"; everything past it is locked.
   const activeIdx = flat.findIndex((l) => !l.progress?.completed);
 
+  // Group flat into units for the section banners (one banner per unit
+  // with its own progress fill).
+  const unitBlocks = units.map((u) => {
+    const lessons = u.lessons.map((l) => ({
+      id: l.id,
+      title: l.title,
+      progress: (
+        l as { progress?: { completed: boolean; score: number | null }[] }
+      ).progress?.[0],
+    }));
+    const done = lessons.filter((l) => l.progress?.completed).length;
+    return {
+      id: u.id,
+      title: u.title,
+      level: u.level as string,
+      lessons,
+      done,
+      total: lessons.length,
+    };
+  });
+
   return (
-    <div className="relative max-w-2xl mx-auto space-y-6">
-      
-      {/* Hero path header */}
-      <div className="gradient-brand relative overflow-hidden rounded-3xl p-6 md:p-7 text-white shadow-xl shadow-primary/20">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_15%,rgba(255,255,255,0.2),transparent_50%)]" />
-        <div className="relative flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">Beginner Path</h1>
-            <span className="mt-2 block h-1 w-12 rounded-full" style={{ backgroundColor: "#14B8A6" }} aria-hidden />
-            <p className="text-white/85 text-sm mt-2">
+    <div className="relative max-w-3xl mx-auto space-y-6 pb-12">
+      {/* Hero — full-width lime → amber gradient card with progress bar. */}
+      <div className="relative overflow-hidden rounded-[28px] shadow-xl shadow-emerald-500/20 bg-gradient-to-r from-emerald-500 via-lime-400 to-amber-300 p-7 md:p-9 text-white">
+        {/* Decorative radial glow + dotted halo to give the card depth. */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_15%,rgba(255,255,255,0.28),transparent_55%)]" />
+        <div className="absolute -right-6 -top-6 h-44 w-44 rounded-full bg-white/10 blur-2xl" />
+
+        <div className="relative flex items-start justify-between gap-3 flex-wrap">
+          <div className="flex-1 min-w-[200px]">
+            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight drop-shadow-sm">
+              Beginner Path
+            </h1>
+            <span
+              className="mt-2 block h-1.5 w-16 rounded-full bg-cyan-400"
+              aria-hidden
+            />
+            <p className="text-white/95 text-sm md:text-base mt-3 font-medium">
               Từ A1 → C2 · {totalLessons} bài học
             </p>
           </div>
-          <div className="text-right">
-            <div className="text-3xl font-extrabold leading-none">{totalXP}</div>
-            <div className="text-xs text-white/80">XP</div>
-          </div>
-        </div>
-        <div className="relative mt-5 space-y-1.5">
-          <Progress value={(completed / Math.max(1, totalLessons)) * 100} className="h-2 bg-white/20" />
-          <div className="flex items-center justify-between text-xs text-white/85">
-            <span>{completed}/{totalLessons} bài hoàn thành</span>
-            <span>{Math.round((completed / Math.max(1, totalLessons)) * 100)}%</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Stats row */}
-      <div className="grid grid-cols-3 gap-3">
-        <StatPill icon={Heart} value={user?.hearts ?? 5} unit="mạng" color="text-rose-500" bg="bg-rose-500/15" />
-        <StatPill icon={Zap} value={user?.xp ?? 0} unit="lượt" color="text-primary/70" bg="bg-primary/15" />
-        <StatPill icon={Flame} value={user?.streakDays ?? 0} unit="ngày" color="text-gold-600" bg="bg-gold-500/15" />
-      </div>
-
-      {/* Unit/section banner */}
-      <Link
-        href="#"
-        className="gradient-brand block relative overflow-hidden rounded-2xl p-5 text-white shadow-lg"
-      >
-        <div className="flex items-center gap-4">
-          <div className="grid h-12 w-12 place-items-center rounded-xl bg-white/20 backdrop-blur">
-            <BookOpenText className="h-6 w-6" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-[11px] uppercase tracking-wider font-bold text-white/85">English Grammar</div>
-            <div className="font-extrabold text-lg truncate">{firstUnitTitle}</div>
-            <Progress value={(completed / Math.max(1, totalLessons)) * 100} className="h-1.5 bg-white/20 mt-1.5" />
-          </div>
           <div className="text-right shrink-0">
-            <div className="text-2xl font-extrabold">{Math.round((completed / Math.max(1, totalLessons)) * 100)}%</div>
-            <div className="text-[11px] text-white/80">{completed === 0 ? "chưa bắt đầu" : "đang học"}</div>
+            <div className="text-5xl md:text-6xl font-extrabold leading-none drop-shadow-sm">
+              {totalXP}
+            </div>
+            <div className="text-xs text-white/90 mt-1 tracking-wider uppercase">
+              XP
+            </div>
           </div>
         </div>
-      </Link>
+
+        <div className="relative mt-8 space-y-2">
+          <div className="h-1.5 rounded-full bg-white/30 overflow-hidden">
+            <div
+              className="h-full bg-white rounded-full transition-[width] duration-700"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <div className="flex items-center justify-between text-xs md:text-sm text-white/95 font-medium">
+            <span>
+              {completed}/{totalLessons} bài hoàn thành
+            </span>
+            <span>{Math.round(pct)}%</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Stat pills — white rounded chips with brand-coloured icon. Matches
+          the mockup spacing exactly. */}
+      <div className="grid grid-cols-3 gap-3 md:gap-4">
+        <StatPill
+          icon={Heart}
+          value={user?.hearts ?? 5}
+          unit="mạng"
+          color="text-rose-500"
+          bg="bg-rose-100"
+        />
+        <StatPill
+          icon={Zap}
+          value={user?.xp ?? 0}
+          unit="lượt"
+          color="text-emerald-600"
+          bg="bg-emerald-100"
+        />
+        <StatPill
+          icon={Flame}
+          value={user?.streakDays ?? 0}
+          unit="ngày"
+          color="text-amber-500"
+          bg="bg-amber-100"
+        />
+      </div>
+
+      {/* Unit section banners — one per CEFR level group. Each fills its
+          own progress bar at the bottom edge of the banner. */}
+      <div className="space-y-3">
+        {unitBlocks.map((u) => {
+          const uPct = u.total === 0 ? 0 : (u.done / u.total) * 100;
+          const state =
+            u.done === 0
+              ? "chưa bắt đầu"
+              : u.done === u.total
+                ? "hoàn thành"
+                : "đang học";
+          return (
+            <Link
+              key={u.id}
+              href={`#unit-${u.id}`}
+              className="group block relative overflow-hidden rounded-[22px] p-5 md:p-6 text-white shadow-lg shadow-emerald-500/15 bg-gradient-to-r from-emerald-500 via-lime-400 to-amber-300 transition-transform hover:-translate-y-0.5"
+            >
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_15%,rgba(255,255,255,0.2),transparent_55%)]" />
+              <div className="relative flex items-center gap-4">
+                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white/25 backdrop-blur border border-white/30 shrink-0">
+                  <BookOpenText className="h-6 w-6" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[11px] uppercase tracking-[0.18em] font-extrabold text-white/95">
+                    English Grammar
+                  </div>
+                  <div className="text-lg md:text-xl font-extrabold leading-tight">
+                    {u.level} · {u.title}
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="text-2xl md:text-3xl font-extrabold leading-none">
+                    {Math.round(uPct)}%
+                  </div>
+                  <div className="text-[11px] text-white/90 mt-0.5">
+                    {state}
+                  </div>
+                </div>
+              </div>
+              <div className="relative mt-4 h-1 rounded-full bg-white/30 overflow-hidden">
+                <div
+                  className="h-full bg-white rounded-full transition-[width] duration-700"
+                  style={{ width: `${uPct}%` }}
+                />
+              </div>
+            </Link>
+          );
+        })}
+      </div>
 
       {totalLessons === 0 ? (
         <EmptyState
@@ -113,23 +215,32 @@ export default async function GrammarPathPage() {
           action={
             <Link
               href="/vocab"
-              className="inline-flex items-center gap-1.5 rounded-full gradient-brand px-5 py-2.5 text-sm font-bold text-white shadow-md transition-opacity hover:opacity-90"
+              className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-emerald-500 to-lime-400 px-5 py-2.5 text-sm font-bold text-white shadow-md transition-opacity hover:opacity-90"
             >
               Luyện từ vựng
             </Link>
           }
         />
       ) : (
-        <div className="relative py-6">
-          {/* dashed vertical line */}
-          <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 border-l-2 border-dashed border-border dark:border-border" aria-hidden />
-          <div className="relative space-y-12">
+        <div className="relative pt-8">
+          <div
+            className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 border-l-2 border-dashed border-emerald-200 dark:border-emerald-900/40"
+            aria-hidden
+          />
+          <div className="relative space-y-14">
             {flat.map((l, i) => {
               const done = !!l.progress?.completed;
               const isActive = i === activeIdx;
-              const locked = !done && !isActive && (activeIdx === -1 || i > activeIdx);
-              // zigzag horizontal offset
-              const offset = i % 4 === 0 ? "ml-0" : i % 4 === 1 ? "ml-24" : i % 4 === 2 ? "ml-12" : "-ml-12";
+              const locked =
+                !done && !isActive && (activeIdx === -1 || i > activeIdx);
+              const offset =
+                i % 4 === 0
+                  ? "ml-0"
+                  : i % 4 === 1
+                    ? "ml-24"
+                    : i % 4 === 2
+                      ? "ml-12"
+                      : "-ml-12";
               return (
                 <PathNode
                   key={l.id}
@@ -137,7 +248,7 @@ export default async function GrammarPathPage() {
                   title={l.title}
                   level={l.level as string}
                   state={done ? "done" : isActive ? "active" : "locked"}
-                  xp={done ? l.progress?.score ?? 0 : 40}
+                  xp={done ? (l.progress?.score ?? 0) : 40}
                   offset={offset}
                   locked={locked}
                 />
@@ -164,13 +275,19 @@ function StatPill({
   bg: string;
 }) {
   return (
-    <div className="flex items-center gap-2 rounded-2xl border bg-card px-3 py-2.5">
-      <div className={`grid h-8 w-8 place-items-center rounded-xl ${bg}`}>
-        <Icon className={`h-4 w-4 ${color} fill-current`} />
+    <div className="flex items-center gap-3 rounded-full bg-card border-2 border-border/60 px-4 py-3 shadow-sm">
+      <div
+        className={`grid h-9 w-9 place-items-center rounded-full ${bg} shrink-0`}
+      >
+        <Icon className={`h-4.5 w-4.5 ${color} fill-current`} />
       </div>
-      <div>
-        <div className="text-lg font-extrabold leading-none">{value}</div>
-        <div className="text-[10px] text-muted-foreground uppercase tracking-wider">{unit}</div>
+      <div className="min-w-0">
+        <div className="text-xl md:text-2xl font-extrabold leading-none">
+          {value}
+        </div>
+        <div className="text-[10px] text-muted-foreground uppercase tracking-[0.18em] font-bold">
+          {unit}
+        </div>
       </div>
     </div>
   );
@@ -196,8 +313,17 @@ function PathNode({
   const isActive = state === "active";
   const isDone = state === "done";
 
-  const ring = isActive ? "from-honey to-honey-deep" : isDone ? "from-sage-400 to-teal-500" : "from-muted to-muted-foreground";
-  const ringShadow = isActive ? "shadow-primary/40" : isDone ? "shadow-sage-500/40" : "shadow-muted-foreground/20";
+  // Active = lime→amber (matches hero), Done = emerald solid, Locked = muted.
+  const ring = isActive
+    ? "from-lime-400 to-amber-400"
+    : isDone
+      ? "from-emerald-400 to-emerald-600"
+      : "from-muted to-muted-foreground";
+  const ringShadow = isActive
+    ? "shadow-amber-400/40"
+    : isDone
+      ? "shadow-emerald-500/40"
+      : "shadow-muted-foreground/20";
 
   return (
     <div className={`relative w-fit mx-auto flex flex-col items-center ${offset}`}>
@@ -220,7 +346,9 @@ function PathNode({
           ) : isActive ? (
             <div className="flex flex-col items-center gap-0.5">
               <Settings className="h-6 w-6" />
-              <span className="text-[10px] font-extrabold tracking-wider">BẮT ĐẦU</span>
+              <span className="text-[10px] font-extrabold tracking-wider">
+                BẮT ĐẦU
+              </span>
             </div>
           ) : (
             <Lock className="h-7 w-7" />
@@ -232,13 +360,33 @@ function PathNode({
         <span
           className={`
             inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-extrabold tracking-wider uppercase border
-            ${isActive ? "bg-primary/15 text-primary border-primary/40" : isDone ? "bg-sage-500/15 text-sage-700 dark:text-sage-300 border-sage-500/40" : "bg-muted text-muted-foreground border-border"}
+            ${
+              isActive
+                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40"
+                : isDone
+                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40"
+                  : "bg-muted text-muted-foreground border-border"
+            }
           `}
         >
           {locked ? "KHOÁ" : "NGỮ PHÁP"}
         </span>
-        <div className={`max-w-[160px] text-sm font-bold leading-tight ${locked ? "text-muted-foreground" : "text-foreground"}`}>{title}</div>
-        <div className={`text-[11px] font-bold ${isActive ? "text-primary" : isDone ? "text-sage-600 dark:text-sage-400" : "text-muted-foreground"}`}>
+        <div
+          className={`max-w-[180px] text-sm font-bold leading-tight ${
+            locked ? "text-muted-foreground" : "text-foreground"
+          }`}
+        >
+          {title}
+        </div>
+        <div
+          className={`text-[11px] font-bold ${
+            isActive
+              ? "text-amber-600"
+              : isDone
+                ? "text-emerald-600 dark:text-emerald-400"
+                : "text-muted-foreground"
+          }`}
+        >
           {isDone ? `+${xp} XP đã nhận` : locked ? `· ${level} ·` : `+${xp} XP`}
         </div>
       </div>

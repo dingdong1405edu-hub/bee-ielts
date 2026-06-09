@@ -765,3 +765,25 @@ model ShadowingAttempt {
   @@index([userId, createdAt])
   @@index([segmentId])
 }
+
+/// IELTS Speaking Roulette card — fixed deck of topic prompts learners
+/// "spin" through. Each card belongs to one of the 3 IELTS parts. talkPoints
+/// is the bullet list shown under the question; vocab is an array of
+/// {sentence, keyWord} where keyWord is the bold/clickable word in the
+/// sentence. Static seed data — admin doesn't need a CRUD UI yet.
+model SpeakingTopicCard {
+  id          String   @id @default(cuid())
+  part        Int      /// 1, 2, or 3
+  topic       String   /// short label like "Art", "Family", "Travel"
+  question    String   @db.Text
+  talkPoints  Json     /// string[] (3 bullets)
+  vocab       Json     /// { sentence: string; keyWord: string }[]
+  /// Tailwind hue token for the card background (e.g. "rose", "amber").
+  /// 6-8 colours cycle through the deck to give visual variety.
+  hue         String   @default("amber")
+  /// Display order within its part. Lower = drawn earlier in the spread.
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([part, order])
+}
