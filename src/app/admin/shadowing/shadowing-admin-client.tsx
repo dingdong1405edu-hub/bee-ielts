@@ -2,7 +2,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Video, Plus, Loader2, Trash2, Youtube, ExternalLink, Sparkles, ChevronDown, Wand2 } from "lucide-react";
+import { Video, Plus, Loader2, Trash2, Youtube, ExternalLink, Sparkles, ChevronDown, Wand2, Pencil } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -595,7 +595,12 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {l.source} · {l.segmentCount} đoạn
                     </p>
-                    <div className="flex items-center gap-1.5 mt-2">
+                    <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                      <Button asChild size="sm" variant="outline" className="h-7 text-xs">
+                        <a href={`/admin/shadowing/${l.id}/edit`}>
+                          <Pencil className="h-3 w-3" /> Sửa
+                        </a>
+                      </Button>
                       <Button asChild size="sm" variant="outline" className="h-7 text-xs">
                         <a href={`/shadowing/${l.id}`} target="_blank" rel="noreferrer">
                           <ExternalLink className="h-3 w-3" /> Xem
