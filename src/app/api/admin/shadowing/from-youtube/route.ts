@@ -149,8 +149,15 @@ interface AudioFail {
  *  don't recognise falls through verbatim so admins can still file a bug. */
 function translateYoutubeError(raw: string): string {
   const msg = raw.toLowerCase();
-  if (msg.includes("login_required") || msg.includes("sign in"))
-    return "Video bị age-gate hoặc yêu cầu đăng nhập — chọn video công khai khác.";
+  // Catch both "login_required" (raw status) and "login required" / "is
+  // login required" (formatted by youtubei.js). Previously only matched the
+  // underscore variant so the raw English message leaked to the UI.
+  if (
+    msg.includes("login_required") ||
+    msg.includes("login required") ||
+    msg.includes("sign in")
+  )
+    return "YouTube yêu cầu đăng nhập cho video này (age-gate hoặc bot detection). Đã thử nhiều client — vẫn fail. Chọn video công khai khác hoặc dùng video có phụ đề EN sẵn.";
   if (msg.includes("private")) return "Video ở chế độ private — không tải được.";
   if (msg.includes("not available") || msg.includes("unavailable"))
     return "Video không khả dụng (đã xoá hoặc bị chặn vùng cho server).";
@@ -158,8 +165,8 @@ function translateYoutubeError(raw: string): string {
     return "Video đang livestream — không tải audio được.";
   if (msg.includes("region") || msg.includes("blocked"))
     return "Video bị chặn vùng cho server.";
-  if (msg.includes("po_token"))
-    return "YouTube đang chặn server (yêu cầu PO token). Báo dev kiểm tra YT_COOKIE.";
+  if (msg.includes("po_token") || msg.includes("po token"))
+    return "YouTube đang yêu cầu PO token — server cần được verify lại. Báo dev kiểm tra YT_COOKIE.";
   return raw;
 }
 

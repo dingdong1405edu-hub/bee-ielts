@@ -362,17 +362,53 @@ function resolveDuration(info: {
   return Math.max(...candidates) / 1000;
 }
 
+/** Order matters: IOS is most permissive for normal videos, ANDROID is a
+ *  good fallback when IOS gets `login_required`, TV_EMBEDDED bypasses
+ *  age-gates on most "you must sign in" videos, WEB_EMBEDDED is the last
+ *  resort for embedded-only content. Skipping IOS_MUSIC / ANDROID_MUSIC
+ *  because they 4xx on non-music content. */
+const YT_CLIENTS = ["IOS", "ANDROID", "TV_EMBEDDED", "WEB_EMBEDDED", "MWEB"] as const;
+
+function isRecoverableError(e: unknown): boolean {
+  const msg = (e instanceof Error ? e.message : String(e)).toLowerCase();
+  // Retry on auth / bot detection — DON'T retry on private/unavailable
+  // (no client can bypass those).
+  return (
+    msg.includes("login") ||
+    msg.includes("sign in") ||
+    msg.includes("po_token") ||
+    msg.includes("po token") ||
+    msg.includes("403") ||
+    msg.includes("forbidden")
+  );
+}
+
 export async function getYouTubeBasicInfo(videoId: string): Promise<YouTubeBasicInfo> {
   const yt = await getInnertube();
-  const info = await yt.getBasicInfo(videoId);
-  const basic = info.basic_info;
-  return {
-    videoId,
-    title: basic.title ?? "",
-    durationSec: resolveDuration(info),
-    isLive: !!basic.is_live,
-    channelTitle: basic.author ?? null,
-  };
+  let lastError: Error | null = null;
+  for (const client of YT_CLIENTS) {
+    try {
+      const info = await yt.getBasicInfo(videoId, { client });
+      const basic = info.basic_info;
+      if (client !== "IOS") {
+        console.log(`[yt-info] fallback client ${client} succeeded for ${videoId}`);
+      }
+      return {
+        videoId,
+        title: basic.title ?? "",
+        durationSec: resolveDuration(info),
+        isLive: !!basic.is_live,
+        channelTitle: basic.author ?? null,
+      };
+    } catch (e) {
+      lastError = e instanceof Error ? e : new Error(String(e));
+      console.warn(
+        `[yt-info] client=${client} failed for ${videoId}: ${lastError.message}`,
+      );
+      if (!isRecoverableError(e)) throw lastError;
+    }
+  }
+  throw lastError ?? new Error("Tất cả YouTube client đều fail");
 }
 
 // MAX_AUDIO_FALLBACK_SEC lives in shadowing-constants.ts so client
@@ -398,14 +434,35 @@ export interface YouTubeAudio {
 }
 export async function getYouTubeAudioBuffer(videoId: string): Promise<YouTubeAudio> {
   const yt = await getInnertube();
-  const info = await yt.getBasicInfo(videoId);
+
+  // Pull info with the same multi-client retry as getYouTubeBasicInfo so a
+  // login_required on IOS doesn't kill the whole flow.
+  let info: Awaited<ReturnType<typeof yt.getBasicInfo>> | null = null;
+  let infoClient: (typeof YT_CLIENTS)[number] | null = null;
+  let lastInfoErr: Error | null = null;
+  for (const client of YT_CLIENTS) {
+    try {
+      info = await yt.getBasicInfo(videoId, { client });
+      infoClient = client;
+      if (client !== "IOS") {
+        console.log(
+          `[yt-audio] info fallback client ${client} succeeded for ${videoId}`,
+        );
+      }
+      break;
+    } catch (e) {
+      lastInfoErr = e instanceof Error ? e : new Error(String(e));
+      console.warn(
+        `[yt-audio] info client=${client} failed for ${videoId}: ${lastInfoErr.message}`,
+      );
+      if (!isRecoverableError(e)) throw lastInfoErr;
+    }
+  }
+  if (!info) throw lastInfoErr ?? new Error("Tất cả YouTube client đều fail");
+
   if (info.basic_info.is_live) {
     throw new Error("Video đang livestream — không tải audio được.");
   }
-  // Resolve duration with fallback to adaptive_formats.approx_duration_ms.
-  // If we STILL can't get a number, log + continue: we'll catch oversize
-  // videos with the streaming buffer-size guard below instead of bailing
-  // upfront. A "duration: 0" video usually still downloads fine.
   const dur = resolveDuration(info);
   if (dur > 0 && dur > MAX_AUDIO_FALLBACK_SEC) {
     throw new Error(
@@ -417,41 +474,58 @@ export async function getYouTubeAudioBuffer(videoId: string): Promise<YouTubeAud
       `[yt-audio] duration unknown for ${videoId} — relying on streaming size guard.`,
     );
   }
-  const stream = await yt.download(videoId, {
-    type: "audio",
-    quality: "best",
-    format: "any",
-    client: "IOS",
-  });
-  // Streaming size guard: abort the download the moment we cross ~45MB.
-  // Opus at the "best" audio itag averages ~1MB/min, so 45MB ≈ 45 min —
-  // already past our 30-min target with comfortable headroom for variable
-  // bitrate. Without this guard, a stream we can't measure upfront could
-  // OOM the Railway worker.
+
+  // Try download with each client in turn. We START with the one that got
+  // us the info (high chance it owns the formats too), then fall back
+  // through the rest. Streams that begin then fail mid-flight are also
+  // counted as a failure — we catch the chunk-iteration error.
   const HARD_CAP_BYTES = 45 * 1024 * 1024;
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  for await (const chunk of Utils.streamToIterable(stream)) {
-    total += chunk.byteLength;
-    if (total > HARD_CAP_BYTES) {
-      throw new Error(
-        `Audio vượt ${Math.round(HARD_CAP_BYTES / 1024 / 1024)}MB — video quá dài cho AI nghe (~> 45 phút).`,
+  const downloadOrder = (() => {
+    if (!infoClient) return YT_CLIENTS;
+    return [infoClient, ...YT_CLIENTS.filter((c) => c !== infoClient)];
+  })();
+
+  let lastDownloadErr: Error | null = null;
+  for (const client of downloadOrder) {
+    try {
+      const stream = await yt.download(videoId, {
+        type: "audio",
+        quality: "best",
+        format: "any",
+        client,
+      });
+      const chunks: Uint8Array[] = [];
+      let total = 0;
+      for await (const chunk of Utils.streamToIterable(stream)) {
+        total += chunk.byteLength;
+        if (total > HARD_CAP_BYTES) {
+          throw new Error(
+            `Audio vượt ${Math.round(HARD_CAP_BYTES / 1024 / 1024)}MB — video quá dài cho AI nghe (~> 45 phút).`,
+          );
+        }
+        chunks.push(chunk);
+      }
+      if (client !== "IOS") {
+        console.log(
+          `[yt-audio] download fallback client ${client} succeeded for ${videoId}`,
+        );
+      }
+      const buffer = Buffer.concat(chunks);
+      const finalDur = dur > 0 ? dur : Math.max(1, buffer.byteLength / 16000);
+      return {
+        buffer,
+        contentType: "audio/webm",
+        durationSec: finalDur,
+        title: info.basic_info.title ?? "",
+      };
+    } catch (e) {
+      lastDownloadErr = e instanceof Error ? e : new Error(String(e));
+      console.warn(
+        `[yt-audio] download client=${client} failed for ${videoId}: ${lastDownloadErr.message}`,
       );
+      // Don't retry on size-cap or non-auth errors — those are real failures.
+      if (!isRecoverableError(e)) throw lastDownloadErr;
     }
-    chunks.push(chunk);
   }
-  const buffer = Buffer.concat(chunks);
-  // Post-download duration estimate when metadata gave us nothing: Opus at
-  // youtubei.js "best" quality averages ~16 KB/s (~128 kbps). Off by ~30%
-  // worst case, but more than enough to feed distributeFlatTranscript in
-  // the Groq Whisper fallback path so segments aren't all stuck at t=0.
-  const finalDur = dur > 0 ? dur : Math.max(1, buffer.byteLength / 16000);
-  return {
-    buffer,
-    // We asked for `format: "any"` so most tracks come back as webm/opus.
-    // Deepgram will sniff the container — webm is a safe default.
-    contentType: "audio/webm",
-    durationSec: finalDur,
-    title: info.basic_info.title ?? "",
-  };
+  throw lastDownloadErr ?? new Error("Tất cả YouTube download client đều fail");
 }
