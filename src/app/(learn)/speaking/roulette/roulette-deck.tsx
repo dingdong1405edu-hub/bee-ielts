@@ -16,9 +16,11 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   ArrowLeft,
+  KeyRound,
   Loader2,
   Mic,
   RefreshCw,
@@ -105,9 +107,51 @@ function hueOf(name: string) {
 }
 
 export function RouletteDeck({ cards }: { cards: RouletteCard[] }) {
+  const router = useRouter();
   const [part, setPart] = useState<PartTab>(1);
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [spinning, setSpinning] = useState(false);
+  const [mpOpen, setMpOpen] = useState(false);
+  const [mpBusy, setMpBusy] = useState(false);
+  const [joinCode, setJoinCode] = useState("");
+
+  const createRoom = async () => {
+    setMpBusy(true);
+    try {
+      const res = await fetch("/api/speaking/roulette/rooms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ part }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Tạo phòng lỗi");
+      router.push(`/speaking/roulette/room/${data.code}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Lỗi");
+      setMpBusy(false);
+    }
+  };
+
+  const joinRoom = async () => {
+    const code = joinCode.trim().toUpperCase();
+    if (code.length !== 6) {
+      toast.error("Mã phòng 6 ký tự");
+      return;
+    }
+    setMpBusy(true);
+    try {
+      const res = await fetch(
+        `/api/speaking/roulette/rooms/${code}/join`,
+        { method: "POST" },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Join lỗi");
+      router.push(`/speaking/roulette/room/${code}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Lỗi");
+      setMpBusy(false);
+    }
+  };
 
   const filtered = useMemo(() => cards.filter((c) => c.part === part), [cards, part]);
   const picked = useMemo(
@@ -138,16 +182,39 @@ export function RouletteDeck({ cards }: { cards: RouletteCard[] }) {
   }, [part]);
 
   return (
-    <div className="relative min-h-[80vh] -mx-4 sm:-mx-6 md:-mx-8 -mt-4 md:-mt-6 px-4 sm:px-6 md:px-8 py-6 rounded-3xl overflow-hidden bg-[#5e7a3f] dark:bg-[#3b5128] text-white">
-      {/* Felt-table grid texture — pure CSS so we don't ship an asset. */}
+    <div
+      className="relative min-h-[88vh] -mx-4 sm:-mx-6 md:-mx-8 -mt-4 md:-mt-6 px-4 sm:px-6 md:px-8 py-8 rounded-3xl overflow-hidden text-white"
+      style={{
+        // Felt table — emerald in the centre, deeper green in the corners
+        // gives the board real depth, no flat washed-out look.
+        background:
+          "radial-gradient(ellipse at 50% 35%, #6f9450 0%, #4d6735 55%, #2f4220 100%)",
+      }}
+    >
+      {/* Felt grid texture */}
       <div
         aria-hidden
-        className="absolute inset-0 opacity-30 pointer-events-none"
+        className="absolute inset-0 opacity-20 pointer-events-none"
         style={{
           backgroundImage:
-            "linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)",
+            "linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)",
           backgroundSize: "40px 40px",
         }}
+      />
+      {/* Vignette — corners darker, draws eye to the centre fan. */}
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.35) 100%)",
+        }}
+      />
+      {/* Floor halo behind the fan — a soft warm light glow so cards pop. */}
+      <div
+        aria-hidden
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/4 w-[600px] h-[300px] rounded-full pointer-events-none blur-3xl"
+        style={{ background: "rgba(252, 211, 77, 0.12)" }}
       />
 
       <div className="relative max-w-5xl mx-auto">
@@ -168,9 +235,8 @@ export function RouletteDeck({ cards }: { cards: RouletteCard[] }) {
           </div>
           <button
             type="button"
-            className="inline-flex items-center gap-1.5 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur px-3 py-1.5 text-sm font-bold opacity-80"
-            title="Multiplayer sắp ra mắt — chơi cùng bạn bè"
-            onClick={() => toast("Multiplayer sắp ra mắt — chơi cùng bạn bè!")}
+            className="inline-flex items-center gap-1.5 rounded-full bg-cream text-[#3b5128] px-4 py-1.5 text-sm font-extrabold shadow-md hover:scale-105 transition-transform"
+            onClick={() => setMpOpen(true)}
           >
             <Users className="h-4 w-4" /> Mời bạn bè
           </button>
@@ -246,6 +312,82 @@ export function RouletteDeck({ cards }: { cards: RouletteCard[] }) {
           onClose={() => setPickedId(null)}
         />
       )}
+
+      {/* Multiplayer modal — create room (host) OR join with code. */}
+      {mpOpen && (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => !mpBusy && setMpOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-3xl bg-cream text-foreground p-6 shadow-2xl space-y-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-center">
+              <Users className="mx-auto h-10 w-10 text-emerald-600" />
+              <h2 className="text-2xl font-extrabold font-display mt-2">
+                Chơi cùng bạn bè
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Phòng turn-based, AI chấm điểm sau mỗi câu trả lời. Tối đa 6 người.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={createRoom}
+              disabled={mpBusy}
+              className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-lime-500 text-white py-3 font-extrabold shadow-md hover:scale-[1.02] transition-transform disabled:opacity-50"
+            >
+              {mpBusy ? (
+                <Loader2 className="h-5 w-5 animate-spin inline" />
+              ) : (
+                <>🎯 Tạo phòng mới · Part {part}</>
+              )}
+            </button>
+
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="flex-1 h-px bg-border" />
+              <span>hoặc</span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <KeyRound className="h-3 w-3" /> Vào bằng mã phòng
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={joinCode}
+                  onChange={(e) => setJoinCode(e.target.value.toUpperCase().slice(0, 6))}
+                  placeholder="ABC23X"
+                  maxLength={6}
+                  className="flex-1 rounded-xl bg-card border-2 border-border px-3 py-2.5 font-mono text-lg tracking-[0.3em] text-center font-extrabold focus:border-emerald-500 focus:outline-none"
+                  disabled={mpBusy}
+                />
+                <button
+                  type="button"
+                  onClick={joinRoom}
+                  disabled={mpBusy || joinCode.length !== 6}
+                  className="rounded-xl bg-foreground text-background px-5 font-extrabold disabled:opacity-50"
+                >
+                  {mpBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Vào"}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setMpOpen(false)}
+              disabled={mpBusy}
+              className="w-full text-sm text-muted-foreground hover:text-foreground"
+            >
+              Để sau
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -263,19 +405,26 @@ function FanOfCards({
 }) {
   if (cards.length === 0) {
     return (
-      <div className="h-[260px] grid place-items-center text-white/80">
+      <div className="h-[360px] grid place-items-center text-white/80">
         Chưa có thẻ nào ở Part này.
       </div>
     );
   }
   const n = cards.length;
-  // Spread cards along an arc from -ARC/2 deg to +ARC/2 deg.
-  const ARC = Math.min(110, n * 8);
+  // Spread cards along an arc spanning ARC degrees. ~5-7° per card looks
+  // like a real hand of cards in a casino — cards close to centre overlap
+  // gently, edges fan out cleanly. transform-origin sits 520px below the
+  // bottom of each card so rotation traces a wide arc instead of pivoting
+  // the cards on themselves (the previous version spun each card around
+  // its own corner, hence the "jumbled fan" the user complained about).
+  const PER_CARD = n > 16 ? 4.5 : 6;
+  const ARC = Math.min(110, n * PER_CARD);
+  const PIVOT = 520;
 
   return (
-    <div className="relative h-[260px] md:h-[300px] flex items-end justify-center select-none">
+    <div className="relative h-[380px] md:h-[420px] flex items-end justify-center select-none px-4">
       {cards.map((c, i) => {
-        const t = n === 1 ? 0 : i / (n - 1);
+        const t = n === 1 ? 0.5 : i / (n - 1);
         const angle = -ARC / 2 + ARC * t;
         const hue = hueOf(c.hue);
         const highlighted = highlightedId === c.id;
@@ -285,39 +434,52 @@ function FanOfCards({
             type="button"
             onClick={() => onPick(c.id)}
             className={cn(
-              "absolute bottom-0 origin-bottom transition-transform duration-300",
-              highlighted ? "z-50 -translate-y-3 scale-105" : "z-0 hover:-translate-y-2",
+              "absolute bottom-0 left-1/2 -ml-[68px] md:-ml-[80px] transition-transform duration-300 ease-out",
+              highlighted
+                ? "z-50 scale-[1.08]"
+                : "z-0 hover:z-30 hover:-translate-y-3 hover:scale-105",
             )}
             style={{
-              transform: `rotate(${angle}deg) translateX(0) translateY(0)`,
-              transformOrigin: "bottom center",
+              transform: `rotate(${angle}deg)`,
+              transformOrigin: `50% calc(100% + ${PIVOT}px)`,
             }}
             aria-label={`Topic: ${c.topic}`}
           >
             <div
               className={cn(
-                "h-44 w-28 md:h-56 md:w-36 rounded-xl shadow-xl shadow-black/40 ring-2 ring-white/30 flex flex-col items-center p-2 text-center relative overflow-hidden",
+                "h-52 w-[136px] md:h-64 md:w-40 rounded-2xl shadow-xl shadow-black/30 ring-1 ring-black/20 relative overflow-hidden flex flex-col items-center",
                 hue.bg,
                 hue.text,
-                highlighted && "ring-4 ring-white",
+                highlighted && "ring-4 ring-white shadow-2xl",
               )}
             >
-              {/* Big "?" centered (mystery look) */}
-              <div className="absolute inset-0 grid place-items-center text-white/40 text-5xl md:text-6xl font-extrabold">
-                ?
-              </div>
-              {/* Topic label at the top edge */}
-              <span className="relative text-[10px] md:text-xs font-extrabold uppercase tracking-[0.18em] line-clamp-1 max-w-full">
-                {c.topic}
-              </span>
-              {/* Card-back lines decoration */}
+              {/* Subtle inner border ring — gives the card a printed-edge feel */}
               <span
                 aria-hidden
-                className="absolute bottom-2 left-2 right-2 h-12 rounded-md border-2 border-white/20"
+                className="pointer-events-none absolute inset-2 rounded-xl border border-white/25"
+              />
+              {/* Hue radial glow top-right for depth */}
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_15%,rgba(255,255,255,0.18),transparent_55%)]"
+              />
+              {/* Topic label arched along the top edge */}
+              <span className="relative mt-4 text-[10px] md:text-[11px] font-extrabold uppercase tracking-[0.22em] line-clamp-1 max-w-[80%] text-center px-1">
+                {c.topic}
+              </span>
+              {/* Big "?" centerpiece */}
+              <div className="absolute inset-0 grid place-items-center text-white/40 text-6xl md:text-7xl font-display font-extrabold leading-none drop-shadow-lg">
+                ?
+              </div>
+              {/* Decorative concentric arcs at the bottom — IELTS roulette
+                  branding without an asset. */}
+              <span
+                aria-hidden
+                className="absolute -bottom-12 -left-12 h-28 w-28 rounded-full border-2 border-white/20"
               />
               <span
                 aria-hidden
-                className="absolute bottom-3 left-3 right-3 h-10 rounded-md border-2 border-white/15"
+                className="absolute -bottom-16 -right-16 h-32 w-32 rounded-full border-2 border-white/15"
               />
             </div>
           </button>

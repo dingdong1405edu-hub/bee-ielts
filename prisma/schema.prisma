@@ -118,6 +118,8 @@ model User {
   shadowingLessons  ShadowingLesson[]
   shadowingAttempts ShadowingAttempt[]
   shadowingNotes    ShadowingNote[]
+  hostedRouletteRooms SpeakingRouletteRoom[] @relation("RouletteHost")
+  roulettePlayers   SpeakingRoulettePlayer[]
 }
 
 /// A learner asks the owner to upgrade their account to premium. One
@@ -786,4 +788,54 @@ model SpeakingTopicCard {
   createdAt   DateTime @default(now())
 
   @@index([part, order])
+}
+
+/// One multiplayer Speaking Roulette session. host creates → players join
+/// via `code` → host starts → turn-based rounds advance via spin/submit
+/// endpoints. polling-driven (no websockets) so the room state must be
+/// fully serialisable per GET.
+model SpeakingRouletteRoom {
+  id              String   @id @default(cuid())
+  /// 6-char invite code (uppercase letters + digits, no I/O/0/1 to avoid
+  /// confusion). Lookup is by-code, so it's unique.
+  code            String   @unique
+  hostId          String
+  host            User     @relation("RouletteHost", fields: [hostId], references: [id], onDelete: Cascade)
+  /// Which IELTS Part the room plays (locked at create time).
+  part            Int
+  /// WAITING (lobby), PLAYING (turns in progress), FINISHED (leaderboard).
+  status          String   @default("WAITING")
+  /// Total turns the game plays before finishing. Default 5.
+  totalTurns      Int      @default(5)
+  /// Turn number currently in play (0 while WAITING).
+  currentTurn     Int      @default(0)
+  /// The card the active player is answering this turn. Null between turns.
+  currentCardId   String?
+  /// Index into `players` (sorted by joinedAt) whose turn it is.
+  currentPlayerIdx Int     @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  players         SpeakingRoulettePlayer[]
+
+  @@index([status, createdAt])
+}
+
+/// Membership row — one per (room, user). Score accumulates as the player
+/// submits transcripts each turn.
+model SpeakingRoulettePlayer {
+  id        String   @id @default(cuid())
+  roomId    String
+  room      SpeakingRouletteRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Cumulative score across all turns this player completed.
+  score     Int      @default(0)
+  /// Last turn number this player has finished. Server uses this to know
+  /// whose turn is next + whether the round is complete.
+  lastSubmittedTurn Int @default(0)
+  joinedAt  DateTime @default(now())
+
+  @@unique([roomId, userId])
+  @@index([roomId, joinedAt])
 }
