@@ -35,6 +35,7 @@ import {
   NotebookPen,
   Sparkles,
   X,
+  Headphones,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WordTranslatePopup } from "@/components/learn/word-translate-popup";
@@ -859,29 +860,35 @@ export function ShadowingPlayer({ lesson, segments, mode = "shadowing" }: Shadow
                   className="h-4 w-7 appearance-none rounded-full bg-muted checked:bg-gold-500 relative transition-colors before:absolute before:top-0.5 before:left-0.5 before:h-3 before:w-3 before:rounded-full before:bg-white before:transition-transform checked:before:translate-x-3"
                 />
               </label>
-              <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
-                <span>Tự ghi âm</span>
-                <input
-                  type="checkbox"
-                  checked={autoRecord}
-                  onChange={(e) => {
-                    setAutoRecord(e.target.checked);
-                    // Re-arm mic permission after user toggles back on so
-                    // we don't permanently disable it from one earlier denial.
-                    if (e.target.checked) micDeniedRef.current = false;
-                  }}
-                  className="h-4 w-7 appearance-none rounded-full bg-muted checked:bg-rose-500 relative transition-colors before:absolute before:top-0.5 before:left-0.5 before:h-3 before:w-3 before:rounded-full before:bg-white before:transition-transform checked:before:translate-x-3"
-                />
-              </label>
-              <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
-                <span>Hiện tiếng việt</span>
-                <input
-                  type="checkbox"
-                  checked={showVi}
-                  onChange={(e) => setShowVi(e.target.checked)}
-                  className="h-4 w-7 appearance-none rounded-full bg-muted checked:bg-sage-500 relative transition-colors before:absolute before:top-0.5 before:left-0.5 before:h-3 before:w-3 before:rounded-full before:bg-white before:transition-transform checked:before:translate-x-3"
-                />
-              </label>
+              {/* Tự ghi âm + Hiện tiếng việt are spoiler/irrelevant in
+                  dictation mode (no mic, vi reveals meaning) → hide there. */}
+              {!isDictation && (
+                <>
+                  <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                    <span>Tự ghi âm</span>
+                    <input
+                      type="checkbox"
+                      checked={autoRecord}
+                      onChange={(e) => {
+                        setAutoRecord(e.target.checked);
+                        // Re-arm mic permission after user toggles back on so
+                        // we don't permanently disable it from one earlier denial.
+                        if (e.target.checked) micDeniedRef.current = false;
+                      }}
+                      className="h-4 w-7 appearance-none rounded-full bg-muted checked:bg-rose-500 relative transition-colors before:absolute before:top-0.5 before:left-0.5 before:h-3 before:w-3 before:rounded-full before:bg-white before:transition-transform checked:before:translate-x-3"
+                    />
+                  </label>
+                  <label className="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                    <span>Hiện tiếng việt</span>
+                    <input
+                      type="checkbox"
+                      checked={showVi}
+                      onChange={(e) => setShowVi(e.target.checked)}
+                      className="h-4 w-7 appearance-none rounded-full bg-muted checked:bg-sage-500 relative transition-colors before:absolute before:top-0.5 before:left-0.5 before:h-3 before:w-3 before:rounded-full before:bg-white before:transition-transform checked:before:translate-x-3"
+                    />
+                  </label>
+                </>
+              )}
             </div>
           )}
           {tab === "notes" && (
@@ -937,9 +944,20 @@ export function ShadowingPlayer({ lesson, segments, mode = "shadowing" }: Shadow
                     )}
                     <Volume2 className="h-3 w-3 text-muted-foreground ml-auto" />
                   </div>
-                  <p className="text-sm font-medium leading-snug">{s.textEn}</p>
-                  {showVi && s.textVi && (
-                    <p className="text-xs text-muted-foreground italic mt-0.5">{s.textVi}</p>
+                  {/* In dictation mode, mask the English/Vi for segments the
+                      user hasn't finished — showing them would let learners
+                      pre-read the answer before opening the segment. */}
+                  {isDictation && !done ? (
+                    <p className="text-sm font-medium leading-snug text-muted-foreground italic">
+                      🔒 {s.textEn.split(/\s+/).filter(Boolean).length} từ — chưa làm
+                    </p>
+                  ) : (
+                    <>
+                      <p className="text-sm font-medium leading-snug">{s.textEn}</p>
+                      {showVi && s.textVi && (
+                        <p className="text-xs text-muted-foreground italic mt-0.5">{s.textVi}</p>
+                      )}
+                    </>
                   )}
                 </button>
               );
@@ -982,44 +1000,72 @@ export function ShadowingPlayer({ lesson, segments, mode = "shadowing" }: Shadow
         </div>
 
         <MascotBubble tone="tip">
-          Nói theo từng câu nhé — bắt chước đúng nhịp điệu là phát âm lên ngay!
+          {isDictation
+            ? "Nghe và gõ lại từng chữ nhé — gõ đúng thì chữ hiện ra, gõ sai bee sẽ rung!"
+            : "Nói theo từng câu nhé — bắt chước đúng nhịp điệu là phát âm lên ngay!"}
         </MascotBubble>
 
-        {/* Tabs row — hint at click-to-translate */}
-        <div className="flex items-center gap-3 text-xs flex-wrap text-muted-foreground">
-          <span className="inline-flex items-center gap-1 rounded-full bg-gold-100 dark:bg-gold-950/40 px-2.5 py-1 font-bold text-gold-700 dark:text-gold-300">
-            <Sparkles className="h-3 w-3" /> Click vào từ để dịch
-          </span>
-          {active?.ipa && (
-            <span className="inline-flex items-center gap-1">
-              <Volume2 className="h-3.5 w-3.5" /> IPA bật
-            </span>
-          )}
-        </div>
-
-        {/* Clickable sentence */}
-        <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight leading-relaxed">
-          {activeTokens.map((tok, i) =>
-            tok.isWord ? (
-              <span
-                key={i}
-                onClick={(e) => onWordClick(tok.text, active.textEn, e)}
-                className="cursor-pointer hover:bg-gold-200/60 dark:hover:bg-gold-900/40 rounded transition-colors px-0.5"
-              >
-                {tok.text}
+        {/* DICTATION: hide the whole English-answer block (sentence + IPA +
+            Vietnamese) until the user finishes typing OR reveals. Showing
+            any of these is a direct spoiler — IPA reveals pronunciation
+            shape, vi reveals meaning, the sentence itself is the answer. */}
+        {!isDictation && (
+          <>
+            {/* Tabs row — hint at click-to-translate */}
+            <div className="flex items-center gap-3 text-xs flex-wrap text-muted-foreground">
+              <span className="inline-flex items-center gap-1 rounded-full bg-gold-100 dark:bg-gold-950/40 px-2.5 py-1 font-bold text-gold-700 dark:text-gold-300">
+                <Sparkles className="h-3 w-3" /> Click vào từ để dịch
               </span>
-            ) : (
-              <span key={i}>{tok.text}</span>
-            ),
-          )}
-        </h2>
-        {active?.ipa && (
-          <div className="border-l-4 border-primary/40 pl-3 font-mono text-base text-muted-foreground">
-            /{active.ipa.replace(/^\/|\/$/g, "")}/
-          </div>
+              {active?.ipa && (
+                <span className="inline-flex items-center gap-1">
+                  <Volume2 className="h-3.5 w-3.5" /> IPA bật
+                </span>
+              )}
+            </div>
+
+            {/* Clickable sentence */}
+            <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight leading-relaxed">
+              {activeTokens.map((tok, i) =>
+                tok.isWord ? (
+                  <span
+                    key={i}
+                    onClick={(e) => onWordClick(tok.text, active.textEn, e)}
+                    className="cursor-pointer hover:bg-gold-200/60 dark:hover:bg-gold-900/40 rounded transition-colors px-0.5"
+                  >
+                    {tok.text}
+                  </span>
+                ) : (
+                  <span key={i}>{tok.text}</span>
+                ),
+              )}
+            </h2>
+            {active?.ipa && (
+              <div className="border-l-4 border-primary/40 pl-3 font-mono text-base text-muted-foreground">
+                /{active.ipa.replace(/^\/|\/$/g, "")}/
+              </div>
+            )}
+            {showVi && active?.textVi && (
+              <p className="text-base italic text-foreground/70">{active.textVi}</p>
+            )}
+          </>
         )}
-        {showVi && active?.textVi && (
-          <p className="text-base italic text-foreground/70">{active.textVi}</p>
+
+        {/* DICTATION: small placeholder where the answer used to live so
+            the layout doesn't jump. Shows segment number + "listen and type"
+            cue, no spoilers. */}
+        {isDictation && active && (
+          <div className="flex items-center gap-3 rounded-2xl border-2 border-dashed border-gold-300 bg-gold-50/40 dark:bg-gold-950/20 px-4 py-3 text-sm">
+            <Headphones className="h-5 w-5 text-gold-600 shrink-0" />
+            <div>
+              <p className="font-bold text-gold-700 dark:text-gold-300">
+                Câu #{(activeIdx ?? 0) + 1} · Nghe và gõ lại
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Bấm <span className="font-bold">▶</span> để nghe lại bao nhiêu lần
+                cũng được. Đáp án sẽ hiện ở dưới khi bạn gõ đúng.
+              </p>
+            </div>
+          </div>
         )}
 
         {/* DICTATION MODE — letter-by-letter reveal panel. Hidden in
