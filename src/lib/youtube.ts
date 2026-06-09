@@ -317,17 +317,14 @@ async function getInnertube(): Promise<Innertube> {
   // Concurrent callers must share the same in-flight create() promise or
   // we'd init twice on the very first burst of requests.
   if (g.__beeInnertubePromise) return g.__beeInnertubePromise;
-  // YouTube has been tightening bot detection — videos that used to download
-  // fine now return "login required" on bare IOS client. Three escape hatches,
-  // applied IF the matching env var is set:
-  //   YT_COOKIE        — paste a logged-in browser's "cookie:" header from a
-  //                      YouTube request. Most reliable bypass.
-  //   YT_VISITOR_DATA  — alternative when full cookie isn't available; grab
-  //                      from a YT request's response (X-YouTube-Visitor-Id).
-  //   YT_PO_TOKEN      — Proof of Origin Token. Pair with YT_VISITOR_DATA.
-  // Also flip generate_session_locally OFF so the session pulls a fresh
-  // visitor_data from YouTube on init — that alone bypasses some of the
-  // less aggressive checks even without cookies.
+  // generate_session_locally=true matches the original working config (commit
+  // 510d5f0 era). Toggling it OFF — to "pull real session from YouTube" —
+  // turned out to cause regressions on Railway IPs because the remote
+  // session fetch returns a visitor_data that some clients then reject as
+  // mismatched. Local session is what was shipping when this admin's
+  // videos uploaded successfully, so keep it.
+  // Optional auth env vars are still honoured if the admin chooses to set
+  // them (paste cookie / po_token from a logged-in browser):
   const cookie = process.env.YT_COOKIE?.trim() || undefined;
   const visitor_data = process.env.YT_VISITOR_DATA?.trim() || undefined;
   const po_token = process.env.YT_PO_TOKEN?.trim() || undefined;
@@ -336,29 +333,14 @@ async function getInnertube(): Promise<Innertube> {
   if (visitor_data) console.log("[yt-init] using YT_VISITOR_DATA");
   g.__beeInnertubePromise = Innertube.create({
     cache: new UniversalCache(false),
-    generate_session_locally: false,
+    generate_session_locally: true,
     ...(cookie ? { cookie } : {}),
     ...(visitor_data ? { visitor_data } : {}),
     ...(po_token ? { po_token } : {}),
-  })
-    .catch(async (e) => {
-      // If retrieving the session from YouTube fails (network blip / 4xx),
-      // fall back to local generation so we don't hard-break on init.
-      console.warn(
-        `[yt-init] remote session failed, falling back to local: ${e instanceof Error ? e.message : e}`,
-      );
-      return Innertube.create({
-        cache: new UniversalCache(false),
-        generate_session_locally: true,
-        ...(cookie ? { cookie } : {}),
-        ...(visitor_data ? { visitor_data } : {}),
-        ...(po_token ? { po_token } : {}),
-      });
-    })
-    .then((c) => {
-      g.__beeInnertube = c;
-      return c;
-    });
+  }).then((c) => {
+    g.__beeInnertube = c;
+    return c;
+  });
   return g.__beeInnertubePromise;
 }
 
@@ -397,14 +379,21 @@ function resolveDuration(info: {
   return Math.max(...candidates) / 1000;
 }
 
-/** Order matters. TV_EMBEDDED bypasses the widest range of restrictions
- *  (age-gates, embed-only, "UNPLAYABLE" embed flags, login_required) so it
- *  goes FIRST — earlier ordering had it 3rd which meant videos that only
- *  it could play were getting blocked by the IOS/ANDROID failures ahead of
- *  it. IOS / ANDROID still come next for normal videos (full audio
- *  qualities). WEB_EMBEDDED + MWEB last as a safety net. Skipping
- *  IOS_MUSIC / ANDROID_MUSIC because they 4xx on non-music content. */
-const YT_CLIENTS = ["TV_EMBEDDED", "IOS", "ANDROID", "WEB_EMBEDDED", "MWEB"] as const;
+/** Order matters. WEB first — this is youtubei.js's session default and it
+ *  was the client used at commit 510d5f0 era when this admin's videos
+ *  uploaded successfully. After that I experimented with IOS-first and
+ *  TV_EMBEDDED-first; both regressed normal videos that WEB had been
+ *  handling fine. So WEB is the primary again, with IOS / TV_EMBEDDED /
+ *  ANDROID as fallbacks for cases where WEB returns LOGIN_REQUIRED or
+ *  UNPLAYABLE. WEB_EMBEDDED + MWEB are last-resort. */
+const YT_CLIENTS = [
+  "WEB",
+  "IOS",
+  "TV_EMBEDDED",
+  "ANDROID",
+  "WEB_EMBEDDED",
+  "MWEB",
+] as const;
 
 function isRecoverableError(e: unknown): boolean {
   const msg = (e instanceof Error ? e.message : String(e)).toLowerCase();
@@ -474,7 +463,7 @@ export async function getYouTubeTranscriptViaInnertube(
     try {
       info = await yt.getInfo(videoId, { client });
       ensurePlayable(info, videoId, client);
-      if (client !== "TV_EMBEDDED") {
+      if (client !== "WEB") {
         console.log(
           `[yt-tx] info fallback client ${client} succeeded for ${videoId}`,
         );
@@ -561,7 +550,7 @@ export async function getYouTubeBasicInfo(videoId: string): Promise<YouTubeBasic
       const info = await yt.getBasicInfo(videoId, { client });
       ensurePlayable(info, videoId, client);
       const basic = info.basic_info;
-      if (client !== "TV_EMBEDDED") {
+      if (client !== "WEB") {
         console.log(`[yt-info] fallback client ${client} succeeded for ${videoId}`);
       }
       return {
@@ -619,7 +608,7 @@ export async function getYouTubeAudioBuffer(videoId: string): Promise<YouTubeAud
       info = await yt.getBasicInfo(videoId, { client });
       ensurePlayable(info, videoId, client);
       infoClient = client;
-      if (client !== "TV_EMBEDDED") {
+      if (client !== "WEB") {
         console.log(
           `[yt-audio] info fallback client ${client} succeeded for ${videoId}`,
         );
@@ -686,7 +675,7 @@ export async function getYouTubeAudioBuffer(videoId: string): Promise<YouTubeAud
         }
         chunks.push(chunk);
       }
-      if (client !== "TV_EMBEDDED") {
+      if (client !== "WEB") {
         console.log(
           `[yt-audio] download fallback client ${client} succeeded for ${videoId}`,
         );
