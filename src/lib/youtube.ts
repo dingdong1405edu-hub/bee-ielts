@@ -418,6 +418,102 @@ function isRecoverableError(e: unknown): boolean {
   );
 }
 
+/**
+ * Pull caption cues via youtubei.js's getInfo().getTranscript() endpoint.
+ * Used as a SECOND captions path when `youtube-transcript` returns empty —
+ * the two libraries hit different YouTube endpoints and one often succeeds
+ * when the other doesn't. This path also benefits from our multi-client
+ * retry (login_required on IOS retries on ANDROID, etc.) so it survives
+ * bot-detection where `youtube-transcript` (which has no retry) gives up.
+ *
+ * Returns RawCue[] matching the shape from `youtube-transcript` so the
+ * downstream mergeCuesIntoSegments pipeline accepts it unchanged.
+ * Throws if no transcript can be fetched in any English variant.
+ */
+export async function getYouTubeTranscriptViaInnertube(
+  videoId: string,
+): Promise<RawCue[]> {
+  const yt = await getInnertube();
+  let info: Awaited<ReturnType<typeof yt.getInfo>> | null = null;
+  let lastErr: Error | null = null;
+  // getInfo (vs getBasicInfo) is required because getTranscript() lives on
+  // VideoInfo and needs the full watch_next response, not the player one.
+  for (const client of YT_CLIENTS) {
+    try {
+      info = await yt.getInfo(videoId, { client });
+      if (client !== "IOS") {
+        console.log(
+          `[yt-tx] info fallback client ${client} succeeded for ${videoId}`,
+        );
+      }
+      break;
+    } catch (e) {
+      lastErr = e instanceof Error ? e : new Error(String(e));
+      console.warn(
+        `[yt-tx] info client=${client} failed for ${videoId}: ${lastErr.message}`,
+      );
+      if (!isRecoverableError(e)) throw lastErr;
+    }
+  }
+  if (!info) throw lastErr ?? new Error("Tất cả YouTube client đều fail (transcript info)");
+
+  let txInfo;
+  try {
+    txInfo = await info.getTranscript();
+  } catch (e) {
+    throw e instanceof Error ? e : new Error(String(e));
+  }
+
+  // Prefer the auto-selected language only if it's English. Otherwise hunt
+  // through `languages` for an EN variant ("English", "English (auto-generated)",
+  // "English (United Kingdom)" — all start with "english").
+  const isEnglishLabel = (s: string) => s.trim().toLowerCase().startsWith("english");
+  if (!isEnglishLabel(txInfo.selectedLanguage)) {
+    const enLang = txInfo.languages.find(isEnglishLabel);
+    if (!enLang) {
+      throw new Error(
+        `Video không có transcript tiếng Anh trên YouTube. Available: ${txInfo.languages.join(", ")}`,
+      );
+    }
+    try {
+      txInfo = await txInfo.selectLanguage(enLang);
+    } catch (e) {
+      throw e instanceof Error ? e : new Error(String(e));
+    }
+  }
+
+  const segments = txInfo.transcript?.content?.body?.initial_segments ?? [];
+  if (!segments || segments.length === 0) {
+    throw new Error("Transcript YouTube rỗng (initial_segments=0).");
+  }
+
+  const cues: RawCue[] = [];
+  for (const seg of segments) {
+    // Skip TranscriptSectionHeader nodes — they're chapter markers, no text/timing.
+    // The type tag on each YTNode is in `.type` (class static, surfaced as instance prop).
+    const node = seg as unknown as {
+      start_ms?: string | number;
+      end_ms?: string | number;
+      snippet?: { toString(): string };
+    };
+    const startMs = Number(node.start_ms ?? NaN);
+    const endMs = Number(node.end_ms ?? NaN);
+    const text = node.snippet?.toString?.() ?? "";
+    if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || !text.trim()) {
+      continue;
+    }
+    cues.push({
+      text,
+      offsetSec: startMs / 1000,
+      durationSec: Math.max(0.3, (endMs - startMs) / 1000),
+    });
+  }
+  if (cues.length === 0) {
+    throw new Error("Transcript YouTube không parse ra cue nào (segment headers only?).");
+  }
+  return cues;
+}
+
 export async function getYouTubeBasicInfo(videoId: string): Promise<YouTubeBasicInfo> {
   const yt = await getInnertube();
   let lastError: Error | null = null;

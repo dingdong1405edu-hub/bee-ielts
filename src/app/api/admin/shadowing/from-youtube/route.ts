@@ -35,6 +35,7 @@ import {
   extractYoutubeId,
   getYouTubeAudioBuffer,
   getYouTubeBasicInfo,
+  getYouTubeTranscriptViaInnertube,
   MAX_AUDIO_FALLBACK_SEC,
   mergeCuesIntoSegments,
   refineSegmentsForShadowing,
@@ -325,7 +326,29 @@ export async function POST(req: Request) {
     merged = refineSegmentsForShadowing(mergeCuesIntoSegments(captionAttempt.cues));
   }
 
-  // 2. Audio fallback — only if captions failed AND admin allowed it.
+  // 1b. Captions path #2 — youtubei.js getTranscript(). Hits a different
+  //     YouTube endpoint than `youtube-transcript`, with multi-client retry
+  //     on auth errors. Frequently rescues videos where path #1 returns
+  //     empty (the cause for the "video used to upload but now fails"
+  //     report from admin — `youtube-transcript` has no retry on bot
+  //     detection, but Innertube does).
+  let innertubeCaptionsErr: string | null = null;
+  if (merged.length === 0) {
+    try {
+      const cues = await getYouTubeTranscriptViaInnertube(ytId);
+      console.log(
+        `[from-youtube] innertube transcript rescued ytId=${ytId} cues=${cues.length}`,
+      );
+      merged = refineSegmentsForShadowing(mergeCuesIntoSegments(cues));
+    } catch (e) {
+      innertubeCaptionsErr = e instanceof Error ? e.message : String(e);
+      console.warn(
+        `[from-youtube] innertube transcript fail ytId=${ytId}: ${innertubeCaptionsErr}`,
+      );
+    }
+  }
+
+  // 2. Audio fallback — only if BOTH captions paths failed AND admin allowed it.
   if (merged.length === 0) {
     if (!parsed.data.allowAudioFallback) {
       const langsMsg =
@@ -349,9 +372,14 @@ export async function POST(req: Request) {
         captionAttempt.kind === "fail" && captionAttempt.availableLangs.length > 0
           ? ` (Captions có: ${captionAttempt.availableLangs.join(", ")})`
           : "";
+      const innertubeMsg = innertubeCaptionsErr
+        ? ` (Innertube transcript: ${innertubeCaptionsErr})`
+        : "";
       return NextResponse.json(
         {
-          error: `Cả captions và AI nghe đều fail. ${audioAttempt.message}${langsMsg}`,
+          error:
+            `Cả 2 path captions và AI nghe đều fail. ${audioAttempt.message}${langsMsg}${innertubeMsg} ` +
+            `Nếu admin có transcript sẵn: mở "Chế độ nâng cao — dán transcript thủ công" ở trên và dán VTT/SRT.`,
         },
         { status: 422 },
       );
