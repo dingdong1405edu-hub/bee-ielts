@@ -58,8 +58,12 @@ export function mergeCuesIntoSegments(
   cues: RawCue[],
   opts: { targetSec?: number; maxSec?: number; gapSec?: number } = {},
 ): MergedSegment[] {
-  const targetSec = opts.targetSec ?? 6;
-  const maxSec = opts.maxSec ?? 12;
+  // Tightened from 6/12 → 4/7. User feedback: "cho users nói ít thôi đừng
+  // dài quá... nhưng vẫn phải giữ được đúng nhịp nói". Shorter chunks =
+  // easier to mimic the speaker's rhythm. 4s ≈ 8-10 words at conversational
+  // pace which lines up with the comfortable shadowing range.
+  const targetSec = opts.targetSec ?? 4;
+  const maxSec = opts.maxSec ?? 7;
   const gapSec = opts.gapSec ?? 1.2;
   const cleaned = cues
     .map((c) => ({
@@ -135,35 +139,62 @@ function isLoneInterjection(text: string): boolean {
 }
 
 /**
- * Post-process shadowing segments so each unit is comfortable to drill:
+ * Post-process shadowing segments so each unit is comfortable to drill.
+ * User feedback: "cho users nói ít thôi đừng dài quá thế này (nhưng vẫn
+ * phải giữ được đúng nhịp nói)" → 3 passes:
  *
  * 1. SPLIT-ON-COMMA — if a segment contains internal commas / semicolons
- *    AND is "long" (>= 9 words OR >= 6s span), break it at those punctuation
- *    points. Each sub-segment gets a proportional time slice based on
- *    character count of its piece. Result: instead of one 14-word run,
- *    user shadows two natural 7-word phrases.
+ *    AND is >= 6 words OR >= 4s, break at those punctuation points. Each
+ *    sub-segment gets a proportional time slice based on char count.
  *
- * 2. MERGE-LONE-INTERJECTION — if a resulting segment is just an
- *    interjection ("Hmm.", "Aw.") merge it into the NEXT segment so users
- *    aren't asked to shadow a meaningless filler. Falls back to merging
- *    into the previous segment for the trailing edge.
+ * 2. SPLIT-ON-CONJUNCTION — if a segment is STILL >= 9 words after pass 1
+ *    (no comma to use), break before natural conjunctions (and / but / so
+ *    / because / when / if / while). These are real prosodic boundaries
+ *    in spoken English so cutting there preserves rhythm.
+ *
+ * 3. MERGE-LONE-INTERJECTION — segments that are just a filler word
+ *    ("Hmm.", "Yeah.") merge into the NEXT (or previous, on trailing edge)
+ *    so users don't shadow meaningless fillers.
  */
+const CONJ_SPLIT_RE =
+  /\s+(and|but|or|so|because|when|while|if|though|although|since|until|whereas|whether)\s+/i;
+
+function splitAtConjunction(seg: MergedSegment): MergedSegment[] {
+  const text = seg.textEn.trim();
+  const m = text.match(CONJ_SPLIT_RE);
+  if (!m || m.index == null) return [seg];
+  // Split BEFORE the conjunction (it leads the next phrase: "I went home /
+  // and rested" — the natural pause is before "and").
+  const cut = m.index;
+  const before = text.slice(0, cut).trim();
+  const after = text.slice(cut + 1).trim(); // +1 to drop the leading space
+  if (!before || !after) return [seg];
+  // Time-slice proportional to char count.
+  const span = seg.endSec - seg.startSec;
+  const beforeFrac = before.length / (before.length + after.length);
+  const splitSec = seg.startSec + span * beforeFrac;
+  return [
+    { startSec: seg.startSec, endSec: splitSec, textEn: before },
+    { startSec: splitSec, endSec: seg.endSec, textEn: after },
+  ];
+}
+
 export function refineSegmentsForShadowing(
   segments: MergedSegment[],
 ): MergedSegment[] {
-  // --- 1) Split on internal commas / semicolons for long sentences. ---
+  // --- 1) Split on internal commas / semicolons. Thresholds dropped from
+  //        9 words / 6s → 6 words / 4s so even modest-length segments with
+  //        natural pauses get broken into bite-size drills.
   const splitOpen: MergedSegment[] = [];
   for (const seg of segments) {
     const text = seg.textEn.trim();
     const words = text.split(/\s+/).length;
     const span = seg.endSec - seg.startSec;
     const hasInternalComma = /[,;]\s+\S/.test(text);
-    if (!hasInternalComma || (words < 9 && span < 6)) {
+    if (!hasInternalComma || (words < 6 && span < 4)) {
       splitOpen.push(seg);
       continue;
     }
-    // Split BUT keep the punctuation glued to the preceding piece, e.g.
-    // "Of the many bewildering behaviors cats display,|one of..."
     const pieces = text.match(/[^,;]+[,;]?(\s|$)/g);
     if (!pieces || pieces.length < 2) {
       splitOpen.push(seg);
@@ -188,14 +219,45 @@ export function refineSegmentsForShadowing(
     });
   }
 
-  // --- 2) Merge any segment that is JUST an interjection. ---
+  // --- 1b) Split-on-conjunction for STILL-long segments (no comma to
+  //        use). Applied recursively so a 20-word run with two
+  //        conjunctions gets broken into 3 chunks.
+  const conjunctionSplit: MergedSegment[] = [];
+  for (const seg of splitOpen) {
+    const words = seg.textEn.split(/\s+/).length;
+    if (words < 9) {
+      conjunctionSplit.push(seg);
+      continue;
+    }
+    // Iteratively split until each piece is <9 words OR no conjunction left.
+    const queue: MergedSegment[] = [seg];
+    while (queue.length > 0) {
+      const cur = queue.shift()!;
+      const curWords = cur.textEn.split(/\s+/).length;
+      if (curWords < 9) {
+        conjunctionSplit.push(cur);
+        continue;
+      }
+      const parts = splitAtConjunction(cur);
+      if (parts.length === 1) {
+        // No conjunction → keep as-is even if long.
+        conjunctionSplit.push(cur);
+      } else {
+        // Push parts back so they're re-checked (handles 2+ conjunctions).
+        queue.unshift(...parts);
+      }
+    }
+  }
+  const splitOpenFinal = conjunctionSplit;
+
+  // --- 3) Merge any segment that is JUST an interjection. ---
   // pendingFiller is LOCAL — never put state at module scope inside an
   // async server route. Two admin requests in parallel would collide.
   const refined: MergedSegment[] = [];
   const pendingFiller: MergedSegment[] = [];
-  for (let idx = 0; idx < splitOpen.length; idx++) {
-    const seg = splitOpen[idx];
-    const isLast = idx === splitOpen.length - 1;
+  for (let idx = 0; idx < splitOpenFinal.length; idx++) {
+    const seg = splitOpenFinal[idx];
+    const isLast = idx === splitOpenFinal.length - 1;
     if (isLoneInterjection(seg.textEn) && !isLast) {
       pendingFiller.push(seg);
       continue;
