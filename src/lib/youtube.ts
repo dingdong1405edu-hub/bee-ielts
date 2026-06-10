@@ -409,37 +409,78 @@ export async function fetchYouTubeCaptionsViaInnertube(
 ): Promise<{ cues: RawCue[]; availableLangs: string[] }> {
   const innertubeUrl =
     "https://www.youtube.com/youtubei/v1/player?prettyPrint=false";
-  // ANDROID youtubei client version + matching User-Agent. youtube-transcript
-  // bumped this to 20.10.38 in 2025; older 17.x sometimes returns
-  // UNPLAYABLE for valid videos.
-  const ANDROID_VERSION = "20.10.38";
-  const androidUA = `com.google.android.youtube/${ANDROID_VERSION} (Linux; U; Android 14)`;
-  const playerResp = await fetch(innertubeUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "User-Agent": androidUA,
-    },
-    body: JSON.stringify({
-      context: {
-        client: {
-          clientName: "ANDROID",
-          clientVersion: ANDROID_VERSION,
-          hl: "en",
-          gl: "US",
+  // Honor YT_COOKIE — Railway admin can paste their logged-in browser
+  // cookie via env var to bypass LOGIN_REQUIRED / "Sign in to confirm
+  // you're not a bot". This is the documented escape hatch for IPs that
+  // YouTube has flagged.
+  const cookie = process.env.YT_COOKIE?.trim();
+  if (cookie) console.log("[yt-captions] using YT_COOKIE");
+
+  // Try multiple ANDROID client versions. YouTube rolls bot detection
+  // forward against specific versions; rotating among 3 recent ones
+  // catches the window between roll-outs.
+  const CLIENTS: Array<{
+    name: string;
+    body: Record<string, unknown>;
+    userAgent: string;
+  }> = [
+    {
+      name: "ANDROID 20.10.38",
+      userAgent: "com.google.android.youtube/20.10.38 (Linux; U; Android 14)",
+      body: {
+        context: {
+          client: {
+            clientName: "ANDROID",
+            clientVersion: "20.10.38",
+            androidSdkVersion: 34,
+            hl: "en",
+            gl: "US",
+          },
         },
+        videoId,
+        contentCheckOk: true,
+        racyCheckOk: true,
       },
-      videoId,
-      contentCheckOk: true,
-      racyCheckOk: true,
-    }),
-  });
-  if (!playerResp.ok) {
-    throw new Error(
-      `InnerTube /player HTTP ${playerResp.status} ${playerResp.statusText}`,
-    );
-  }
-  const data = (await playerResp.json()) as {
+    },
+    {
+      name: "ANDROID 19.09.37",
+      userAgent: "com.google.android.youtube/19.09.37 (Linux; U; Android 14)",
+      body: {
+        context: {
+          client: {
+            clientName: "ANDROID",
+            clientVersion: "19.09.37",
+            androidSdkVersion: 34,
+            hl: "en",
+            gl: "US",
+          },
+        },
+        videoId,
+        contentCheckOk: true,
+        racyCheckOk: true,
+      },
+    },
+    {
+      name: "WEB+CONSENT",
+      userAgent:
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      body: {
+        context: {
+          client: {
+            clientName: "WEB",
+            clientVersion: "2.20250101.00.00",
+            hl: "en",
+            gl: "US",
+          },
+        },
+        videoId,
+        contentCheckOk: true,
+        racyCheckOk: true,
+      },
+    },
+  ];
+
+  type PlayerResponse = {
     playabilityStatus?: { status?: string; reason?: string };
     captions?: {
       playerCaptionsTracklistRenderer?: {
@@ -452,11 +493,45 @@ export async function fetchYouTubeCaptionsViaInnertube(
       };
     };
   };
-  const status = data.playabilityStatus?.status?.toUpperCase();
-  if (status && status !== "OK") {
-    throw new Error(
-      `Video không play được: ${status} ${data.playabilityStatus?.reason ?? ""}`.trim(),
+
+  let data: PlayerResponse | null = null;
+  let usedClient: (typeof CLIENTS)[number] | null = null;
+  const attempts: string[] = [];
+  for (const client of CLIENTS) {
+    const r = await fetch(innertubeUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "User-Agent": client.userAgent,
+        ...(cookie ? { Cookie: cookie } : { Cookie: "CONSENT=YES+cb" }),
+      },
+      body: JSON.stringify(client.body),
+    });
+    if (!r.ok) {
+      attempts.push(`${client.name}: HTTP ${r.status}`);
+      continue;
+    }
+    const parsed = (await r.json()) as PlayerResponse;
+    const status = parsed.playabilityStatus?.status?.toUpperCase();
+    if (!status || status === "OK") {
+      data = parsed;
+      usedClient = client;
+      break;
+    }
+    attempts.push(
+      `${client.name}: ${status} ${parsed.playabilityStatus?.reason ?? ""}`.trim(),
     );
+  }
+  if (!data || !usedClient) {
+    throw new Error(
+      `Tất cả ${CLIENTS.length} client InnerTube fail: ${attempts.join(" | ")}` +
+        (cookie
+          ? ""
+          : ". Nếu IP server bị YT chặn: set env var YT_COOKIE = giá trị cookie header từ trình duyệt logged-in."),
+    );
+  }
+  if (usedClient.name !== "ANDROID 20.10.38") {
+    console.log(`[yt-captions] fallback ${usedClient.name} succeeded for ${videoId}`);
   }
   const tracks = data.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
   const availableLangs = tracks
@@ -478,7 +553,10 @@ export async function fetchYouTubeCaptionsViaInnertube(
   // CRITICAL: fetch baseUrl RAW. Appending fmt=json3 or similar invalidates
   // the signed signature and YouTube returns 200 with size=0.
   const capResp = await fetch(enTrack.baseUrl, {
-    headers: { "User-Agent": androidUA },
+    headers: {
+      "User-Agent": usedClient.userAgent,
+      ...(cookie ? { Cookie: cookie } : { Cookie: "CONSENT=YES+cb" }),
+    },
   });
   if (!capResp.ok) {
     throw new Error(
