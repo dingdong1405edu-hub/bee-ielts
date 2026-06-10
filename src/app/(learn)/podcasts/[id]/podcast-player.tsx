@@ -135,6 +135,13 @@ export function PodcastPlayer({
             // Show the YouTube controls — users want fullscreen + scrubbing.
             controls: 1,
             playsinline: 1,
+            // Force YouTube's own caption track ON by default and prefer EN.
+            // User specifically asked for "phụ đề" so we never want them
+            // hidden. They can still toggle off via the CC button if they
+            // really want — we just stop hiding by default.
+            cc_load_policy: 1,
+            cc_lang_pref: "en",
+            hl: "en",
           },
           events: {
             onReady: () => {
@@ -233,6 +240,32 @@ export function PodcastPlayer({
         <div className="aspect-video w-full">
           <div ref={playerContainerRef} className="h-full w-full" />
         </div>
+      </div>
+
+      {/* Live caption card — the "now playing" line, big + centred so
+          users can read along even without looking at the YouTube overlay.
+          Shows a soft placeholder when no segment is active (intro/outro
+          silence) so the card layout doesn't jump. */}
+      <div
+        className={cn(
+          "mt-3 sm:mt-4 rounded-2xl border-2 px-4 py-4 sm:py-5 text-center transition-colors",
+          activeIdx >= 0
+            ? "border-honey/60 bg-honey/10 shadow-sm"
+            : "border-dashed border-honey/30 bg-cream/40",
+        )}
+      >
+        <p
+          className={cn(
+            "font-display tracking-tight transition-all",
+            activeIdx >= 0
+              ? "text-lg sm:text-xl md:text-2xl font-extrabold text-ink leading-snug"
+              : "text-sm text-muted-foreground italic",
+          )}
+        >
+          {activeIdx >= 0
+            ? segments[activeIdx]?.textEn
+            : "Bấm play — phụ đề sẽ hiện ở đây theo từng câu."}
+        </p>
       </div>
 
       {/* Title block */}
