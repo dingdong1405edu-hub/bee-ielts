@@ -487,23 +487,100 @@ export async function getYouTubeAudioBuffer(videoId: string): Promise<YouTubeAud
     );
   };
   let buffer: Buffer;
+  let contentType = "audio/webm";
   try {
     buffer = await downloadWith("IOS");
-  } catch (e) {
-    if (isClientBlockedError(e)) {
-      console.warn(
-        `[yt-audio] IOS blocked for ${videoId} (${e instanceof Error ? e.message : e}), retrying with TV_EMBEDDED`,
-      );
+  } catch (iosErr) {
+    if (!isClientBlockedError(iosErr)) throw iosErr;
+    console.warn(
+      `[yt-audio] IOS blocked for ${videoId} (${iosErr instanceof Error ? iosErr.message : iosErr}), retrying with TV_EMBEDDED`,
+    );
+    try {
       buffer = await downloadWith("TV_EMBEDDED");
-    } else {
-      throw e;
+    } catch (tvErr) {
+      // Both youtubei.js clients exhausted. Last resort: hand off the URL
+      // to Cobalt's free hosted API. Cobalt is FOSS (github.com/imputnet/cobalt)
+      // and runs its own bot-detection bypass — when YouTube tightens
+      // detection against direct InnerTube calls from our IP, Cobalt's
+      // server still gets through because it presents a real browser
+      // session. We get back a direct CDN URL → fetch → buffer.
+      if (!isClientBlockedError(tvErr)) throw tvErr;
+      console.warn(
+        `[yt-audio] TV_EMBEDDED also blocked for ${videoId}, trying Cobalt`,
+      );
+      const result = await downloadAudioViaCobalt(videoId);
+      buffer = result.buffer;
+      contentType = result.contentType;
     }
   }
   const finalDur = dur > 0 ? dur : Math.max(1, buffer.byteLength / 16000);
   return {
     buffer,
-    contentType: "audio/webm",
+    contentType,
     durationSec: finalDur,
     title: info.basic_info.title ?? "",
   };
+}
+
+/** Cobalt is a FOSS YouTube downloader proxy. Public instance at
+ *  api.cobalt.tools handles bot detection on its own infrastructure, so
+ *  this works even when our IP is locked out of InnerTube. Returns a
+ *  direct CDN URL we then fetch ourselves. No API key for the public
+ *  tier; rate-limited but generous for occasional admin uploads.
+ *  Schema: https://github.com/imputnet/cobalt/blob/main/docs/api.md */
+async function downloadAudioViaCobalt(
+  videoId: string,
+): Promise<{ buffer: Buffer; contentType: string }> {
+  const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
+  const apiUrl = process.env.COBALT_API_URL?.trim() || "https://api.cobalt.tools/";
+  const resp = await fetch(apiUrl, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "User-Agent": "bee-ielts/1.0 (admin upload)",
+    },
+    body: JSON.stringify({
+      url: youtubeUrl,
+      downloadMode: "audio",
+      audioFormat: "mp3",
+      filenameStyle: "basic",
+    }),
+  });
+  if (!resp.ok) {
+    throw new Error(`Cobalt HTTP ${resp.status} ${resp.statusText}`);
+  }
+  const data = (await resp.json().catch(() => ({}))) as {
+    status?: string;
+    url?: string;
+    text?: string;
+    error?: { code?: string; context?: unknown };
+  };
+  if (data.status === "error") {
+    throw new Error(`Cobalt error: ${data.text || data.error?.code || "unknown"}`);
+  }
+  if (!data.url) {
+    throw new Error(`Cobalt: không có url trong response (status=${data.status})`);
+  }
+  // Fetch the resolved CDN audio URL Cobalt gives us.
+  const audioResp = await fetch(data.url, {
+    headers: { "User-Agent": "bee-ielts/1.0 (admin upload)" },
+  });
+  if (!audioResp.ok) {
+    throw new Error(`Cobalt audio fetch HTTP ${audioResp.status}`);
+  }
+  // Hard cap on the streamed response so a runaway Cobalt link can't
+  // OOM the Railway worker. Same 45MB ceiling as the direct path.
+  const HARD_CAP_BYTES = 45 * 1024 * 1024;
+  const ab = await audioResp.arrayBuffer();
+  if (ab.byteLength > HARD_CAP_BYTES) {
+    throw new Error(
+      `Cobalt audio vượt ${Math.round(HARD_CAP_BYTES / 1024 / 1024)}MB`,
+    );
+  }
+  // Cobalt returns mp3 when we ask for audioFormat:"mp3". Deepgram accepts
+  // audio/mpeg natively. Fall back to whatever the response header says.
+  const contentType =
+    audioResp.headers.get("content-type")?.split(";")[0]?.trim() || "audio/mpeg";
+  return { buffer: Buffer.from(ab), contentType };
 }
