@@ -11,6 +11,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { LearnBackground } from "@/components/learn/learn-background";
 import { FloatingHelpers } from "@/components/learn/floating-helpers";
 import { BackgroundMusicPlayer } from "@/components/learn/background-music";
+import { SelectionVocab } from "@/components/learn/selection-vocab";
 import { BeeLogo } from "@/components/brand";
 
 export default async function LearnLayout({ children }: { children: React.ReactNode }) {
@@ -65,6 +66,10 @@ export default async function LearnLayout({ children }: { children: React.ReactN
         </Suspense>
         <BackgroundMusicPlayer />
       </div>
+      {/* Highlight-to-vocab: bôi đen bất kỳ từ nào trong vùng học →
+          popup dịch + nút "Lưu vào sổ từ". Active trên toàn (learn).
+          Vùng nào không muốn: thêm data-no-vocab vào wrapper. */}
+      <SelectionVocab />
     </div>
   );
 }
