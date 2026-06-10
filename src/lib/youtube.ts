@@ -380,51 +380,93 @@ function resolveDuration(info: {
 }
 
 /**
- * Direct captions scrape via the YouTube watch page. Used as a fallback
- * when `youtube-transcript` returns empty (Railway IP rate-limit, or its
- * cookie-less fetch gets 200 with empty body). We fetch the watch page
- * with a real browser User-Agent, pull the `captionTracks` JSON, pick
- * the EN baseUrl, and fetch its srv3 payload.
+ * Pull caption cues via the InnerTube /player endpoint (ANDROID client).
  *
- * Returns availableLangs even on success so callers can warn about
- * non-EN content. Throws ONLY when the whole flow fails (no captions
- * available, parse error, etc).
+ * Why this is the canonical path now: YouTube's web page returns different
+ * HTML to server IPs (often consent walls, "video unavailable" stubs, or
+ * pages stripped of `captionTracks`). The watch-page scrape worked locally
+ * but returned empty captionTracks from Railway. The InnerTube API, by
+ * contrast, treats the ANDROID youtubei client as a first-class consumer
+ * and returns full player + captions data regardless of region/IP — this
+ * is the same path the `youtube-transcript` library uses internally when
+ * it works.
+ *
+ * Two more crucial details vs the previous attempt:
+ *   1. The signed `baseUrl` we get back MUST be fetched RAW — adding
+ *      `&fmt=json3` (or anything else) invalidates the signature and
+ *      YouTube returns 200 with empty body. So we accept the default
+ *      srv3 XML payload (`<p t="ms" d="ms">text</p>`) and parse that.
+ *   2. The XML format here is srv3-style `<p>` elements (different from
+ *      youtube-transcript's classic `<text>` format) — our parser handles
+ *      both shapes so we don't break if YouTube flips the default again.
+ *
+ * Returns `availableLangs` so callers can early-reject videos that have
+ * captions but not in English (typical for Vietnamese-only vlogs).
+ * Throws ONLY for hard failures (no tracks at all, fetch errors).
  */
-export async function fetchYouTubeCaptionsViaWatch(
+export async function fetchYouTubeCaptionsViaInnertube(
   videoId: string,
 ): Promise<{ cues: RawCue[]; availableLangs: string[] }> {
-  const watchUrl = `https://www.youtube.com/watch?v=${videoId}&hl=en`;
-  const browserHeaders = {
-    "User-Agent":
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Accept-Language": "en-US,en;q=0.9",
-    Accept:
-      "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+  const innertubeUrl =
+    "https://www.youtube.com/youtubei/v1/player?prettyPrint=false";
+  // ANDROID youtubei client version + matching User-Agent. youtube-transcript
+  // bumped this to 20.10.38 in 2025; older 17.x sometimes returns
+  // UNPLAYABLE for valid videos.
+  const ANDROID_VERSION = "20.10.38";
+  const androidUA = `com.google.android.youtube/${ANDROID_VERSION} (Linux; U; Android 14)`;
+  const playerResp = await fetch(innertubeUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "User-Agent": androidUA,
+    },
+    body: JSON.stringify({
+      context: {
+        client: {
+          clientName: "ANDROID",
+          clientVersion: ANDROID_VERSION,
+          hl: "en",
+          gl: "US",
+        },
+      },
+      videoId,
+      contentCheckOk: true,
+      racyCheckOk: true,
+    }),
+  });
+  if (!playerResp.ok) {
+    throw new Error(
+      `InnerTube /player HTTP ${playerResp.status} ${playerResp.statusText}`,
+    );
+  }
+  const data = (await playerResp.json()) as {
+    playabilityStatus?: { status?: string; reason?: string };
+    captions?: {
+      playerCaptionsTracklistRenderer?: {
+        captionTracks?: Array<{
+          baseUrl: string;
+          languageCode?: string;
+          vssId?: string;
+          kind?: string;
+        }>;
+      };
+    };
   };
-  const watchResp = await fetch(watchUrl, { headers: browserHeaders });
-  if (!watchResp.ok) {
-    throw new Error(`Watch page HTTP ${watchResp.status} ${watchResp.statusText}`);
+  const status = data.playabilityStatus?.status?.toUpperCase();
+  if (status && status !== "OK") {
+    throw new Error(
+      `Video không play được: ${status} ${data.playabilityStatus?.reason ?? ""}`.trim(),
+    );
   }
-  const html = await watchResp.text();
-  const tracksMatch = html.match(/"captionTracks":\s*(\[.*?\])\s*[,}]/);
-  if (!tracksMatch) {
-    throw new Error("Video không có captionTracks (không có phụ đề YouTube).");
-  }
-  const tracksJson = tracksMatch[1].replace(/\\u0026/g, "&");
-  let tracks: Array<{
-    baseUrl: string;
-    languageCode?: string;
-    vssId?: string;
-  }>;
-  try {
-    tracks = JSON.parse(tracksJson);
-  } catch (e) {
-    throw new Error(`Parse captionTracks fail: ${e instanceof Error ? e.message : e}`);
-  }
+  const tracks = data.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? [];
   const availableLangs = tracks
     .map((t) => t.languageCode || t.vssId || "?")
     .filter(Boolean);
-  // Prefer manual EN, fallback to any en-* variant, then auto-generated "a.en".
+  if (tracks.length === 0) {
+    throw new Error("Video không có phụ đề YouTube nào.");
+  }
+  // Prefer manual EN, fallback to any en-* variant, then auto-generated "a.en"
+  // or a track with kind:"asr" (auto-speech-recognition).
   const enTrack =
     tracks.find((t) => t.vssId === ".en") ||
     tracks.find((t) => t.languageCode === "en") ||
@@ -433,58 +475,70 @@ export async function fetchYouTubeCaptionsViaWatch(
   if (!enTrack) {
     return { cues: [], availableLangs };
   }
-  const captionUrl = enTrack.baseUrl + "&fmt=json3";
-  const capResp = await fetch(captionUrl, { headers: browserHeaders });
+  // CRITICAL: fetch baseUrl RAW. Appending fmt=json3 or similar invalidates
+  // the signed signature and YouTube returns 200 with size=0.
+  const capResp = await fetch(enTrack.baseUrl, {
+    headers: { "User-Agent": androidUA },
+  });
   if (!capResp.ok) {
-    throw new Error(`Caption fetch HTTP ${capResp.status} cho lang=${enTrack.languageCode}`);
+    throw new Error(
+      `Caption fetch HTTP ${capResp.status} cho lang=${enTrack.languageCode}`,
+    );
   }
   const body = await capResp.text();
   if (!body.trim()) {
     throw new Error(
-      `Caption rỗng cho lang=${enTrack.languageCode} — IP server có thể bị YouTube rate-limit.`,
+      `Caption body rỗng (lang=${enTrack.languageCode}) — IP server có thể bị YouTube rate-limit.`,
     );
   }
-  const cues: RawCue[] = [];
-  try {
-    const parsed = JSON.parse(body) as {
-      events?: Array<{
-        tStartMs?: number;
-        dDurationMs?: number;
-        segs?: Array<{ utf8?: string }>;
-      }>;
-    };
-    for (const ev of parsed.events ?? []) {
-      const text = (ev.segs ?? []).map((s) => s.utf8 ?? "").join("").trim();
-      if (!text) continue;
-      const startMs = ev.tStartMs ?? 0;
-      const durMs = ev.dDurationMs ?? 0;
-      cues.push({
-        text,
-        offsetSec: startMs / 1000,
-        durationSec: Math.max(0.3, durMs / 1000),
-      });
-    }
-  } catch {
-    // Fall back to XML format if server returned XML instead of JSON3.
-    const xmlRe = /<text\s+start="([\d.]+)"\s+dur="([\d.]+)"[^>]*>([^<]+)<\/text>/g;
-    let m: RegExpExecArray | null;
-    while ((m = xmlRe.exec(body)) !== null) {
-      cues.push({
-        offsetSec: parseFloat(m[1]),
-        durationSec: parseFloat(m[2]),
-        text: m[3]
-          .replace(/&amp;/g, "&")
-          .replace(/&#39;/g, "'")
-          .replace(/&quot;/g, '"')
-          .replace(/&lt;/g, "<")
-          .replace(/&gt;/g, ">"),
-      });
-    }
-  }
+  const cues = parseSrv3OrClassicXml(body);
   if (cues.length === 0) {
-    throw new Error("Caption parse ra 0 cue (cả JSON3 lẫn XML đều fail).");
+    throw new Error("Caption parse ra 0 cue — format XML không nhận diện được.");
   }
   return { cues, availableLangs };
+}
+
+/** Parse YouTube's srv3 XML format <p t="ms" d="ms">text</p> AND the
+ *  legacy classic format <text start="s" dur="s">text</text>. YouTube
+ *  flips between these depending on client/version/day, so we accept
+ *  both. Returns RawCue[] using seconds for offsets. */
+function parseSrv3OrClassicXml(xml: string): RawCue[] {
+  const decode = (s: string) =>
+    s
+      .replace(/<[^>]+>/g, "") // strip inner <s> word-level tags
+      .replace(/&amp;/g, "&")
+      .replace(/&#39;/g, "'")
+      .replace(/&quot;/g, '"')
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&#x([0-9a-fA-F]+);/g, (_m, h) => String.fromCodePoint(parseInt(h, 16)))
+      .replace(/&#(\d+);/g, (_m, n) => String.fromCodePoint(parseInt(n, 10)));
+  const cues: RawCue[] = [];
+  // srv3 format: <p t="3378" d="3003">Hold your breath...</p>
+  const pRe = /<p\s+t="(\d+)"\s+d="(\d+)"[^>]*>([\s\S]*?)<\/p>/g;
+  let m: RegExpExecArray | null;
+  while ((m = pRe.exec(xml)) !== null) {
+    const text = decode(m[3]).trim();
+    if (!text) continue;
+    cues.push({
+      text,
+      offsetSec: parseInt(m[1], 10) / 1000,
+      durationSec: Math.max(0.3, parseInt(m[2], 10) / 1000),
+    });
+  }
+  if (cues.length > 0) return cues;
+  // Classic format: <text start="3.378" dur="3.003">Hold your breath...</text>
+  const tRe = /<text\s+start="([\d.]+)"\s+dur="([\d.]+)"[^>]*>([\s\S]*?)<\/text>/g;
+  while ((m = tRe.exec(xml)) !== null) {
+    const text = decode(m[3]).trim();
+    if (!text) continue;
+    cues.push({
+      text,
+      offsetSec: parseFloat(m[1]),
+      durationSec: Math.max(0.3, parseFloat(m[2])),
+    });
+  }
+  return cues;
 }
 
 export async function getYouTubeBasicInfo(videoId: string): Promise<YouTubeBasicInfo> {

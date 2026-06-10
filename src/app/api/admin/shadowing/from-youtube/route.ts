@@ -33,7 +33,7 @@ import { prisma } from "@/lib/db";
 import { isAdminOrOwner } from "@/lib/premium";
 import {
   extractYoutubeId,
-  fetchYouTubeCaptionsViaWatch,
+  fetchYouTubeCaptionsViaInnertube,
   getYouTubeAudioBuffer,
   getYouTubeBasicInfo,
   MAX_AUDIO_FALLBACK_SEC,
@@ -326,20 +326,21 @@ export async function POST(req: Request) {
     merged = refineSegmentsForShadowing(mergeCuesIntoSegments(captionAttempt.cues));
   }
 
-  // 1b. Custom watch-page scrape. Hits a different endpoint than
-  //     `youtube-transcript`, with browser User-Agent + signed URL. Often
-  //     succeeds when `youtube-transcript` returns empty (Railway IP
-  //     rate-limited / blocked). Also reads availableLangs from the page
-  //     so we can detect "video chỉ có tiếng Việt" without firing audio.
+  // 1b. InnerTube /player direct call. Bypasses the youtube-transcript
+  //     library entirely — calls YouTube's API as ANDROID youtubei client
+  //     and gets back the same playerResponse the official app sees. This
+  //     succeeds even when the watch page returns a stripped consent stub
+  //     to server IPs. Also reads availableLangs so we can early-reject
+  //     videos that have only non-EN captions (Vietnamese vlogs etc).
   let watchAvailableLangs: string[] | null = null;
   let watchErr: string | null = null;
   if (merged.length === 0) {
     try {
-      const result = await fetchYouTubeCaptionsViaWatch(ytId);
+      const result = await fetchYouTubeCaptionsViaInnertube(ytId);
       watchAvailableLangs = result.availableLangs;
       if (result.cues.length > 0) {
         console.log(
-          `[from-youtube] watch-page captions rescued ytId=${ytId} cues=${result.cues.length}`,
+          `[from-youtube] innertube-player captions rescued ytId=${ytId} cues=${result.cues.length}`,
         );
         merged = refineSegmentsForShadowing(mergeCuesIntoSegments(result.cues));
       } else if (result.availableLangs.length > 0) {
@@ -362,7 +363,7 @@ export async function POST(req: Request) {
     } catch (e) {
       watchErr = e instanceof Error ? e.message : String(e);
       console.warn(
-        `[from-youtube] watch-page captions fail ytId=${ytId}: ${watchErr}`,
+        `[from-youtube] innertube-player captions fail ytId=${ytId}: ${watchErr}`,
       );
     }
   }
