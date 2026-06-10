@@ -33,6 +33,7 @@ import { prisma } from "@/lib/db";
 import { isAdminOrOwner } from "@/lib/premium";
 import {
   extractYoutubeId,
+  fetchYouTubeCaptionsViaWatch,
   getYouTubeAudioBuffer,
   getYouTubeBasicInfo,
   MAX_AUDIO_FALLBACK_SEC,
@@ -325,6 +326,47 @@ export async function POST(req: Request) {
     merged = refineSegmentsForShadowing(mergeCuesIntoSegments(captionAttempt.cues));
   }
 
+  // 1b. Custom watch-page scrape. Hits a different endpoint than
+  //     `youtube-transcript`, with browser User-Agent + signed URL. Often
+  //     succeeds when `youtube-transcript` returns empty (Railway IP
+  //     rate-limited / blocked). Also reads availableLangs from the page
+  //     so we can detect "video chỉ có tiếng Việt" without firing audio.
+  let watchAvailableLangs: string[] | null = null;
+  let watchErr: string | null = null;
+  if (merged.length === 0) {
+    try {
+      const result = await fetchYouTubeCaptionsViaWatch(ytId);
+      watchAvailableLangs = result.availableLangs;
+      if (result.cues.length > 0) {
+        console.log(
+          `[from-youtube] watch-page captions rescued ytId=${ytId} cues=${result.cues.length}`,
+        );
+        merged = refineSegmentsForShadowing(mergeCuesIntoSegments(result.cues));
+      } else if (result.availableLangs.length > 0) {
+        // Captions exist but none are English. If admin disabled audio
+        // fallback, surface a precise message before the generic flow does.
+        const langsLower = result.availableLangs.map((l) => l.toLowerCase());
+        const hasEN = langsLower.some((l) => l.startsWith("en"));
+        if (!hasEN) {
+          return NextResponse.json(
+            {
+              error:
+                `Video chỉ có phụ đề: ${result.availableLangs.join(", ")} — ` +
+                "module Shadowing yêu cầu video có nội dung tiếng Anh. " +
+                "Chọn video khác hoặc dùng \"Chế độ nâng cao\" để dán transcript thủ công.",
+            },
+            { status: 422 },
+          );
+        }
+      }
+    } catch (e) {
+      watchErr = e instanceof Error ? e.message : String(e);
+      console.warn(
+        `[from-youtube] watch-page captions fail ytId=${ytId}: ${watchErr}`,
+      );
+    }
+  }
+
   // 2. Audio fallback — only if captions failed AND admin allowed it.
   if (merged.length === 0) {
     if (!parsed.data.allowAudioFallback) {
@@ -345,13 +387,21 @@ export async function POST(req: Request) {
     method = "audio";
     const audioAttempt = await tryAudioTranscription(ytId);
     if (audioAttempt.kind === "fail") {
-      const langsMsg =
-        captionAttempt.kind === "fail" && captionAttempt.availableLangs.length > 0
-          ? ` (Captions có: ${captionAttempt.availableLangs.join(", ")})`
-          : "";
+      const captionLangs =
+        watchAvailableLangs?.length
+          ? watchAvailableLangs
+          : captionAttempt.kind === "fail"
+            ? captionAttempt.availableLangs
+            : [];
+      const langsMsg = captionLangs.length > 0
+        ? ` Captions có: ${captionLangs.join(", ")}.`
+        : "";
+      const watchMsg = watchErr ? ` (watch-page: ${watchErr})` : "";
       return NextResponse.json(
         {
-          error: `Cả captions và AI nghe đều fail. ${audioAttempt.message}${langsMsg}`,
+          error:
+            `Cả captions và AI nghe đều fail. ${audioAttempt.message}${langsMsg}${watchMsg} ` +
+            `Phương án: 1) chọn video EN có phụ đề YouTube, 2) mở "Chế độ nâng cao — dán transcript thủ công" và paste VTT/SRT.`,
         },
         { status: 422 },
       );

@@ -379,6 +379,114 @@ function resolveDuration(info: {
   return Math.max(...candidates) / 1000;
 }
 
+/**
+ * Direct captions scrape via the YouTube watch page. Used as a fallback
+ * when `youtube-transcript` returns empty (Railway IP rate-limit, or its
+ * cookie-less fetch gets 200 with empty body). We fetch the watch page
+ * with a real browser User-Agent, pull the `captionTracks` JSON, pick
+ * the EN baseUrl, and fetch its srv3 payload.
+ *
+ * Returns availableLangs even on success so callers can warn about
+ * non-EN content. Throws ONLY when the whole flow fails (no captions
+ * available, parse error, etc).
+ */
+export async function fetchYouTubeCaptionsViaWatch(
+  videoId: string,
+): Promise<{ cues: RawCue[]; availableLangs: string[] }> {
+  const watchUrl = `https://www.youtube.com/watch?v=${videoId}&hl=en`;
+  const browserHeaders = {
+    "User-Agent":
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Accept-Language": "en-US,en;q=0.9",
+    Accept:
+      "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+  };
+  const watchResp = await fetch(watchUrl, { headers: browserHeaders });
+  if (!watchResp.ok) {
+    throw new Error(`Watch page HTTP ${watchResp.status} ${watchResp.statusText}`);
+  }
+  const html = await watchResp.text();
+  const tracksMatch = html.match(/"captionTracks":\s*(\[.*?\])\s*[,}]/);
+  if (!tracksMatch) {
+    throw new Error("Video không có captionTracks (không có phụ đề YouTube).");
+  }
+  const tracksJson = tracksMatch[1].replace(/\\u0026/g, "&");
+  let tracks: Array<{
+    baseUrl: string;
+    languageCode?: string;
+    vssId?: string;
+  }>;
+  try {
+    tracks = JSON.parse(tracksJson);
+  } catch (e) {
+    throw new Error(`Parse captionTracks fail: ${e instanceof Error ? e.message : e}`);
+  }
+  const availableLangs = tracks
+    .map((t) => t.languageCode || t.vssId || "?")
+    .filter(Boolean);
+  // Prefer manual EN, fallback to any en-* variant, then auto-generated "a.en".
+  const enTrack =
+    tracks.find((t) => t.vssId === ".en") ||
+    tracks.find((t) => t.languageCode === "en") ||
+    tracks.find((t) => t.languageCode?.startsWith("en")) ||
+    tracks.find((t) => t.vssId === "a.en");
+  if (!enTrack) {
+    return { cues: [], availableLangs };
+  }
+  const captionUrl = enTrack.baseUrl + "&fmt=json3";
+  const capResp = await fetch(captionUrl, { headers: browserHeaders });
+  if (!capResp.ok) {
+    throw new Error(`Caption fetch HTTP ${capResp.status} cho lang=${enTrack.languageCode}`);
+  }
+  const body = await capResp.text();
+  if (!body.trim()) {
+    throw new Error(
+      `Caption rỗng cho lang=${enTrack.languageCode} — IP server có thể bị YouTube rate-limit.`,
+    );
+  }
+  const cues: RawCue[] = [];
+  try {
+    const parsed = JSON.parse(body) as {
+      events?: Array<{
+        tStartMs?: number;
+        dDurationMs?: number;
+        segs?: Array<{ utf8?: string }>;
+      }>;
+    };
+    for (const ev of parsed.events ?? []) {
+      const text = (ev.segs ?? []).map((s) => s.utf8 ?? "").join("").trim();
+      if (!text) continue;
+      const startMs = ev.tStartMs ?? 0;
+      const durMs = ev.dDurationMs ?? 0;
+      cues.push({
+        text,
+        offsetSec: startMs / 1000,
+        durationSec: Math.max(0.3, durMs / 1000),
+      });
+    }
+  } catch {
+    // Fall back to XML format if server returned XML instead of JSON3.
+    const xmlRe = /<text\s+start="([\d.]+)"\s+dur="([\d.]+)"[^>]*>([^<]+)<\/text>/g;
+    let m: RegExpExecArray | null;
+    while ((m = xmlRe.exec(body)) !== null) {
+      cues.push({
+        offsetSec: parseFloat(m[1]),
+        durationSec: parseFloat(m[2]),
+        text: m[3]
+          .replace(/&amp;/g, "&")
+          .replace(/&#39;/g, "'")
+          .replace(/&quot;/g, '"')
+          .replace(/&lt;/g, "<")
+          .replace(/&gt;/g, ">"),
+      });
+    }
+  }
+  if (cues.length === 0) {
+    throw new Error("Caption parse ra 0 cue (cả JSON3 lẫn XML đều fail).");
+  }
+  return { cues, availableLangs };
+}
+
 export async function getYouTubeBasicInfo(videoId: string): Promise<YouTubeBasicInfo> {
   // Reverted to the 510d5f0 shape (the version that was uploading this
   // admin's videos successfully) — no per-call client option, no
@@ -487,7 +595,6 @@ export async function getYouTubeAudioBuffer(videoId: string): Promise<YouTubeAud
     );
   };
   let buffer: Buffer;
-  let contentType = "audio/webm";
   try {
     buffer = await downloadWith("IOS");
   } catch (iosErr) {
@@ -495,92 +602,13 @@ export async function getYouTubeAudioBuffer(videoId: string): Promise<YouTubeAud
     console.warn(
       `[yt-audio] IOS blocked for ${videoId} (${iosErr instanceof Error ? iosErr.message : iosErr}), retrying with TV_EMBEDDED`,
     );
-    try {
-      buffer = await downloadWith("TV_EMBEDDED");
-    } catch (tvErr) {
-      // Both youtubei.js clients exhausted. Last resort: hand off the URL
-      // to Cobalt's free hosted API. Cobalt is FOSS (github.com/imputnet/cobalt)
-      // and runs its own bot-detection bypass — when YouTube tightens
-      // detection against direct InnerTube calls from our IP, Cobalt's
-      // server still gets through because it presents a real browser
-      // session. We get back a direct CDN URL → fetch → buffer.
-      if (!isClientBlockedError(tvErr)) throw tvErr;
-      console.warn(
-        `[yt-audio] TV_EMBEDDED also blocked for ${videoId}, trying Cobalt`,
-      );
-      const result = await downloadAudioViaCobalt(videoId);
-      buffer = result.buffer;
-      contentType = result.contentType;
-    }
+    buffer = await downloadWith("TV_EMBEDDED");
   }
   const finalDur = dur > 0 ? dur : Math.max(1, buffer.byteLength / 16000);
   return {
     buffer,
-    contentType,
+    contentType: "audio/webm",
     durationSec: finalDur,
     title: info.basic_info.title ?? "",
   };
-}
-
-/** Cobalt is a FOSS YouTube downloader proxy. Public instance at
- *  api.cobalt.tools handles bot detection on its own infrastructure, so
- *  this works even when our IP is locked out of InnerTube. Returns a
- *  direct CDN URL we then fetch ourselves. No API key for the public
- *  tier; rate-limited but generous for occasional admin uploads.
- *  Schema: https://github.com/imputnet/cobalt/blob/main/docs/api.md */
-async function downloadAudioViaCobalt(
-  videoId: string,
-): Promise<{ buffer: Buffer; contentType: string }> {
-  const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
-  const apiUrl = process.env.COBALT_API_URL?.trim() || "https://api.cobalt.tools/";
-  const resp = await fetch(apiUrl, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "User-Agent": "bee-ielts/1.0 (admin upload)",
-    },
-    body: JSON.stringify({
-      url: youtubeUrl,
-      downloadMode: "audio",
-      audioFormat: "mp3",
-      filenameStyle: "basic",
-    }),
-  });
-  if (!resp.ok) {
-    throw new Error(`Cobalt HTTP ${resp.status} ${resp.statusText}`);
-  }
-  const data = (await resp.json().catch(() => ({}))) as {
-    status?: string;
-    url?: string;
-    text?: string;
-    error?: { code?: string; context?: unknown };
-  };
-  if (data.status === "error") {
-    throw new Error(`Cobalt error: ${data.text || data.error?.code || "unknown"}`);
-  }
-  if (!data.url) {
-    throw new Error(`Cobalt: không có url trong response (status=${data.status})`);
-  }
-  // Fetch the resolved CDN audio URL Cobalt gives us.
-  const audioResp = await fetch(data.url, {
-    headers: { "User-Agent": "bee-ielts/1.0 (admin upload)" },
-  });
-  if (!audioResp.ok) {
-    throw new Error(`Cobalt audio fetch HTTP ${audioResp.status}`);
-  }
-  // Hard cap on the streamed response so a runaway Cobalt link can't
-  // OOM the Railway worker. Same 45MB ceiling as the direct path.
-  const HARD_CAP_BYTES = 45 * 1024 * 1024;
-  const ab = await audioResp.arrayBuffer();
-  if (ab.byteLength > HARD_CAP_BYTES) {
-    throw new Error(
-      `Cobalt audio vượt ${Math.round(HARD_CAP_BYTES / 1024 / 1024)}MB`,
-    );
-  }
-  // Cobalt returns mp3 when we ask for audioFormat:"mp3". Deepgram accepts
-  // audio/mpeg natively. Fall back to whatever the response header says.
-  const contentType =
-    audioResp.headers.get("content-type")?.split(";")[0]?.trim() || "audio/mpeg";
-  return { buffer: Buffer.from(ab), contentType };
 }
