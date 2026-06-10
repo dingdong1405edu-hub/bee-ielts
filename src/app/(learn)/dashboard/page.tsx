@@ -14,12 +14,12 @@ import { BeeMascot, Leaf } from "@/components/brand";
 // Per-skill accent gradients — vibrant, distinct hue per module (Duolingo
 // energy), matching the tailwind `skill.*` tokens.
 const modules = [
-  { href: "/vocab", label: "Vocabulary", desc: "Từ vựng Duolingo-style", icon: Sparkles, grad: "from-[#FF7DC0] to-[#FF5CA8]" },
-  { href: "/grammar", label: "Grammar", desc: "Ngữ pháp ngắn gọn", icon: BookOpenText, grad: "from-[#2DD4C0] to-[#14B8A6]" },
-  { href: "/reading", label: "Reading", desc: "Đọc hiểu IELTS", icon: BookOpen, grad: "from-[#6FDD2E] to-[#58CC02]" },
-  { href: "/listening", label: "Listening", desc: "Nghe + Q&A", icon: Headphones, grad: "from-[#4FC3F7] to-[#1CB0F6]" },
-  { href: "/writing", label: "Writing", desc: "AI chấm band IELTS", icon: PenLine, grad: "from-[#FFB020] to-[#FF9600]" },
-  { href: "/speaking", label: "Speaking", desc: "3 part — AI đánh giá", icon: Mic, grad: "from-[#FF6B86] to-[#FF4B6E]" },
+  { href: "/vocab", label: "Vocabulary", desc: "Từ vựng Duolingo-style", icon: Sparkles, grad: "from-[#E86AAD] to-[#D6488F]" },
+  { href: "/grammar", label: "Grammar", desc: "Ngữ pháp ngắn gọn", icon: BookOpenText, grad: "from-[#3FB0AB] to-[#2E8C88]" },
+  { href: "/reading", label: "Reading", desc: "Đọc hiểu IELTS", icon: BookOpen, grad: "from-[#43B86E] to-[#2F9E5E]" },
+  { href: "/listening", label: "Listening", desc: "Nghe + Q&A", icon: Headphones, grad: "from-[#5E70E0] to-[#3A4ED4]" },
+  { href: "/writing", label: "Writing", desc: "AI chấm band IELTS", icon: PenLine, grad: "from-[#E47D92] to-[#D75E79]" },
+  { href: "/speaking", label: "Speaking", desc: "3 part — AI đánh giá", icon: Mic, grad: "from-[#E98A55] to-[#DF6F33]" },
 ];
 
 export default async function DashboardPage() {

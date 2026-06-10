@@ -1,27 +1,27 @@
 import type { Metadata } from "next";
-import { Baloo_2, Nunito, Be_Vietnam_Pro } from "next/font/google";
+import { Poppins, Be_Vietnam_Pro } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 import { Providers } from "./providers";
 
-// Display (headings) — Baloo 2: chunky, rounded, playful (Duolingo energy)
-const display = Baloo_2({
-  subsets: ["latin", "latin-ext", "vietnamese"],
-  weight: ["500", "600", "700", "800"],
+// Display (headings) — Poppins: geometric, confident (BeeEnglish landing)
+const display = Poppins({
+  subsets: ["latin", "latin-ext"],
+  weight: ["500", "600", "700", "800", "900"],
   variable: "--font-display",
   display: "swap",
 });
-// Body (UI text) — Nunito: friendly, rounded sans, full weight range
-const body = Nunito({
-  subsets: ["latin", "latin-ext", "vietnamese"],
-  weight: ["400", "500", "600", "700", "800", "900"],
+// Body (UI text) — Be Vietnam Pro: clean, full Vietnamese coverage
+const body = Be_Vietnam_Pro({
+  subsets: ["latin", "vietnamese"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-sans",
   display: "swap",
 });
-// Vietnamese coverage fallback for both stacks — Be Vietnam Pro
+// Vietnamese display fallback (Poppins lacks vi glyphs) — Be Vietnam Pro
 const vietnamese = Be_Vietnam_Pro({
   subsets: ["latin", "vietnamese"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["500", "600", "700", "800"],
   variable: "--font-vn",
   display: "swap",
 });

@@ -4,76 +4,80 @@
 
 @layer base {
   :root {
-    /* ===== Bee × Duolingo theme — shadcn semantic tokens (HSL triplets) =====
-       Grass-green primary (action/correct), honey-gold accent (brand/XP),
-       on a warm near-white canvas with clean white cards. Bright, friendly,
-       gamified — re-skin the whole app by editing these tokens. */
-    --background: 45 52% 96%;        /* warm cream canvas #FAF6EB */
-    --foreground: 44 12% 20%;        /* warm near-black ink #383428 */
-    --card: 0 0% 100%;               /* clean white cards */
-    --card-foreground: 44 12% 20%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 44 12% 20%;
+    /* ===== Bee "Honey" theme — shadcn semantic tokens (HSL triplets) =====
+       Honey-gold primary (brand/CTA, dark text), leaf-green accent (correct/
+       nature), warm ink on a cream canvas with paper cards + a muted sage
+       honeycomb band on hero/nav. Matches the BeeEnglish landing (hello.html)
+       and CLAUDE.md §7 "Honey" palette. Re-skin the app by editing these. */
+    --background: 43 56% 95%;        /* warm cream canvas #FBF5E9 */
+    --foreground: 35 32% 12%;        /* warm ink #2B2417 */
+    --card: 48 60% 98%;              /* paper #FFFDF7 */
+    --card-foreground: 35 32% 12%;
+    --popover: 48 60% 98%;
+    --popover-foreground: 35 32% 12%;
 
-    --primary: 94 86% 40%;           /* Duolingo grass green #58CC02 */
-    --primary-foreground: 0 0% 100%; /* white on green */
+    --primary: 39 83% 51%;           /* honey gold #E9A21C */
+    --primary-foreground: 36 46% 11%;/* dark ink on gold */
 
-    --secondary: 44 36% 91%;         /* soft warm sand (secondary buttons) */
-    --secondary-foreground: 44 14% 26%;
+    --secondary: 42 44% 90%;         /* soft warm sand (secondary buttons) */
+    --secondary-foreground: 35 28% 22%;
 
-    --muted: 45 35% 93%;             /* muted warm linen */
-    --muted-foreground: 42 7% 48%;   /* warm gray text */
+    --muted: 44 40% 92%;             /* muted warm linen */
+    --muted-foreground: 38 12% 42%;  /* warm gray text */
 
-    --accent: 46 100% 90%;           /* honey tint (subtle hover bg) */
-    --accent-foreground: 38 100% 30%;/* honey-deep #996600 */
+    --accent: 44 90% 88%;            /* honey tint (subtle hover bg) */
+    --accent-foreground: 36 78% 30%; /* honey-deep */
 
-    --destructive: 0 100% 65%;       /* Duolingo red/heart #FF4B4B */
+    --destructive: 4 76% 56%;        /* warm red/heart */
     --destructive-foreground: 0 0% 100%;
 
-    --success: 94 84% 38%;           /* leaf green (correct) */
+    --success: 130 38% 44%;          /* leaf green #3FA24C (correct) */
     --success-foreground: 0 0% 100%;
 
-    --border: 44 26% 86%;            /* warm hairline #E8E1D1 */
-    --input: 44 24% 82%;
-    --ring: 94 86% 40%;
+    --border: 40 30% 84%;            /* warm hairline */
+    --input: 40 28% 80%;
+    --ring: 39 83% 51%;              /* honey focus ring */
 
     --radius: 1rem;
 
-    /* brand gradient (logo mark, avatars, brand buttons) — green → honey */
-    --brand-1: 94 78% 47%;           /* lively green   */
-    --brand-2: 94 86% 40%;           /* grass green    */
-    --brand-3: 45 100% 51%;          /* honey gold     */
+    /* brand gradient (logo mark, avatars, brand buttons) — honey gradient */
+    --brand-1: 45 96% 52%;           /* bright honey #F7B500 */
+    --brand-2: 39 83% 51%;           /* honey gold     */
+    --brand-3: 33 72% 42%;           /* deep caramel   */
 
     /* ===== Raw design tokens (hex) — used by helper classes ===== */
-    --ink:        #383428;           /* warm near-black */
-    --ink-soft:   #6B6555;
-    --ink-faint:  #9B9483;
-    --cream:      #FBF6EA;           /* warm chip / panel cream */
-    --cream-2:    #F3EAD3;           /* deeper linen (marquee / secondary) */
-    --paper:      #FFFFFF;
-    --honey:      #FFC800;           /* honey XP gold */
-    --primary-deep:#46A302;          /* green-deep (3D button shadow) */
-    --primary-tint:#DBF3C2;          /* green tint */
-    --leaf:       #58CC02;           /* success green */
-    --accent-deep:#3C8A00;
-    --accent-tint:#DBF3C2;
-    /* green + gold + mist named tokens (parity with design system) */
-    --sage:       #58CC02;           /* legacy name, now = grass green */
-    --sage-deep:  #46A302;
-    --gold:       #FFC107;           /* vibrant honey */
-    --gold-soft:  #FFE07A;
-    --gold-deep:  #C98A00;
-    --mist:       #BCE89A;           /* light green mist */
-    --mist-soft:  #E4F5D2;
-    --forest:     #1F4D12;           /* deep green (story block) */
-    /* sky-blue (listening / wings) + warm kraft (leaf-paper texture) */
-    --slate:      #1CB0F6;
-    --slate-soft: #5BC8FF;
+    --ink:        #2B2417;           /* warm near-black (hello.html ink) */
+    --ink-soft:   #6E6450;
+    --ink-faint:  #9A9079;
+    --cream:      #FFF6E2;           /* warm chip / panel cream */
+    --cream-2:    #FBEFD6;           /* deeper linen (marquee / secondary) */
+    --paper:      #FFFDF7;
+    --honey:      #E9A21C;           /* honey gold (brand) */
+    --primary-deep:#C98A14;          /* honey-deep (3D button shadow) */
+    --primary-tint:#FCE9BE;          /* honey tint */
+    --leaf:       #3FA24C;           /* success / leaf green */
+    --accent-deep:#2F7A37;
+    --accent-tint:#DCEFD7;
+    /* honey gold + leaf green + sage band tokens (BeeEnglish palette) */
+    --sage:       #5FA046;           /* friendly leaf green (eyebrow/accents) */
+    --sage-deep:  #46812F;
+    --gold:       #F7B500;           /* vibrant honey gold */
+    --gold-soft:  #FFE08A;
+    --gold-deep:  #C98A14;
+    --mist:       #CFE0B8;           /* light green mist */
+    --mist-soft:  #EAF2DF;
+    --forest:     #2C4A1E;           /* deep green (story block) */
+    /* sage honeycomb band (hero/nav) + accent hues + warm kraft */
+    --band:       #92B07C;           /* muted sage hero/header band */
+    --band-deep:  #7C9A66;
+    --band-line:  rgba(255,255,255,0.14);
+    --slate:      #3A4ED4;           /* listening indigo (hello.html card) */
+    --slate-soft: #6E7EE6;
     --kraft:      #C9A87E;
     --kraft-soft: #E8D9C3;
-    --line:       rgba(56,52,40,0.12);
-    --line-soft:  rgba(56,52,40,0.06);
-    --shadow:     56 50 38;
+    --line:       rgba(43,36,23,0.12);
+    --line-soft:  rgba(43,36,23,0.06);
+    --shadow:     43 36 23;
 
     --r-sm: 12px;
     --r-md: 18px;
@@ -85,67 +89,70 @@
   }
 
   .dark {
-    /* ===== Dark Bee — deep teal-charcoal + bright green/honey accents ===== */
-    --background: 197 30% 11%;       /* dark teal-charcoal #131F24 */
-    --foreground: 192 30% 92%;
-    --card: 196 25% 15%;             /* #1C2B31 */
-    --card-foreground: 192 30% 92%;
-    --popover: 196 25% 15%;
-    --popover-foreground: 192 30% 92%;
+    /* ===== Dark Honey — warm brown-charcoal + bright honey/leaf accents ===== */
+    --background: 36 24% 8%;         /* dark warm brown */
+    --foreground: 40 30% 90%;
+    --card: 34 20% 12%;
+    --card-foreground: 40 30% 90%;
+    --popover: 34 20% 12%;
+    --popover-foreground: 40 30% 90%;
 
-    --primary: 94 80% 46%;           /* bright grass green on dark */
-    --primary-foreground: 150 40% 8%;
+    --primary: 42 92% 56%;           /* bright honey on dark */
+    --primary-foreground: 36 60% 10%;
 
-    --secondary: 196 18% 22%;
-    --secondary-foreground: 192 26% 88%;
+    --secondary: 36 14% 22%;
+    --secondary-foreground: 40 24% 86%;
 
-    --muted: 196 16% 20%;
-    --muted-foreground: 192 12% 64%;
+    --muted: 36 12% 19%;
+    --muted-foreground: 40 10% 62%;
 
-    --accent: 196 18% 22%;
-    --accent-foreground: 45 100% 62%; /* honey on dark */
+    --accent: 36 16% 22%;
+    --accent-foreground: 44 100% 64%; /* honey on dark */
 
-    --destructive: 0 100% 67%;
+    --destructive: 4 80% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 94 70% 48%;
-    --success-foreground: 150 40% 8%;
+    --success: 130 42% 50%;
+    --success-foreground: 130 40% 8%;
 
-    --border: 196 14% 24%;
-    --input: 196 14% 26%;
-    --ring: 94 80% 46%;
+    --border: 36 12% 23%;
+    --input: 36 12% 25%;
+    --ring: 42 92% 56%;
 
-    --brand-1: 94 74% 52%;
-    --brand-2: 94 80% 46%;
-    --brand-3: 45 100% 56%;
+    --brand-1: 45 96% 56%;
+    --brand-2: 42 92% 56%;
+    --brand-3: 33 70% 46%;
 
     /* raw token overrides for dark surfaces */
-    --ink:        #E6EFF2;
-    --ink-soft:   #B7C7CD;
-    --ink-faint:  #80949B;
-    --cream:      #131F24;
-    --cream-2:    #1B2A30;
-    --paper:      #1C2B31;
-    --honey:      #FFD24D;
-    --primary-deep:#3E8F02;
-    --primary-tint:#22361C;
-    --leaf:       #6BD92A;
-    --accent-deep:#7BD93A;
-    --accent-tint:#22361C;
-    --sage:       #6BD92A;
-    --sage-deep:  #4FB80F;
-    --gold:       #FFD24D;
-    --gold-soft:  #FFE7A0;
-    --gold-deep:  #C99700;
-    --mist:       #4F7A3A;
-    --mist-soft:  #2A3D22;
+    --ink:        #F2E9D8;
+    --ink-soft:   #C9BCA3;
+    --ink-faint:  #978C76;
+    --cream:      #1A150D;
+    --cream-2:    #241D12;
+    --paper:      #241D12;
+    --honey:      #FFC83D;
+    --primary-deep:#B07E14;
+    --primary-tint:#3A2E12;
+    --leaf:       #5FBF5A;
+    --accent-deep:#7BD07A;
+    --accent-tint:#26331E;
+    --sage:       #7CB463;
+    --sage-deep:  #5E9447;
+    --gold:       #FFC83D;
+    --gold-soft:  #FFE19A;
+    --gold-deep:  #C99100;
+    --mist:       #4F6A3A;
+    --mist-soft:  #2A331E;
     --forest:     #0E2B07;
-    --slate:      #3FB8F8;
-    --slate-soft: #6FCDFA;
+    --band:       #5A6E4A;
+    --band-deep:  #495A3C;
+    --band-line:  rgba(255,255,255,0.08);
+    --slate:      #6E7EE6;
+    --slate-soft: #93A0EE;
     --kraft:      #C9A87E;
     --kraft-soft: #4A4032;
-    --line:      rgba(230,239,242,0.12);
-    --line-soft: rgba(230,239,242,0.06);
+    --line:      rgba(242,233,216,0.12);
+    --line-soft: rgba(242,233,216,0.06);
     --shadow:    0 0 0;
   }
 

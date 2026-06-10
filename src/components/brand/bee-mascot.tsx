@@ -4,12 +4,11 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Bee IELTS mascot. Renders the uploaded artwork at `/bee-mascot.jpg` (the
- * friendly bee at a laptop), falling back to an inline SVG bee if that file is
- * missing. The artwork is a square illustration WITH its own background, so by
- * default it's shown inside a soft rounded frame ("rounded") — set
- * `frame="circle"` for an avatar badge or `frame="none"` for the raw image
- * (only sensible once you supply a transparent cutout).
+ * Bee IELTS mascot. Renders the transparent bee cutout at `/textures/bee.png`
+ * (the BeeEnglish mascot), falling back to an inline SVG bee if that file is
+ * missing. Because the PNG is a transparent cutout it looks best raw —
+ * `frame="none"` (the default) shows it with a soft drop-shadow; set
+ * `frame="rounded"` for a card or `frame="circle"` for an avatar badge.
  */
 export function BeeMascot({
   className,
@@ -25,7 +24,7 @@ export function BeeMascot({
   priority?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
-  const src = pose ? `/mascot/bee-${pose}.jpg` : "/bee-mascot.jpg";
+  const src = pose ? `/textures/bee-${pose}.png` : "/textures/bee.png";
 
   if (failed) return <BeeMascotFallback className={className} title={alt} />;
 
@@ -39,7 +38,12 @@ export function BeeMascot({
 
   if (frame === "none") {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img {...imgProps} className={cn("block select-none", className)} />;
+    return (
+      <img
+        {...imgProps}
+        className={cn("block select-none object-contain drop-shadow-[0_18px_30px_rgba(43,36,23,0.28)]", className)}
+      />
+    );
   }
 
   return (

@@ -26,10 +26,10 @@ export default function ReadingIntroPage() {
       
       <div className="flex justify-center">
         <span
-          className="inline-flex items-center gap-2 rounded-full border border-[#58CC02]/30 bg-[#58CC02]/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider"
-          style={{ color: "#58CC02" }}
+          className="inline-flex items-center gap-2 rounded-full border border-[#2F9E5E]/30 bg-[#2F9E5E]/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider"
+          style={{ color: "#2F9E5E" }}
         >
-          <span className="h-1.5 w-1.5 rounded-full bg-[#58CC02]" />
+          <span className="h-1.5 w-1.5 rounded-full bg-[#2F9E5E]" />
           Reading
         </span>
       </div>

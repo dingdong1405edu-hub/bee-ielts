@@ -20,56 +20,58 @@ const config: Config = {
         serif: ["var(--font-display)", "var(--font-vn)", "Georgia", "serif"],
       },
       colors: {
-        /* ===== Bee × Duolingo palette — full scales (mechanical swap targets) ===== */
-        /* sage = brand green (legacy name) — vibrant grass green */
+        /* ===== Bee "Honey" palette — full scales (mechanical swap targets) ===== */
+        /* sage = brand green (legacy name) — friendly leaf green */
         sage: {
-          50: "#F1FCE3",
-          100: "#DDF4C0",
-          200: "#C2EA92",
-          300: "#9FDD5C",
-          400: "#7DD030",
-          500: "#58CC02",
-          600: "#46A302",
-          700: "#3A8500",
-          800: "#2F6A06",
-          900: "#285708",
-          950: "#112E02",
-          DEFAULT: "#58CC02",
-          deep: "#46A302",
-          tint: "#DDF4C0",
+          50: "#F1F8EC",
+          100: "#DDEECF",
+          200: "#C0DEA8",
+          300: "#9BCB7B",
+          400: "#79B658",
+          500: "#5FA046",
+          600: "#46812F",
+          700: "#386825",
+          800: "#2E5220",
+          900: "#27451E",
+          950: "#11240C",
+          DEFAULT: "#5FA046",
+          deep: "#46812F",
+          tint: "#DDEECF",
         },
         /* gold = honey accent (XP / streak / brand highlight) */
         gold: {
-          50: "#FFF9E5",
-          100: "#FFF0BF",
-          200: "#FFE38A",
-          300: "#FFD24D",
-          400: "#FFC526",
-          500: "#FFC107",
-          600: "#E5A100",
-          700: "#C98A00",
+          50: "#FFF8E3",
+          100: "#FFEEB8",
+          200: "#FFE08A",
+          300: "#FFD158",
+          400: "#FAC22E",
+          500: "#F7B500",
+          600: "#E0A52B",
+          700: "#C98A14",
           800: "#A06E00",
           900: "#805700",
           950: "#4A3200",
-          DEFAULT: "#FFC107",
-          deep: "#C98A00",
-          soft: "#FFE38A",
+          DEFAULT: "#F7B500",
+          deep: "#C98A14",
+          soft: "#FFE08A",
         },
-        mist: { DEFAULT: "#BCE89A", soft: "#E4F5D2" },
-        /* sky-blue (listening / wings) + warm kraft (leaf texture) */
+        mist: { DEFAULT: "#CFE0B8", soft: "#EAF2DF" },
+        /* sage band (hero/nav honeycomb) */
+        band: { DEFAULT: "var(--band)", deep: "var(--band-deep)" },
+        /* indigo (listening / wings) + warm kraft (leaf texture) */
         slate: { DEFAULT: "var(--slate)", soft: "var(--slate-soft)" },
         kraft: { DEFAULT: "var(--kraft)", soft: "var(--kraft-soft)" },
-        /* ===== Per-skill accent hues — vibrant & distinct per module ===== */
+        /* ===== Per-skill accent hues — matched to BeeEnglish (hello.html) cards ===== */
         skill: {
-          reading: "#58CC02",     /* grass green */
-          listening: "#1CB0F6",   /* sky blue    */
-          writing: "#FF9600",     /* orange      */
-          speaking: "#FF4B6E",    /* rose        */
-          shadowing: "#A560E8",   /* violet      */
-          grammar: "#14B8A6",     /* teal        */
-          vocab: "#FF5CA8",       /* pink        */
+          reading: "#2F9E5E",     /* green       */
+          listening: "#3A4ED4",   /* indigo blue */
+          writing: "#D75E79",     /* rose pink   */
+          speaking: "#DF6F33",    /* orange      */
+          shadowing: "#5B3A9E",   /* violet      */
+          grammar: "#2E8C88",     /* teal        */
+          vocab: "#D6488F",       /* pink        */
           mock: "#4B6BFB",        /* indigo      */
-          climber: "#F0A800",     /* amber       */
+          climber: "#E0A52B",     /* honey       */
         },
         /* Honey aliases kept for back-compat — now resolve to sage/gold tokens */
         honey: {

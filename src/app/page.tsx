@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BeeLogo } from "@/components/brand/bee-logo";
 import { BeeMascot } from "@/components/brand/bee-mascot";
+import { Honeycomb } from "@/components/brand/honeycomb";
 import "./landing.css";
 
 /* ---------------------------------------------------------------------------
@@ -15,15 +16,15 @@ import "./landing.css";
 type Skill = { icon: string; title: string; desc: string; color: string };
 
 const skills: Skill[] = [
-  { icon: "🍃", title: "Từ vựng", desc: "Học từ mới kiểu Duolingo: thẻ ghi nhớ, XP, streak — mỗi ngày một chút.", color: "#FF5CA8" },
-  { icon: "✏️", title: "Ngữ pháp", desc: "Bài học ngắn, ví dụ rõ ràng, luyện tập ngay để nhớ lâu.", color: "#14B8A6" },
-  { icon: "📖", title: "Reading", desc: "Passage chuẩn IELTS đủ dạng câu hỏi, chấm tự động kèm giải thích đáp án.", color: "#58CC02" },
-  { icon: "🎧", title: "Listening", desc: "Audio thật, transcript đối chiếu, luyện nghe theo từng section như đề thi.", color: "#1CB0F6" },
-  { icon: "✍️", title: "Writing", desc: "Task 1 & 2 — AI chấm theo 4 tiêu chí band IELTS và gợi ý sửa từng câu.", color: "#FF9600" },
-  { icon: "🎙️", title: "Speaking", desc: "Part 1·2·3 chuẩn IELTS. Ghi âm ngay trên trình duyệt, AI chấm tức thì.", color: "#FF4B6E" },
-  { icon: "📺", title: "Shadowing", desc: "Luyện nói theo video thật, bắt chước ngữ điệu và phát âm bản xứ.", color: "#A560E8" },
+  { icon: "🍃", title: "Từ vựng", desc: "Học từ mới kiểu Duolingo: thẻ ghi nhớ, XP, streak — mỗi ngày một chút.", color: "#D6488F" },
+  { icon: "✏️", title: "Ngữ pháp", desc: "Bài học ngắn, ví dụ rõ ràng, luyện tập ngay để nhớ lâu.", color: "#2E8C88" },
+  { icon: "📖", title: "Reading", desc: "Passage chuẩn IELTS đủ dạng câu hỏi, chấm tự động kèm giải thích đáp án.", color: "#2F9E5E" },
+  { icon: "🎧", title: "Listening", desc: "Audio thật, transcript đối chiếu, luyện nghe theo từng section như đề thi.", color: "#3A4ED4" },
+  { icon: "✍️", title: "Writing", desc: "Task 1 & 2 — AI chấm theo 4 tiêu chí band IELTS và gợi ý sửa từng câu.", color: "#D75E79" },
+  { icon: "🎙️", title: "Speaking", desc: "Part 1·2·3 chuẩn IELTS. Ghi âm ngay trên trình duyệt, AI chấm tức thì.", color: "#DF6F33" },
+  { icon: "📺", title: "Shadowing", desc: "Luyện nói theo video thật, bắt chước ngữ điệu và phát âm bản xứ.", color: "#5B3A9E" },
   { icon: "📝", title: "Thi thử", desc: "Mock test đủ 4 kỹ năng sát phòng thi, nhận band tổng tức thì.", color: "#4B6BFB" },
-  { icon: "🧗", title: "Vượt band", desc: "Lộ trình leo band theo từng chặng — biết chính xác hôm nay nên luyện gì.", color: "#F0A800" },
+  { icon: "🧗", title: "Vượt band", desc: "Lộ trình leo band theo từng chặng — biết chính xác hôm nay nên luyện gì.", color: "#E0A52B" },
 ];
 
 const steps = [
@@ -73,7 +74,7 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <main className="lp">
+    <main className={`lp${scrolled ? " lp-scrolled" : ""}`}>
       {/* ===== NAV ===== */}
       <header className={`lp-nav${scrolled ? " scrolled" : ""}`}>
         <div className="wrap lp-nav-inner">
@@ -87,15 +88,16 @@ export default function LandingPage() {
             <Link href="#pricing" className="lp-nav-link hide-sm">Học phí</Link>
             <Link href="#faq" className="lp-nav-link hide-sm">Hỏi đáp</Link>
             <Link href="/login" className="lp-login">Đăng nhập</Link>
-            <Link href="/register" className="btn btn-primary btn-sm">Bắt đầu free</Link>
+            <Link href="/register" className="btn btn-honey btn-sm">Bắt đầu free</Link>
           </nav>
         </div>
       </header>
 
-      {/* ===== HERO ===== */}
+      {/* ===== HERO — sage-green honeycomb band ===== */}
       <section className="lp-hero">
+        <Honeycomb className="lp-hero-comb" color="#ffffff" opacity={0.16} size={30} />
         <div className="wrap lp-hero-grid">
-          <div className="lp-hero-copy">
+          <div className="lp-hero-copy lp-onband">
             <span className="lp-pill">
               <span className="dot" /> AI chấm Writing &amp; Speaking
               <span className="tag">Miễn phí</span>
@@ -110,10 +112,10 @@ export default function LandingPage() {
               AI chấm Writing &amp; Speaking theo đúng band score IELTS — ngay tức thì.
             </p>
             <div className="lp-cta">
-              <Link href="/register" className="btn btn-primary lp-cta-main">
+              <Link href="/register" className="btn btn-honey lp-cta-main">
                 Bắt đầu miễn phí <span className="arr">→</span>
               </Link>
-              <Link href="#how" className="btn btn-outline">Xem cách học</Link>
+              <Link href="#how" className="btn btn-cream">Xem cách học</Link>
             </div>
             <div className="lp-trust">
               <span className="lp-trust-stars">★★★★★</span>
@@ -121,12 +123,13 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Hero art — mascot in a green disc + floating gamified cards */}
+          {/* Hero art — raw bee mascot + speech bubble + floating gamified cards */}
           <div className="lp-hero-art lp-reveal">
             <div className="lp-disc" aria-hidden />
             <div className="lp-blob lp-blob-1" aria-hidden />
             <div className="lp-blob lp-blob-2" aria-hidden />
-            <BeeMascot className="lp-mascot" priority />
+            <div className="lp-bubble">Chăm chỉ như ong, kết quả ngọt như mật nhé!</div>
+            <BeeMascot className="lp-mascot" frame="none" priority />
 
             <div className="lp-chip chip-xp">
               <span className="ci" style={{ background: "#FFF0BF" }}>⚡</span>
@@ -137,7 +140,7 @@ export default function LandingPage() {
               <span className="ct">7 ngày<small>Streak</small></span>
             </div>
             <div className="lp-chip chip-band">
-              <span className="ci" style={{ background: "#DDF4C0" }}>🎯</span>
+              <span className="ci" style={{ background: "#DDEECF" }}>🎯</span>
               <span className="ct">Band 7.0<small>Mục tiêu</small></span>
             </div>
           </div>
@@ -240,10 +243,10 @@ export default function LandingPage() {
             </div>
             <div className="lp-result-bars">
               {[
-                { k: "Task Response", v: 7.0, c: "#58CC02" },
-                { k: "Coherence & Cohesion", v: 7.5, c: "#1CB0F6" },
-                { k: "Lexical Resource", v: 6.5, c: "#FF9600" },
-                { k: "Grammar", v: 7.0, c: "#A560E8" },
+                { k: "Task Response", v: 7.0, c: "#2F9E5E" },
+                { k: "Coherence & Cohesion", v: 7.5, c: "#3A4ED4" },
+                { k: "Lexical Resource", v: 6.5, c: "#E0A52B" },
+                { k: "Grammar", v: 7.0, c: "#5B3A9E" },
               ].map((b) => (
                 <div className="lp-bar" key={b.k}>
                   <div className="lp-bar-head"><span>{b.k}</span><b>{b.v.toFixed(1)}</b></div>
