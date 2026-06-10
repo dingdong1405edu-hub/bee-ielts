@@ -18,6 +18,7 @@ import { isAdminOrOwner } from "@/lib/premium";
 import {
   extractYoutubeId,
   fetchYouTubeCaptionsViaInnertube,
+  fetchYouTubeCaptionsViaLibrary,
   getYouTubeBasicInfo,
   mergeCuesIntoSegments,
   refineSegmentsForShadowing,
@@ -87,31 +88,55 @@ export async function POST(req: Request) {
     );
   }
 
-  // Captions — required. If the video has no EN track, podcast won't be
-  // useful (no transcript = pure audio, but our player banks on the
-  // transcript scrolling). Surface a clear error instead of saving a
-  // half-broken episode.
+  // Captions — required. Two parallel paths against YouTube, different
+  // surfaces to its bot detection: youtubei.js library (manages its own
+  // session, cookies, signature_timestamp) and raw InnerTube POST. When
+  // the IP is bot-flagged the raw POST returns LOGIN_REQUIRED but the
+  // library path usually still works because YouTube treats its session
+  // as a legitimate youtubei client. Try library FIRST.
   let cues;
+  let availableLangs: string[] = [];
+  let libraryErr: string | null = null;
   try {
-    const result = await fetchYouTubeCaptionsViaInnertube(ytId);
-    if (result.cues.length === 0) {
-      const langs = result.availableLangs.length > 0
-        ? ` (Phụ đề có: ${result.availableLangs.join(", ")})`
-        : "";
+    const result = await fetchYouTubeCaptionsViaLibrary(ytId);
+    availableLangs = result.availableLangs;
+    if (result.cues.length > 0) {
+      cues = result.cues;
+    }
+  } catch (e) {
+    libraryErr = e instanceof Error ? e.message : String(e);
+    console.warn(`[podcasts] library captions fail ytId=${ytId}: ${libraryErr}`);
+  }
+
+  if (!cues) {
+    try {
+      const result = await fetchYouTubeCaptionsViaInnertube(ytId);
+      // Library's "no EN" result wins if both paths say there's no EN —
+      // gives admin a clearer langs list.
+      if (availableLangs.length === 0) availableLangs = result.availableLangs;
+      if (result.cues.length > 0) cues = result.cues;
+    } catch (e) {
+      const raw = e instanceof Error ? e.message : String(e);
+      console.error(`[podcasts] InnerTube captions fail ytId=${ytId}:`, raw);
       return NextResponse.json(
         {
           error:
-            `Video không có phụ đề tiếng Anh.${langs} Podcast cần transcript EN — chọn video khác.`,
+            `Lấy phụ đề thất bại qua cả 2 path. Library: ${libraryErr ?? "n/a"} | InnerTube: ${raw}`,
         },
         { status: 422 },
       );
     }
-    cues = result.cues;
-  } catch (e) {
-    const raw = e instanceof Error ? e.message : String(e);
-    console.error(`[podcasts] captions failed ytId=${ytId}:`, raw);
+  }
+
+  if (!cues) {
+    const langs = availableLangs.length > 0
+      ? ` (Phụ đề có: ${availableLangs.join(", ")})`
+      : "";
     return NextResponse.json(
-      { error: `Lấy phụ đề thất bại: ${raw}` },
+      {
+        error:
+          `Video không có phụ đề tiếng Anh.${langs} Podcast cần transcript EN — chọn video khác.`,
+      },
       { status: 422 },
     );
   }

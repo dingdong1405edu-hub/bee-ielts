@@ -34,6 +34,7 @@ import { isAdminOrOwner } from "@/lib/premium";
 import {
   extractYoutubeId,
   fetchYouTubeCaptionsViaInnertube,
+  fetchYouTubeCaptionsViaLibrary,
   getYouTubeAudioBuffer,
   getYouTubeBasicInfo,
   MAX_AUDIO_FALLBACK_SEC,
@@ -326,18 +327,31 @@ export async function POST(req: Request) {
     merged = refineSegmentsForShadowing(mergeCuesIntoSegments(captionAttempt.cues));
   }
 
-  // 1b. InnerTube /player direct call. Bypasses the youtube-transcript
-  //     library entirely — calls YouTube's API as ANDROID youtubei client
-  //     and gets back the same playerResponse the official app sees. This
-  //     succeeds even when the watch page returns a stripped consent stub
-  //     to server IPs. Also reads availableLangs so we can early-reject
-  //     videos that have only non-EN captions (Vietnamese vlogs etc).
+  // 1b. youtubei.js library + raw InnerTube as parallel rescue paths.
+  //     The library manages its own session/cookies/signature_timestamp
+  //     and survives bot-detection on Railway IPs where the raw POST
+  //     gets LOGIN_REQUIRED. Try library first, raw InnerTube second.
   let watchAvailableLangs: string[] | null = null;
   let watchErr: string | null = null;
   if (merged.length === 0) {
     try {
+      const libResult = await fetchYouTubeCaptionsViaLibrary(ytId);
+      watchAvailableLangs = libResult.availableLangs;
+      if (libResult.cues.length > 0) {
+        console.log(
+          `[from-youtube] library captions rescued ytId=${ytId} cues=${libResult.cues.length}`,
+        );
+        merged = refineSegmentsForShadowing(mergeCuesIntoSegments(libResult.cues));
+      }
+    } catch (e) {
+      watchErr = `library: ${e instanceof Error ? e.message : e}`;
+      console.warn(`[from-youtube] library captions fail ytId=${ytId}: ${watchErr}`);
+    }
+  }
+  if (merged.length === 0) {
+    try {
       const result = await fetchYouTubeCaptionsViaInnertube(ytId);
-      watchAvailableLangs = result.availableLangs;
+      if (!watchAvailableLangs?.length) watchAvailableLangs = result.availableLangs;
       if (result.cues.length > 0) {
         console.log(
           `[from-youtube] innertube-player captions rescued ytId=${ytId} cues=${result.cues.length}`,
@@ -361,9 +375,12 @@ export async function POST(req: Request) {
         }
       }
     } catch (e) {
-      watchErr = e instanceof Error ? e.message : String(e);
+      const innertubeErr = e instanceof Error ? e.message : String(e);
+      watchErr = watchErr
+        ? `${watchErr} | innertube: ${innertubeErr}`
+        : `innertube: ${innertubeErr}`;
       console.warn(
-        `[from-youtube] innertube-player captions fail ytId=${ytId}: ${watchErr}`,
+        `[from-youtube] innertube-player captions fail ytId=${ytId}: ${innertubeErr}`,
       );
     }
   }

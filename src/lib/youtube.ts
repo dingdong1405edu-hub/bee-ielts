@@ -380,6 +380,78 @@ function resolveDuration(info: {
 }
 
 /**
+ * Pull caption cues via the youtubei.js library's getBasicInfo path —
+ * the SAME path getYouTubeBasicInfo uses, which is currently working on
+ * Railway IP even though our raw InnerTube fetch is being LOGIN_REQUIRED'd.
+ *
+ * The library bootstraps its own session (visitor_data + signature
+ * timestamp + optional cookie/po_token) and YouTube treats it as a
+ * first-class youtubei client. When this works for getBasicInfo it also
+ * returns `info.captions.caption_tracks[]` with signed base_urls —
+ * we fetch those raw and parse the srv3 XML the same way the InnerTube
+ * raw-fetch path does.
+ *
+ * Falls through to the raw-fetch path if youtubei.js itself errors out
+ * (network blip, library bug, fully-banned IP). Each path is a different
+ * surface to YouTube's bot detection so failures aren't usually correlated.
+ */
+export async function fetchYouTubeCaptionsViaLibrary(
+  videoId: string,
+): Promise<{ cues: RawCue[]; availableLangs: string[] }> {
+  const yt = await getInnertube();
+  const info = await yt.getBasicInfo(videoId);
+  const status = info.playability_status?.status?.toUpperCase();
+  if (status && status !== "OK") {
+    throw new Error(
+      `Library getBasicInfo: ${status} ${info.playability_status?.reason ?? ""}`.trim(),
+    );
+  }
+  const tracks = info.captions?.caption_tracks ?? [];
+  const availableLangs = tracks
+    .map((t) => t.language_code || t.vss_id || "?")
+    .filter(Boolean);
+  if (tracks.length === 0) {
+    throw new Error("Library: video không có caption_tracks.");
+  }
+  const enTrack =
+    tracks.find((t) => t.vss_id === ".en") ||
+    tracks.find((t) => t.language_code === "en") ||
+    tracks.find((t) => t.language_code?.startsWith("en")) ||
+    tracks.find((t) => t.vss_id === "a.en");
+  if (!enTrack) {
+    return { cues: [], availableLangs };
+  }
+  // Fetch baseUrl RAW (same lesson as the raw-fetch path: appending
+  // fmt=json3 invalidates the signature → 200 empty body).
+  const capResp = await fetch(enTrack.base_url, {
+    headers: {
+      // Library uses its own UA internally for session calls — for caption
+      // fetch we just need something that isn't flagged. Same Chrome UA as
+      // raw-fetch path keeps headers consistent.
+      "User-Agent":
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      Cookie: (process.env.YT_COOKIE?.trim() || "CONSENT=YES+cb"),
+    },
+  });
+  if (!capResp.ok) {
+    throw new Error(
+      `Library caption fetch HTTP ${capResp.status} cho lang=${enTrack.language_code}`,
+    );
+  }
+  const body = await capResp.text();
+  if (!body.trim()) {
+    throw new Error(
+      `Library caption body rỗng cho lang=${enTrack.language_code}.`,
+    );
+  }
+  const cues = parseSrv3OrClassicXml(body);
+  if (cues.length === 0) {
+    throw new Error("Library caption parse ra 0 cue.");
+  }
+  return { cues, availableLangs };
+}
+
+/**
  * Pull caption cues via the InnerTube /player endpoint (ANDROID client).
  *
  * Why this is the canonical path now: YouTube's web page returns different
