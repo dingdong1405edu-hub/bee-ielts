@@ -467,14 +467,32 @@ export async function getYouTubeAudioBuffer(videoId: string): Promise<YouTubeAud
     }
     return Buffer.concat(chunks);
   };
+  // Trigger fallback on any client-side bot-detection signal — not just
+  // "unplayable". login_required / po_token / 403 / sign-in all mean
+  // "YouTube is blocking THIS client, try another". TV_EMBEDDED bypasses
+  // most of these. Truly broken videos (private, region-block, deleted)
+  // still bubble up because their messages don't match.
+  const isClientBlockedError = (e: unknown) => {
+    const msg = (e instanceof Error ? e.message : String(e)).toLowerCase();
+    return (
+      msg.includes("unplayable") ||
+      msg.includes("playability") ||
+      msg.includes("login_required") ||
+      msg.includes("login required") ||
+      msg.includes("sign in") ||
+      msg.includes("po_token") ||
+      msg.includes("po token") ||
+      msg.includes("403") ||
+      msg.includes("forbidden")
+    );
+  };
   let buffer: Buffer;
   try {
     buffer = await downloadWith("IOS");
   } catch (e) {
-    const msg = (e instanceof Error ? e.message : String(e)).toLowerCase();
-    if (msg.includes("unplayable") || msg.includes("playability")) {
+    if (isClientBlockedError(e)) {
       console.warn(
-        `[yt-audio] IOS=unplayable for ${videoId}, retrying with TV_EMBEDDED`,
+        `[yt-audio] IOS blocked for ${videoId} (${e instanceof Error ? e.message : e}), retrying with TV_EMBEDDED`,
       );
       buffer = await downloadWith("TV_EMBEDDED");
     } else {
