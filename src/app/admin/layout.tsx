@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { isOwner } from "@/lib/admin";
 import { prisma } from "@/lib/db";
-import { Shield, BookOpen, PenLine, Mic, Sparkles, BookOpenText, Headphones, Users, KeyRound, ExternalLink, GraduationCap, TrendingUp, Music, Activity, Ticket, Video } from "lucide-react";
+import { Shield, BookOpen, PenLine, Mic, Sparkles, BookOpenText, Headphones, Users, KeyRound, ExternalLink, GraduationCap, TrendingUp, Music, Activity, Ticket, Video, Radio } from "lucide-react";
 
 const nav = [
   { href: "/admin", label: "Tổng quan", icon: Shield },
@@ -17,6 +17,7 @@ const nav = [
   { href: "/admin/vocab", label: "Vocabulary", icon: Sparkles },
   { href: "/admin/grammar", label: "Grammar", icon: BookOpenText },
   { href: "/admin/shadowing", label: "Shadowing", icon: Video },
+  { href: "/admin/podcasts", label: "Podcasts", icon: Radio },
   { href: "/admin/band-climber", label: "Vượt band", icon: TrendingUp },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/coupons", label: "Coupons", icon: Ticket },

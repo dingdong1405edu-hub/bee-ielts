@@ -768,6 +768,27 @@ model ShadowingAttempt {
   @@index([segmentId])
 }
 
+/// Passive-listening podcast episode. Mirrors ShadowingLesson's YouTube +
+/// transcript shape but lighter: no per-segment ShadowingAttempt rows, no
+/// scoring, no notes. Users open it, watch full-screen, scroll the
+/// transcript along. Transcript is inlined as JSON because the player
+/// renders the entire list at once and we never query into individual
+/// segments — keeping it inline saves a join + N+1 risk.
+model PodcastEpisode {
+  id           String   @id @default(cuid())
+  title        String
+  channel      String   // YouTube channel name, used as the badge
+  youtubeId    String   @unique
+  thumbnailUrl String   @db.Text
+  durationSec  Int      // for the "12 min" badge on cards
+  /// [{ startSec: number, endSec: number, textEn: string }]
+  transcriptJson Json
+  published    Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  @@index([published, createdAt])
+}
+
 /// IELTS Speaking Roulette card — fixed deck of topic prompts learners
 /// "spin" through. Each card belongs to one of the 3 IELTS parts. talkPoints
 /// is the bullet list shown under the question; vocab is an array of
