@@ -16,6 +16,7 @@ const segmentSchema = z.object({
 const createSchema = z.object({
   title: z.string().min(1).max(200),
   source: z.string().min(1).max(80),
+  level: z.enum(["A1", "A2", "B1", "B2", "C1", "C2"]).optional().nullable(),
   youtubeUrl: z.string().min(1),
   segments: z.array(segmentSchema).min(1).max(500),
 });
@@ -69,6 +70,7 @@ export async function POST(req: Request) {
     data: {
       title: parsed.data.title.trim(),
       source: parsed.data.source.trim(),
+      level: parsed.data.level ?? null,
       youtubeId: ytId,
       thumbnailUrl: youtubeThumbnail(ytId),
       createdBy: null, // admin-created lessons stay community-owned

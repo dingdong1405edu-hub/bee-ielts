@@ -9,11 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { MAX_AUDIO_FALLBACK_SEC } from "@/lib/shadowing-constants";
+import { PRACTICE_LEVELS, LEVEL_DESC, LEVEL_BADGE_CLASS } from "@/lib/cefr";
 
 export interface LessonRow {
   id: string;
   title: string;
   source: string;
+  level: "A1" | "A2" | "B1" | "B2" | "C1" | "C2" | null;
   youtubeId: string;
   thumbnailUrl: string | null;
   segmentCount: number;
@@ -65,6 +67,8 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
   const [aiBusy, setAiBusy] = useState(false);
   const [aiStep, setAiStep] = useState<string>("");
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  // CEFR difficulty for the lesson being created. "" = để AI tự đoán.
+  const [level, setLevel] = useState<"" | "B1" | "B2" | "C1" | "C2">("");
   // Allow the route to fall back to audio transcription (Deepgram + Groq
   // Whisper) when YouTube has no English captions. Default ON because
   // most admins want it; toggle off if they only want free caption-based
@@ -113,6 +117,7 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
           source: aiSource.trim(),
           youtubeUrl: aiUrl.trim(),
           allowAudioFallback,
+          level: level || undefined,
         }),
         signal: controller.signal,
       });
@@ -238,6 +243,7 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
           title: title.trim(),
           source: source.trim(),
           youtubeUrl: youtubeUrl.trim(),
+          level: level || undefined,
           segments: payload,
         }),
       });
@@ -268,6 +274,30 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
       toast.error(e instanceof Error ? e.message : "Lỗi");
     } finally {
       setBusyId(null);
+    }
+  };
+
+  /** Set / clear the CEFR difficulty of an existing lesson inline. */
+  const setLevelFor = async (
+    l: LessonRow,
+    next: "A1" | "A2" | "B1" | "B2" | "C1" | "C2" | null,
+  ) => {
+    // Optimistic update so the dropdown reflects the choice instantly.
+    setLessons((prev) =>
+      prev.map((x) => (x.id === l.id ? { ...x, level: next } : x)),
+    );
+    try {
+      const res = await fetch(`/api/admin/shadowing/${l.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ level: next }),
+      });
+      if (!res.ok) throw new Error("Lưu độ khó thất bại");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Lỗi");
+      setLessons((prev) =>
+        prev.map((x) => (x.id === l.id ? { ...x, level: l.level } : x)),
+      );
     }
   };
 
@@ -355,6 +385,43 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
             <p className="text-xs text-muted-foreground mt-1">
               Dán URL là đủ — tiêu đề + nguồn tự lấy từ YouTube. Ưu tiên phụ đề
               EN có sẵn (miễn phí); nếu không có, AI tự nghe (xem checkbox dưới).
+            </p>
+          </div>
+
+          <div>
+            <Label className="text-sm font-bold">Độ khó (CEFR)</Label>
+            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setLevel("")}
+                disabled={aiBusy}
+                className={`rounded-full px-3 py-1 text-xs font-extrabold border-2 transition-colors ${
+                  level === ""
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-muted bg-muted/40 text-muted-foreground hover:border-primary/40"
+                }`}
+              >
+                Để AI tự đoán
+              </button>
+              {PRACTICE_LEVELS.map((lv) => (
+                <button
+                  key={lv}
+                  type="button"
+                  onClick={() => setLevel(lv)}
+                  disabled={aiBusy}
+                  title={LEVEL_DESC[lv]}
+                  className={`rounded-full px-3 py-1 text-xs font-extrabold border-2 transition-colors ${
+                    level === lv
+                      ? `${LEVEL_BADGE_CLASS[lv]} border-transparent text-white`
+                      : "border-muted bg-muted/40 text-muted-foreground hover:border-primary/40"
+                  }`}
+                >
+                  {lv}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Chọn độ khó hoặc để AI tự xếp loại dựa trên transcript.
             </p>
           </div>
 
@@ -623,11 +690,43 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold leading-tight line-clamp-2">{l.title}</p>
+                    <div className="flex items-start gap-1.5">
+                      <p className="font-bold leading-tight line-clamp-2 flex-1">{l.title}</p>
+                      {l.level && (
+                        <span
+                          className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-extrabold text-white ${LEVEL_BADGE_CLASS[l.level]}`}
+                        >
+                          {l.level}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {l.source} · {l.segmentCount} đoạn
                     </p>
                     <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                      <select
+                        value={l.level ?? ""}
+                        onChange={(e) =>
+                          setLevelFor(
+                            l,
+                            (e.target.value || null) as
+                              | "B1"
+                              | "B2"
+                              | "C1"
+                              | "C2"
+                              | null,
+                          )
+                        }
+                        className="h-7 rounded-md border-2 border-muted bg-card px-1.5 text-xs font-bold"
+                        title="Đặt độ khó CEFR"
+                      >
+                        <option value="">Độ khó —</option>
+                        {PRACTICE_LEVELS.map((lv) => (
+                          <option key={lv} value={lv}>
+                            {lv} · {LEVEL_DESC[lv]}
+                          </option>
+                        ))}
+                      </select>
                       <Button asChild size="sm" variant="outline" className="h-7 text-xs">
                         <a href={`/admin/shadowing/${l.id}/edit`}>
                           <Pencil className="h-3 w-3" /> Sửa

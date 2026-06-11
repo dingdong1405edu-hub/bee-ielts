@@ -41,6 +41,8 @@ const segmentSchema = z.object({
 const patchSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   source: z.string().min(1).max(80).optional(),
+  /** CEFR level. Pass null to clear it. */
+  level: z.enum(["A1", "A2", "B1", "B2", "C1", "C2"]).nullable().optional(),
   youtubeUrl: z.string().min(1).optional(),
   published: z.boolean().optional(),
   /** When present, segments are FULLY replaced by this array. Items with
@@ -86,12 +88,14 @@ export async function PATCH(
   const lessonPatch: {
     title?: string;
     source?: string;
+    level?: "A1" | "A2" | "B1" | "B2" | "C1" | "C2" | null;
     published?: boolean;
     youtubeId?: string;
     thumbnailUrl?: string;
   } = {};
   if (data.title !== undefined) lessonPatch.title = data.title.trim();
   if (data.source !== undefined) lessonPatch.source = data.source.trim();
+  if (data.level !== undefined) lessonPatch.level = data.level;
   if (data.published !== undefined) lessonPatch.published = data.published;
   if (data.youtubeUrl !== undefined) {
     const newId = extractYoutubeId(data.youtubeUrl);

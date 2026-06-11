@@ -16,11 +16,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PRACTICE_LEVELS, LEVEL_DESC, LEVEL_BADGE_CLASS } from "@/lib/cefr";
 
 export type PodcastRow = {
   id: string;
   title: string;
   channel: string;
+  level: "A1" | "A2" | "B1" | "B2" | "C1" | "C2" | null;
   youtubeId: string;
   thumbnailUrl: string;
   durationSec: number;
@@ -40,6 +42,7 @@ export function PodcastsAdminClient({ initial }: { initial: PodcastRow[] }) {
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
   const [channel, setChannel] = useState("");
+  const [level, setLevel] = useState<"" | "B1" | "B2" | "C1" | "C2">("");
   const [busy, setBusy] = useState(false);
   const [delId, setDelId] = useState<string | null>(null);
 
@@ -54,6 +57,7 @@ export function PodcastsAdminClient({ initial }: { initial: PodcastRow[] }) {
           youtubeUrl: url.trim(),
           title: title.trim() || undefined,
           channel: channel.trim() || undefined,
+          level: level || undefined,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -62,11 +66,34 @@ export function PodcastsAdminClient({ initial }: { initial: PodcastRow[] }) {
       setUrl("");
       setTitle("");
       setChannel("");
+      setLevel("");
       router.refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Lỗi");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const setLevelFor = async (
+    r: PodcastRow,
+    next: "B1" | "B2" | "C1" | "C2" | null,
+  ) => {
+    setRows((prev) =>
+      prev.map((x) => (x.id === r.id ? { ...x, level: next } : x)),
+    );
+    try {
+      const res = await fetch(`/api/admin/podcasts/${r.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ level: next }),
+      });
+      if (!res.ok) throw new Error("Lưu độ khó thất bại");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Lỗi");
+      setRows((prev) =>
+        prev.map((x) => (x.id === r.id ? { ...x, level: r.level } : x)),
+      );
     }
   };
 
@@ -140,6 +167,40 @@ export function PodcastsAdminClient({ initial }: { initial: PodcastRow[] }) {
             </div>
           </details>
 
+          <div>
+            <Label className="text-sm font-bold">Độ khó (CEFR)</Label>
+            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setLevel("")}
+                disabled={busy}
+                className={`rounded-full px-3 py-1 text-xs font-extrabold border-2 transition-colors ${
+                  level === ""
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-muted bg-muted/40 text-muted-foreground hover:border-primary/40"
+                }`}
+              >
+                Để AI tự đoán
+              </button>
+              {PRACTICE_LEVELS.map((lv) => (
+                <button
+                  key={lv}
+                  type="button"
+                  onClick={() => setLevel(lv)}
+                  disabled={busy}
+                  title={LEVEL_DESC[lv]}
+                  className={`rounded-full px-3 py-1 text-xs font-extrabold border-2 transition-colors ${
+                    level === lv
+                      ? `${LEVEL_BADGE_CLASS[lv]} border-transparent text-white`
+                      : "border-muted bg-muted/40 text-muted-foreground hover:border-primary/40"
+                  }`}
+                >
+                  {lv}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <Button
             onClick={create}
             disabled={busy}
@@ -174,10 +235,42 @@ export function PodcastsAdminClient({ initial }: { initial: PodcastRow[] }) {
                     />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold truncate">{r.title}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-bold truncate flex-1">{r.title}</p>
+                      {r.level && (
+                        <span
+                          className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-extrabold text-white ${LEVEL_BADGE_CLASS[r.level]}`}
+                        >
+                          {r.level}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       {r.channel} · {formatDur(r.durationSec)} · {new Date(r.createdAt).toLocaleDateString("vi-VN")}
                     </p>
+                    <select
+                      value={r.level ?? ""}
+                      onChange={(e) =>
+                        setLevelFor(
+                          r,
+                          (e.target.value || null) as
+                            | "B1"
+                            | "B2"
+                            | "C1"
+                            | "C2"
+                            | null,
+                        )
+                      }
+                      className="mt-1 h-7 rounded-md border-2 border-muted bg-card px-1.5 text-xs font-bold"
+                      title="Đặt độ khó CEFR"
+                    >
+                      <option value="">Độ khó —</option>
+                      {PRACTICE_LEVELS.map((lv) => (
+                        <option key={lv} value={lv}>
+                          {lv} · {LEVEL_DESC[lv]}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <Link
                     href={`/podcasts/${r.id}`}

@@ -23,11 +23,15 @@ import {
   refineSegmentsForShadowing,
   youtubeThumbnail,
 } from "@/lib/youtube";
+import { estimateCefrLevel } from "@/lib/claude";
+import { toCefrLevel } from "@/lib/cefr";
 
 const bodySchema = z.object({
   youtubeUrl: z.string().min(1),
   title: z.string().max(200).optional().default(""),
   channel: z.string().max(80).optional().default(""),
+  /** CEFR difficulty. If omitted, AI estimates it from the transcript. */
+  level: z.enum(["A1", "A2", "B1", "B2", "C1", "C2"]).optional(),
 });
 
 // Caption fetch is the only network-bound work — bound at 60s.
@@ -132,10 +136,18 @@ export async function POST(req: Request) {
   const finalTitle = (parsed.data.title?.trim() || ytTitle || `Podcast ${ytId}`).slice(0, 200);
   const finalChannel = (parsed.data.channel?.trim() || ytChannel || "YouTube").slice(0, 80);
 
+  // Difficulty: admin's pick, else AI estimates from a transcript sample.
+  let level = toCefrLevel(parsed.data.level);
+  if (!level) {
+    const sample = merged.slice(0, 20).map((s) => s.textEn).join(" ");
+    level = await estimateCefrLevel(sample);
+  }
+
   const episode = await prisma.podcastEpisode.create({
     data: {
       title: finalTitle,
       channel: finalChannel,
+      level,
       youtubeId: ytId,
       thumbnailUrl: youtubeThumbnail(ytId),
       durationSec,

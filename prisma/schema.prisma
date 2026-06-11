@@ -696,6 +696,8 @@ model ShadowingLesson {
   id          String   @id @default(cuid())
   title       String
   source      String
+  /// CEFR difficulty so learners can pick by level. Null = chưa phân loại.
+  level       CEFRLevel?
   youtubeId   String
   thumbnailUrl String? @db.Text
   /// Null = community/admin lesson. Set = user-uploaded private lesson.
@@ -778,6 +780,8 @@ model PodcastEpisode {
   id           String   @id @default(cuid())
   title        String
   channel      String   // YouTube channel name, used as the badge
+  /// CEFR difficulty so learners can pick by level. Null = chưa phân loại.
+  level        CEFRLevel?
   youtubeId    String   @unique
   thumbnailUrl String   @db.Text
   durationSec  Int      // for the "12 min" badge on cards

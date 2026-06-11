@@ -19,6 +19,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PRACTICE_LEVELS, LEVEL_DESC } from "@/lib/cefr";
 
 export interface EditorSegment {
   /** Existing DB id; undefined for newly-added segments. */
@@ -35,6 +36,7 @@ export interface EditorLesson {
   id: string;
   title: string;
   source: string;
+  level: "A1" | "A2" | "B1" | "B2" | "C1" | "C2" | null;
   youtubeId: string;
   thumbnailUrl: string | null;
   published: boolean;
@@ -103,6 +105,9 @@ export function ShadowingEditor({ lesson }: { lesson: EditorLesson }) {
     `https://www.youtube.com/watch?v=${lesson.youtubeId}`,
   );
   const [published, setPublished] = useState(lesson.published);
+  const [level, setLevel] = useState<"" | "A1" | "A2" | "B1" | "B2" | "C1" | "C2">(
+    lesson.level ?? "",
+  );
   const [drafts, setDrafts] = useState<DraftSegment[]>(
     lesson.segments.map(toDraft),
   );
@@ -150,6 +155,7 @@ export function ShadowingEditor({ lesson }: { lesson: EditorLesson }) {
     | {
         title: string;
         source: string;
+        level: "A1" | "A2" | "B1" | "B2" | "C1" | "C2" | null;
         youtubeUrl: string;
         published: boolean;
         segments: {
@@ -206,6 +212,7 @@ export function ShadowingEditor({ lesson }: { lesson: EditorLesson }) {
     return {
       title: title.trim(),
       source: source.trim(),
+      level: level || null,
       youtubeUrl: youtubeUrl.trim(),
       published,
       segments,
@@ -431,6 +438,25 @@ export function ShadowingEditor({ lesson }: { lesson: EditorLesson }) {
               <Label>Nguồn (badge)</Label>
               <Input value={source} onChange={(e) => setSource(e.target.value)} />
             </div>
+          </div>
+          <div>
+            <Label>Độ khó (CEFR)</Label>
+            <select
+              value={level}
+              onChange={(e) =>
+                setLevel(
+                  e.target.value as "" | "B1" | "B2" | "C1" | "C2",
+                )
+              }
+              className="mt-1 h-10 w-full rounded-md border-2 border-input bg-card px-3 text-sm font-bold"
+            >
+              <option value="">— Chưa phân loại</option>
+              {PRACTICE_LEVELS.map((lv) => (
+                <option key={lv} value={lv}>
+                  {lv} · {LEVEL_DESC[lv]}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <Label>URL YouTube</Label>

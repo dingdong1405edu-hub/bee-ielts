@@ -452,6 +452,47 @@ export async function enrichShadowingSegments(
   return (parsed.items ?? []).filter((x) => x && typeof x.index === "number");
 }
 
+export type EstimatedCefr = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
+
+/**
+ * Estimate the CEFR difficulty of an English transcript excerpt for the
+ * Shadowing / Podcasts difficulty badge. Best-effort: returns null on any
+ * error or unparseable output so the caller can just leave the level unset.
+ * Cheap — single short completion, max_tokens tiny, temperature 0.
+ */
+export async function estimateCefrLevel(
+  sampleText: string,
+): Promise<EstimatedCefr | null> {
+  const text = sampleText.replace(/\s+/g, " ").trim().slice(0, 4000);
+  if (text.length < 20) return null;
+  try {
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: 8,
+      temperature: 0,
+      system:
+        "You are a CEFR leveling assistant for an English listening/speaking app. " +
+        "Given an English transcript excerpt, reply with ONLY the single CEFR code " +
+        "that best matches how hard it is to understand and shadow aloud: A1, A2, " +
+        "B1, B2, C1, or C2. Output just the two-character code, nothing else.",
+      messages: [{ role: "user", content: text }],
+    });
+    const out = response.content
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join("")
+      .toUpperCase();
+    const m = out.match(/A1|A2|B1|B2|C1|C2/);
+    return m ? (m[0] as EstimatedCefr) : null;
+  } catch (e) {
+    console.error(
+      "[estimateCefrLevel] failed:",
+      e instanceof Error ? e.message : e,
+    );
+    return null;
+  }
+}
+
 const TABLE_EXTRACT_SYSTEM = `You read a photo or scan of an IELTS table-completion task and convert the table into our admin paste format so the editor can render it back exactly.
 
 Rules:

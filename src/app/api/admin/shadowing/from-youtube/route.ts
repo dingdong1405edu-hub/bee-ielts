@@ -42,8 +42,9 @@ import {
   youtubeThumbnail,
   type MergedSegment,
 } from "@/lib/youtube";
-import { enrichShadowingSegments } from "@/lib/claude";
+import { enrichShadowingSegments, estimateCefrLevel } from "@/lib/claude";
 import { deepgramTranscribeWithTimings } from "@/lib/deepgram";
+import { toCefrLevel } from "@/lib/cefr";
 
 /** Ratio of A-Z/a-z characters out of all non-space chars. Used to detect
  *  when YouTube returned a non-English track (e.g. Chinese) by mistake. */
@@ -64,6 +65,8 @@ const bodySchema = z.object({
   /** Whether to fall back to AI audio transcription when there are no
    *  English captions. Defaults to true — admins almost always want this. */
   allowAudioFallback: z.boolean().optional().default(true),
+  /** CEFR difficulty. If omitted, AI estimates it from the transcript. */
+  level: z.enum(["A1", "A2", "B1", "B2", "C1", "C2"]).optional(),
 });
 
 // Caption fetch alone runs 5-30s; audio fallback (download + Deepgram +
@@ -442,6 +445,17 @@ export async function POST(req: Request) {
     }
   }
 
+  // 3b. Difficulty level: use the admin's choice, else let AI estimate it
+  //     from a sample of the transcript so every new lesson is classified.
+  let level = toCefrLevel(parsed.data.level);
+  if (!level) {
+    const sample = merged
+      .slice(0, 25)
+      .map((s) => s.textEn)
+      .join(" ");
+    level = await estimateCefrLevel(sample);
+  }
+
   // 4. Persist. Truncate the resolved source field FIRST so the "· AI nghe"
   //    badge can never be the part that gets chopped off — admin can always
   //    tell at a glance which path produced the lesson.
@@ -456,6 +470,7 @@ export async function POST(req: Request) {
       data: {
         title: finalTitle,
         source: sourceBadge.slice(0, 80),
+        level,
         youtubeId: ytId,
         thumbnailUrl: youtubeThumbnail(ytId),
         createdBy: null,

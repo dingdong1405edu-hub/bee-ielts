@@ -24,6 +24,7 @@ export default async function AdminShadowingPage() {
     id: l.id,
     title: l.title,
     source: l.source,
+    level: l.level,
     youtubeId: l.youtubeId,
     thumbnailUrl: l.thumbnailUrl,
     segmentCount: l._count.segments,

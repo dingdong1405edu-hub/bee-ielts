@@ -1,23 +1,30 @@
 import Link from "next/link";
 import { Headphones, Keyboard, Sparkles, Upload, Clock } from "lucide-react";
+import type { CEFRLevel } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import {EmptyState } from "@/components/brand";
+import { PRACTICE_LEVELS, LEVEL_DESC, LEVEL_BADGE_CLASS, LEVEL_PILL_CLASS } from "@/lib/cefr";
 
 export const dynamic = "force-dynamic";
 
 export default async function ShadowingLandingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ mode?: string }>;
+  searchParams: Promise<{ mode?: string; level?: string }>;
 }) {
   const session = await auth();
   if (!session?.user?.id) return null;
   const sp = await searchParams;
   const mode = sp.mode === "dictation" ? "DICTATION" : "SHADOWING";
+  const levelFilter = (PRACTICE_LEVELS as readonly string[]).includes(sp.level ?? "")
+    ? (sp.level as CEFRLevel)
+    : null;
+  // Preserve the mode across the level filter links.
+  const modeQ = mode === "DICTATION" ? "mode=dictation" : "";
 
   const lessons = await prisma.shadowingLesson.findMany({
-    where: { published: true },
+    where: { published: true, ...(levelFilter ? { level: levelFilter } : {}) },
     orderBy: { createdAt: "desc" },
     include: { _count: { select: { segments: true } } },
     take: 60,
@@ -65,6 +72,39 @@ export default async function ShadowingLandingPage({
         <span className="rounded-full bg-sage-500/10 text-sage-700 dark:text-sage-300 px-3 py-1 text-xs font-extrabold">
           {lessons.length} bài học
         </span>
+      </div>
+
+      {/* Difficulty filter — pick a CEFR level (B1–C2) or all. */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className="text-xs font-bold text-muted-foreground mr-1">Độ khó:</span>
+        <Link
+          href={`/shadowing${modeQ ? `?${modeQ}` : ""}`}
+          className={`rounded-full px-3 py-1 text-xs font-extrabold border-2 transition-colors ${
+            levelFilter === null
+              ? "border-foreground bg-foreground text-background"
+              : "border-transparent bg-muted/50 text-muted-foreground hover:bg-accent"
+          }`}
+        >
+          Tất cả
+        </Link>
+        {PRACTICE_LEVELS.map((lv) => {
+          const active = levelFilter === lv;
+          const qs = [modeQ, `level=${lv}`].filter(Boolean).join("&");
+          return (
+            <Link
+              key={lv}
+              href={`/shadowing?${qs}`}
+              title={LEVEL_DESC[lv]}
+              className={`rounded-full px-3 py-1 text-xs font-extrabold border-2 transition-colors ${
+                active
+                  ? `${LEVEL_BADGE_CLASS[lv]} border-transparent text-white`
+                  : `border-transparent ${LEVEL_PILL_CLASS[lv]} hover:brightness-95`
+              }`}
+            >
+              {lv}
+            </Link>
+          );
+        })}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -117,6 +157,13 @@ export default async function ShadowingLandingPage({
                 <span className="rounded-md bg-rose-600 text-white px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider shadow-sm">
                   {l.source}
                 </span>
+                {l.level && (
+                  <span
+                    className={`rounded-md px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider shadow-sm text-white ${LEVEL_BADGE_CLASS[l.level]}`}
+                  >
+                    {l.level}
+                  </span>
+                )}
               </div>
               <div className="absolute top-2 right-2">
                 <span className="rounded-md bg-sage-600 text-white px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider shadow-sm">

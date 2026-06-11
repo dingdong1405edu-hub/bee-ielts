@@ -30,6 +30,7 @@ export default async function ShadowingEditPage({
     id: lesson.id,
     title: lesson.title,
     source: lesson.source,
+    level: lesson.level,
     youtubeId: lesson.youtubeId,
     thumbnailUrl: lesson.thumbnailUrl,
     published: lesson.published,

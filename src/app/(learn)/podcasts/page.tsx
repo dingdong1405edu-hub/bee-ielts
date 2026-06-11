@@ -1,7 +1,9 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Headphones, Play, Sparkles } from "lucide-react";
+import type { CEFRLevel } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { PRACTICE_LEVELS, LEVEL_DESC, LEVEL_BADGE_CLASS, LEVEL_PILL_CLASS } from "@/lib/cefr";
 
 export const dynamic = "force-dynamic";
 
@@ -12,14 +14,24 @@ function formatDur(sec: number): string {
   return `${h}h ${m % 60}m`;
 }
 
-export default async function PodcastsListPage() {
+export default async function PodcastsListPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ level?: string }>;
+}) {
+  const sp = await searchParams;
+  const levelFilter = (PRACTICE_LEVELS as readonly string[]).includes(sp.level ?? "")
+    ? (sp.level as CEFRLevel)
+    : null;
+
   const episodes = await prisma.podcastEpisode.findMany({
-    where: { published: true },
+    where: { published: true, ...(levelFilter ? { level: levelFilter } : {}) },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
       title: true,
       channel: true,
+      level: true,
       thumbnailUrl: true,
       durationSec: true,
       createdAt: true,
@@ -50,6 +62,38 @@ export default async function PodcastsListPage() {
           </div>
         </div>
       </section>
+
+      {/* Difficulty filter — pick a CEFR level (B1–C2) or all. */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className="text-xs font-bold text-muted-foreground mr-1">Độ khó:</span>
+        <Link
+          href="/podcasts"
+          className={`rounded-full px-3 py-1 text-xs font-extrabold border-2 transition-colors ${
+            levelFilter === null
+              ? "border-foreground bg-foreground text-background"
+              : "border-transparent bg-muted/50 text-muted-foreground hover:bg-accent"
+          }`}
+        >
+          Tất cả
+        </Link>
+        {PRACTICE_LEVELS.map((lv) => {
+          const active = levelFilter === lv;
+          return (
+            <Link
+              key={lv}
+              href={`/podcasts?level=${lv}`}
+              title={LEVEL_DESC[lv]}
+              className={`rounded-full px-3 py-1 text-xs font-extrabold border-2 transition-colors ${
+                active
+                  ? `${LEVEL_BADGE_CLASS[lv]} border-transparent text-white`
+                  : `border-transparent ${LEVEL_PILL_CLASS[lv]} hover:brightness-95`
+              }`}
+            >
+              {lv}
+            </Link>
+          );
+        })}
+      </div>
 
       {/* Grid */}
       {episodes.length === 0 ? (
@@ -87,6 +131,13 @@ export default async function PodcastsListPage() {
                 <div className="absolute bottom-2 right-2 rounded-md bg-black/70 px-2 py-0.5 text-xs font-bold text-white backdrop-blur">
                   {formatDur(ep.durationSec)}
                 </div>
+                {ep.level && (
+                  <div
+                    className={`absolute top-2 left-2 rounded-md px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-white shadow-sm ${LEVEL_BADGE_CLASS[ep.level]}`}
+                  >
+                    {ep.level}
+                  </div>
+                )}
               </div>
 
               {/* Body */}
