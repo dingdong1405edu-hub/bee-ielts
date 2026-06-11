@@ -74,10 +74,12 @@ const config: Config = {
           climber: "#E0A52B",     /* honey       */
         },
         /* Honey aliases kept for back-compat — now resolve to sage/gold tokens */
+        /* honey alias = literal gold scale (NOT primary, which is now green) so
+           bg-honey / text-honey stay honey-gold as the secondary accent. */
         honey: {
-          DEFAULT: "hsl(var(--primary))",
-          deep: "hsl(var(--accent-foreground))",
-          tint: "hsl(var(--accent))",
+          DEFAULT: "var(--honey)",
+          deep: "var(--gold-deep)",
+          tint: "var(--gold-soft)",
         },
         leaf: {
           DEFAULT: "hsl(var(--success))",

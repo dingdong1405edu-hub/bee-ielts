@@ -66,7 +66,7 @@ export function LessonPlayer({
       setSubmitting(true);
       try {
         const durationSec = Math.floor((Date.now() - startedAtRef.current) / 1000);
-        const res = await fetch("/api/vocab/complete", {
+        await fetch("/api/vocab/complete", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -77,11 +77,6 @@ export function LessonPlayer({
             durationSec,
           }),
         });
-        const data = await res.json().catch(() => ({}));
-        const { triggerUnlocksFromResponse } = await import(
-          "@/lib/achievements/client-trigger"
-        );
-        triggerUnlocksFromResponse(data);
       } catch (e) {
         console.error(e);
       } finally {

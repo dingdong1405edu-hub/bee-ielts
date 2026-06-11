@@ -83,9 +83,6 @@ export function WritingSession({ task1, task2 }: Props) {
       ]);
       if (r1.result) setResult1(r1.result);
       if (r2.result) setResult2(r2.result);
-      const { triggerUnlocksFromResponse } = await import("@/lib/achievements/client-trigger");
-      triggerUnlocksFromResponse(r1);
-      triggerUnlocksFromResponse(r2);
       localStorage.removeItem(`writing-session-t1-${task1.id}`);
       localStorage.removeItem(`writing-session-t2-${task2.id}`);
       setStage("done");

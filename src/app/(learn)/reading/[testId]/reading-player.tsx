@@ -112,14 +112,11 @@ export function ReadingPlayer({
     const score = (correctCount / questions.length) * 9;
     try {
       const durationSec = Math.floor((Date.now() - startedAtRef.current) / 1000);
-      const res = await fetch("/api/reading/submit", {
+      await fetch("/api/reading/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ testId, answers, correctCount, total: questions.length, durationSec }),
       });
-      const data = await res.json().catch(() => ({}));
-      const { triggerUnlocksFromResponse } = await import("@/lib/achievements/client-trigger");
-      triggerUnlocksFromResponse(data);
       toast.success(`Bạn đúng ${correctCount}/${questions.length} — Band ~${score.toFixed(1)}`);
     } catch {
       toast.error("Lưu kết quả thất bại");

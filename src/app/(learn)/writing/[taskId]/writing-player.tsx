@@ -70,8 +70,6 @@ export function WritingPlayer({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Grading failed");
       setResult(data.result);
-      const { triggerUnlocksFromResponse } = await import("@/lib/achievements/client-trigger");
-      triggerUnlocksFromResponse(data);
       localStorage.removeItem(`writing-draft-${taskId}`);
       toast.success(`Band ${data.result.overallBand}`);
     } catch (e) {

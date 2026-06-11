@@ -79,7 +79,7 @@ export function AddWordButton() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-full gradient-brand px-4 py-3 text-sm font-bold text-white shadow-lg shadow-primary/30 transition-transform hover:-translate-y-0.5"
+        className="fixed bottom-[calc(env(safe-area-inset-bottom)_+_5.5rem)] right-5 z-40 inline-flex items-center gap-2 rounded-full gradient-brand px-4 py-3 text-sm font-bold text-white shadow-lg shadow-primary/30 transition-transform hover:-translate-y-0.5 md:bottom-5"
         aria-label="Thêm từ vào bộ thẻ"
       >
         <BookPlus className="h-5 w-5" />

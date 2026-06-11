@@ -88,7 +88,7 @@ export default async function GrammarPathPage() {
   return (
     <div className="relative max-w-3xl mx-auto space-y-6 pb-12">
       {/* Hero — full-width lime → amber gradient card with progress bar. */}
-      <div className="relative overflow-hidden rounded-[28px] shadow-xl shadow-emerald-500/20 bg-gradient-to-r from-emerald-500 via-lime-400 to-amber-300 p-7 md:p-9 text-white">
+      <div className="relative overflow-hidden rounded-[28px] shadow-xl shadow-primary/25 gradient-brand p-7 md:p-9 text-white">
         {/* Decorative radial glow + dotted halo to give the card depth. */}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_15%,rgba(255,255,255,0.28),transparent_55%)]" />
         <div className="absolute -right-6 -top-6 h-44 w-44 rounded-full bg-white/10 blur-2xl" />
@@ -99,7 +99,7 @@ export default async function GrammarPathPage() {
               Beginner Path
             </h1>
             <span
-              className="mt-2 block h-1.5 w-16 rounded-full bg-cyan-400"
+              className="mt-2 block h-1.5 w-16 rounded-full bg-white/60"
               aria-hidden
             />
             <p className="text-white/95 text-sm md:text-base mt-3 font-medium">
@@ -173,7 +173,7 @@ export default async function GrammarPathPage() {
             <Link
               key={u.id}
               href={`#unit-${u.id}`}
-              className="group block relative overflow-hidden rounded-[22px] p-5 md:p-6 text-white shadow-lg shadow-emerald-500/15 bg-gradient-to-r from-emerald-500 via-lime-400 to-amber-300 transition-transform hover:-translate-y-0.5"
+              className="group block relative overflow-hidden rounded-[22px] p-5 md:p-6 text-white shadow-lg shadow-primary/20 gradient-brand transition-transform hover:-translate-y-0.5"
             >
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_15%,rgba(255,255,255,0.2),transparent_55%)]" />
               <div className="relative flex items-center gap-4">
@@ -215,7 +215,7 @@ export default async function GrammarPathPage() {
           action={
             <Link
               href="/vocab"
-              className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-emerald-500 to-lime-400 px-5 py-2.5 text-sm font-bold text-white shadow-md transition-opacity hover:opacity-90"
+              className="inline-flex items-center gap-1.5 rounded-full gradient-brand px-5 py-2.5 text-sm font-bold text-white shadow-md transition-opacity hover:opacity-90"
             >
               Luyện từ vựng
             </Link>
@@ -224,7 +224,7 @@ export default async function GrammarPathPage() {
       ) : (
         <div className="relative pt-8">
           <div
-            className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 border-l-2 border-dashed border-emerald-200 dark:border-emerald-900/40"
+            className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 border-l-2 border-dashed border-primary/25"
             aria-hidden
           />
           <div className="relative space-y-14">

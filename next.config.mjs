@@ -7,6 +7,19 @@ const nextConfig = {
   experimental: {
     serverActions: { bodySizeLimit: "10mb" },
   },
+  async rewrites() {
+    return [
+      // The homepage (index.html) references its images as /public/textures/*.
+      // Next serves the public/ folder at the root, so map /public/* → /* and
+      // keep index.html byte-for-byte unchanged.
+      { source: "/public/:path*", destination: "/:path*" },
+      // Its skill cards link to *.html — point them at the real app routes.
+      { source: "/listening.html", destination: "/listening" },
+      { source: "/reading.html", destination: "/reading" },
+      { source: "/speaking.html", destination: "/speaking" },
+      { source: "/writing.html", destination: "/writing" },
+    ];
+  },
 };
 
 export default nextConfig;

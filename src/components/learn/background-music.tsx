@@ -214,7 +214,7 @@ export function BackgroundMusicPlayer() {
       {showPill && (
         <div
           data-chrome
-          className="fixed bottom-3 left-3 z-40 max-w-[calc(100vw-1.5rem)] flex items-center gap-2 rounded-full border bg-card/95 backdrop-blur px-3 py-1.5 shadow-md text-xs"
+          className="fixed bottom-[calc(env(safe-area-inset-bottom)_+_5.5rem)] left-3 z-40 max-w-[calc(100vw-1.5rem)] flex items-center gap-2 rounded-full border bg-card/95 backdrop-blur px-3 py-1.5 shadow-md text-xs md:bottom-3 md:left-[calc(15rem_+_0.75rem)]"
         >
           <div
             className={`grid h-7 w-7 place-items-center rounded-full ${

@@ -18,9 +18,6 @@ import { isAdminOrOwner } from "@/lib/premium";
 import {
   extractYoutubeId,
   fetchYouTubeCaptionsViaInnertube,
-  fetchYouTubeCaptionsViaInvidious,
-  fetchYouTubeCaptionsViaLibrary,
-  fetchYouTubeCaptionsViaPublicApi,
   getYouTubeBasicInfo,
   mergeCuesIntoSegments,
   refineSegmentsForShadowing,
@@ -90,76 +87,31 @@ export async function POST(req: Request) {
     );
   }
 
-  // Captions — required. Four cascading paths, each a different surface
-  // to YouTube's bot detection:
-  //   1) Public transcript APIs (cached + proxy pool — most reliable)
-  //   2) Invidious public proxies (residential IPs)
-  //   3) youtubei.js library (manages own session, cookies, signature_ts)
-  //   4) Raw InnerTube POST (last resort — usually hits LOGIN_REQUIRED)
+  // Captions — required. If the video has no EN track, podcast won't be
+  // useful (no transcript = pure audio, but our player banks on the
+  // transcript scrolling). Surface a clear error instead of saving a
+  // half-broken episode.
   let cues;
-  let availableLangs: string[] = [];
-  let publicApiErr: string | null = null;
-  let invidiousErr: string | null = null;
-  let libraryErr: string | null = null;
-
   try {
-    const result = await fetchYouTubeCaptionsViaPublicApi(ytId);
-    availableLangs = result.availableLangs;
-    if (result.cues.length > 0) cues = result.cues;
-  } catch (e) {
-    publicApiErr = e instanceof Error ? e.message : String(e);
-    console.warn(`[podcasts] public-api fail ytId=${ytId}: ${publicApiErr}`);
-  }
-
-  if (!cues) {
-    try {
-      const result = await fetchYouTubeCaptionsViaInvidious(ytId);
-      if (availableLangs.length === 0) availableLangs = result.availableLangs;
-      if (result.cues.length > 0) cues = result.cues;
-    } catch (e) {
-      invidiousErr = e instanceof Error ? e.message : String(e);
-      console.warn(`[podcasts] invidious fail ytId=${ytId}: ${invidiousErr}`);
-    }
-  }
-
-  if (!cues) {
-    try {
-      const result = await fetchYouTubeCaptionsViaLibrary(ytId);
-      if (availableLangs.length === 0) availableLangs = result.availableLangs;
-      if (result.cues.length > 0) cues = result.cues;
-    } catch (e) {
-      libraryErr = e instanceof Error ? e.message : String(e);
-      console.warn(`[podcasts] library captions fail ytId=${ytId}: ${libraryErr}`);
-    }
-  }
-
-  if (!cues) {
-    try {
-      const result = await fetchYouTubeCaptionsViaInnertube(ytId);
-      if (availableLangs.length === 0) availableLangs = result.availableLangs;
-      if (result.cues.length > 0) cues = result.cues;
-    } catch (e) {
-      const raw = e instanceof Error ? e.message : String(e);
-      console.error(`[podcasts] InnerTube captions fail ytId=${ytId}:`, raw);
+    const result = await fetchYouTubeCaptionsViaInnertube(ytId);
+    if (result.cues.length === 0) {
+      const langs = result.availableLangs.length > 0
+        ? ` (Phụ đề có: ${result.availableLangs.join(", ")})`
+        : "";
       return NextResponse.json(
         {
           error:
-            `Lấy phụ đề thất bại qua cả 4 path. Public API: ${publicApiErr ?? "n/a"} | Invidious: ${invidiousErr ?? "n/a"} | Library: ${libraryErr ?? "n/a"} | InnerTube: ${raw}`,
+            `Video không có phụ đề tiếng Anh.${langs} Podcast cần transcript EN — chọn video khác.`,
         },
         { status: 422 },
       );
     }
-  }
-
-  if (!cues) {
-    const langs = availableLangs.length > 0
-      ? ` (Phụ đề có: ${availableLangs.join(", ")})`
-      : "";
+    cues = result.cues;
+  } catch (e) {
+    const raw = e instanceof Error ? e.message : String(e);
+    console.error(`[podcasts] captions failed ytId=${ytId}:`, raw);
     return NextResponse.json(
-      {
-        error:
-          `Video không có phụ đề tiếng Anh.${langs} Podcast cần transcript EN — chọn video khác.`,
-      },
+      { error: `Lấy phụ đề thất bại: ${raw}` },
       { status: 422 },
     );
   }

@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BeeEnglish - Học tiếng Anh cùng đàn ong</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800;900&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --honey:#e0a52b;
+    --honey-line:rgba(255,255,255,.12);
+    --ink:#2b2417;
+    --bee:#f7b500;
+    --cream:#fff6e2;
+    --max:1280px;
+    /* nền lưới ô xanh nhẹ cho header + hero */
+    --leaf:#92b07c;
+    --grid-line:rgba(255,255,255,.13);
+    --grid-size:42px;
+  }
+  .grid-bg{ background-color:var(--leaf); }
+  /* lớp lưới tổ ong (lục giác) — vẽ bằng JS, nét mờ như cũ */
+  .comb-bg{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+  .comb-bg path{stroke:var(--grid-line);stroke-width:1;fill:none}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:"Be Vietnam Pro",system-ui,sans-serif;color:var(--ink);background:#fff;-webkit-font-smoothing:antialiased}
+  h1,h2,h3,.disp{font-family:"Poppins",sans-serif;letter-spacing:-.01em}
+  a{color:inherit;text-decoration:none}
+  img{display:block;max-width:100%}
+  .wrap{max-width:var(--max);margin:0 auto;padding:0 34px}
+
+  /* ===== HEADER ===== */
+  header{border-bottom:none;position:relative;overflow:hidden}
+  .nav{display:flex;align-items:center;justify-content:space-between;height:64px;position:relative;z-index:1}
+  .logo{display:flex;align-items:center;gap:11px}
+  .logo .mark{width:38px;height:38px;display:grid;place-items:center}
+  .logo .mark img{width:100%;height:100%;object-fit:contain}
+  .logo .name{font-family:"Poppins";font-weight:800;font-size:18px;color:#fff}
+  .logo .name b{color:#ffe08a}
+  .hdr-right{display:flex;align-items:center;gap:18px}
+  .bell{position:relative;color:rgba(255,255,255,.9);cursor:pointer}
+  .bell svg{width:22px;height:22px}
+  .bell .dot{position:absolute;top:-5px;right:-6px;background:#e8443a;color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:9px;display:grid;place-items:center;padding:0 3px}
+  .user{display:flex;align-items:center;gap:8px;border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.12);border-radius:999px;padding:4px 12px 4px 4px}
+  .user .av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#f7b500,#ffcf57);display:grid;place-items:center;color:#fff;font-weight:700;font-size:13px}
+  .user .u-name{font-weight:700;font-size:13px;line-height:1.1;color:#fff}
+  .user .u-stat{font-size:10px;color:#eafbe4;font-weight:600;display:flex;align-items:center;gap:4px}
+  .user .u-stat::before{content:"";width:6px;height:6px;border-radius:50%;background:#9be88a}
+  .hdr-link{display:flex;align-items:center;gap:6px;font-size:13.5px;font-weight:600;color:rgba(255,255,255,.95)}
+  .hdr-link svg{width:16px;height:16px}
+  @media(max-width:780px){.user .u-name,.user .u-stat,.hdr-link span{display:none}}
+
+  /* ===== HERO ===== */
+  .hero{position:relative;overflow:hidden;background-color:var(--leaf);min-height:660px}
+  #honey{position:absolute;inset:0;width:100%;height:100%;z-index:1}
+  .hero .wrap{position:relative;z-index:3;padding-top:30px;padding-bottom:60px}
+  .hero h1{
+    display:inline-block;font-weight:900;font-size:clamp(46px,7vw,86px);line-height:1;color:#241d10;
+    background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+    border-radius:6px;padding:6px 14px;margin-top:6px;
+  }
+  .hero .lead{color:rgba(255,255,255,.95);font-size:17px;max-width:430px;margin-top:22px;font-weight:500}
+  .pill{display:inline-flex;align-items:center;gap:10px;background:rgba(43,36,23,.28);border:1px solid rgba(255,255,255,.18);color:#fff;font-weight:600;font-size:14px;padding:11px 18px;border-radius:999px;margin-top:18px;transition:.2s}
+  .pill:hover{background:rgba(43,36,23,.42)}
+  .pill .ic{width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.2);display:grid;place-items:center}
+  .pill .ic svg{width:13px;height:13px}
+  .follow{display:flex;align-items:center;gap:10px}
+  .pill.follow{padding:9px 14px}
+  .follow .lbl{font-weight:700;font-size:12.5px;letter-spacing:.02em}
+  .follow .sm{display:flex;gap:8px}
+  .follow .sm a{width:24px;height:24px;border-radius:50%;background:#fff;display:grid;place-items:center;color:#2b2417}
+  .follow .sm a svg{width:13px;height:13px}
+  .cta-row{display:flex;flex-wrap:wrap;align-items:center;gap:22px;margin-top:38px}
+  .btn-white{display:inline-flex;align-items:center;gap:10px;background:#fff;color:#2b2417;font-weight:700;font-size:15px;padding:15px 26px;border-radius:999px;box-shadow:0 8px 22px rgba(43,36,23,.18);transition:.2s}
+  .btn-white:hover{transform:translateY(-2px)}
+  .btn-link{display:inline-flex;align-items:center;gap:9px;color:#fff;font-weight:700;font-size:15px}
+  .btn-link svg{width:18px;height:18px}
+
+  /* bee mascot */
+  .bee-wrap{position:absolute;right:10px;bottom:-60px;width:515px;height:552px;z-index:2;pointer-events:none}
+  .bee-wrap svg{width:100%;height:100%;overflow:visible}
+  .bee-wrap img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 24px 40px rgba(43,36,23,.28))}
+  .bubble{
+    position:absolute;z-index:4;top:180px;right:430px;max-width:210px;
+    background:#fff;color:#2b2417;font-weight:700;font-size:15px;line-height:1.4;
+    padding:14px 18px;border-radius:18px;box-shadow:0 10px 30px rgba(43,36,23,.2);
+  }
+  .bubble::after{content:"";position:absolute;bottom:-12px;left:34px;border:8px solid transparent;border-top-color:#fff;border-bottom:0}
+  @media(max-width:980px){.bee-wrap{right:-200px;bottom:-220px;width:540px;height:540px;opacity:.9}.bubble{display:none}}
+  @media(max-width:680px){.bee-wrap{display:none}.hero{min-height:auto}}
+
+  /* ===== HERO: đàn ong bay chéo + điểm IELTS (THÊM MỚI — chỉ ở hero) ===== */
+  .hero-bees{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden}
+  .fly-bee{position:absolute;top:0;left:0;width:32px;will-change:transform}
+  .fly-bee svg{display:block;width:100%;height:auto;overflow:visible}
+  .fly-bee .wg{fill:rgba(255,255,255,.62);transform-origin:62% 55%}
+  .fly-bee .wg.a{animation:beeflap .1s infinite ease-in-out}
+  .fly-bee .wg.b{animation:beeflap .1s infinite ease-in-out .03s}
+  @keyframes beeflap{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.3)}}
+
+  .score-layer{position:absolute;inset:0;z-index:4;pointer-events:none;overflow:hidden}
+  .score-pop{position:absolute;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;
+    background:#fff;color:#2b2417;font-family:"Poppins",sans-serif;font-weight:800;font-size:15px;
+    padding:9px 15px 9px 10px;border-radius:999px;box-shadow:0 10px 26px rgba(43,36,23,.22);
+    opacity:0;animation:scorePop 3.4s ease forwards}
+  .score-pop .ic{width:22px;height:22px;border-radius:50%;background:#f7b500;display:grid;place-items:center;flex:none}
+  .score-pop .ic svg{width:12px;height:12px;color:#2b2417}
+  .score-pop .ielts{color:#c98a14;font-weight:700;font-size:11.5px;letter-spacing:.04em}
+  @keyframes scorePop{
+    0%{opacity:0;transform:translateY(12px) scale(.9)}
+    13%{opacity:1;transform:translateY(0) scale(1)}
+    88%{opacity:1;transform:translateY(-2px) scale(1)}
+    100%{opacity:0;transform:translateY(-13px) scale(.95)}
+  }
+  @media(prefers-reduced-motion:reduce){.fly-bee,.score-pop,.cursor-bee{display:none}}
+
+  /* con ong bay theo chuột (chỉ ở vùng nội dung) */
+  .cursor-bee{position:fixed;top:0;left:0;width:30px;z-index:9998;opacity:0;
+    transition:opacity .45s ease;will-change:transform}
+  .cursor-bee .wg{fill:rgba(80,80,80,.42)}   /* cánh xám nhạt: hiện rõ cả nền sáng lẫn tối */
+
+  /* ===== CARDS ===== */
+  .cards{background:#fff;position:relative}
+  .cards .wrap{padding:54px 34px 70px}
+  .grid{display:grid;grid-template-columns:repeat(6,1fr);gap:16px}
+  @media(max-width:1100px){.grid{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:720px){.grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:460px){.grid{grid-template-columns:1fr}}
+  .card{position:relative;border-radius:20px;padding:22px 20px 30px;color:#fff;min-height:300px;overflow:hidden;transition:.25s;cursor:pointer}
+  .card:hover{transform:translateY(-7px);box-shadow:0 22px 44px rgba(0,0,0,.2)}
+  .card .cic{width:48px;height:48px;border-radius:13px;background:rgba(255,255,255,.22);display:grid;place-items:center;margin-bottom:42px}
+  .card .cic svg{width:24px;height:24px;color:#fff}
+  .card h3{font-size:21px;font-weight:800;margin-bottom:10px}
+  .card p{font-size:12.5px;line-height:1.55;color:rgba(255,255,255,.85)}
+  .c-listen{background:#3a4ed4}
+  .c-read{background:#2f9e5e}
+  .c-speak{background:#df6f33}
+  .c-write{background:#d75e79}
+  .c-orient{background:#5b3a9e}
+  .c-vocab{background:#2e8c88}
+
+  /* thẻ kỹ năng dạng ảnh, bấm mở trang riêng */
+  .skill-link{display:block;border-radius:28px;overflow:hidden;transition:.25s;cursor:pointer;box-shadow:0 10px 26px rgba(0,0,0,.12)}
+  .skill-link img{width:100%;height:auto;display:block}
+  .skill-link:hover{transform:translateY(-7px);box-shadow:0 24px 46px rgba(0,0,0,.22)}
+  .card{border-radius:28px}
+
+  .bee-mini{position:absolute;right:24px;bottom:10px;width:78px;height:90px;object-fit:contain;z-index:4;filter:drop-shadow(0 8px 16px rgba(0,0,0,.18))}
+  @media(max-width:1100px){.bee-mini{display:none}}
+
+  /* ===== ROADMAP ===== */
+  .path{background:#fffdf6;padding:66px 0}
+  .sec-head{text-align:center;max-width:640px;margin:0 auto 56px}
+  .sec-head .eb{display:inline-block;font-weight:700;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:#c98a14;background:#fdf0d2;padding:6px 15px;border-radius:999px;margin-bottom:14px}
+  .sec-head h2{font-size:clamp(28px,4vw,42px);font-weight:800;color:#2b2417;margin-bottom:12px}
+  .sec-head p{color:#7a715c;font-size:16px}
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+  @media(max-width:820px){.steps{grid-template-columns:repeat(2,1fr);gap:34px 20px}}
+  @media(max-width:460px){.steps{grid-template-columns:1fr;gap:40px}}
+  .step{position:relative;background:#fff;border:1px solid #f0e6cd;border-radius:18px;padding:34px 22px 26px;text-align:center;transition:.25s}
+  .step:hover{transform:translateY(-6px);box-shadow:0 18px 40px rgba(201,138,20,.18);border-color:transparent}
+  .hexb{width:58px;height:64px;margin:-60px auto 18px;display:grid;place-items:center;color:#2b2417;font-family:"Poppins";font-weight:800;font-size:21px;background:#f7b500;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);box-shadow:0 8px 18px rgba(201,138,20,.35)}
+  .step h4{font-family:"Poppins";font-weight:800;font-size:19px;color:#2b2417;margin-bottom:8px}
+  .step .band{display:inline-block;font-weight:700;font-size:12.5px;color:#c98a14;background:#fdf0d2;padding:4px 12px;border-radius:999px;margin-bottom:12px}
+  .step p{font-size:13px;color:#7a715c;line-height:1.55}
+
+  /* ===== JOURNEY (mountain infographic) ===== */
+  .journey{background:var(--j-bg,#fffdf6);padding:60px 0 76px;transition:background .3s ease}
+  .journey .sec-head{margin-bottom:34px}
+  .j-frame{position:relative;max-width:1000px;margin:0 auto;background:var(--j-frame,#5d7d6f);
+    border:1px solid var(--j-border,#ece0c4);border-radius:26px;padding:12px;
+    box-shadow:0 22px 50px var(--j-shadow,rgba(201,138,20,.18));overflow:hidden;transition:.3s ease}
+  .j-frame::before{content:"";position:absolute;inset:0;border-radius:26px;pointer-events:none;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+  .j-frame img{width:100%;height:auto;display:block;border-radius:16px}
+
+  /* sẵn sàng cho giao diện tối: chỉ cần set data-theme="dark" trên <html>/<body> */
+  [data-theme="dark"] .journey{--j-bg:#171410;--j-border:#39321f;--j-shadow:rgba(0,0,0,.55)}
+  [data-theme="dark"] .journey .sec-head h2{color:#fdf6e6}
+  [data-theme="dark"] .journey .sec-head p{color:#b6ac93}
+  [data-theme="dark"] .journey .sec-head .eb{background:#3a2f12;color:#ffd45e}
+
+  /* ===== FREE MATERIALS ===== */
+  .free{background:#fffdf6;padding:6px 0 84px}
+  .free-card{position:relative;overflow:hidden;border-radius:30px;padding:48px;color:#fff;display:grid;grid-template-columns:.85fr 1.15fr;gap:34px;align-items:center;background:linear-gradient(135deg,#2b2417,#6a531d)}
+  @media(max-width:820px){.free-card{grid-template-columns:1fr;padding:34px;text-align:center}}
+  .free-card .combs-svg{position:absolute;inset:0;width:100%;height:100%;z-index:0;opacity:.6}
+  .free-card .ill,.free-card .fc-text{position:relative;z-index:2}
+  .free-card .ill svg,.free-card .ill img{max-width:200px;margin:0 auto;filter:drop-shadow(0 16px 30px rgba(0,0,0,.35))}
+  .free-card h2{font-size:clamp(25px,3.3vw,36px);font-weight:800;line-height:1.15;margin-bottom:12px}
+  .free-card h2 .hl{color:#ffd45e}
+  .free-card p.sub{color:#e8dec5;font-size:15.5px;margin-bottom:22px}
+  .form-row{display:flex;gap:12px;flex-wrap:wrap}
+  .form-row input{flex:1;min-width:190px;padding:14px 16px;border-radius:14px;border:none;font-size:15px;font-family:inherit}
+  .form-row .btn-send{background:#f7b500;color:#2b2417;font-weight:800;padding:14px 30px;border-radius:14px;border:none;cursor:pointer;transition:.2s}
+  .form-row .btn-send:hover{background:#ffc62e;transform:translateY(-2px)}
+  .secure{margin-top:14px;font-size:13px;color:#cfc4a8;display:flex;align-items:center;gap:7px;justify-content:flex-start}
+  @media(max-width:820px){.secure{justify-content:center}}
+
+  /* ===== FOOTER ===== */
+  footer{background:#2b2417;color:#d8cfb8;padding:46px 0 26px}
+  .foot-top{display:flex;flex-wrap:wrap;gap:22px;justify-content:space-between;align-items:center}
+  .foot-logo{font-family:"Poppins";font-weight:800;font-size:19px;color:#fff}
+  .foot-logo b{color:#f7b500}
+  .foot-top .meta{font-size:13px;color:#a59c84}
+  .foot-bottom{border-top:1px solid #46402f;margin-top:26px;padding-top:18px;display:flex;flex-wrap:wrap;gap:8px 22px;justify-content:space-between;font-size:12.5px;color:#9a917a}
+  .foot-bottom a:hover{color:#fff}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="grid-bg">
+  <svg class="comb-bg" aria-hidden="true"><path id="combsHdr"></path></svg>
+  <div class="wrap nav">
+    <a class="logo" href="/">
+      <span class="mark"><img src="/public/textures/bee.png" alt="" /></span>
+      <span class="name">Bee<b>English</b></span>
+    </a>
+    <div class="hdr-right">
+      <div class="bell">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+        <span class="dot">2</span>
+      </div>
+      <div class="user">
+        <span class="av">đ</span>
+        <span><span class="u-name">đông</span><span class="u-stat">ONLINE</span></span>
+      </div>
+      <a class="hdr-link" href="/words"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg><span>Sổ từ vựng</span></a>
+      <a class="hdr-link" href="/profile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Lịch sử</span></a>
+    </div>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <svg class="comb-bg" aria-hidden="true"><path id="combsHero"></path></svg>
+  <div class="bee-wrap">
+    <img src="/public/textures/bee.png" alt="Linh vật ong BeeEnglish" />
+  </div>
+  <div class="bubble">Chăm chỉ như ong, kết quả ngọt như mật nhé!</div>
+
+  <!-- THÊM MỚI: lớp đàn ong bay chéo + lớp điểm IELTS (chỉ trong hero) -->
+  <div class="hero-bees" id="heroBees"></div>
+  <div class="score-layer" id="scoreLayer"></div>
+
+  <div class="wrap">
+    <h1>Luyện thi IELTS</h1>
+    <p class="lead">Đầy đủ tài liệu, bài luyện, phương pháp và từ vựng giúp bạn chinh phục IELTS dễ dàng hơn mỗi ngày.</p>
+
+    <a class="pill" href="#" target="_blank" rel="noopener">
+      Có góp ý cho Bee? Nhắn tụi mình tại đây
+      <span class="ic"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm3 11.5c0 2-1.6 3.2-3.4 3.2-1.7 0-3-1-3-2.4 0-1.3 1.1-2.2 2.9-2.2.5 0 1 .05 1.4.15-.05-.9-.5-1.4-1.3-1.4-.6 0-1 .2-1.3.6l-1.2-.8c.6-.8 1.4-1.2 2.6-1.2 1.8 0 2.9 1.1 2.9 3.1v1.2z"/></svg></span>
+    </a>
+
+    <div class="cta-row">
+      <a class="btn-white" href="#">Bài viết của Bee
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+      <a class="btn-link" href="#cards">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.5 19 2c1 2 2 4.18 2 8a7 7 0 0 1-7 7h-3z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg>
+        Khám phá tài liệu miễn phí
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- CARDS -->
+<section class="cards" id="cards">
+  <div class="wrap">
+    <div class="grid">
+      <a class="skill-link" href="/listening"><img src="/public/textures/listening.svg" alt="Listening — luyện nghe IELTS" /></a>
+      <a class="skill-link" href="/reading"><img src="/public/textures/reading.svg" alt="Reading — luyện đọc IELTS" /></a>
+      <a class="skill-link" href="/speaking"><img src="/public/textures/speaking.svg" alt="Speaking — luyện nói IELTS" /></a>
+      <a class="skill-link" href="/writing"><img src="/public/textures/writing.svg" alt="Writing — luyện viết IELTS" /></a>
+      <a class="card c-orient" href="/band-climber">
+        <div class="cic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg></div>
+        <h3>Lộ Trình<br/>Tự Học</h3>
+        <p>Lộ trình học cá nhân hóa, tài liệu chọn lọc và mẹo học hiệu quả giúp bạn tiến bộ mỗi ngày.</p>
+      </a>
+      <a class="card c-vocab" href="/vocab">
+        <div class="cic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></div>
+        <h3>Vocab &amp;<br/>Grammar</h3>
+        <p>Mở rộng vốn từ theo chủ đề và củng cố cấu trúc ngữ pháp giao tiếp, học thuật.</p>
+      </a>
+    </div>
+
+    <!-- chú ong nhỏ góc phải -->
+    <img class="bee-mini" src="/public/textures/bee.png" alt="" aria-hidden="true" />
+  </div>
+</section>
+
+<!-- ROADMAP -->
+<section class="path">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eb">Lộ trình</span>
+      <h2>Lộ trình chinh phục IELTS</h2>
+      <p>Bốn chặng đường rõ ràng, đi từng bước như ong xây tổ — chắc chắn và đều đặn mỗi ngày.</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="hexb">1</div>
+        <h4>IELTS Basic</h4>
+        <span class="band">Mất gốc → 3.0</span>
+        <p>Làm quen âm, chữ và phản xạ tiếng Anh nền tảng cho người mới bắt đầu.</p>
+      </div>
+      <div class="step">
+        <div class="hexb">2</div>
+        <h4>Pre-Foundation</h4>
+        <span class="band">3.0 → 4.5</span>
+        <p>Xây vốn từ, ngữ pháp lõi và kỹ năng làm bài cơ bản cho từng phần thi.</p>
+      </div>
+      <div class="step">
+        <div class="hexb">3</div>
+        <h4>Foundation</h4>
+        <span class="band">4.5 → 6.0</span>
+        <p>Luyện đề bài bản 4 kỹ năng, chiến thuật phòng thi và quản lý thời gian.</p>
+      </div>
+      <div class="step">
+        <div class="hexb">4</div>
+        <h4>Advanced</h4>
+        <span class="band">6.0 → 7.0+</span>
+        <p>Tối ưu từ vựng học thuật, ý tưởng và độ trôi chảy để bứt phá band cao.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- JOURNEY (mountain infographic) -->
+<section class="journey">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eb">Hành trình</span>
+      <h2>Hành trình Phát triển Giáo dục</h2>
+      <p>8 năm leo từng đỉnh núi tri thức — mỗi chặng là một cột mốc bứt phá cùng Bee.</p>
+    </div>
+    <div class="j-frame">
+      <img src="/public/textures/journey.png" alt="Hành trình Phát triển Giáo dục" />
+    </div>
+  </div>
+</section>
+
+<!-- FREE MATERIALS -->
+<section class="free">
+  <div class="wrap">
+    <div class="free-card">
+      <svg class="combs-svg" viewBox="0 0 600 360" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+        <path id="combs2" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="2"></path>
+      </svg>
+      <div class="ill">
+        <img src="/public/textures/bee.png" alt="" aria-hidden="true" />
+      </div>
+      <div class="fc-text">
+        <h2>Nhận trọn bộ tài liệu <span class="hl">IELTS miễn phí</span></h2>
+        <p class="sub">Nhập thông tin để nhận ngay bộ đề Cambridge mới nhất kèm tài liệu ôn thi chất lượng cao.</p>
+        <div class="form-row">
+          <input type="text" placeholder="Họ và tên của bạn" />
+          <input type="text" placeholder="Email hoặc số điện thoại" />
+          <button class="btn-send" type="button">Gửi!</button>
+        </div>
+        <div class="secure">🔒 Thông tin của bạn được bảo mật tuyệt đối</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="wrap">
+    <div class="foot-top">
+      <div class="foot-logo">BEE<b>ENGLISH</b></div>
+      <span class="meta">🍯 Học chăm như ong &nbsp;•&nbsp; 📞 Hotline hỗ trợ 24/7</span>
+    </div>
+    <div class="foot-bottom">
+      <span>© 2026 BeeEnglish. All rights reserved.</span>
+      <span><a href="#">Về chúng tôi</a> &nbsp; <a href="#">Chính sách bảo mật</a> &nbsp; <a href="#">Điều khoản dịch vụ</a></span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // vẽ hoa văn tổ ong cho hero và phần form
+  function buildCombs(id, s, W, H){
+    var w=Math.sqrt(3)*s, h=1.5*s, d="";
+    function hex(cx,cy){
+      var p=[];
+      for(var k=0;k<6;k++){
+        var a=Math.PI/180*(60*k-90);
+        p.push((cx+s*Math.cos(a)).toFixed(1)+","+(cy+s*Math.sin(a)).toFixed(1));
+      }
+      return "M"+p.join("L")+"Z";
+    }
+    for(var r=0;r*h<H+s;r++){
+      var off=(r%2)?w/2:0;
+      for(var c=0;c*w<W+w;c++){ d+=hex(c*w+off, r*h); }
+    }
+    var el=document.getElementById(id);
+    if(el) el.setAttribute("d", d);
+  }
+  buildCombs("combs2", 26, 600, 360);
+
+  // lưới tổ ong cho header + hero (thay cho lưới vuông cũ)
+  function drawHoneyBg(){
+    var hdr=document.querySelector("header.grid-bg");
+    var hero=document.querySelector(".hero");
+    if(hdr) buildCombs("combsHdr", 22, hdr.clientWidth, hdr.clientHeight);
+    if(hero) buildCombs("combsHero", 22, hero.clientWidth, hero.clientHeight);
+  }
+  drawHoneyBg();
+  window.addEventListener("resize", drawHoneyBg);
+</script>
+
+<!-- THÊM MỚI: đàn ong bay chéo + điểm IELTS thi thoảng hiện (chỉ ở hero) -->
+<script>
+(function(){
+  var hero = document.querySelector('.hero');
+  var beeLayer = document.getElementById('heroBees');
+  var scoreLayer = document.getElementById('scoreLayer');
+  if(!hero || !beeLayer || !scoreLayer) return;
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches) return; // tôn trọng người tắt hiệu ứng
+
+  /* ---- con ong (SVG, hướng đầu sang phải) ---- */
+  var beeId = 0;
+  function beeMarkup(){
+    var id = 'bb' + (beeId++);
+    return '<svg viewBox="0 0 36 26">'
+      +'<ellipse class="wg a" cx="15" cy="9" rx="7" ry="4.2"/>'
+      +'<ellipse class="wg b" cx="20" cy="8.5" rx="6" ry="3.6"/>'
+      +'<ellipse cx="17" cy="15" rx="11" ry="7" fill="#1d1407"/>'
+      +'<g clip-path="url(#'+id+')">'
+        +'<rect x="9" y="8" width="4" height="14" fill="#f7b500"/>'
+        +'<rect x="16" y="8" width="4" height="14" fill="#f7b500"/>'
+        +'<rect x="23" y="8" width="3.6" height="14" fill="#f7b500"/>'
+      +'</g>'
+      +'<circle cx="29" cy="14" r="4.4" fill="#1d1407"/>'
+      +'<path d="M30 11 q3 -3 4 -5 M32 11 q3 -2 5 -3" stroke="#1d1407" stroke-width="1" fill="none" stroke-linecap="round"/>'
+      +'<defs><clipPath id="'+id+'"><ellipse cx="17" cy="15" rx="11" ry="7"/></clipPath></defs>'
+    +'</svg>';
+  }
+
+  /* ---- một đàn bay chéo: góc trái-dưới -> góc phải-trên ---- */
+  function spawnSwarm(){
+    var W = hero.clientWidth, H = hero.clientHeight;
+    var x0 = -40, y0 = H + 40, x1 = W + 40, y1 = -40;
+    var dx = x1 - x0, dy = y1 - y0;
+    var len = Math.hypot(dx, dy);
+    var ux = dx/len, uy = dy/len;     // vector dọc đường bay
+    var px = -uy, py = ux;            // vector vuông góc (để lượn)
+    var angle = Math.atan2(dy, dx) * 180/Math.PI;
+    var count = 6 + Math.floor(Math.random()*3);   // 6–8 con
+    var baseDur = 7700 + Math.random()*2500;        // bay chậm hơn một tý
+
+    for(var i=0;i<count;i++){
+      (function(i){
+        var bee = document.createElement('div');
+        bee.className = 'fly-bee';
+        bee.innerHTML = beeMarkup();
+        bee.style.opacity = '0';        // ẩn tới khi thật sự bắt đầu bay
+        beeLayer.appendChild(bee);
+
+        var spread = (i-(count-1)/2)*22 + (Math.random()-0.5)*26; // tản ra thành "đàn"
+        var amp = 16 + Math.random()*22;          // biên độ lượn
+        var freq = 1.3 + Math.random()*1.3;
+        var phase = Math.random()*Math.PI*2;
+        var dur = baseDur*(0.85 + Math.random()*0.3);
+        var delay = i*(150 + Math.random()*150);
+        var sc = 0.7 + Math.random()*0.45;
+        var start = performance.now() + delay;
+
+        function fly(now){
+          var t = (now - start)/dur;
+          if(t < 0){ requestAnimationFrame(fly); return; }
+          if(t > 1){ bee.remove(); return; }
+          if(bee.style.opacity !== '1') bee.style.opacity = '1';
+          var bx = x0 + t*dx, by = y0 + t*dy;
+          var wob = Math.sin(t*Math.PI*2*freq + phase)*amp;
+          var X = bx + px*(spread + wob);
+          var Y = by + py*(spread + wob);
+          var tilt = Math.cos(t*Math.PI*2*freq + phase)*8;
+          bee.style.transform = 'translate('+X.toFixed(1)+'px,'+Y.toFixed(1)+'px) rotate('+(angle+tilt).toFixed(1)+'deg) scale('+sc.toFixed(2)+')';
+          requestAnimationFrame(fly);
+        }
+        requestAnimationFrame(fly);
+      })(i);
+    }
+    setTimeout(spawnSwarm, 6000 + Math.random()*4000);   // nghỉ 6–10s rồi đàn tiếp
+  }
+
+  /* ---- điểm IELTS thi thoảng hiện, nhẹ rồi tan ---- */
+  var SCORES = ["6.5","7.0","7.5","8.0","8.5"];
+  var STAR = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.5 6.8L12 17.8 5.9 21.4l1.5-6.8L2.2 9.7l6.9-.7z"/></svg>';
+  function popScore(){
+    var W = hero.clientWidth, H = hero.clientHeight;
+    var el = document.createElement('div');
+    el.className = 'score-pop';
+    var s = SCORES[Math.floor(Math.random()*SCORES.length)];
+    el.innerHTML = '<span class="ic">'+STAR+'</span>+'+s+' <span class="ielts">IELTS</span>';
+    // lệch về nửa phải & vùng trên để tránh tiêu đề bên trái
+    var left = Math.min(W*(0.46 + Math.random()*0.36), W - 150);
+    var top  = Math.min(H*(0.12 + Math.random()*0.6),  H - 60);
+    el.style.left = Math.max(12, left).toFixed(0)+'px';
+    el.style.top  = Math.max(12, top ).toFixed(0)+'px';
+    scoreLayer.appendChild(el);
+    el.addEventListener('animationend', function(){ el.remove(); });
+    setTimeout(popScore, 3800 + Math.random()*3600);   // 3.8–7.4s mới hiện 1 cái
+  }
+
+  setTimeout(spawnSwarm, 2200);
+  setTimeout(popScore, 1600);
+})();
+</script>
+
+<!-- THÊM MỚI: 1 con ong bay theo chuột, rất chậm (chỉ vùng nội dung dưới hero) -->
+<script>
+(function(){
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if(matchMedia('(hover: none)').matches) return;     // bỏ trên thiết bị cảm ứng (không có chuột)
+  var hero = document.querySelector('.hero');
+  if(!hero) return;
+
+  // con ong (SVG, đầu quay sang phải)
+  var bee = document.createElement('div');
+  bee.className = 'fly-bee cursor-bee';
+  bee.innerHTML =
+    '<svg viewBox="0 0 36 26">'
+    +'<ellipse class="wg a" cx="15" cy="9" rx="7" ry="4.2"/>'
+    +'<ellipse class="wg b" cx="20" cy="8.5" rx="6" ry="3.6"/>'
+    +'<ellipse cx="17" cy="15" rx="11" ry="7" fill="#1d1407"/>'
+    +'<g clip-path="url(#cursorBeeClip)">'
+      +'<rect x="9" y="8" width="4" height="14" fill="#f7b500"/>'
+      +'<rect x="16" y="8" width="4" height="14" fill="#f7b500"/>'
+      +'<rect x="23" y="8" width="3.6" height="14" fill="#f7b500"/>'
+    +'</g>'
+    +'<circle cx="29" cy="14" r="4.4" fill="#1d1407"/>'
+    +'<path d="M30 11 q3 -3 4 -5 M32 11 q3 -2 5 -3" stroke="#1d1407" stroke-width="1" fill="none" stroke-linecap="round"/>'
+    +'<defs><clipPath id="cursorBeeClip"><ellipse cx="17" cy="15" rx="11" ry="7"/></clipPath></defs>'
+    +'</svg>';
+  document.body.appendChild(bee);
+
+  var tx=0, ty=0, bx=0, by=0, angle=0, has=false, inContent=false;
+
+  document.addEventListener('mousemove', function(e){
+    tx = e.clientX; ty = e.clientY; has = true;
+    var nowIn = e.clientY > hero.getBoundingClientRect().bottom;   // dưới hero = vùng nội dung
+    if(nowIn && !inContent){ bx = tx; by = ty; }                   // vừa vào vùng -> đặt ngay tại con trỏ
+    inContent = nowIn;
+    bee.style.opacity = inContent ? '0.92' : '0';
+  });
+  document.addEventListener('mouseleave', function(){ inContent = false; bee.style.opacity = '0'; });
+
+  function loop(){
+    if(has){
+      var ease = 0.018;                       // rất chậm
+      var ndx = tx - bx, ndy = ty - by;
+      bx += ndx * ease;
+      by += ndy * ease;
+      if(Math.hypot(ndx, ndy) > 1.5){         // chỉ xoay khi đang di chuyển
+        var na = Math.atan2(ndy, ndx) * 180/Math.PI;
+        var diff = ((na - angle + 540) % 360) - 180;
+        angle += diff * 0.1;                  // xoay mượt
+      }
+      bee.style.transform = 'translate(' + (bx-15).toFixed(1) + 'px,' + (by-13).toFixed(1) + 'px) rotate(' + angle.toFixed(1) + 'deg)';
+    }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+
+</body>
+</html>

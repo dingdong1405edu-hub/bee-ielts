@@ -48,9 +48,9 @@ function defaultWeekdays(count: number): number[] {
 
 const SKILLS: { value: Skill; label: string; dot: string; chip: string }[] = [
   { value: "READING", label: "Reading", dot: "bg-sage-500", chip: "bg-sage-500/15 text-sage-600 dark:text-sage-400" },
-  { value: "LISTENING", label: "Listening", dot: "bg-gold-500", chip: "bg-gold-500/15 text-gold-700 dark:text-gold-400" },
+  { value: "LISTENING", label: "Listening", dot: "bg-indigo-500", chip: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-400" },
   { value: "WRITING", label: "Writing", dot: "bg-rose-500", chip: "bg-rose-500/15 text-rose-600 dark:text-rose-400" },
-  { value: "SPEAKING", label: "Speaking", dot: "bg-honey", chip: "bg-honey/15 text-honey-deep dark:text-honey" },
+  { value: "SPEAKING", label: "Speaking", dot: "bg-orange-500", chip: "bg-orange-500/15 text-orange-700 dark:text-orange-400" },
   { value: "VOCAB", label: "Vocab", dot: "bg-leaf", chip: "bg-leaf/15 text-leaf-deep dark:text-leaf" },
   { value: "GRAMMAR", label: "Grammar", dot: "bg-primary", chip: "bg-primary/15 text-primary dark:text-primary/70" },
 ];
@@ -254,7 +254,7 @@ export function StudySchedule({
           </Button>
           <Button
             size="sm"
-            className="rounded-xl bg-gradient-to-br from-honey to-honey-deep text-white"
+            className="rounded-xl gradient-brand text-white"
             onClick={() => setShowGenerator((s) => !s)}
           >
             <Wand2 className="h-3.5 w-3.5" /> AI tạo lộ trình

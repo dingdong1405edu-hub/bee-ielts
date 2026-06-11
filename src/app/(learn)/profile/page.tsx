@@ -7,9 +7,6 @@ import { BookOpen, Headphones, PenLine, Mic, Sparkles, BookOpenText, Zap, Flame,
 import { ProfileHeader } from "./profile-header";
 import { DeleteAttemptButton } from "@/components/learn/delete-attempt-button";
 import { EmptyState, Leaf } from "@/components/brand";
-import { ACHIEVEMENTS } from "@/lib/achievements/catalog";
-import { listUnlockedCodes } from "@/lib/achievements/award";
-import { BadgeWall } from "@/components/achievements/badge-wall";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +31,7 @@ export default async function ProfilePage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const [user, attempts, mocks, unlockedCodes] = await Promise.all([
+  const [user, attempts, mocks] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
@@ -69,7 +66,6 @@ export default async function ProfilePage() {
         speakingBand: true,
       },
     }),
-    listUnlockedCodes(session.user.id),
   ]);
   if (!user) redirect("/login");
 
@@ -89,23 +85,6 @@ export default async function ProfilePage() {
         <StatTile icon={Flame} label="Streak" value={`${user.streakDays} ngày`} grad="from-gold-500 to-red-500" />
         <StatTile icon={Target} label="Mục tiêu" value={`Band ${user.targetBand.toFixed(1)}`} grad="from-honey to-honey-deep" />
         <StatTile icon={BookOpen} label="Bài đã làm" value={String(attempts.length)} grad="from-sage-500 to-teal-500" />
-      </div>
-
-      {/* Achievement / badge wall — clickable. Each badge fires a popup
-          preview (real unlock if owned, preview animation if locked) so
-          the user can see the medal celebration on demand. */}
-      <div>
-        <h2 className="text-lg font-extrabold mb-3 flex items-center gap-2">
-          <Trophy className="h-5 w-5 text-honey-deep" />
-          Huy chương & Danh hiệu
-          <span className="ml-auto text-xs font-bold text-muted-foreground">
-            {unlockedCodes.length} / {ACHIEVEMENTS.length}
-          </span>
-        </h2>
-        <p className="text-xs text-muted-foreground mb-3">
-          Bấm vào huy chương bất kỳ để xem hiệu ứng mở khoá (kèn kỵ binh + pháo hoa).
-        </p>
-        <BadgeWall achievements={ACHIEVEMENTS} unlockedCodes={unlockedCodes} />
       </div>
 
       {/* Mock test history */}

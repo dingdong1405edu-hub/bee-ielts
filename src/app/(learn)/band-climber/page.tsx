@@ -98,13 +98,13 @@ export default async function BandClimberPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="text-center space-y-3">
-        <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl gradient-brand text-white shadow-lg shadow-primary/30 ring-2 ring-[#F0A800]/40 ring-offset-2 ring-offset-background">
+        <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl gradient-brand text-white shadow-lg shadow-primary/30 ring-2 ring-primary/40 ring-offset-2 ring-offset-background">
           <TrendingUp className="h-8 w-8" />
         </div>
         <h1 className="text-3xl font-extrabold tracking-tight">Vượt band IELTS</h1>
         <div
           className="mx-auto h-0.5 w-12 rounded-full"
-          style={{ backgroundColor: "#F0A800" }}
+          style={{ backgroundColor: "hsl(var(--primary))" }}
         />
         <p className="text-muted-foreground text-sm max-w-md mx-auto">
           Mỗi chặng tổng hợp các mẹo theo 4 kỹ năng để bạn nâng band mục tiêu hiệu quả nhất.
@@ -226,10 +226,10 @@ export default async function BandClimberPage() {
 /** First-time visitor gate — sends them to take the mock test. */
 function PlacementGate() {
   return (
-    <Card className="border-2 border-gold-300 bg-gradient-to-br from-gold-50 to-gold-200">
+    <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-primary/15">
       <CardContent className="p-5 space-y-3">
         <div className="flex items-center gap-3">
-          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-gold-400 to-gold-600 text-white shadow-md shadow-gold-500/30">
+          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl gradient-brand text-white shadow-md shadow-gold-500/30">
             <GraduationCap className="h-6 w-6" />
           </div>
           <div>
@@ -242,7 +242,7 @@ function PlacementGate() {
           </div>
         </div>
         <div className="flex justify-end">
-          <Button asChild size="lg" className="bg-gold-600 hover:bg-gold-700 shadow-md shadow-gold-600/30">
+          <Button asChild size="lg" className="bg-primary hover:bg-primary/90 shadow-md shadow-primary/30">
             <Link href="/mock">
               <GraduationCap className="h-4 w-4" /> Thi thử ngay
             </Link>

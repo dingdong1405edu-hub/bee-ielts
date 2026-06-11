@@ -3,11 +3,6 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { recordActivity } from "@/lib/activity";
-import { awardMany } from "@/lib/achievements/award";
-import {
-  allVocabPerfectionCodes,
-  type Achievement,
-} from "@/lib/achievements/catalog";
 
 const schema = z.object({
   lessonId: z.string(),
@@ -26,23 +21,16 @@ export async function POST(req: Request) {
 
   const { lessonId, score, totalCorrect, total, durationSec } = parsed.data;
   const xpGain = totalCorrect * 5;
-  const userId = session.user.id;
-
-  // Detect "first lesson" by checking BEFORE we mark it completed — must
-  // happen before the upsert so the count is honest.
-  const priorCompletedCount = await prisma.vocabProgress.count({
-    where: { userId, completed: true },
-  });
 
   await prisma.$transaction([
     prisma.vocabProgress.upsert({
-      where: { userId_lessonId: { userId, lessonId } },
+      where: { userId_lessonId: { userId: session.user.id, lessonId } },
       update: { completed: true, score },
-      create: { userId, lessonId, completed: true, score },
+      create: { userId: session.user.id, lessonId, completed: true, score },
     }),
     prisma.attempt.create({
       data: {
-        userId,
+        userId: session.user.id,
         skill: "VOCAB",
         refId: lessonId,
         rawAnswer: { totalCorrect, total },
@@ -52,25 +40,7 @@ export async function POST(req: Request) {
     }),
   ]);
 
-  // Achievement codes to try awarding. Idempotent — DB unique constraint
-  // means re-runs are free.
-  const codes: string[] = [];
-  if (priorCompletedCount === 0) codes.push("vocab_first_lesson");
-  codes.push(...allVocabPerfectionCodes(score));
+  await recordActivity(session.user.id, { xpGain });
 
-  const unlocked: Achievement[] = [];
-  if (codes.length > 0) {
-    const lessonUnlocks = await awardMany(userId, codes, {
-      lessonId,
-      score,
-      totalCorrect,
-      total,
-    });
-    unlocked.push(...lessonUnlocks);
-  }
-  // Streak + XP badges fold in from recordActivity.
-  const activityUnlocks = await recordActivity(userId, { xpGain });
-  unlocked.push(...activityUnlocks);
-
-  return NextResponse.json({ ok: true, xpGain, unlocked });
+  return NextResponse.json({ ok: true, xpGain });
 }

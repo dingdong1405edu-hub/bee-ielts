@@ -34,9 +34,6 @@ import { isAdminOrOwner } from "@/lib/premium";
 import {
   extractYoutubeId,
   fetchYouTubeCaptionsViaInnertube,
-  fetchYouTubeCaptionsViaInvidious,
-  fetchYouTubeCaptionsViaLibrary,
-  fetchYouTubeCaptionsViaPublicApi,
   getYouTubeAudioBuffer,
   getYouTubeBasicInfo,
   MAX_AUDIO_FALLBACK_SEC,
@@ -329,70 +326,18 @@ export async function POST(req: Request) {
     merged = refineSegmentsForShadowing(mergeCuesIntoSegments(captionAttempt.cues));
   }
 
-  // 1b. Public transcript APIs FIRST — services like youtubetranscript.com
-  //     maintain proxy pools + caches, so popular videos return instantly
-  //     and even unpopular ones bypass YouTube's IP block. Most reliable
-  //     path now that Invidious itself is partially blocked.
+  // 1b. InnerTube /player direct call. Bypasses the youtube-transcript
+  //     library entirely — calls YouTube's API as ANDROID youtubei client
+  //     and gets back the same playerResponse the official app sees. This
+  //     succeeds even when the watch page returns a stripped consent stub
+  //     to server IPs. Also reads availableLangs so we can early-reject
+  //     videos that have only non-EN captions (Vietnamese vlogs etc).
   let watchAvailableLangs: string[] | null = null;
   let watchErr: string | null = null;
   if (merged.length === 0) {
     try {
-      const pubResult = await fetchYouTubeCaptionsViaPublicApi(ytId);
-      watchAvailableLangs = pubResult.availableLangs;
-      if (pubResult.cues.length > 0) {
-        console.log(
-          `[from-youtube] public-api captions rescued ytId=${ytId} cues=${pubResult.cues.length}`,
-        );
-        merged = refineSegmentsForShadowing(mergeCuesIntoSegments(pubResult.cues));
-      }
-    } catch (e) {
-      watchErr = `public-api: ${e instanceof Error ? e.message : e}`;
-      console.warn(`[from-youtube] public-api fail ytId=${ytId}: ${watchErr}`);
-    }
-  }
-
-  // 1c. Invidious proxy path — public instances fetch via residential IPs.
-  //     Many instances are now also blocked by YT but some still work
-  //     intermittently, so worth trying as a fallback to public APIs.
-  if (merged.length === 0) {
-    try {
-      const invResult = await fetchYouTubeCaptionsViaInvidious(ytId);
-      if (!watchAvailableLangs?.length) watchAvailableLangs = invResult.availableLangs;
-      if (invResult.cues.length > 0) {
-        console.log(
-          `[from-youtube] invidious captions rescued ytId=${ytId} cues=${invResult.cues.length}`,
-        );
-        merged = refineSegmentsForShadowing(mergeCuesIntoSegments(invResult.cues));
-      }
-    } catch (e) {
-      const invErr = `invidious: ${e instanceof Error ? e.message : e}`;
-      watchErr = watchErr ? `${watchErr} | ${invErr}` : invErr;
-      console.warn(`[from-youtube] invidious captions fail ytId=${ytId}: ${invErr}`);
-    }
-  }
-
-  // 1c. youtubei.js library — the library manages its own session/
-  //     cookies/signature_timestamp and sometimes survives bot detection.
-  if (merged.length === 0) {
-    try {
-      const libResult = await fetchYouTubeCaptionsViaLibrary(ytId);
-      if (!watchAvailableLangs?.length) watchAvailableLangs = libResult.availableLangs;
-      if (libResult.cues.length > 0) {
-        console.log(
-          `[from-youtube] library captions rescued ytId=${ytId} cues=${libResult.cues.length}`,
-        );
-        merged = refineSegmentsForShadowing(mergeCuesIntoSegments(libResult.cues));
-      }
-    } catch (e) {
-      const libErr = `library: ${e instanceof Error ? e.message : e}`;
-      watchErr = watchErr ? `${watchErr} | ${libErr}` : libErr;
-      console.warn(`[from-youtube] library captions fail ytId=${ytId}: ${libErr}`);
-    }
-  }
-  if (merged.length === 0) {
-    try {
       const result = await fetchYouTubeCaptionsViaInnertube(ytId);
-      if (!watchAvailableLangs?.length) watchAvailableLangs = result.availableLangs;
+      watchAvailableLangs = result.availableLangs;
       if (result.cues.length > 0) {
         console.log(
           `[from-youtube] innertube-player captions rescued ytId=${ytId} cues=${result.cues.length}`,
@@ -416,12 +361,9 @@ export async function POST(req: Request) {
         }
       }
     } catch (e) {
-      const innertubeErr = e instanceof Error ? e.message : String(e);
-      watchErr = watchErr
-        ? `${watchErr} | innertube: ${innertubeErr}`
-        : `innertube: ${innertubeErr}`;
+      watchErr = e instanceof Error ? e.message : String(e);
       console.warn(
-        `[from-youtube] innertube-player captions fail ytId=${ytId}: ${innertubeErr}`,
+        `[from-youtube] innertube-player captions fail ytId=${ytId}: ${watchErr}`,
       );
     }
   }

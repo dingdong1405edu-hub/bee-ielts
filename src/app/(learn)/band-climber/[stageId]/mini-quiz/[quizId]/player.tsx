@@ -2287,8 +2287,6 @@ function SpeakingQuizSummary({
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Grade failed");
         setFinalGrade(data.result as SpeakingFinalResult);
-        const { triggerUnlocksFromResponse } = await import("@/lib/achievements/client-trigger");
-        triggerUnlocksFromResponse(data);
       } catch (e) {
         console.error("[mini-quiz/final-grade]", e);
         setFinalGrade("error");

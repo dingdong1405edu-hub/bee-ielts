@@ -632,8 +632,6 @@ export function SpeakingPlayer({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setResult(data.result);
-      const { triggerUnlocksFromResponse } = await import("@/lib/achievements/client-trigger");
-      triggerUnlocksFromResponse(data);
       setPhase("done");
     } catch (e) {
       console.error(e);

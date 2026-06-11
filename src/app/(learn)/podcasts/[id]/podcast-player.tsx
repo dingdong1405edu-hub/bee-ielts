@@ -135,13 +135,6 @@ export function PodcastPlayer({
             // Show the YouTube controls — users want fullscreen + scrubbing.
             controls: 1,
             playsinline: 1,
-            // Force YouTube's own caption track ON by default and prefer EN.
-            // User specifically asked for "phụ đề" so we never want them
-            // hidden. They can still toggle off via the CC button if they
-            // really want — we just stop hiding by default.
-            cc_load_policy: 1,
-            cc_lang_pref: "en",
-            hl: "en",
           },
           events: {
             onReady: () => {
@@ -215,8 +208,8 @@ export function PodcastPlayer({
           <ArrowLeft className="h-4 w-4" />
           Tất cả podcasts
         </Link>
-        <div className="flex items-center gap-1 rounded-full border-2 border-honey/40 bg-paper p-1 shadow-sm">
-          <Gauge className="h-3.5 w-3.5 ml-1.5 text-honey-deep" />
+        <div className="flex items-center gap-1 rounded-full border-2 border-primary/40 bg-paper p-1 shadow-sm">
+          <Gauge className="h-3.5 w-3.5 ml-1.5 text-primary" />
           {SPEEDS.map((s) => (
             <button
               key={s}
@@ -225,7 +218,7 @@ export function PodcastPlayer({
               className={cn(
                 "rounded-full px-2.5 py-0.5 text-xs font-bold transition-colors",
                 speed === s
-                  ? "bg-honey text-ink shadow-sm"
+                  ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
@@ -235,37 +228,11 @@ export function PodcastPlayer({
         </div>
       </div>
 
-      {/* Video — true 16:9 frame, soft honey border for polish */}
-      <div className="relative overflow-hidden rounded-2xl border-2 border-honey/40 bg-black shadow-xl">
+      {/* Video — true 16:9 frame, soft primary border for polish */}
+      <div className="relative overflow-hidden rounded-2xl border-2 border-primary/40 bg-black shadow-xl">
         <div className="aspect-video w-full">
           <div ref={playerContainerRef} className="h-full w-full" />
         </div>
-      </div>
-
-      {/* Live caption card — the "now playing" line, big + centred so
-          users can read along even without looking at the YouTube overlay.
-          Shows a soft placeholder when no segment is active (intro/outro
-          silence) so the card layout doesn't jump. */}
-      <div
-        className={cn(
-          "mt-3 sm:mt-4 rounded-2xl border-2 px-4 py-4 sm:py-5 text-center transition-colors",
-          activeIdx >= 0
-            ? "border-honey/60 bg-honey/10 shadow-sm"
-            : "border-dashed border-honey/30 bg-cream/40",
-        )}
-      >
-        <p
-          className={cn(
-            "font-display tracking-tight transition-all",
-            activeIdx >= 0
-              ? "text-lg sm:text-xl md:text-2xl font-extrabold text-ink leading-snug"
-              : "text-sm text-muted-foreground italic",
-          )}
-        >
-          {activeIdx >= 0
-            ? segments[activeIdx]?.textEn
-            : "Bấm play — phụ đề sẽ hiện ở đây theo từng câu."}
-        </p>
       </div>
 
       {/* Title block */}
@@ -274,15 +241,15 @@ export function PodcastPlayer({
           {title}
         </h1>
         <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-honey" />
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" />
           {channel}
         </p>
       </div>
 
       {/* Transcript */}
-      <section className="mt-5 sm:mt-6 rounded-2xl border-2 border-honey/20 bg-paper shadow-sm">
-        <header className="flex items-center gap-2 border-b-2 border-honey/15 px-4 py-3">
-          <ListMusic className="h-4 w-4 text-honey-deep" />
+      <section className="mt-5 sm:mt-6 rounded-2xl border-2 border-primary/20 bg-paper shadow-sm">
+        <header className="flex items-center gap-2 border-b-2 border-primary/15 px-4 py-3">
+          <ListMusic className="h-4 w-4 text-primary" />
           <h2 className="font-display font-bold text-sm tracking-tight">
             Transcript
           </h2>
@@ -300,15 +267,15 @@ export function PodcastPlayer({
                 className={cn(
                   "group flex items-start gap-3 rounded-xl px-3 py-2.5 cursor-pointer transition-colors",
                   isActive
-                    ? "bg-honey/15 ring-2 ring-honey/40"
-                    : "hover:bg-honey/5",
+                    ? "bg-primary/15 ring-2 ring-primary/40"
+                    : "hover:bg-primary/5",
                 )}
                 onClick={() => seekTo(seg.startSec)}
               >
                 <span
                   className={cn(
                     "tabular-nums text-xs font-bold pt-0.5 shrink-0 w-12",
-                    isActive ? "text-honey-deep" : "text-muted-foreground",
+                    isActive ? "text-primary" : "text-muted-foreground",
                   )}
                 >
                   {formatTimestamp(seg.startSec)}

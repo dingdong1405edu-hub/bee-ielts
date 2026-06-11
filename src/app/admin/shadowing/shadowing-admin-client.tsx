@@ -83,61 +83,13 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
     if (!aiUrl.trim()) return toast.error("Dán URL YouTube");
     aiInFlightRef.current = true;
     setAiBusy(true);
-    setAiStep("Đang lấy phụ đề từ YouTube (qua trình duyệt)...");
+    setAiStep("Đang lấy phụ đề từ YouTube...");
     // 10-minute browser-side abort. Matches the server route's
     // maxDuration=600 so the user gets a clear error instead of a
     // browser-default "no response" hang on very long videos.
     const controller = new AbortController();
     const abortTimer = setTimeout(() => controller.abort(), 600_000);
     try {
-      // Step 0 — try BROWSER-SIDE caption fetch first. The admin's home
-      // IP is residential, so YouTube doesn't bot-flag it like it does
-      // Railway. When this works we skip the entire server-side YT
-      // fetching mess (LOGIN_REQUIRED across library + InnerTube +
-      // public APIs + Invidious) and just POST parsed cues to a thin
-      // /from-cues endpoint that runs Claude enrichment + DB write.
-      try {
-        const { extractYoutubeId } = await import("@/lib/youtube-client-shared");
-        const ytId = extractYoutubeId(aiUrl.trim());
-        if (ytId) {
-          const { fetchYouTubeCaptionsViaBrowser } = await import(
-            "@/lib/youtube-browser-captions"
-          );
-          const { cues, method } = await fetchYouTubeCaptionsViaBrowser(ytId);
-          setAiStep(
-            `Browser lấy được captions qua ${method} (${cues.length} cue) → đang dịch + tạo IPA...`,
-          );
-          const res = await fetch("/api/admin/shadowing/from-cues", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              youtubeUrl: aiUrl.trim(),
-              title: aiTitle.trim(),
-              source: aiSource.trim(),
-              cues,
-            }),
-            signal: controller.signal,
-          });
-          const data = await res.json().catch(() => ({}));
-          if (res.ok) {
-            toast.success(
-              `Đã tạo bài qua trình duyệt (${data.segmentCount} đoạn · ${cues.length} cue · AI dịch ${data.enriched}). Đang mở...`,
-            );
-            setAiTitle("");
-            setAiSource("");
-            setAiUrl("");
-            router.push(`/shadowing/${data.id}`);
-            return;
-          }
-          console.warn("[admin/shadowing] browser path /from-cues fail:", data);
-        }
-      } catch (browserErr) {
-        console.warn(
-          "[admin/shadowing] browser path fail, falling back to server:",
-          browserErr,
-        );
-        setAiStep("Browser fail → đang thử path server...");
-      }
       // We can't truly stream backend progress without SSE, but flip the
       // step message based on elapsed time so admin sees the phase shift.
       const stepTimers = [
@@ -428,7 +380,7 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
           <Button
             onClick={createWithAI}
             disabled={aiBusy}
-            className="rounded-xl bg-gradient-to-br from-gold-500 to-rose-500 hover:from-gold-600 hover:to-rose-600 text-white shadow-md"
+            className="rounded-xl gradient-brand hover:brightness-110 text-white shadow-md"
           >
             {aiBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             {aiBusy ? aiStep || "Đang xử lý..." : "AI tạo bài tự động"}

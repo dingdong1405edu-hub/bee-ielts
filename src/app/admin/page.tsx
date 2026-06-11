@@ -15,9 +15,9 @@ export default async function AdminDashboard() {
   const stats = [
     { label: "Users", value: users, icon: Users, color: "bg-foreground" },
     { label: "Reading tests", value: reading, icon: BookOpen, color: "bg-sage-500" },
-    { label: "Listening tests", value: listening, icon: Headphones, color: "bg-gold-500" },
+    { label: "Listening tests", value: listening, icon: Headphones, color: "bg-indigo-500" },
     { label: "Writing tasks", value: writing, icon: PenLine, color: "bg-rose-500" },
-    { label: "Speaking sets", value: speaking, icon: Mic, color: "bg-honey" },
+    { label: "Speaking sets", value: speaking, icon: Mic, color: "bg-orange-500" },
     { label: "Vocab lessons", value: vocab, icon: Sparkles, color: "bg-leaf" },
   ];
 

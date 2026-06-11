@@ -120,7 +120,6 @@ model User {
   shadowingNotes    ShadowingNote[]
   hostedRouletteRooms SpeakingRouletteRoom[] @relation("RouletteHost")
   roulettePlayers   SpeakingRoulettePlayer[]
-  achievements      UserAchievement[]
 }
 
 /// A learner asks the owner to upgrade their account to premium. One
@@ -767,25 +766,6 @@ model ShadowingAttempt {
 
   @@index([userId, createdAt])
   @@index([segmentId])
-}
-
-/// Unlocked achievement for a user. `code` references the static
-/// catalog in src/lib/achievements/catalog.ts (NOT a DB foreign key) so
-/// we can ship new achievement definitions without DB migrations —
-/// add a new entry in catalog.ts, redeploy, the award helper picks
-/// it up. Unlocks are append-only: deleting a row revokes the badge.
-model UserAchievement {
-  id            String   @id @default(cuid())
-  userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  code          String   // matches Achievement.code in src/lib/achievements/catalog.ts
-  unlockedAt    DateTime @default(now())
-  /// Optional context — e.g. the band that triggered the unlock for
-  /// "Mock 7.0+" so the badge wall can show "Đạt 7.5 vào 12/06".
-  context       Json?
-
-  @@unique([userId, code])
-  @@index([userId])
 }
 
 /// Passive-listening podcast episode. Mirrors ShadowingLesson's YouTube +

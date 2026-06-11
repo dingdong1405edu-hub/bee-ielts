@@ -1,19 +1,12 @@
-import { LeafField } from "@/components/brand/leaf";
-import { Honeycomb } from "@/components/brand/honeycomb";
-
 /**
- * Ambient decorative background shared by every learner page — a faint
- * honeycomb watermark (the BeeEnglish "tổ ong" motif), soft animated brand
- * glows and a scatter of leaves. Fixed behind content via `.ambient-*` rules.
+ * Decorative page background — intentionally EMPTY.
+ *
+ * The honeycomb "tổ ong" grid watermark + leaf scatter (and earlier the brand
+ * glow blobs) were all removed so the main learning section is a clean, flat,
+ * minimal white surface — per user request: "bỏ hết nền lưới ngũ giác, để
+ * trắng cho tối giản". Kept as a no-op component so existing mounts
+ * (LearnBackground / LandingBackground) don't need to change.
  */
 export function AmbientBackground() {
-  return (
-    <div aria-hidden className="ambient-bg">
-      <Honeycomb className="absolute inset-0" color="#2B2417" opacity={0.035} size={34} />
-      <LeafField className="ambient-leaves absolute inset-0" />
-      <div className="ambient-glow ambient-glow-1" />
-      <div className="ambient-glow ambient-glow-2" />
-      <div className="ambient-glow ambient-glow-3" />
-    </div>
-  );
+  return null;
 }

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Poppins, Be_Vietnam_Pro } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
@@ -30,6 +30,14 @@ export const metadata: Metadata = {
   title: "Bee IELTS — Luyện IELTS vui như chơi, lên band thật",
   description:
     "Nền tảng luyện IELTS gamified: từ vựng & ngữ pháp kiểu Duolingo, luyện đủ 4 kỹ năng, AI chấm Writing & Speaking theo band score tức thì. Bắt đầu miễn phí.",
+};
+
+// viewport-fit=cover so CSS env(safe-area-inset-*) resolves to a real value on
+// notched iOS — the mobile bottom nav uses it for the home-indicator gap.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

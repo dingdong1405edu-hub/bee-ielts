@@ -22,17 +22,7 @@ const LEVEL_COLOR: Record<CEFRLevel, PillColor> = {
 
 export default function ReadingIntroPage() {
   return (
-    <div className="relative space-y-8">
-      
-      <div className="flex justify-center">
-        <span
-          className="inline-flex items-center gap-2 rounded-full border border-[#2F9E5E]/30 bg-[#2F9E5E]/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider"
-          style={{ color: "#2F9E5E" }}
-        >
-          <span className="h-1.5 w-1.5 rounded-full bg-[#2F9E5E]" />
-          Reading
-        </span>
-      </div>
+    <div className="relative space-y-5">
       <SkillIntro
         title="Reading"
         subtitle="1 bài đọc mỗi lần luyện tập · không giới hạn thời gian"

@@ -15,20 +15,12 @@ export const dynamic = "force-dynamic";
 
 export default function WritingIntroPage() {
   return (
-    <div className="relative space-y-6">
-      
-      <div className="flex items-center justify-center gap-2 pt-2">
-        <span className="h-px w-8 bg-[#FF9600]/40" />
-        <span className="inline-flex items-center rounded-full border border-[#FF9600]/30 bg-[#FF9600]/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[#FF9600]">
-          IELTS Writing
-        </span>
-        <span className="h-px w-8 bg-[#FF9600]/40" />
-      </div>
+    <div className="relative space-y-5">
       <SkillIntro
         title="Writing"
         subtitle="2 task · không giới hạn thời gian · AI chấm 4 tiêu chí IELTS"
         icon={PenLine}
-        grad="from-[#FFB020] to-[#FF9600]"
+        grad="from-[#E47D92] to-[#D75E79]"
         startHref="/writing/start"
         ctaLabel="AI chọn đề ngẫu nhiên"
         bullets={[
@@ -96,7 +88,7 @@ async function WritingTaskList() {
   return (
     <>
       <TestPicker
-        grad="from-[#FFB020] to-[#FF9600]"
+        grad="from-[#E47D92] to-[#D75E79]"
         icon={PenLine}
         emptyText="Chưa có đề Writing nào."
         items={tasks.map((t) => ({

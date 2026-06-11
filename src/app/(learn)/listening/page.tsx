@@ -12,13 +12,12 @@ export const dynamic = "force-dynamic";
 
 export default function ListeningIntroPage() {
   return (
-    <div className="relative space-y-8">
-      
+    <div className="relative space-y-5">
       <SkillIntro
         title="Listening"
         subtitle="1 bài nghe mỗi lần luyện tập · audio + câu hỏi"
         icon={Headphones}
-        grad="from-[#4FC3F7] to-[#1CB0F6]"
+        grad="from-[#5E70E0] to-[#3A4ED4]"
         startHref="/listening/start"
         ctaLabel="AI chọn đề ngẫu nhiên"
         bullets={[
@@ -59,7 +58,7 @@ async function ListeningTestList() {
 
   return (
     <TestPicker
-      grad="from-gold-400 to-gold-600"
+      grad="from-[#5E70E0] to-[#3A4ED4]"
       icon={Headphones}
       emptyText="Chưa có bài nghe nào trong kho luyện tập."
       items={tests.map((t) => ({

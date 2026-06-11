@@ -18,7 +18,7 @@ const PART_CARDS = [
     sub: "Câu hỏi cá nhân",
     desc: "4 câu ngắn về bản thân, gia đình, sở thích — luyện trôi chảy.",
     icon: MessageCircle,
-    grad: "from-honey to-honey-deep",
+    grad: "from-gold-400 to-gold-600",
   },
   {
     num: 2,
@@ -26,7 +26,7 @@ const PART_CARDS = [
     sub: "Cue card · 2 phút",
     desc: "Một thẻ chủ đề — chuẩn bị 1 phút, nói 2 phút liên tục.",
     icon: ClipboardList,
-    grad: "from-leaf to-leaf-deep",
+    grad: "from-gold-300 to-gold-500",
   },
   {
     num: 3,
@@ -34,28 +34,18 @@ const PART_CARDS = [
     sub: "Thảo luận sâu",
     desc: "1 câu mở rộng từ chủ đề Part 2 — luyện lập luận, ý kiến.",
     icon: MessagesSquare,
-    grad: "from-gold-500 to-rose-500",
+    grad: "from-gold-500 to-gold-700",
   },
 ] as const;
 
 export default function SpeakingIntroPage() {
   return (
-    <div className="relative space-y-8">
-      
-      <div className="max-w-2xl mx-auto flex justify-center pt-2">
-        <span
-          className="inline-flex items-center gap-2 rounded-full border border-[#FF4B6E]/30 bg-[#FF4B6E]/10 px-3 py-1 text-xs font-extrabold uppercase tracking-wider"
-          style={{ color: "#FF4B6E" }}
-        >
-          <Mic className="h-3.5 w-3.5" />
-          Speaking
-        </span>
-      </div>
+    <div className="relative space-y-5">
       <SkillIntro
         title="Speaking"
         subtitle="3 part · từng câu hỏi một · AI examiner đọc câu hỏi"
         icon={Mic}
-        grad="from-[#FF6B86] to-[#FF4B6E]"
+        grad="from-gold-400 to-gold-600"
         startHref="/speaking/start"
         ctaLabel="AI chọn đề ngẫu nhiên (cả 3 Part)"
         bullets={[
@@ -158,7 +148,7 @@ async function SpeakingSetList() {
 
   return (
     <TestPicker
-      grad="from-[#FF6B86] to-[#FF4B6E]"
+      grad="from-gold-400 to-gold-600"
       icon={Mic}
       emptyText="Chưa có đề Speaking nào."
       items={sets.map((s) => ({
