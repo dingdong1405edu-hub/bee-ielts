@@ -9,7 +9,6 @@ import { TopNav } from "@/components/learn/top-nav";
 import { Sidebar } from "@/components/learn/sidebar";
 import { BottomNav } from "@/components/learn/bottom-nav";
 import { SkillTheme } from "@/components/learn/skill-theme";
-import { BeeSwarm } from "@/components/learn/bee-swarm";
 import { StatsBar } from "@/components/learn/stats-bar";
 import { LearnBackground } from "@/components/learn/learn-background";
 import { FloatingHelpers } from "@/components/learn/floating-helpers";
@@ -57,7 +56,6 @@ export default async function LearnLayout({ children }: { children: React.ReactN
         </div>
       </main>
       <div data-chrome>
-        <BeeSwarm />
         <BottomNav isAdmin={isAdmin} isPremium={isPremium} />
         <Suspense fallback={null}>
           <FloatingHelpersGate userId={userId} />
