@@ -24,6 +24,7 @@
   /* lớp lưới tổ ong (lục giác) — vẽ bằng JS, nét mờ như cũ */
   .comb-bg{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
   .comb-bg path{stroke:var(--grid-line);stroke-width:1;fill:none}
+  .comb-light path{stroke:rgba(201,138,20,.16)}
   *{box-sizing:border-box;margin:0;padding:0}
   html{scroll-behavior:smooth}
   body{font-family:"Be Vietnam Pro",system-ui,sans-serif;color:var(--ink);background:#fff;-webkit-font-smoothing:antialiased}
@@ -156,8 +157,8 @@
   .cursor-bee .wg{fill:rgba(80,80,80,.42)}   /* cánh xám nhạt: hiện rõ cả nền sáng lẫn tối */
 
   /* ===== CARDS ===== */
-  .cards{background:#fff;position:relative}
-  .cards .wrap{padding:54px 34px 70px}
+  .cards{background:#fff;position:relative;overflow:hidden}
+  .cards .wrap{position:relative;z-index:1;padding:54px 34px 70px}
   .grid{display:grid;grid-template-columns:repeat(6,1fr);gap:16px}
   @media(max-width:1100px){.grid{grid-template-columns:repeat(3,1fr)}}
   @media(max-width:720px){.grid{grid-template-columns:repeat(2,1fr)}}
@@ -185,7 +186,8 @@
   @media(max-width:1100px){.bee-mini{display:none}}
 
   /* ===== ROADMAP ===== */
-  .path{background:#fffdf6;padding:66px 0}
+  .path{background:#fffdf6;padding:66px 0;position:relative;overflow:hidden}
+  .path .wrap{position:relative;z-index:1}
   .sec-head{text-align:center;max-width:640px;margin:0 auto 56px}
   .sec-head .eb{display:inline-block;font-weight:700;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:#c98a14;background:#fdf0d2;padding:6px 15px;border-radius:999px;margin-bottom:14px}
   .sec-head h2{font-size:clamp(28px,4vw,42px);font-weight:800;color:#2b2417;margin-bottom:12px}
@@ -239,6 +241,7 @@
   .foot-logo{font-family:"Poppins";font-weight:800;font-size:19px;color:#fff}
   .foot-logo b{color:#f7b500}
   .foot-top .meta{font-size:13px;color:#a59c84}
+  .foot-top .meta a{color:#ffd45e;font-weight:700}
   .foot-bottom{border-top:1px solid #46402f;margin-top:26px;padding-top:18px;display:flex;flex-wrap:wrap;gap:8px 22px;justify-content:space-between;font-size:12.5px;color:#9a917a}
   .foot-bottom a:hover{color:#fff}
 </style>
@@ -361,6 +364,7 @@
 
 <!-- CARDS -->
 <section class="cards" id="cards">
+  <svg class="comb-bg comb-light" aria-hidden="true"><path id="combsCards"></path></svg>
   <div class="wrap">
     <div class="grid">
       <a class="skill-link" href="/listening"><img src="/public/textures/listening.svg" alt="Listening — luyện nghe IELTS" /></a>
@@ -386,6 +390,7 @@
 
 <!-- ROADMAP -->
 <section class="path">
+  <svg class="comb-bg comb-light" aria-hidden="true"><path id="combsPath"></path></svg>
   <div class="wrap">
     <div class="sec-head">
       <span class="eb">Lộ trình</span>
@@ -435,40 +440,16 @@
   </div>
 </section>
 
-<!-- FREE MATERIALS -->
-<section class="free">
-  <div class="wrap">
-    <div class="free-card">
-      <svg class="combs-svg" viewBox="0 0 600 360" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
-        <path id="combs2" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="2"></path>
-      </svg>
-      <div class="ill">
-        <img src="/public/textures/bee.png" alt="" aria-hidden="true" />
-      </div>
-      <div class="fc-text">
-        <h2>Nhận trọn bộ tài liệu <span class="hl">IELTS miễn phí</span></h2>
-        <p class="sub">Nhập thông tin để nhận ngay bộ đề Cambridge mới nhất kèm tài liệu ôn thi chất lượng cao.</p>
-        <div class="form-row">
-          <input type="text" placeholder="Họ và tên của bạn" />
-          <input type="text" placeholder="Email hoặc số điện thoại" />
-          <button class="btn-send" type="button">Gửi!</button>
-        </div>
-        <div class="secure">🔒 Thông tin của bạn được bảo mật tuyệt đối</div>
-      </div>
-    </div>
-  </div>
-</section>
-
 <!-- FOOTER -->
 <footer>
   <div class="wrap">
     <div class="foot-top">
       <div class="foot-logo">BEE<b>ENGLISH</b></div>
-      <span class="meta">🍯 Học chăm như ong &nbsp;•&nbsp; 📞 Hotline hỗ trợ 24/7</span>
+      <span class="meta">💬 Zalo: <a href="https://zalo.me/0378315088">0378315088</a> &nbsp;•&nbsp; ✉️ <a href="mailto:nguyenminhsantafe@gmail.com">nguyenminhsantafe@gmail.com</a></span>
     </div>
     <div class="foot-bottom">
       <span>© 2026 BeeEnglish. All rights reserved.</span>
-      <span><a href="#">Về chúng tôi</a> &nbsp; <a href="#">Chính sách bảo mật</a> &nbsp; <a href="#">Điều khoản dịch vụ</a></span>
+      <span>📞 Hotline 24/7 &nbsp;•&nbsp; <a href="#">Về chúng tôi</a> &nbsp; <a href="#">Chính sách bảo mật</a> &nbsp; <a href="#">Điều khoản dịch vụ</a></span>
     </div>
   </div>
 </footer>
@@ -500,6 +481,10 @@
     var hero=document.querySelector(".hero");
     if(hdr) buildCombs("combsHdr", 22, hdr.clientWidth, hdr.clientHeight);
     if(hero) buildCombs("combsHero", 22, hero.clientWidth, hero.clientHeight);
+    var cards=document.querySelector(".cards");
+    var path=document.querySelector(".path");
+    if(cards) buildCombs("combsCards", 26, cards.clientWidth, cards.clientHeight);
+    if(path) buildCombs("combsPath", 26, path.clientWidth, path.clientHeight);
   }
   drawHoneyBg();
   window.addEventListener("resize", drawHoneyBg);
