@@ -7,6 +7,37 @@
  * shadowing audio fallback when a video has no English captions on YouTube.
  */
 import { Innertube, UniversalCache, Utils } from "youtubei.js";
+import { ProxyAgent } from "undici";
+
+/**
+ * Optional outbound proxy (residential / rotating) — set env YT_PROXY
+ * (e.g. http://user:pass@host:port) to route every YouTube request through
+ * an unblocked IP. This is the permanent fix for YouTube's datacenter-IP bot
+ * block ("Sign in to confirm you're not a bot"). When unset, behaviour is
+ * unchanged (a plain direct fetch).
+ */
+type YtProxyGlobal = typeof globalThis & { __beeYtProxy?: ProxyAgent | null };
+function ytProxyDispatcher(): ProxyAgent | undefined {
+  const url = process.env.YT_PROXY?.trim();
+  if (!url) return undefined;
+  const g = globalThis as YtProxyGlobal;
+  if (g.__beeYtProxy === undefined) {
+    try {
+      g.__beeYtProxy = new ProxyAgent(url);
+      console.log("[yt] routing YouTube traffic through YT_PROXY");
+    } catch (e) {
+      console.error("[yt] YT_PROXY invalid, ignoring:", e);
+      g.__beeYtProxy = null;
+    }
+  }
+  return g.__beeYtProxy ?? undefined;
+}
+/** fetch() that honours YT_PROXY when set — used for InnerTube + youtubei.js. */
+function ytFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const dispatcher = ytProxyDispatcher();
+  if (!dispatcher) return fetch(input, init);
+  return fetch(input, { ...init, dispatcher } as RequestInit & { dispatcher: unknown });
+}
 
 /** Return the 11-char video id from a YouTube URL, or null if not found. */
 export function extractYoutubeId(input: string): string | null {
@@ -334,6 +365,7 @@ async function getInnertube(): Promise<Innertube> {
   g.__beeInnertubePromise = Innertube.create({
     cache: new UniversalCache(false),
     generate_session_locally: true,
+    fetch: ytFetch,
     ...(cookie ? { cookie } : {}),
     ...(visitor_data ? { visitor_data } : {}),
     ...(po_token ? { po_token } : {}),
@@ -425,6 +457,25 @@ export async function fetchYouTubeCaptionsViaInnertube(
     userAgent: string;
   }> = [
     {
+      name: "IOS 19.45.4",
+      userAgent:
+        "com.google.ios.youtube/19.45.4 (iPhone16,2; U; CPU iOS 18_1_0 like Mac OS X)",
+      body: {
+        context: {
+          client: {
+            clientName: "IOS",
+            clientVersion: "19.45.4",
+            deviceModel: "iPhone16,2",
+            hl: "en",
+            gl: "US",
+          },
+        },
+        videoId,
+        contentCheckOk: true,
+        racyCheckOk: true,
+      },
+    },
+    {
       name: "ANDROID 20.10.38",
       userAgent: "com.google.android.youtube/20.10.38 (Linux; U; Android 14)",
       body: {
@@ -478,6 +529,24 @@ export async function fetchYouTubeCaptionsViaInnertube(
         racyCheckOk: true,
       },
     },
+    {
+      name: "TVHTML5",
+      userAgent:
+        "Mozilla/5.0 (PlayStation; PlayStation 4/12.00) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+      body: {
+        context: {
+          client: {
+            clientName: "TVHTML5_SIMPLY_EMBEDDED_PLAYER",
+            clientVersion: "2.0",
+            hl: "en",
+            gl: "US",
+          },
+        },
+        videoId,
+        contentCheckOk: true,
+        racyCheckOk: true,
+      },
+    },
   ];
 
   type PlayerResponse = {
@@ -498,7 +567,7 @@ export async function fetchYouTubeCaptionsViaInnertube(
   let usedClient: (typeof CLIENTS)[number] | null = null;
   const attempts: string[] = [];
   for (const client of CLIENTS) {
-    const r = await fetch(innertubeUrl, {
+    const r = await ytFetch(innertubeUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -552,7 +621,7 @@ export async function fetchYouTubeCaptionsViaInnertube(
   }
   // CRITICAL: fetch baseUrl RAW. Appending fmt=json3 or similar invalidates
   // the signed signature and YouTube returns 200 with size=0.
-  const capResp = await fetch(enTrack.baseUrl, {
+  const capResp = await ytFetch(enTrack.baseUrl, {
     headers: {
       "User-Agent": usedClient.userAgent,
       ...(cookie ? { Cookie: cookie } : { Cookie: "CONSENT=YES+cb" }),
