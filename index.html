@@ -101,6 +101,14 @@
   @keyframes armSwayL{from{transform:rotate(-4deg)}to{transform:rotate(5deg)}}
   @keyframes armSwayR{from{transform:rotate(4deg)}to{transform:rotate(-5deg)}}
   #mouthSmile,#mouthGrin{transition:opacity .18s ease}
+  #eyesClosed,#eyesOpen{transition:opacity .2s ease}
+  #eyesOpen{opacity:0}
+  #beeSvg.is-near #eyesClosed{opacity:0}
+  #beeSvg.is-near #eyesOpen{opacity:1}
+  #beeSvg.is-near #mouthSmile{opacity:0}
+  #beeSvg.is-near #mouthGrin{opacity:1}
+  #beeSvg.is-near #armR{animation:beeWaveHi 1.15s ease-in-out infinite}
+  @keyframes beeWaveHi{0%{transform:rotate(-102deg)}25%{transform:rotate(-122deg)}50%{transform:rotate(-102deg)}75%{transform:rotate(-122deg)}100%{transform:rotate(-102deg)}}
   /* badge số liệu bay quanh ong */
   .bee-orbit{position:absolute;inset:0;z-index:5;pointer-events:none}
   .bdg{position:absolute;display:flex;align-items:center;gap:9px;background:#fff;color:#2b2417;border-radius:15px;padding:8px 14px;box-shadow:0 12px 28px rgba(43,36,23,.22);font-family:"Poppins",sans-serif;white-space:nowrap;will-change:transform}
@@ -313,9 +321,17 @@
         <g id="face">
           <ellipse cx="190" cy="300" rx="21" ry="13" fill="#F2A0B0" opacity=".75"/>
           <ellipse cx="330" cy="300" rx="21" ry="13" fill="#F2A0B0" opacity=".75"/>
-          <g id="eyes">
+          <!-- mắt nhắm cười ^^ (mặc định, lúc ở xa) -->
+          <g id="eyesClosed">
             <path d="M196 286 Q212 268 228 286" fill="none" stroke="#2b2017" stroke-width="9" stroke-linecap="round"/>
             <path d="M292 286 Q308 268 324 286" fill="none" stroke="#2b2017" stroke-width="9" stroke-linecap="round"/>
+          </g>
+          <!-- mắt mở (hiện khi di chuột lại gần) -->
+          <g id="eyesOpen" opacity="0">
+            <ellipse cx="212" cy="280" rx="24" ry="28" fill="#fff" stroke="#2b2017" stroke-width="6"/>
+            <ellipse cx="308" cy="280" rx="24" ry="28" fill="#fff" stroke="#2b2017" stroke-width="6"/>
+            <g id="pupilL"><circle cx="212" cy="284" r="12" fill="#2b2017"/><circle cx="207" cy="278" r="4" fill="#fff"/></g>
+            <g id="pupilR"><circle cx="308" cy="284" r="12" fill="#2b2017"/><circle cx="303" cy="278" r="4" fill="#fff"/></g>
           </g>
           <path id="mouthSmile" d="M242 308 Q260 326 278 308" fill="none" stroke="#2b2017" stroke-width="8" stroke-linecap="round"/>
           <g id="mouthGrin" opacity="0">
@@ -654,38 +670,38 @@
   if(!svg) return;
   if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   var face=document.getElementById('face'), lean=document.getElementById('beeLean');
-  var eyes=document.getElementById('eyes'), mS=document.getElementById('mouthSmile'), mG=document.getElementById('mouthGrin');
+  var pL=document.getElementById('pupilL'), pR=document.getElementById('pupilR');
   if(!face||!lean) return;
   var VBW=520, VBH=560, CX=260, CY=300;
-  var mx=null, my=null, moveT=-1e9, grinT=0, grin=null;
-  var cur={fx:0,fy:0,ln:0,ex:0,ey:0};
-  var tg ={fx:0,fy:0,ln:0,ex:0,ey:0};
+  var mx=null, my=null, near=false;
+  var cur={fx:0,fy:0,ln:0,px:0,py:0};
+  var tg ={fx:0,fy:0,ln:0,px:0,py:0};
 
-  addEventListener('mousemove', function(e){ mx=e.clientX; my=e.clientY; moveT=performance.now(); }, {passive:true});
+  addEventListener('mousemove', function(e){ mx=e.clientX; my=e.clientY; }, {passive:true});
   addEventListener('mouseout', function(e){ if(!e.relatedTarget){ mx=my=null; } });
-
-  function setGrin(g){ if(g===grin) return; grin=g; if(mS)mS.style.opacity=g?'0':'1'; if(mG)mG.style.opacity=g?'1':'0'; }
   function lerp(a,b,t){ return a+(b-a)*t; }
-  (function beam(){ setTimeout(function(){ grinT=performance.now()+1500; beam(); }, 4200 + Math.random()*4800); })();
 
-  function frame(now){
+  function frame(){
     var r=svg.getBoundingClientRect(), sx=r.width/VBW, sy=r.height/VBH;
-    if(mx==null){                                   // không có chuột → ong nhìn quanh nhẹ nhàng
-      var w=now/1000, ox=Math.cos(w*0.7)*5, oy=Math.sin(w*0.95)*3.5;
-      tg.ex=ox; tg.ey=oy; tg.fx=ox*0.6; tg.fy=oy*0.5; tg.ln=Math.cos(w*0.5)*1.6;
-    } else {                                        // hướng cả người + mắt về phía con trỏ
-      var cx=r.left+CX*sx, cy=r.top+290*sy, dx=mx-cx, dy=my-cy, d=Math.hypot(dx,dy)||1, k=Math.min(1,d/420);
-      tg.ex=(dx/d)*9*k; tg.ey=(dy/d)*7*k;
-      tg.fx=(dx/d)*7*k; tg.fy=(dy/d)*6*k;
+    var cx=r.left+CX*sx, cy=r.top+290*sy;
+    if(mx!=null){
+      var dx=mx-cx, dy=my-cy, d=Math.hypot(dx,dy)||1;
+      near = d < Math.max(300, r.width*0.85);       // lại gần ong → mở mắt + vẫy chào
+      var k=Math.min(1,d/420);
+      tg.px=(dx/d)*11*k; tg.py=(dy/d)*9*k;          // con ngươi dõi theo con trỏ
+      tg.fx=(dx/d)*7*k;  tg.fy=(dy/d)*6*k;
       tg.ln=Math.max(-5, Math.min(5, (dx/r.width)*16));
+    } else {
+      near=false; tg.px=0; tg.py=0; tg.fx=0; tg.fy=0; tg.ln=0;
     }
-    setGrin(((now-moveT)<650) || now<grinT);        // rê chuột / theo nhịp → cười tươi; còn lại mỉm cười
-    var e=0.15;
+    svg.classList.toggle('is-near', near);
+    var e=0.16;
     cur.fx=lerp(cur.fx,tg.fx,e); cur.fy=lerp(cur.fy,tg.fy,e); cur.ln=lerp(cur.ln,tg.ln,0.10);
-    cur.ex=lerp(cur.ex,tg.ex,e); cur.ey=lerp(cur.ey,tg.ey,e);
+    cur.px=lerp(cur.px,tg.px,e); cur.py=lerp(cur.py,tg.py,e);
     face.setAttribute('transform','translate('+cur.fx.toFixed(2)+' '+cur.fy.toFixed(2)+')');
     lean.setAttribute('transform','rotate('+cur.ln.toFixed(2)+' '+CX+' '+CY+')');
-    if(eyes) eyes.setAttribute('transform','translate('+cur.ex.toFixed(2)+' '+cur.ey.toFixed(2)+')');
+    if(pL) pL.setAttribute('transform','translate('+cur.px.toFixed(2)+' '+cur.py.toFixed(2)+')');
+    if(pR) pR.setAttribute('transform','translate('+cur.px.toFixed(2)+' '+cur.py.toFixed(2)+')');
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
