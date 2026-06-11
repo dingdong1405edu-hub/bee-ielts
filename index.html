@@ -297,20 +297,18 @@
           <!-- má hồng -->
           <ellipse cx="198" cy="308" rx="19" ry="11" fill="#F2A0B0" opacity=".7"/>
           <ellipse cx="322" cy="308" rx="19" ry="11" fill="#F2A0B0" opacity=".7"/>
-          <!-- MẮT NHẮM cười (mặc định, đúng như ảnh) -->
-          <g id="eyesClosed">
+          <!-- MẮT MỞ (mặc định) — 2 chấm tròn đen, dõi theo chuột khi ở xa -->
+          <g id="eyesOpen" style="opacity:1">
+            <g id="pupilL"><circle cx="212" cy="282" r="21" fill="#1d1407"/></g>
+            <g id="pupilR"><circle cx="308" cy="282" r="21" fill="#1d1407"/></g>
+          </g>
+          <!-- MẮT NHẮM cười (chỉ hiện khi chuột lại gần) -->
+          <g id="eyesClosed" style="opacity:0">
             <path d="M188 288 Q212 266 236 288" fill="none" stroke="#2b2017" stroke-width="8" stroke-linecap="round"/>
             <path d="M284 288 Q308 266 332 288" fill="none" stroke="#2b2017" stroke-width="8" stroke-linecap="round"/>
           </g>
-          <!-- MẮT MỞ (chỉ hiện khi chuột lại gần) — con ngươi dõi theo chuột -->
-          <g id="eyesOpen" style="opacity:0">
-            <ellipse cx="212" cy="280" rx="24" ry="28" fill="#fff" stroke="#2b2017" stroke-width="6"/>
-            <ellipse cx="308" cy="280" rx="24" ry="28" fill="#fff" stroke="#2b2017" stroke-width="6"/>
-            <g id="pupilL"><circle cx="212" cy="284" r="12" fill="#2b2017"/><circle cx="207" cy="278" r="4" fill="#fff"/></g>
-            <g id="pupilR"><circle cx="308" cy="284" r="12" fill="#2b2017"/><circle cx="303" cy="278" r="4" fill="#fff"/></g>
-          </g>
           <!-- miệng cười nhỏ -->
-          <path id="mouthSmile" d="M243 312 Q260 328 277 312" fill="none" stroke="#2b2017" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+          <path id="mouthSmile" d="M240 313 Q260 332 280 313" fill="none" stroke="#2b2017" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
         </g>
       </g></g>
     </svg>
@@ -657,21 +655,24 @@
 
   function frame(now){
     var r=svg.getBoundingClientRect(), sx=r.width/VBW, sy=r.height/VBH;
-    // "gần" = con trỏ nằm trong ~0.78 chiều rộng con ong tính từ tâm.
+    // "gần" = con trỏ nằm trong ~0.5 chiều rộng con ong tính từ tâm.
     var near=false;
     if(mx!=null){
       var bx=r.left+CX*sx, by=r.top+CY*sy, dx=mx-bx, dy=my-by, d=Math.hypot(dx,dy)||1;
-      if(d < r.width*0.78) near=true;
-      if(near){                                     // chuột gần → mở mắt + dõi theo
+      if(d < r.width*0.5) near=true;
+      if(!near){                                    // chuột ở XA → mở mắt + dõi theo chuột
         var k=Math.min(1,d/440);
-        tg.px=(dx/d)*11*k; tg.py=(dy/d)*9*k;
+        tg.px=(dx/d)*12*k; tg.py=(dy/d)*10*k;
         tg.fx=(dx/d)*6*k;  tg.fy=(dy/d)*5*k;
         tg.ln=Math.max(-4, Math.min(4, (dx/r.width)*14));
-      } else { tg.px=tg.py=tg.fx=tg.fy=tg.ln=0; }
-    } else { tg.px=tg.py=tg.fx=tg.fy=tg.ln=0; }
-    // mặc định nhắm mắt cười (như ảnh); chỉ mở khi chuột lại gần
-    if(eyesOpen)   eyesOpen.style.opacity   = near ? '1' : '0';
-    if(eyesClosed) eyesClosed.style.opacity = near ? '0' : '1';
+      } else { tg.px=tg.py=tg.fx=tg.fy=tg.ln=0; }   // lại GẦN → nhắm mắt cười
+    } else {                                        // không có chuột → mở mắt nhìn quanh nhẹ
+      var w=now/1000, wx=Math.cos(w*0.6)*8, wy=Math.sin(w*0.8)*5;
+      tg.px=wx; tg.py=wy; tg.fx=wx*0.4; tg.fy=wy*0.4; tg.ln=Math.cos(w*0.45)*1.5;
+    }
+    // mặc định MỞ mắt dõi theo chuột; chỉ NHẮM khi chuột lại gần
+    if(eyesOpen)   eyesOpen.style.opacity   = near ? '0' : '1';
+    if(eyesClosed) eyesClosed.style.opacity = near ? '1' : '0';
     var e=0.16;
     cur.fx=lerp(cur.fx,tg.fx,e); cur.fy=lerp(cur.fy,tg.fy,e); cur.ln=lerp(cur.ln,tg.ln,0.10);
     cur.px=lerp(cur.px,tg.px,e); cur.py=lerp(cur.py,tg.py,e);
