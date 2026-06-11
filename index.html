@@ -83,6 +83,39 @@
   .bee-wrap{position:absolute;right:10px;bottom:-60px;width:515px;height:552px;z-index:2;pointer-events:none}
   .bee-wrap svg{width:100%;height:100%;overflow:visible}
   .bee-wrap img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 24px 40px rgba(43,36,23,.28))}
+  /* ── Ong SVG: bay nhẹ, vẫy cánh, vẫy tay, nhìn theo chuột, cười ── */
+  #beeSvg{filter:drop-shadow(0 26px 36px rgba(43,36,23,.28))}
+  #beeFloat{transform-box:fill-box;transform-origin:center;animation:beeBob 4.6s ease-in-out infinite;will-change:transform}
+  @keyframes beeBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-16px)}}
+  #wingFlapL{transform-box:fill-box;transform-origin:90% 88%;animation:flapL .24s ease-in-out infinite alternate}
+  #wingFlapR{transform-box:fill-box;transform-origin:10% 88%;animation:flapR .24s ease-in-out infinite alternate}
+  @keyframes flapL{from{transform:rotate(3deg)}to{transform:rotate(-13deg)}}
+  @keyframes flapR{from{transform:rotate(-3deg)}to{transform:rotate(13deg)}}
+  #antL{transform-box:fill-box;transform-origin:84% 96%;animation:antSwayL 3.4s ease-in-out infinite alternate}
+  #antR{transform-box:fill-box;transform-origin:16% 96%;animation:antSwayR 3.4s ease-in-out infinite alternate .4s}
+  @keyframes antSwayL{from{transform:rotate(-5deg)}to{transform:rotate(6deg)}}
+  @keyframes antSwayR{from{transform:rotate(5deg)}to{transform:rotate(-6deg)}}
+  #armR{transform-box:fill-box;transform-origin:10% 86%;animation:beeWave 2.6s ease-in-out infinite}
+  @keyframes beeWave{0%,100%{transform:rotate(0deg)}25%{transform:rotate(-16deg)}55%{transform:rotate(-5deg)}}
+  .eye{transform-box:fill-box;transform-origin:center;transition:transform .09s ease}
+  .eye.blink{transform:scaleY(.12)}
+  #mouthSmile,#mouthGrin{transition:opacity .18s ease}
+  /* badge số liệu bay quanh ong */
+  .bee-orbit{position:absolute;inset:0;z-index:5;pointer-events:none}
+  .bdg{position:absolute;display:flex;align-items:center;gap:9px;background:#fff;color:#2b2417;border-radius:15px;padding:8px 14px;box-shadow:0 12px 28px rgba(43,36,23,.22);font-family:"Poppins",sans-serif;white-space:nowrap;will-change:transform}
+  .bdg .ic{font-size:18px;line-height:1}
+  .bdg b{font-weight:800;font-size:16px;line-height:1}
+  .bdg i{font-style:normal;font-weight:700;font-size:10px;letter-spacing:.05em;color:#a2926f;text-transform:uppercase}
+  .b-target{top:20px;right:34px;animation:floaty 5.2s ease-in-out infinite}
+  .b-streak{top:330px;left:-16px;animation:floaty 4.6s ease-in-out infinite .5s}
+  .b-energy{bottom:104px;left:24px;animation:floaty 5s ease-in-out infinite .9s}
+  .b-xp{bottom:182px;right:-12px;animation:floaty 5.6s ease-in-out infinite .2s}
+  @keyframes floaty{0%,100%{transform:translateY(0) rotate(-1.5deg)}50%{transform:translateY(-13px) rotate(1.5deg)}}
+  .enr{display:inline-block;width:66px;height:9px;border-radius:6px;background:#ece1c8;overflow:hidden}
+  .enr-fill{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#f7b500,#ffd45e);animation:enrfill 3.4s ease-in-out infinite}
+  @keyframes enrfill{0%{width:38%}50%{width:92%}100%{width:38%}}
+  @media(max-width:980px){.bee-orbit{display:none}}
+  @media(prefers-reduced-motion:reduce){#beeFloat,#wingFlapL,#wingFlapR,#antL,#antR,#armR,.bdg,.enr-fill{animation:none}}
   .bubble{
     position:absolute;z-index:4;top:180px;right:430px;max-width:210px;
     background:#fff;color:#2b2417;font-weight:700;font-size:15px;line-height:1.4;
@@ -239,7 +272,85 @@
 <section class="hero">
   <svg class="comb-bg" aria-hidden="true"><path id="combsHero"></path></svg>
   <div class="bee-wrap">
-    <img src="/public/textures/bee.png" alt="Linh vật ong BeeEnglish" />
+    <svg id="beeSvg" viewBox="0 0 520 560" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Ong — linh vật BeeEnglish">
+      <defs>
+        <radialGradient id="bodyGrad" cx="42%" cy="32%" r="72%">
+          <stop offset="0%" stop-color="#FFD960"/><stop offset="55%" stop-color="#F8B400"/><stop offset="100%" stop-color="#EC9E00"/>
+        </radialGradient>
+        <linearGradient id="wingGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#EAF7FF"/><stop offset="100%" stop-color="#BFE4F5"/>
+        </linearGradient>
+        <clipPath id="bodyClip"><ellipse cx="260" cy="300" rx="150" ry="142"/></clipPath>
+      </defs>
+      <g id="beeFloat"><g id="beeLean">
+        <!-- cánh -->
+        <g id="wings">
+          <g transform="rotate(-30 132 188)"><g id="wingFlapL">
+            <ellipse cx="132" cy="188" rx="64" ry="88" fill="url(#wingGrad)" stroke="#20170A" stroke-width="8"/>
+            <path d="M120 122 Q150 168 168 236" stroke="#bfe0f0" stroke-width="4" fill="none" opacity=".75"/>
+          </g></g>
+          <g transform="rotate(30 388 188)"><g id="wingFlapR">
+            <ellipse cx="388" cy="188" rx="64" ry="88" fill="url(#wingGrad)" stroke="#20170A" stroke-width="8"/>
+            <path d="M400 122 Q370 168 352 236" stroke="#bfe0f0" stroke-width="4" fill="none" opacity=".75"/>
+          </g></g>
+        </g>
+        <!-- chân -->
+        <g id="legs">
+          <path d="M214 432 C206 462 196 482 190 500" fill="none" stroke="#20170A" stroke-width="32" stroke-linecap="round"/>
+          <path d="M214 432 C206 462 196 482 190 500" fill="none" stroke="#F8B400" stroke-width="20" stroke-linecap="round"/>
+          <ellipse cx="182" cy="504" rx="27" ry="15" fill="#F8B400" stroke="#20170A" stroke-width="9"/>
+          <path d="M306 432 C314 462 324 482 330 500" fill="none" stroke="#20170A" stroke-width="32" stroke-linecap="round"/>
+          <path d="M306 432 C314 462 324 482 330 500" fill="none" stroke="#F8B400" stroke-width="20" stroke-linecap="round"/>
+          <ellipse cx="338" cy="504" rx="27" ry="15" fill="#F8B400" stroke="#20170A" stroke-width="9"/>
+        </g>
+        <!-- tay -->
+        <g id="armL">
+          <path d="M150 350 C120 374 104 394 100 416" fill="none" stroke="#20170A" stroke-width="34" stroke-linecap="round"/>
+          <path d="M150 350 C120 374 104 394 100 416" fill="none" stroke="#F8B400" stroke-width="22" stroke-linecap="round"/>
+          <circle cx="99" cy="418" r="20" fill="#F8B400" stroke="#20170A" stroke-width="9"/>
+        </g>
+        <g id="armR">
+          <path d="M372 320 C408 302 432 268 442 232" fill="none" stroke="#20170A" stroke-width="34" stroke-linecap="round"/>
+          <path d="M372 320 C408 302 432 268 442 232" fill="none" stroke="#F8B400" stroke-width="22" stroke-linecap="round"/>
+          <circle cx="444" cy="228" r="20" fill="#F8B400" stroke="#20170A" stroke-width="9"/>
+        </g>
+        <!-- râu -->
+        <g id="antL"><path d="M214 176 C198 132 176 116 170 100" fill="none" stroke="#20170A" stroke-width="11" stroke-linecap="round"/><circle cx="169" cy="96" r="13" fill="#20170A"/></g>
+        <g id="antR"><path d="M306 176 C322 132 344 116 350 100" fill="none" stroke="#20170A" stroke-width="11" stroke-linecap="round"/><circle cx="351" cy="96" r="13" fill="#20170A"/></g>
+        <!-- thân -->
+        <ellipse cx="260" cy="300" rx="150" ry="142" fill="url(#bodyGrad)" stroke="#20170A" stroke-width="12"/>
+        <g clip-path="url(#bodyClip)" opacity="0.15">
+          <path d="M104 374 Q260 350 416 374 L416 402 Q260 378 104 402 Z" fill="#20170A"/>
+          <path d="M116 424 Q260 402 404 424 L404 452 Q260 430 116 452 Z" fill="#20170A"/>
+        </g>
+        <!-- mặt -->
+        <g id="face">
+          <ellipse cx="168" cy="332" rx="22" ry="14" fill="#F4937C" opacity=".72"/>
+          <ellipse cx="352" cy="332" rx="22" ry="14" fill="#F4937C" opacity=".72"/>
+          <g id="eyeL" class="eye">
+            <ellipse cx="210" cy="286" rx="31" ry="35" fill="#fff" stroke="#20170A" stroke-width="6"/>
+            <g id="pupilL"><circle cx="210" cy="290" r="15.5" fill="#20170A"/><circle cx="204" cy="283" r="5" fill="#fff"/></g>
+          </g>
+          <g id="eyeR" class="eye">
+            <ellipse cx="310" cy="286" rx="31" ry="35" fill="#fff" stroke="#20170A" stroke-width="6"/>
+            <g id="pupilR"><circle cx="310" cy="290" r="15.5" fill="#20170A"/><circle cx="304" cy="283" r="5" fill="#fff"/></g>
+          </g>
+          <path id="mouthSmile" d="M230 356 Q260 380 290 356" fill="none" stroke="#20170A" stroke-width="9" stroke-linecap="round"/>
+          <g id="mouthGrin" opacity="0">
+            <path d="M222 350 Q260 366 298 350 Q298 398 260 410 Q222 398 222 350 Z" fill="#8a4326" stroke="#20170A" stroke-width="7" stroke-linejoin="round"/>
+            <path d="M240 392 Q260 384 280 392 Q280 410 260 412 Q240 410 240 392 Z" fill="#ff96a8"/>
+          </g>
+        </g>
+      </g></g>
+    </svg>
+
+    <!-- badge số liệu bay quanh ong -->
+    <div class="bee-orbit" aria-hidden="true">
+      <div class="bdg b-target"><span class="ic">🎯</span><span><b>7.0</b> <i>Target</i></span></div>
+      <div class="bdg b-streak"><span class="ic">🔥</span><span><b>7</b> <i>ngày streak</i></span></div>
+      <div class="bdg b-energy"><span class="ic">⚡</span><span class="enr"><span class="enr-fill"></span></span></div>
+      <div class="bdg b-xp"><span class="ic">⭐</span><span><b>1.250</b> <i>XP</i></span></div>
+    </div>
   </div>
   <div class="bubble">Chăm chỉ như ong, kết quả ngọt như mật nhé!</div>
 
@@ -569,6 +680,65 @@
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);
+})();
+</script>
+
+<!-- THÊM MỚI: ong hero nhìn theo chuột + cười tươi/mỉm cười + nhìn quanh khi rảnh -->
+<script>
+(function(){
+  var svg = document.getElementById('beeSvg');
+  if(!svg) return;
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var face=document.getElementById('face'), lean=document.getElementById('beeLean');
+  var pL=document.getElementById('pupilL'), pR=document.getElementById('pupilR');
+  var eL=document.getElementById('eyeL'), eR=document.getElementById('eyeR');
+  var mS=document.getElementById('mouthSmile'), mG=document.getElementById('mouthGrin');
+  if(!face||!lean||!pL||!pR) return;
+  var VBW=520, VBH=560, CX=260, CY=300;
+  var EYES=[{el:pL,x:210,y:290},{el:pR,x:310,y:290}];
+  var mx=null, my=null, moveT=-1e9, grinT=0, grin=null;
+  var cur={fx:0,fy:0,ln:0,px:[0,0],py:[0,0]};
+  var tg ={fx:0,fy:0,ln:0,px:[0,0],py:[0,0]};
+
+  addEventListener('mousemove', function(e){ mx=e.clientX; my=e.clientY; moveT=performance.now(); }, {passive:true});
+  addEventListener('mouseout', function(e){ if(!e.relatedTarget){ mx=my=null; } });
+
+  function setGrin(g){ if(g===grin) return; grin=g; mS.style.opacity=g?'0':'1'; mG.style.opacity=g?'1':'0'; }
+  function lerp(a,b,t){ return a+(b-a)*t; }
+
+  (function blink(){ setTimeout(function(){
+      eL.classList.add('blink'); eR.classList.add('blink');
+      setTimeout(function(){ eL.classList.remove('blink'); eR.classList.remove('blink'); blink(); }, 120);
+    }, 2400 + Math.random()*3400);
+  })();
+  (function beam(){ setTimeout(function(){ grinT=performance.now()+1400; beam(); }, 4500 + Math.random()*5000); })();
+
+  function frame(now){
+    var r=svg.getBoundingClientRect(), sx=r.width/VBW, sy=r.height/VBH;
+    if(mx==null){                                   // không có chuột → ong nhìn quanh nhẹ nhàng
+      var w=now/1000, wx=Math.cos(w*0.7)*6, wy=Math.sin(w*0.95)*4.5;
+      tg.px=[wx,wx]; tg.py=[wy,wy]; tg.fx=wx*0.5; tg.fy=wy*0.4; tg.ln=Math.cos(w*0.5)*1.8;
+    } else {
+      for(var i=0;i<2;i++){
+        var ex=r.left+EYES[i].x*sx, ey=r.top+EYES[i].y*sy;
+        var dx=mx-ex, dy=my-ey, d=Math.hypot(dx,dy)||1, k=Math.min(1,d/240);
+        tg.px[i]=(dx/d)*12*k; tg.py[i]=(dy/d)*14*k;
+      }
+      var fx=r.left+CX*sx, fy=r.top+290*sy, fdx=mx-fx, fdy=my-fy, fd=Math.hypot(fdx,fdy)||1, fk=Math.min(1,fd/460);
+      tg.fx=(fdx/fd)*7*fk; tg.fy=(fdy/fd)*6*fk;
+      tg.ln=Math.max(-5, Math.min(5, (fdx/r.width)*16));
+    }
+    setGrin(((now-moveT)<650) || now<grinT);       // cười tươi khi đang rê chuột hoặc theo nhịp; còn lại mỉm cười
+    var e=0.16;
+    cur.fx=lerp(cur.fx,tg.fx,e); cur.fy=lerp(cur.fy,tg.fy,e); cur.ln=lerp(cur.ln,tg.ln,0.10);
+    for(var j=0;j<2;j++){ cur.px[j]=lerp(cur.px[j],tg.px[j],e); cur.py[j]=lerp(cur.py[j],tg.py[j],e); }
+    face.setAttribute('transform','translate('+cur.fx.toFixed(2)+' '+cur.fy.toFixed(2)+')');
+    lean.setAttribute('transform','rotate('+cur.ln.toFixed(2)+' '+CX+' '+CY+')');
+    pL.setAttribute('transform','translate('+cur.px[0].toFixed(2)+' '+cur.py[0].toFixed(2)+')');
+    pR.setAttribute('transform','translate('+cur.px[1].toFixed(2)+' '+cur.py[1].toFixed(2)+')');
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
 })();
 </script>
 
