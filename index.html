@@ -297,10 +297,12 @@
           <!-- má hồng -->
           <ellipse cx="198" cy="308" rx="19" ry="11" fill="#F2A0B0" opacity=".7"/>
           <ellipse cx="322" cy="308" rx="19" ry="11" fill="#F2A0B0" opacity=".7"/>
-          <!-- MẮT MỞ (mặc định) — 2 chấm tròn đen, dõi theo chuột khi ở xa -->
+          <!-- MẮT MỞ (mặc định) — lòng trắng (ngoài) + lòng đen (trong) + đốm sáng, dõi theo chuột -->
           <g id="eyesOpen" style="opacity:1">
-            <g id="pupilL"><circle cx="212" cy="282" r="21" fill="#1d1407"/></g>
-            <g id="pupilR"><circle cx="308" cy="282" r="21" fill="#1d1407"/></g>
+            <circle cx="212" cy="282" r="22" fill="#fff" stroke="#2b2017" stroke-width="4.5"/>
+            <circle cx="308" cy="282" r="22" fill="#fff" stroke="#2b2017" stroke-width="4.5"/>
+            <g id="pupilL"><circle cx="212" cy="284" r="12.5" fill="#1d1407"/><circle cx="206" cy="278" r="4.6" fill="#fff"/><circle cx="216" cy="289" r="2" fill="#fff" opacity=".85"/></g>
+            <g id="pupilR"><circle cx="308" cy="284" r="12.5" fill="#1d1407"/><circle cx="302" cy="278" r="4.6" fill="#fff"/><circle cx="312" cy="289" r="2" fill="#fff" opacity=".85"/></g>
           </g>
           <!-- MẮT NHẮM cười (chỉ hiện khi chuột lại gần) -->
           <g id="eyesClosed" style="opacity:0">
@@ -662,7 +664,7 @@
       if(d < r.width*0.5) near=true;
       if(!near){                                    // chuột ở XA → mở mắt + dõi theo chuột
         var k=Math.min(1,d/440);
-        tg.px=(dx/d)*12*k; tg.py=(dy/d)*10*k;
+        tg.px=(dx/d)*8*k; tg.py=(dy/d)*7*k;
         tg.fx=(dx/d)*6*k;  tg.fy=(dy/d)*5*k;
         tg.ln=Math.max(-4, Math.min(4, (dx/r.width)*14));
       } else { tg.px=tg.py=tg.fx=tg.fy=tg.ln=0; }   // lại GẦN → nhắm mắt cười
