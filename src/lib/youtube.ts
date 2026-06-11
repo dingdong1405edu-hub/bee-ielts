@@ -716,7 +716,15 @@ export async function fetchYouTubeCaptionsViaInvidious(
         attempts.push(`${host}: không có track EN (có ${langs.join(", ")})`);
         continue;
       }
-      const trackUrl = en.url.startsWith("http") ? en.url : `https://${host}${en.url}`;
+      // Append &format=vtt to force VTT output. Some instances return 200
+      // empty body when this is missing because they default to a JSON
+      // shape that gets stripped by an internal middleware. Adding it
+      // explicitly is safe — it's an Invidious-side query param, not a
+      // YouTube signature payload, so it doesn't invalidate anything.
+      const baseUrl = en.url.startsWith("http") ? en.url : `https://${host}${en.url}`;
+      const trackUrl = baseUrl.includes("?")
+        ? `${baseUrl}&format=vtt`
+        : `${baseUrl}?format=vtt`;
       const trackResp = await fetchWithTimeout(trackUrl, 12000);
       if (!trackResp.ok) {
         attempts.push(`${host}: track HTTP ${trackResp.status}`);
@@ -750,6 +758,124 @@ export async function fetchYouTubeCaptionsViaInvidious(
       (lastAvailable.length > 0
         ? ` (langs cuối thấy: ${lastAvailable.join(", ")})`
         : ""),
+  );
+}
+
+/**
+ * Pull caption cues via 3rd-party "transcript as a service" providers.
+ *
+ * These services maintain their own proxy pool against YouTube (often
+ * residential IPs that haven't been bot-flagged), so they keep working
+ * for weeks after Railway IPs get blocked. They also cache aggressively
+ * — popular videos return instantly from their store, never re-hitting
+ * YouTube. This is the most reliable path now that Invidious itself is
+ * partially blocked.
+ *
+ * Providers tried in order:
+ *   1. youtubetranscript.com  (GET ?server_vid2=ID → YT srv3 XML)
+ *   2. youtube-transcript.io  (POST ids[] → JSON with text+offset)
+ *
+ * Each call has a short timeout — these are public services so we can't
+ * rely on them being fast. Throws ONLY if every provider fails — caller
+ * falls through to Invidious / library / InnerTube.
+ */
+export async function fetchYouTubeCaptionsViaPublicApi(
+  videoId: string,
+): Promise<{ cues: RawCue[]; availableLangs: string[] }> {
+  const attempts: string[] = [];
+
+  // Path 1 — youtubetranscript.com — returns raw YT srv3 XML directly.
+  // This is the same `<text start="s" dur="s">…</text>` format YouTube's
+  // /api/timedtext endpoint emits, so we can reuse the existing parser.
+  try {
+    const r = await fetchWithTimeout(
+      `https://youtubetranscript.com/?server_vid2=${videoId}`,
+      15000,
+    );
+    if (r.ok) {
+      const body = await r.text();
+      // Service signals "no transcript" via <error> tag — skip parsing
+      // when we see that so we don't return phantom empty cues.
+      if (!body.includes("<error>") && (body.includes("<transcript>") || body.includes("<text"))) {
+        const cues = parseSrv3OrClassicXml(body);
+        if (cues.length > 0) {
+          console.log(
+            `[yt-captions] youtubetranscript.com success: ${cues.length} cues`,
+          );
+          return { cues, availableLangs: ["en"] };
+        }
+        attempts.push("youtubetranscript.com: parse 0 cue");
+      } else {
+        attempts.push("youtubetranscript.com: không có <transcript> hoặc <error>");
+      }
+    } else {
+      attempts.push(`youtubetranscript.com: HTTP ${r.status}`);
+    }
+  } catch (e) {
+    attempts.push(
+      `youtubetranscript.com: ${e instanceof Error ? e.message : e}`,
+    );
+  }
+
+  // Path 2 — youtube-transcript.io (POST ids[]) — they cache popular
+  // videos. Returns { tracks: [{ transcript: [{ text, start, dur }] }] }.
+  // Free tier, no auth needed for short lookups.
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 15000);
+    const r = await fetch("https://www.youtube-transcript.io/api/transcripts", {
+      method: "POST",
+      signal: ctrl.signal,
+      headers: {
+        "Content-Type": "application/json",
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ ids: [videoId] }),
+    }).finally(() => clearTimeout(t));
+    if (r.ok) {
+      type ApiResp = {
+        tracks?: Array<{
+          language?: string;
+          transcript?: Array<{ text: string; start: number; dur?: number }>;
+        }>;
+      };
+      const data = (await r.json()) as Record<string, unknown>;
+      // Schema varies by query — first try `tracks`, then top-level array.
+      const records: ApiResp[] = Array.isArray(data) ? (data as ApiResp[]) : [data as ApiResp];
+      for (const rec of records) {
+        const enTrack =
+          rec.tracks?.find((t) => (t.language || "").toLowerCase().startsWith("en")) ||
+          rec.tracks?.[0];
+        if (enTrack?.transcript && enTrack.transcript.length > 0) {
+          const cues = enTrack.transcript
+            .filter((row) => row.text && Number.isFinite(row.start))
+            .map((row) => ({
+              text: row.text,
+              offsetSec: row.start,
+              durationSec: Math.max(0.3, row.dur ?? 2.5),
+            }));
+          if (cues.length > 0) {
+            console.log(
+              `[yt-captions] youtube-transcript.io success: ${cues.length} cues`,
+            );
+            return { cues, availableLangs: [enTrack.language || "en"] };
+          }
+        }
+      }
+      attempts.push("youtube-transcript.io: không có transcript trong response");
+    } else {
+      attempts.push(`youtube-transcript.io: HTTP ${r.status}`);
+    }
+  } catch (e) {
+    attempts.push(
+      `youtube-transcript.io: ${e instanceof Error ? e.message : e}`,
+    );
+  }
+
+  throw new Error(
+    `Tất cả ${2} public transcript API fail: ${attempts.join(" | ")}`,
   );
 }
 

@@ -20,6 +20,7 @@ import {
   fetchYouTubeCaptionsViaInnertube,
   fetchYouTubeCaptionsViaInvidious,
   fetchYouTubeCaptionsViaLibrary,
+  fetchYouTubeCaptionsViaPublicApi,
   getYouTubeBasicInfo,
   mergeCuesIntoSegments,
   refineSegmentsForShadowing,
@@ -89,24 +90,36 @@ export async function POST(req: Request) {
     );
   }
 
-  // Captions — required. Three parallel paths, each a different surface
+  // Captions — required. Four cascading paths, each a different surface
   // to YouTube's bot detection:
-  //   1) Invidious public proxies (residential IPs — most reliable when
-  //      Railway IP is bot-flagged)
-  //   2) youtubei.js library (manages own session, cookies, signature_ts)
-  //   3) Raw InnerTube POST (last resort — usually hits LOGIN_REQUIRED)
+  //   1) Public transcript APIs (cached + proxy pool — most reliable)
+  //   2) Invidious public proxies (residential IPs)
+  //   3) youtubei.js library (manages own session, cookies, signature_ts)
+  //   4) Raw InnerTube POST (last resort — usually hits LOGIN_REQUIRED)
   let cues;
   let availableLangs: string[] = [];
+  let publicApiErr: string | null = null;
   let invidiousErr: string | null = null;
   let libraryErr: string | null = null;
 
   try {
-    const result = await fetchYouTubeCaptionsViaInvidious(ytId);
+    const result = await fetchYouTubeCaptionsViaPublicApi(ytId);
     availableLangs = result.availableLangs;
     if (result.cues.length > 0) cues = result.cues;
   } catch (e) {
-    invidiousErr = e instanceof Error ? e.message : String(e);
-    console.warn(`[podcasts] invidious fail ytId=${ytId}: ${invidiousErr}`);
+    publicApiErr = e instanceof Error ? e.message : String(e);
+    console.warn(`[podcasts] public-api fail ytId=${ytId}: ${publicApiErr}`);
+  }
+
+  if (!cues) {
+    try {
+      const result = await fetchYouTubeCaptionsViaInvidious(ytId);
+      if (availableLangs.length === 0) availableLangs = result.availableLangs;
+      if (result.cues.length > 0) cues = result.cues;
+    } catch (e) {
+      invidiousErr = e instanceof Error ? e.message : String(e);
+      console.warn(`[podcasts] invidious fail ytId=${ytId}: ${invidiousErr}`);
+    }
   }
 
   if (!cues) {
@@ -131,7 +144,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error:
-            `Lấy phụ đề thất bại qua cả 3 path. Invidious: ${invidiousErr ?? "n/a"} | Library: ${libraryErr ?? "n/a"} | InnerTube: ${raw}`,
+            `Lấy phụ đề thất bại qua cả 4 path. Public API: ${publicApiErr ?? "n/a"} | Invidious: ${invidiousErr ?? "n/a"} | Library: ${libraryErr ?? "n/a"} | InnerTube: ${raw}`,
         },
         { status: 422 },
       );
