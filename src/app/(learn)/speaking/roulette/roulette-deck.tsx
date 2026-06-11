@@ -236,7 +236,7 @@ export function RouletteDeck({ cards }: { cards: RouletteCard[] }) {
 
   return (
     <div
-      className="relative min-h-[88vh] -mx-4 sm:-mx-6 md:-mx-8 -mt-4 md:-mt-6 px-4 sm:px-6 md:px-8 py-8 rounded-3xl overflow-hidden text-white"
+      className="fixed inset-0 z-[60] overflow-y-auto overflow-x-hidden px-4 sm:px-6 md:px-8 py-6 text-white"
       style={{
         // Felt table — emerald in the centre, deeper green in the corners
         // gives the board real depth, no flat washed-out look.

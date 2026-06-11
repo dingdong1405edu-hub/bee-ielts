@@ -51,7 +51,7 @@ export default async function LearnLayout({ children }: { children: React.ReactN
         />
         <Sidebar isAdmin={isAdmin} isPremium={isPremium} />
       </div>
-      <main className="min-h-screen pt-16 md:ml-60">
+      <main className="min-h-screen pt-16 md:ml-[68px]">
         <div className="mx-auto max-w-6xl p-4 pb-[calc(env(safe-area-inset-bottom)_+_7rem)] md:p-6 md:pb-8">
           <SkillTheme>{children}</SkillTheme>
         </div>
