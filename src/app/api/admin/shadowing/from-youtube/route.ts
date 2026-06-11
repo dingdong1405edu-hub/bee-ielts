@@ -34,6 +34,7 @@ import { isAdminOrOwner } from "@/lib/premium";
 import {
   extractYoutubeId,
   fetchYouTubeCaptionsViaInnertube,
+  fetchYouTubeCaptionsViaInvidious,
   fetchYouTubeCaptionsViaLibrary,
   getYouTubeAudioBuffer,
   getYouTubeBasicInfo,
@@ -327,16 +328,33 @@ export async function POST(req: Request) {
     merged = refineSegmentsForShadowing(mergeCuesIntoSegments(captionAttempt.cues));
   }
 
-  // 1b. youtubei.js library + raw InnerTube as parallel rescue paths.
-  //     The library manages its own session/cookies/signature_timestamp
-  //     and survives bot-detection on Railway IPs where the raw POST
-  //     gets LOGIN_REQUIRED. Try library first, raw InnerTube second.
+  // 1b. Invidious proxy path FIRST — public instances fetch on behalf
+  //     via residential IPs, so they survive YouTube's Railway-IP bot
+  //     detection. Cheapest + most reliable when raw paths are blocked.
   let watchAvailableLangs: string[] | null = null;
   let watchErr: string | null = null;
   if (merged.length === 0) {
     try {
+      const invResult = await fetchYouTubeCaptionsViaInvidious(ytId);
+      watchAvailableLangs = invResult.availableLangs;
+      if (invResult.cues.length > 0) {
+        console.log(
+          `[from-youtube] invidious captions rescued ytId=${ytId} cues=${invResult.cues.length}`,
+        );
+        merged = refineSegmentsForShadowing(mergeCuesIntoSegments(invResult.cues));
+      }
+    } catch (e) {
+      watchErr = `invidious: ${e instanceof Error ? e.message : e}`;
+      console.warn(`[from-youtube] invidious captions fail ytId=${ytId}: ${watchErr}`);
+    }
+  }
+
+  // 1c. youtubei.js library — the library manages its own session/
+  //     cookies/signature_timestamp and sometimes survives bot detection.
+  if (merged.length === 0) {
+    try {
       const libResult = await fetchYouTubeCaptionsViaLibrary(ytId);
-      watchAvailableLangs = libResult.availableLangs;
+      if (!watchAvailableLangs?.length) watchAvailableLangs = libResult.availableLangs;
       if (libResult.cues.length > 0) {
         console.log(
           `[from-youtube] library captions rescued ytId=${ytId} cues=${libResult.cues.length}`,
@@ -344,8 +362,9 @@ export async function POST(req: Request) {
         merged = refineSegmentsForShadowing(mergeCuesIntoSegments(libResult.cues));
       }
     } catch (e) {
-      watchErr = `library: ${e instanceof Error ? e.message : e}`;
-      console.warn(`[from-youtube] library captions fail ytId=${ytId}: ${watchErr}`);
+      const libErr = `library: ${e instanceof Error ? e.message : e}`;
+      watchErr = watchErr ? `${watchErr} | ${libErr}` : libErr;
+      console.warn(`[from-youtube] library captions fail ytId=${ytId}: ${libErr}`);
     }
   }
   if (merged.length === 0) {

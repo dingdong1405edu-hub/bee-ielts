@@ -18,6 +18,7 @@ import { isAdminOrOwner } from "@/lib/premium";
 import {
   extractYoutubeId,
   fetchYouTubeCaptionsViaInnertube,
+  fetchYouTubeCaptionsViaInvidious,
   fetchYouTubeCaptionsViaLibrary,
   getYouTubeBasicInfo,
   mergeCuesIntoSegments,
@@ -88,31 +89,40 @@ export async function POST(req: Request) {
     );
   }
 
-  // Captions — required. Two parallel paths against YouTube, different
-  // surfaces to its bot detection: youtubei.js library (manages its own
-  // session, cookies, signature_timestamp) and raw InnerTube POST. When
-  // the IP is bot-flagged the raw POST returns LOGIN_REQUIRED but the
-  // library path usually still works because YouTube treats its session
-  // as a legitimate youtubei client. Try library FIRST.
+  // Captions — required. Three parallel paths, each a different surface
+  // to YouTube's bot detection:
+  //   1) Invidious public proxies (residential IPs — most reliable when
+  //      Railway IP is bot-flagged)
+  //   2) youtubei.js library (manages own session, cookies, signature_ts)
+  //   3) Raw InnerTube POST (last resort — usually hits LOGIN_REQUIRED)
   let cues;
   let availableLangs: string[] = [];
+  let invidiousErr: string | null = null;
   let libraryErr: string | null = null;
+
   try {
-    const result = await fetchYouTubeCaptionsViaLibrary(ytId);
+    const result = await fetchYouTubeCaptionsViaInvidious(ytId);
     availableLangs = result.availableLangs;
-    if (result.cues.length > 0) {
-      cues = result.cues;
-    }
+    if (result.cues.length > 0) cues = result.cues;
   } catch (e) {
-    libraryErr = e instanceof Error ? e.message : String(e);
-    console.warn(`[podcasts] library captions fail ytId=${ytId}: ${libraryErr}`);
+    invidiousErr = e instanceof Error ? e.message : String(e);
+    console.warn(`[podcasts] invidious fail ytId=${ytId}: ${invidiousErr}`);
+  }
+
+  if (!cues) {
+    try {
+      const result = await fetchYouTubeCaptionsViaLibrary(ytId);
+      if (availableLangs.length === 0) availableLangs = result.availableLangs;
+      if (result.cues.length > 0) cues = result.cues;
+    } catch (e) {
+      libraryErr = e instanceof Error ? e.message : String(e);
+      console.warn(`[podcasts] library captions fail ytId=${ytId}: ${libraryErr}`);
+    }
   }
 
   if (!cues) {
     try {
       const result = await fetchYouTubeCaptionsViaInnertube(ytId);
-      // Library's "no EN" result wins if both paths say there's no EN —
-      // gives admin a clearer langs list.
       if (availableLangs.length === 0) availableLangs = result.availableLangs;
       if (result.cues.length > 0) cues = result.cues;
     } catch (e) {
@@ -121,7 +131,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error:
-            `Lấy phụ đề thất bại qua cả 2 path. Library: ${libraryErr ?? "n/a"} | InnerTube: ${raw}`,
+            `Lấy phụ đề thất bại qua cả 3 path. Invidious: ${invidiousErr ?? "n/a"} | Library: ${libraryErr ?? "n/a"} | InnerTube: ${raw}`,
         },
         { status: 422 },
       );

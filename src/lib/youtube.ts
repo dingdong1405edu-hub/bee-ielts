@@ -648,6 +648,187 @@ export async function fetchYouTubeCaptionsViaInnertube(
   return { cues, availableLangs };
 }
 
+/**
+ * Pull caption cues via public Invidious instances. Invidious is a
+ * privacy-focused YouTube frontend — each instance proxies through its
+ * own (usually residential) IP, so requests bypass YouTube's bot
+ * detection on Railway IPs that's killing our raw paths.
+ *
+ * The flow per instance:
+ *   1. GET /api/v1/captions/{videoId} → list of caption tracks
+ *   2. Pick English (preferring manual over auto-generated)
+ *   3. GET the track URL (relative; we prepend the host) → VTT body
+ *   4. Parse VTT to RawCue[]
+ *
+ * Instances are tried in rotation order. Each call has an 8s timeout so
+ * one slow instance doesn't lock the whole admin upload. Throws ONLY if
+ * every instance fails — caller falls through to library/InnerTube.
+ *
+ * Instance list is kept short and curated to ones that have been
+ * historically stable. List them in priority order; throws bubble back
+ * with the full failure log so admins know which to disable.
+ */
+const INVIDIOUS_INSTANCES = [
+  "yewtu.be",
+  "invidious.nerdvpn.de",
+  "inv.nadeko.net",
+  "invidious.privacyredirect.com",
+  "invidious.lunar.icu",
+  "iv.melmac.space",
+];
+
+export async function fetchYouTubeCaptionsViaInvidious(
+  videoId: string,
+): Promise<{ cues: RawCue[]; availableLangs: string[] }> {
+  const attempts: string[] = [];
+  let lastAvailable: string[] = [];
+  for (const host of INVIDIOUS_INSTANCES) {
+    try {
+      const listUrl = `https://${host}/api/v1/captions/${videoId}`;
+      const listResp = await fetchWithTimeout(listUrl, 8000);
+      if (!listResp.ok) {
+        attempts.push(`${host}: list HTTP ${listResp.status}`);
+        continue;
+      }
+      const listData = (await listResp.json()) as {
+        captions?: Array<{ label?: string; language_code?: string; languageCode?: string; url?: string }>;
+      };
+      const captions = listData.captions ?? [];
+      if (captions.length === 0) {
+        attempts.push(`${host}: video không có caption`);
+        continue;
+      }
+      const langs = captions
+        .map((c) => c.language_code || c.languageCode || c.label || "?")
+        .filter(Boolean);
+      lastAvailable = langs;
+      // Prefer manually-authored English; fall back to any en-*; fall back
+      // to anything whose label starts with "English"; fall back to first
+      // track whose label contains "auto" / "generated" if we end up with
+      // only auto-EN.
+      const en =
+        captions.find((c) => (c.language_code || c.languageCode) === "en") ||
+        captions.find((c) =>
+          (c.language_code || c.languageCode || "").toLowerCase().startsWith("en"),
+        ) ||
+        captions.find((c) => (c.label || "").toLowerCase().startsWith("english"));
+      if (!en || !en.url) {
+        attempts.push(`${host}: không có track EN (có ${langs.join(", ")})`);
+        continue;
+      }
+      const trackUrl = en.url.startsWith("http") ? en.url : `https://${host}${en.url}`;
+      const trackResp = await fetchWithTimeout(trackUrl, 12000);
+      if (!trackResp.ok) {
+        attempts.push(`${host}: track HTTP ${trackResp.status}`);
+        continue;
+      }
+      const body = await trackResp.text();
+      if (!body.trim()) {
+        attempts.push(`${host}: track body rỗng`);
+        continue;
+      }
+      // Invidious normalises to VTT by default; but some instances pass
+      // through the raw srv3 XML. Sniff the format and dispatch.
+      const cues = body.trim().startsWith("WEBVTT")
+        ? parseVtt(body)
+        : parseSrv3OrClassicXml(body);
+      if (cues.length === 0) {
+        attempts.push(`${host}: parse 0 cue`);
+        continue;
+      }
+      console.log(
+        `[yt-captions] invidious ${host} success: ${cues.length} cues`,
+      );
+      return { cues, availableLangs: langs };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      attempts.push(`${host}: ${msg}`);
+    }
+  }
+  throw new Error(
+    `Tất cả ${INVIDIOUS_INSTANCES.length} Invidious instance fail: ${attempts.join(" | ")}` +
+      (lastAvailable.length > 0
+        ? ` (langs cuối thấy: ${lastAvailable.join(", ")})`
+        : ""),
+  );
+}
+
+/** Tiny WebVTT parser. Accepts the 2 timestamp shapes YouTube uses:
+ *    `HH:MM:SS.mmm --> HH:MM:SS.mmm`
+ *    `MM:SS.mmm --> MM:SS.mmm`
+ *  Strips inline tags (`<c.color>...</c>`, `<00:00:01.000>`) so each cue
+ *  carries plain text. Joins multi-line cues with a single space. */
+function parseVtt(vtt: string): RawCue[] {
+  const cues: RawCue[] = [];
+  const tsRe =
+    /^((?:(\d+):)?(\d+):(\d+)\.(\d{1,3}))\s*-->\s*((?:(\d+):)?(\d+):(\d+)\.(\d{1,3}))/;
+  const lines = vtt.replace(/\r\n/g, "\n").split("\n");
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i].trim();
+    const m = line.match(tsRe);
+    if (m) {
+      const startH = m[2] ? parseInt(m[2], 10) : 0;
+      const startM = parseInt(m[3], 10);
+      const startS = parseInt(m[4], 10);
+      const startMs = parseInt(m[5].padEnd(3, "0"), 10);
+      const endH = m[7] ? parseInt(m[7], 10) : 0;
+      const endM = parseInt(m[8], 10);
+      const endS = parseInt(m[9], 10);
+      const endMs = parseInt(m[10].padEnd(3, "0"), 10);
+      const startSec = startH * 3600 + startM * 60 + startS + startMs / 1000;
+      const endSec = endH * 3600 + endM * 60 + endS + endMs / 1000;
+      // Body lines until next blank.
+      const bodyLines: string[] = [];
+      i++;
+      while (i < lines.length && lines[i].trim() !== "") {
+        bodyLines.push(lines[i]);
+        i++;
+      }
+      const text = bodyLines
+        .join(" ")
+        .replace(/<[^>]+>/g, "") // strip <c>, <00:00:01.000>, <i>, etc.
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (text) {
+        cues.push({
+          text,
+          offsetSec: startSec,
+          durationSec: Math.max(0.3, endSec - startSec),
+        });
+      }
+    } else {
+      i++;
+    }
+  }
+  return cues;
+}
+
+/** AbortSignal-backed fetch with a hard timeout so one slow Invidious
+ *  instance can't lock the whole captions pipeline. Returns the Response
+ *  on success; rethrows the underlying error on abort/network failure. */
+async function fetchWithTimeout(url: string, ms: number): Promise<Response> {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, {
+      signal: ctrl.signal,
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        Accept: "application/json, text/vtt, text/plain, */*",
+      },
+    });
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 /** Parse YouTube's srv3 XML format <p t="ms" d="ms">text</p> AND the
  *  legacy classic format <text start="s" dur="s">text</text>. YouTube
  *  flips between these depending on client/version/day, so we accept
