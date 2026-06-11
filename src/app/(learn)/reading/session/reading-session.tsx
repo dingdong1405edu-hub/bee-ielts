@@ -49,7 +49,7 @@ export function ReadingSession({ passages, targetBand = 6.0 }: { passages: Passa
       totalCorrect += c;
       totalQuestions += p.questions.length;
       try {
-        await fetch("/api/reading/submit", {
+        const res = await fetch("/api/reading/submit", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -60,6 +60,9 @@ export function ReadingSession({ passages, targetBand = 6.0 }: { passages: Passa
             durationSec: Math.floor(durationSec / passages.length),
           }),
         });
+        const data = await res.json().catch(() => ({}));
+        const { triggerUnlocksFromResponse } = await import("@/lib/achievements/client-trigger");
+        triggerUnlocksFromResponse(data);
       } catch (e) {
         console.error(e);
       }

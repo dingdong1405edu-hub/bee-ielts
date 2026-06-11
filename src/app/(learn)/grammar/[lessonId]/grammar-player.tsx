@@ -61,7 +61,7 @@ export function GrammarPlayer({
     setSubmitting(true);
     const durationSec = Math.floor((Date.now() - startedAtRef.current) / 1000);
     try {
-      await fetch("/api/grammar/complete", {
+      const res = await fetch("/api/grammar/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -71,6 +71,9 @@ export function GrammarPlayer({
           durationSec,
         }),
       });
+      const data = await res.json().catch(() => ({}));
+      const { triggerUnlocksFromResponse } = await import("@/lib/achievements/client-trigger");
+      triggerUnlocksFromResponse(data);
     } catch (e) {
       console.error(e);
       toast.error("Lưu thất bại");

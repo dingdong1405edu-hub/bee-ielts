@@ -52,6 +52,13 @@ function playFanfare(): void {
   const Ctor = W.AudioContext || W.webkitAudioContext;
   if (!Ctor) return;
   const ctx = new Ctor();
+  // Chrome/Safari autoplay policy: new AudioContext starts "suspended"
+  // until a user gesture wakes it. Since achievements fire AFTER a real
+  // click (the quiz "Hoàn thành" button), a quick resume() succeeds and
+  // gets the trumpet through.
+  if (ctx.state === "suspended") {
+    ctx.resume().catch(() => {});
+  }
   // Cavalry charge motif on G major: G G G D5 G D5 — staccato + final
   // sustained note. Notes are MIDI numbers.
   const notes: Array<[midi: number, durSec: number, accent?: number]> = [

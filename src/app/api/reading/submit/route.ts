@@ -32,7 +32,7 @@ export async function POST(req: Request) {
       durationSec: durationSec ?? null,
     },
   });
-  await recordActivity(session.user.id, { xpGain: correctCount * 10 });
+  const unlocked = await recordActivity(session.user.id, { xpGain: correctCount * 10 });
 
-  return NextResponse.json({ ok: true, band });
+  return NextResponse.json({ ok: true, band, unlocked });
 }

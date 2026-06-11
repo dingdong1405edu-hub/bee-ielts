@@ -79,6 +79,22 @@ export async function awardBandTier(
   return newlyUnlocked;
 }
 
+/** Award an arbitrary list of codes idempotently. Returns only the
+ *  badges that were newly unlocked. Used for cross-cutting checks
+ *  (streak/xp/vocab-perfection) where multiple codes can fire at once. */
+export async function awardMany(
+  userId: string,
+  codes: string[],
+  context?: Record<string, unknown>,
+): Promise<Achievement[]> {
+  const newlyUnlocked: Achievement[] = [];
+  for (const code of codes) {
+    const result = await awardAchievement(userId, code, context);
+    if (result.unlocked && result.achievement) newlyUnlocked.push(result.achievement);
+  }
+  return newlyUnlocked;
+}
+
 /** Get all unlocked achievement codes for a user — used by the
  *  badge-wall page to compute locked-vs-unlocked. Single column scan
  *  so cheap to call on every profile load. */

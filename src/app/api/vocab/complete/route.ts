@@ -3,8 +3,11 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { recordActivity } from "@/lib/activity";
-import { awardAchievement } from "@/lib/achievements/award";
-import type { Achievement } from "@/lib/achievements/catalog";
+import { awardMany } from "@/lib/achievements/award";
+import {
+  allVocabPerfectionCodes,
+  type Achievement,
+} from "@/lib/achievements/catalog";
 
 const schema = z.object({
   lessonId: z.string(),
@@ -23,16 +26,23 @@ export async function POST(req: Request) {
 
   const { lessonId, score, totalCorrect, total, durationSec } = parsed.data;
   const xpGain = totalCorrect * 5;
+  const userId = session.user.id;
+
+  // Detect "first lesson" by checking BEFORE we mark it completed — must
+  // happen before the upsert so the count is honest.
+  const priorCompletedCount = await prisma.vocabProgress.count({
+    where: { userId, completed: true },
+  });
 
   await prisma.$transaction([
     prisma.vocabProgress.upsert({
-      where: { userId_lessonId: { userId: session.user.id, lessonId } },
+      where: { userId_lessonId: { userId, lessonId } },
       update: { completed: true, score },
-      create: { userId: session.user.id, lessonId, completed: true, score },
+      create: { userId, lessonId, completed: true, score },
     }),
     prisma.attempt.create({
       data: {
-        userId: session.user.id,
+        userId,
         skill: "VOCAB",
         refId: lessonId,
         rawAnswer: { totalCorrect, total },
@@ -42,18 +52,25 @@ export async function POST(req: Request) {
     }),
   ]);
 
-  await recordActivity(session.user.id, { xpGain });
+  // Achievement codes to try awarding. Idempotent — DB unique constraint
+  // means re-runs are free.
+  const codes: string[] = [];
+  if (priorCompletedCount === 0) codes.push("vocab_first_lesson");
+  codes.push(...allVocabPerfectionCodes(score));
 
-  // Achievement check — 90%+ score unlocks "Bậc Thầy Từ Vựng".
-  let unlocked: Achievement[] = [];
-  if (score >= 90) {
-    const result = await awardAchievement(
-      session.user.id,
-      "vocab_master_90",
-      { lessonId, score, totalCorrect, total },
-    );
-    if (result.unlocked && result.achievement) unlocked = [result.achievement];
+  const unlocked: Achievement[] = [];
+  if (codes.length > 0) {
+    const lessonUnlocks = await awardMany(userId, codes, {
+      lessonId,
+      score,
+      totalCorrect,
+      total,
+    });
+    unlocked.push(...lessonUnlocks);
   }
+  // Streak + XP badges fold in from recordActivity.
+  const activityUnlocks = await recordActivity(userId, { xpGain });
+  unlocked.push(...activityUnlocks);
 
   return NextResponse.json({ ok: true, xpGain, unlocked });
 }

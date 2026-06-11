@@ -115,8 +115,8 @@ export async function POST(req: Request) {
         durationSec: durationSec ?? null,
       },
     });
-    await recordActivity(session.user.id, { xpGain: 50 });
-    return NextResponse.json({ result });
+    const unlocked = await recordActivity(session.user.id, { xpGain: 50 });
+    return NextResponse.json({ result, unlocked });
   } catch (e) {
     console.error("[grade/quiz-speaking-final]", e);
     const result = ungradeable("AI không chấm được — thử lại sau.");

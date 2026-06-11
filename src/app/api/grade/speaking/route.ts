@@ -89,8 +89,8 @@ export async function POST(req: Request) {
         durationSec: durationSec ?? null,
       },
     });
-    await recordActivity(session.user.id, { xpGain: 50 });
-    return NextResponse.json({ result });
+    const unlocked = await recordActivity(session.user.id, { xpGain: 50 });
+    return NextResponse.json({ result, unlocked });
   } catch (e) {
     console.error("[grade/speaking]", e);
     const result = ungradeableResult("AI không chấm được — band 0.0.");

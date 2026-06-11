@@ -3,16 +3,8 @@
  * new entry → it appears in the badge wall on next deploy. Award helper
  * looks up by `code` so renames break user unlocks; new codes only.
  *
- * Naming style is intentionally over-the-top game-y per user request
- * ("như trong game có danh hiệu kẻ diệt rồng"). Each badge has BOTH:
- *   - `title`: the danh hiệu (e.g. "Hiền Triết Sách Vở") — short, flashy
- *   - `name`:  the badge name (e.g. "Reading 8.0") — what shows on the
- *              badge artwork itself
- *   - `description`: how to earn it (admin-facing + tooltip)
- *
- * Tier badges share a `family` (e.g. "reading") so the UI can group
- * them. Each family has 3 tiers; unlocking a higher tier doesn't
- * supersede lower ones (collector's mentality).
+ * Tiering rule: starter badges fire on the VERY first action so users
+ * see momentum immediately. Higher tiers reward depth.
  */
 
 export type AchievementCategory =
@@ -23,49 +15,116 @@ export type AchievementCategory =
   | "listening"
   | "writing"
   | "speaking"
-  | "mock";
+  | "mock"
+  | "streak"
+  | "xp";
 
 export type AchievementTier = "bronze" | "silver" | "gold";
 
 export interface Achievement {
-  /** Stable identifier — never rename. */
   code: string;
   category: AchievementCategory;
-  /** Groups tier badges for UI ordering. */
   family: string;
   tier: AchievementTier;
-  /** Big game-style title shown above the badge artwork. */
   title: string;
-  /** Short name printed on the badge medal. */
   name: string;
-  /** One-line earn condition shown on the badge wall. */
   description: string;
-  /** Lucide icon key OR custom svg key for the badge artwork. */
   iconKey: string;
-  /** Tailwind color stem for the badge accent (e.g. "amber", "emerald"). */
   color: string;
-  /** Sort order within (category, family). */
   order: number;
 }
 
-/** Vocab — earn by scoring 90%+ on any single lesson. */
+/** Vocab — starter → perfect tiers. Starter fires on the very first
+ *  lesson regardless of score so users see something immediately. */
 const VOCAB_BADGES: Achievement[] = [
+  {
+    code: "vocab_first_lesson",
+    category: "vocab",
+    family: "vocab",
+    tier: "bronze",
+    title: "Mầm Tri Thức",
+    name: "Bài vocab đầu tiên",
+    description: "Hoàn thành bài học từ vựng đầu tiên.",
+    iconKey: "sprout",
+    color: "emerald",
+    order: 1,
+  },
+  {
+    code: "vocab_perfect_70",
+    category: "vocab",
+    family: "vocab",
+    tier: "bronze",
+    title: "Học Trò Cần Cù",
+    name: "Vocab 70%+",
+    description: "Trả lời đúng từ 70% trở lên trong một bài vocab.",
+    iconKey: "book-marked",
+    color: "amber",
+    order: 2,
+  },
+  {
+    code: "vocab_perfect_80",
+    category: "vocab",
+    family: "vocab",
+    tier: "silver",
+    title: "Cao Thủ Từ Vựng",
+    name: "Vocab 80%+",
+    description: "Trả lời đúng từ 80% trở lên trong một bài vocab.",
+    iconKey: "graduation-cap",
+    color: "violet",
+    order: 3,
+  },
   {
     code: "vocab_master_90",
     category: "vocab",
     family: "vocab",
     tier: "gold",
     title: "Bậc Thầy Từ Vựng",
-    name: "Vocab 90%",
-    description: "Trả lời đúng 90% trở lên trong một bài vocab.",
+    name: "Vocab 90%+",
+    description: "Trả lời đúng từ 90% trở lên trong một bài vocab.",
     iconKey: "sparkles",
     color: "amber",
-    order: 1,
+    order: 4,
   },
 ];
 
-/** Shadowing & Dictation — earn by completing 10 lessons. */
+/** Shadowing — first lesson → marathon. */
 const SHADOWING_BADGES: Achievement[] = [
+  {
+    code: "shadowing_first",
+    category: "shadowing",
+    family: "shadowing",
+    tier: "bronze",
+    title: "Tiếng Vọng Đầu Tiên",
+    name: "Shadowing #1",
+    description: "Hoàn thành bài shadowing đầu tiên.",
+    iconKey: "mic",
+    color: "rose",
+    order: 1,
+  },
+  {
+    code: "shadowing_x3",
+    category: "shadowing",
+    family: "shadowing",
+    tier: "bronze",
+    title: "Người Hát Theo",
+    name: "Shadowing ×3",
+    description: "Hoàn thành 3 bài shadowing khác nhau.",
+    iconKey: "music",
+    color: "rose",
+    order: 2,
+  },
+  {
+    code: "shadowing_x5",
+    category: "shadowing",
+    family: "shadowing",
+    tier: "silver",
+    title: "Cánh Én Vang Vọng",
+    name: "Shadowing ×5",
+    description: "Hoàn thành 5 bài shadowing khác nhau.",
+    iconKey: "radio",
+    color: "rose",
+    order: 3,
+  },
   {
     code: "shadowing_marathon_10",
     category: "shadowing",
@@ -76,7 +135,7 @@ const SHADOWING_BADGES: Achievement[] = [
     description: "Hoàn thành 10 bài shadowing.",
     iconKey: "mic",
     color: "rose",
-    order: 1,
+    order: 4,
   },
 ];
 
@@ -95,7 +154,87 @@ const DICTATION_BADGES: Achievement[] = [
   },
 ];
 
-/** Helper to spawn a 3-tier band family (Reading/Listening/Writing/Speaking/Mock). */
+/** Daily streak — fires from any activity (vocab/shadowing/mock) the day
+ *  the user's streakDays counter crosses the threshold. */
+const STREAK_BADGES: Achievement[] = [
+  {
+    code: "streak_3",
+    category: "streak",
+    family: "streak",
+    tier: "bronze",
+    title: "Lửa Mới Nhen",
+    name: "Streak 3 ngày",
+    description: "Giữ chuỗi học 3 ngày liên tục.",
+    iconKey: "flame",
+    color: "amber",
+    order: 1,
+  },
+  {
+    code: "streak_7",
+    category: "streak",
+    family: "streak",
+    tier: "silver",
+    title: "Tuần Lễ Bùng Cháy",
+    name: "Streak 7 ngày",
+    description: "Giữ chuỗi học 7 ngày liên tục.",
+    iconKey: "flame",
+    color: "rose",
+    order: 2,
+  },
+  {
+    code: "streak_30",
+    category: "streak",
+    family: "streak",
+    tier: "gold",
+    title: "Ngọn Lửa Bất Diệt",
+    name: "Streak 30 ngày",
+    description: "Giữ chuỗi học 30 ngày liên tục.",
+    iconKey: "flame",
+    color: "rose",
+    order: 3,
+  },
+];
+
+/** XP milestones — fires when cumulative XP crosses thresholds. */
+const XP_BADGES: Achievement[] = [
+  {
+    code: "xp_100",
+    category: "xp",
+    family: "xp",
+    tier: "bronze",
+    title: "Tân Binh",
+    name: "100 XP",
+    description: "Tích lũy được 100 XP.",
+    iconKey: "zap",
+    color: "amber",
+    order: 1,
+  },
+  {
+    code: "xp_500",
+    category: "xp",
+    family: "xp",
+    tier: "silver",
+    title: "Lão Luyện",
+    name: "500 XP",
+    description: "Tích lũy được 500 XP.",
+    iconKey: "zap",
+    color: "violet",
+    order: 2,
+  },
+  {
+    code: "xp_1000",
+    category: "xp",
+    family: "xp",
+    tier: "gold",
+    title: "Tinh Anh Cự Phách",
+    name: "1000 XP",
+    description: "Tích lũy được 1000 XP.",
+    iconKey: "trophy",
+    color: "amber",
+    order: 3,
+  },
+];
+
 function makeBandTier(
   category: AchievementCategory,
   family: string,
@@ -180,7 +319,6 @@ const SPEAKING_BADGES = makeBandTier(
   "Speaking",
 );
 
-/** Mock — overall band tier. The "game boss" achievement of the platform. */
 const MOCK_BADGES: Achievement[] = [
   {
     code: "mock_overall_60",
@@ -224,6 +362,8 @@ export const ACHIEVEMENTS: Achievement[] = [
   ...VOCAB_BADGES,
   ...SHADOWING_BADGES,
   ...DICTATION_BADGES,
+  ...STREAK_BADGES,
+  ...XP_BADGES,
   ...READING_BADGES,
   ...LISTENING_BADGES,
   ...WRITING_BADGES,
@@ -231,15 +371,10 @@ export const ACHIEVEMENTS: Achievement[] = [
   ...MOCK_BADGES,
 ];
 
-/** O(1) lookup by code. */
 export const ACHIEVEMENT_BY_CODE: Record<string, Achievement> = Object.fromEntries(
   ACHIEVEMENTS.map((a) => [a.code, a]),
 );
 
-/** Which band-tier code (if any) a numeric band score unlocks. Used by the
- *  award helper for Reading/Listening/Writing/Speaking/Mock check. Returns
- *  the HIGHEST tier reached — caller still inserts lower tiers separately
- *  via this function called with the same family (idempotent via DB unique). */
 export function bandTierCode(family: string, band: number): string | null {
   if (band >= 8.0) return `${family}_band_80`;
   if (band >= 7.0) return `${family}_band_70`;
@@ -247,12 +382,37 @@ export function bandTierCode(family: string, band: number): string | null {
   return null;
 }
 
-/** Every tier code at-or-below the user's band — used so we award all
- *  lower medals when someone jumps straight to gold. */
 export function allBandTiersBelow(family: string, band: number): string[] {
   const out: string[] = [];
   if (band >= 6.0) out.push(`${family}_band_60`);
   if (band >= 7.0) out.push(`${family}_band_70`);
   if (band >= 8.0) out.push(`${family}_band_80`);
+  return out;
+}
+
+/** Vocab perfection tiers — call with the lesson score to get every
+ *  perfection medal at-or-below it (collector's mentality, like band). */
+export function allVocabPerfectionCodes(score: number): string[] {
+  const out: string[] = [];
+  if (score >= 70) out.push("vocab_perfect_70");
+  if (score >= 80) out.push("vocab_perfect_80");
+  if (score >= 90) out.push("vocab_master_90");
+  return out;
+}
+
+/** Streak/XP threshold checks — pure functions on the new numeric value. */
+export function streakTierCodes(streakDays: number): string[] {
+  const out: string[] = [];
+  if (streakDays >= 3) out.push("streak_3");
+  if (streakDays >= 7) out.push("streak_7");
+  if (streakDays >= 30) out.push("streak_30");
+  return out;
+}
+
+export function xpTierCodes(totalXp: number): string[] {
+  const out: string[] = [];
+  if (totalXp >= 100) out.push("xp_100");
+  if (totalXp >= 500) out.push("xp_500");
+  if (totalXp >= 1000) out.push("xp_1000");
   return out;
 }

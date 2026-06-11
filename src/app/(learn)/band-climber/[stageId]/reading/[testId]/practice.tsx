@@ -108,7 +108,7 @@ export function BandClimbReadingPractice({
     const score = (correctCount / test.questions.length) * 9;
     try {
       const durationSec = Math.floor((Date.now() - startedAtRef.current) / 1000);
-      await fetch("/api/reading/submit", {
+      const res = await fetch("/api/reading/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -119,6 +119,9 @@ export function BandClimbReadingPractice({
           durationSec,
         }),
       });
+      const data = await res.json().catch(() => ({}));
+      const { triggerUnlocksFromResponse } = await import("@/lib/achievements/client-trigger");
+      triggerUnlocksFromResponse(data);
       toast.success(
         `Bạn đúng ${correctCount}/${test.questions.length} — Band ước tính ~${score.toFixed(1)}`,
       );

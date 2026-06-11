@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { deepgramTranscribe } from "@/lib/deepgram";
-import { awardAchievement } from "@/lib/achievements/award";
+import { awardMany } from "@/lib/achievements/award";
 import type { Achievement } from "@/lib/achievements/catalog";
 
 /**
@@ -228,21 +228,23 @@ export async function POST(req: Request) {
     },
   });
 
-  // Achievement check — 10 distinct shadowing lessons attempted. groupBy is
-  // cheap (one indexed query) and the count check is a no-op once unlocked.
+  // Achievement check — tier the count thresholds (1/3/5/10 distinct
+  // lessons with a passing score). groupBy is cheap (one indexed query)
+  // and the create attempts are no-ops once unlocked thanks to DB unique.
   let unlocked: Achievement[] = [];
   if (score >= 50) {
     const distinctLessons = await prisma.shadowingAttempt.groupBy({
       by: ["lessonId"],
       where: { userId: session.user.id, score: { gte: 50 } },
     });
-    if (distinctLessons.length >= 10) {
-      const result = await awardAchievement(
-        session.user.id,
-        "shadowing_marathon_10",
-        { count: distinctLessons.length },
-      );
-      if (result.unlocked && result.achievement) unlocked = [result.achievement];
+    const n = distinctLessons.length;
+    const codes: string[] = [];
+    if (n >= 1) codes.push("shadowing_first");
+    if (n >= 3) codes.push("shadowing_x3");
+    if (n >= 5) codes.push("shadowing_x5");
+    if (n >= 10) codes.push("shadowing_marathon_10");
+    if (codes.length > 0) {
+      unlocked = await awardMany(session.user.id, codes, { count: n });
     }
   }
 

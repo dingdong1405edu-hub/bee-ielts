@@ -185,10 +185,11 @@ export async function POST(req: Request) {
       }),
   ].filter(Boolean));
 
-  await recordActivity(userId, { xpGain: 200 });
+  const unlocked = await recordActivity(userId, { xpGain: 200 });
 
   return NextResponse.json({
     overallBand,
+    unlocked,
     perSkill: {
       listening: listeningBand,
       reading: readingBand,

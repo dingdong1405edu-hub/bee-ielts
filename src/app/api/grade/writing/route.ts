@@ -81,9 +81,9 @@ export async function POST(req: Request) {
       },
     });
 
-    await recordActivity(session.user.id, { xpGain: 50 });
+    const unlocked = await recordActivity(session.user.id, { xpGain: 50 });
 
-    return NextResponse.json({ result });
+    return NextResponse.json({ result, unlocked });
   } catch (e) {
     console.error("[grade/writing] error", e);
     return NextResponse.json({ error: "AI chấm bài thất bại" }, { status: 500 });
