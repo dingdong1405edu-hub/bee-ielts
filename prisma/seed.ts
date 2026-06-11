@@ -1,6 +1,7 @@
 import { PrismaClient, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { VOCAB_UNITS } from "./data/vocab";
+import { IELTS_VOCAB_UNITS } from "./data/vocab-ielts";
 import { GRAMMAR_UNITS } from "./data/grammar";
 import { READING_TESTS } from "./data/reading";
 import { READING_TESTS_V2 } from "./data/reading-v2";
@@ -72,6 +73,45 @@ async function main() {
     console.log("Vocab: seeded.");
   } else {
     console.log("Vocab: skipped (đã có dữ liệu).");
+  }
+
+  // IELTS-themed vocab expansion — ADDITIVE. Adds any unit/lesson from
+  // IELTS_VOCAB_UNITS that doesn't already exist by title. Re-deploy never
+  // duplicates, and admin can still delete units they don't want (they
+  // won't be re-created unless their title disappears from the array).
+  let ieltsCreated = 0;
+  for (const unit of IELTS_VOCAB_UNITS) {
+    const existingUnit = await prisma.vocabUnit.findFirst({
+      where: { title: unit.title },
+    });
+    let unitId = existingUnit?.id;
+    if (!unitId) {
+      const created = await prisma.vocabUnit.create({
+        data: {
+          title: unit.title,
+          level: unit.level,
+          order: unit.order,
+          iconKey: unit.iconKey ?? null,
+        },
+      });
+      unitId = created.id;
+      ieltsCreated++;
+    }
+    for (const l of unit.lessons) {
+      const existingLesson = await prisma.vocabLesson.findFirst({
+        where: { unitId, title: l.title },
+      });
+      if (!existingLesson) {
+        await prisma.vocabLesson.create({
+          data: { unitId, title: l.title, order: l.order, exercises: l.exercises },
+        });
+      }
+    }
+  }
+  if (ieltsCreated > 0) {
+    console.log(`Vocab IELTS: added ${ieltsCreated} new themed units.`);
+  } else {
+    console.log("Vocab IELTS: no new units to add (already up-to-date).");
   }
 
   // Grammar — only on a fresh DB.
