@@ -2,7 +2,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Video, Plus, Loader2, Trash2, Youtube, ExternalLink, Sparkles, ChevronDown, Wand2, Pencil } from "lucide-react";
+import { Video, Plus, Loader2, Trash2, Youtube, ExternalLink, Sparkles, ChevronDown, Wand2, Pencil, Scissors } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -264,6 +264,38 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
       if (!res.ok) throw new Error("Xoá thất bại");
       setLessons((prev) => prev.filter((x) => x.id !== l.id));
       toast.success("Đã xoá");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Lỗi");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  /** Re-divide an existing lesson's segments with the dialogue-aware
+   *  splitter — fixes lessons where two characters' lines got glued into one
+   *  segment. No YouTube fetch involved (works even while YT is blocking the
+   *  server); IPA + Vietnamese are kept for any line that doesn't change. */
+  const resegment = async (l: LessonRow) => {
+    if (
+      !confirm(
+        `Chia lại câu cho "${l.title}" theo từng nhân vật?\n\nCâu của 2 người đang bị dính sẽ được tách ra. IPA + tiếng Việt của câu không đổi vẫn được giữ nguyên.`,
+      )
+    )
+      return;
+    setBusyId(l.id);
+    try {
+      const res = await fetch(`/api/admin/shadowing/${l.id}/resegment`, {
+        method: "POST",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Chia lại thất bại");
+      setLessons((prev) =>
+        prev.map((x) => (x.id === l.id ? { ...x, segmentCount: data.after } : x)),
+      );
+      toast.success(
+        `Đã chia lại: ${data.before} → ${data.after} đoạn` +
+          (data.enriched ? ` (dịch mới ${data.enriched} đoạn)` : ""),
+      );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Lỗi");
     } finally {
@@ -605,6 +637,21 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
                         <a href={`/shadowing/${l.id}`} target="_blank" rel="noreferrer">
                           <ExternalLink className="h-3 w-3" /> Xem
                         </a>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs border-sage-300 text-sage-700 hover:bg-sage-50"
+                        onClick={() => resegment(l)}
+                        disabled={busyId === l.id}
+                        title="Chia lại câu theo từng nhân vật (sửa lời 2 người bị dính vào nhau)"
+                      >
+                        {busyId === l.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Scissors className="h-3 w-3" />
+                        )}{" "}
+                        Re-chia câu
                       </Button>
                       <Button
                         size="sm"

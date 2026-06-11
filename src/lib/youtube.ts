@@ -84,7 +84,56 @@ export interface MergedSegment {
   startSec: number;
   endSec: number;
   textEn: string;
+  /** True when this segment begins a NEW speaker's turn — detected from the
+   *  caption dialogue convention (a line starting with "- ", or a broadcast
+   *  ">>" speaker-change marker). Downstream passes use this to make sure two
+   *  characters' lines never get merged into one shadowing drill. */
+  speakerStart?: boolean;
 }
+
+/**
+ * Split a single caption cue's text into per-speaker turns.
+ *
+ * Caption dialogue convention: each speaker's line begins with a dash
+ * ("- "), and broadcast captions use ">>" for a speaker change. A single cue
+ * can hold two speakers, e.g. "- Hi there. - Hello!". We split such a cue
+ * into separate turns so the merger can keep each character in its own
+ * segment. `isNewSpeaker` flags turns that were introduced by a dash / ">>"
+ * marker (the first turn counts as "new" only if the text itself led with a
+ * marker). Plain monologue captions have no markers → a single turn → the
+ * pipeline behaves exactly as before.
+ */
+function splitSpeakerTurns(
+  raw: string,
+): { text: string; isNewSpeaker: boolean }[] {
+  // Caption dialogue convention: each speaker line begins with a dash
+  // ("- "), and broadcast captions use ">>" for a speaker change. Normalise
+  // both into dashed lines, then read off exactly one turn per line.
+  let t = raw.replace(/\r/g, "\n");
+  // ">>" / ">>>" broadcast speaker change anywhere -> start a new dashed line.
+  t = t.replace(/\s*>>+\s*/g, "\n- ");
+  // Inline turn: a dash right after a sentence end ("...there. - Hello").
+  t = t.replace(/([.!?"'’”])\s+[-–—]\s+/g, "$1\n- ");
+  const turns: { text: string; isNewSpeaker: boolean }[] = [];
+  for (const lineRaw of t.split("\n")) {
+    const line = lineRaw.replace(/\s+/g, " ").trim();
+    if (!line) continue;
+    const m = /^[-–—]\s+(.*)$/.exec(line);
+    if (m) {
+      // A dash-led line is a fresh speaker's turn.
+      turns.push({ text: m[1].trim(), isNewSpeaker: true });
+    } else if (turns.length === 0) {
+      // First line, no dash -> ordinary (monologue) line.
+      turns.push({ text: line, isNewSpeaker: false });
+    } else {
+      // No dash and we already have a turn -> wrapped continuation line of
+      // the SAME speaker; append it.
+      turns[turns.length - 1].text += " " + line;
+    }
+  }
+  return turns;
+}
+
 export function mergeCuesIntoSegments(
   cues: RawCue[],
   opts: { targetSec?: number; maxSec?: number; gapSec?: number } = {},
@@ -96,22 +145,42 @@ export function mergeCuesIntoSegments(
   const targetSec = opts.targetSec ?? 4;
   const maxSec = opts.maxSec ?? 7;
   const gapSec = opts.gapSec ?? 1.2;
-  const cleaned = cues
-    .map((c) => ({
-      ...c,
-      text: c.text
-        .replace(/<[^>]+>/g, " ")
-        .replace(/&amp;/g, "&")
-        .replace(/&#39;/g, "'")
-        .replace(/&quot;/g, '"')
-        .replace(/\[.*?\]/g, " ")
-        .replace(/\s+/g, " ")
-        .trim(),
-    }))
-    .filter((c) => c.text.length > 0);
+  // Clean each cue, then split it into per-speaker turns. A cue that holds
+  // two characters ("- Hi. - Hello.") becomes two work-cues, the second one
+  // flagged `speakerBreak` so the merge loop starts a fresh segment there.
+  // The cue's time is shared across its turns proportionally by length.
+  type WorkCue = RawCue & { speakerBreak: boolean };
+  const cleaned: WorkCue[] = [];
+  for (const c of cues) {
+    const norm = c.text
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&#39;/g, "'")
+      .replace(/&quot;/g, '"')
+      .replace(/\[.*?\]/g, " ");
+    const turns = splitSpeakerTurns(norm);
+    if (turns.length === 0) continue;
+    const totalLen = turns.reduce((sum, tn) => sum + tn.text.length, 0) || 1;
+    let t = c.offsetSec;
+    turns.forEach((turn, idx) => {
+      const isLastTurn = idx === turns.length - 1;
+      const frac = turn.text.length / totalLen;
+      const offsetSec = t;
+      const durationSec = isLastTurn
+        ? Math.max(0.1, c.offsetSec + c.durationSec - offsetSec)
+        : Math.max(0.1, c.durationSec * frac);
+      t = offsetSec + durationSec;
+      cleaned.push({
+        text: turn.text,
+        offsetSec,
+        durationSec,
+        speakerBreak: turn.isNewSpeaker,
+      });
+    });
+  }
 
   const segments: MergedSegment[] = [];
-  let bucket: RawCue[] = [];
+  let bucket: WorkCue[] = [];
   const flush = () => {
     if (bucket.length === 0) return;
     const startSec = bucket[0].offsetSec;
@@ -122,12 +191,16 @@ export function mergeCuesIntoSegments(
       .join(" ")
       .replace(/\s+/g, " ")
       .trim();
-    if (textEn) segments.push({ startSec, endSec, textEn });
+    if (textEn)
+      segments.push({ startSec, endSec, textEn, speakerStart: bucket[0].speakerBreak });
     bucket = [];
   };
 
   for (let i = 0; i < cleaned.length; i++) {
     const cur = cleaned[i];
+    // A new speaker's turn ALWAYS opens a fresh segment — this is the core
+    // dialogue fix: one character's line never bleeds into the next.
+    if (cur.speakerBreak && bucket.length > 0) flush();
     const prev = bucket[bucket.length - 1];
     if (prev) {
       const gap = cur.offsetSec - (prev.offsetSec + prev.durationSec);
@@ -137,8 +210,11 @@ export function mergeCuesIntoSegments(
     const windowStart = bucket[0].offsetSec;
     const windowEnd = cur.offsetSec + cur.durationSec;
     const span = windowEnd - windowStart;
-    const endsSentence = /[.!?]\s*$/.test(cur.text);
-    if (endsSentence && span >= targetSec * 0.5) flush();
+    const endsSentence = /[.!?]["'’”]?\s*$/.test(cur.text);
+    // Flush at every sentence end so a speaker finishes their thought before
+    // the next line begins — keeps each drill one coherent sentence. maxSec /
+    // comma flushes remain the safety net for un-punctuated auto-captions.
+    if (endsSentence) flush();
     else if (span >= maxSec) flush();
     else if (span >= targetSec && /[,;:]\s*$/.test(cur.text)) flush();
   }
@@ -204,9 +280,11 @@ function splitAtConjunction(seg: MergedSegment): MergedSegment[] {
   const span = seg.endSec - seg.startSec;
   const beforeFrac = before.length / (before.length + after.length);
   const splitSec = seg.startSec + span * beforeFrac;
+  // Only the FIRST piece inherits the speaker-turn flag; the rest are the
+  // same speaker continuing, so they must not re-open a turn.
   return [
-    { startSec: seg.startSec, endSec: splitSec, textEn: before },
-    { startSec: splitSec, endSec: seg.endSec, textEn: after },
+    { startSec: seg.startSec, endSec: splitSec, textEn: before, speakerStart: seg.speakerStart },
+    { startSec: splitSec, endSec: seg.endSec, textEn: after, speakerStart: false },
   ];
 }
 
@@ -246,7 +324,8 @@ export function refineSegmentsForShadowing(
       const startSec = t;
       const endSec = idx === cleanedPieces.length - 1 ? seg.endSec : t + dur;
       t = endSec;
-      splitOpen.push({ startSec, endSec, textEn: p });
+      // Only the first comma-piece keeps the speaker-turn flag.
+      splitOpen.push({ startSec, endSec, textEn: p, speakerStart: idx === 0 ? seg.speakerStart : false });
     });
   }
 
@@ -284,8 +363,26 @@ export function refineSegmentsForShadowing(
   // --- 3) Merge any segment that is JUST an interjection. ---
   // pendingFiller is LOCAL — never put state at module scope inside an
   // async server route. Two admin requests in parallel would collide.
+  //
+  // Speaker-aware: a filler is only folded into an adjacent line when they
+  // belong to the SAME speaker. We never glue one character's "Yeah." onto
+  // another character's sentence — that's exactly the dialogue bug we're
+  // fixing. When the neighbour is a different speaker the filler is emitted
+  // as its own little segment instead.
   const refined: MergedSegment[] = [];
-  const pendingFiller: MergedSegment[] = [];
+  let pendingFiller: MergedSegment[] = [];
+  const emitFillerStandalone = () => {
+    if (pendingFiller.length === 0) return;
+    const head = pendingFiller[0];
+    const tail = pendingFiller[pendingFiller.length - 1];
+    refined.push({
+      startSec: head.startSec,
+      endSec: tail.endSec,
+      textEn: pendingFiller.map((p) => p.textEn).join(" ").trim(),
+      speakerStart: head.speakerStart,
+    });
+    pendingFiller = [];
+  };
   for (let idx = 0; idx < splitOpenFinal.length; idx++) {
     const seg = splitOpenFinal[idx];
     const isLast = idx === splitOpenFinal.length - 1;
@@ -294,29 +391,40 @@ export function refineSegmentsForShadowing(
       continue;
     }
     if (pendingFiller.length > 0) {
-      const head = pendingFiller[0];
-      const text = `${pendingFiller.map((p) => p.textEn).join(" ")} ${seg.textEn}`.trim();
-      refined.push({
-        startSec: head.startSec,
-        endSec: seg.endSec,
-        textEn: text,
-      });
-      pendingFiller.length = 0;
+      // seg.speakerStart === true means seg opens a NEW speaker's turn, so the
+      // pending filler belongs to the previous speaker → keep them separate.
+      if (seg.speakerStart) {
+        emitFillerStandalone();
+        refined.push(seg);
+      } else {
+        const head = pendingFiller[0];
+        const text = `${pendingFiller.map((p) => p.textEn).join(" ")} ${seg.textEn}`.trim();
+        refined.push({
+          startSec: head.startSec,
+          endSec: seg.endSec,
+          textEn: text,
+          speakerStart: head.speakerStart,
+        });
+        pendingFiller = [];
+      }
     } else {
       refined.push(seg);
     }
   }
-  // If we ended with leftover interjections (last segment WAS an
-  // interjection), fold them into the previous real segment so the drill
-  // text isn't a meaningless filler.
-  if (pendingFiller.length > 0 && refined.length > 0) {
+  // Leftover trailing interjections (last segment WAS a filler). Fold into the
+  // previous segment only when it's the same speaker; otherwise stand alone.
+  if (pendingFiller.length > 0) {
     const last = refined[refined.length - 1];
-    const tail = pendingFiller.map((p) => p.textEn).join(" ");
-    refined[refined.length - 1] = {
-      startSec: last.startSec,
-      endSec: pendingFiller[pendingFiller.length - 1].endSec,
-      textEn: `${last.textEn} ${tail}`.trim(),
-    };
+    if (last && !pendingFiller[0].speakerStart) {
+      const tail = pendingFiller.map((p) => p.textEn).join(" ");
+      refined[refined.length - 1] = {
+        ...last,
+        endSec: pendingFiller[pendingFiller.length - 1].endSec,
+        textEn: `${last.textEn} ${tail}`.trim(),
+      };
+    } else {
+      emitFillerStandalone();
+    }
   }
 
   return refined;
