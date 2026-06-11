@@ -817,7 +817,109 @@ export async function fetchYouTubeCaptionsViaPublicApi(
     );
   }
 
-  // Path 2 — youtube-transcript.io (POST ids[]) — they cache popular
+  // Path 2 — tactiq.io public transcript endpoint (POST videoUrl + langCode).
+  // Returns { captions: [{ text, start, dur }] }. No auth, runs on their
+  // own proxy infra — historically very reliable when YT direct fails.
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 15000);
+    const r = await fetch("https://tactiq-apps-prod.tactiq.io/transcript", {
+      method: "POST",
+      signal: ctrl.signal,
+      headers: {
+        "Content-Type": "application/json",
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        Accept: "application/json",
+        Origin: "https://tactiq.io",
+        Referer: "https://tactiq.io/",
+      },
+      body: JSON.stringify({
+        videoUrl: `https://www.youtube.com/watch?v=${videoId}`,
+        langCode: "en",
+      }),
+    }).finally(() => clearTimeout(t));
+    if (r.ok) {
+      const data = (await r.json()) as {
+        captions?: Array<{ text: string; start: string | number; dur?: string | number }>;
+      };
+      const rows = data.captions ?? [];
+      if (rows.length > 0) {
+        const cues = rows
+          .filter((row) => row.text)
+          .map((row) => ({
+            text: row.text,
+            offsetSec: Number(row.start) || 0,
+            durationSec: Math.max(0.3, Number(row.dur ?? 2.5)),
+          }));
+        if (cues.length > 0) {
+          console.log(`[yt-captions] tactiq.io success: ${cues.length} cues`);
+          return { cues, availableLangs: ["en"] };
+        }
+      }
+      attempts.push("tactiq.io: captions rỗng trong response");
+    } else {
+      attempts.push(`tactiq.io: HTTP ${r.status}`);
+    }
+  } catch (e) {
+    attempts.push(`tactiq.io: ${e instanceof Error ? e.message : e}`);
+  }
+
+  // Path 3 — kome.ai public transcript endpoint. Same shape as tactiq.
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 15000);
+    const r = await fetch("https://kome.ai/api/tools/youtube-transcripts", {
+      method: "POST",
+      signal: ctrl.signal,
+      headers: {
+        "Content-Type": "application/json",
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        Accept: "application/json",
+        Origin: "https://kome.ai",
+        Referer: "https://kome.ai/",
+      },
+      body: JSON.stringify({
+        video_id: `https://www.youtube.com/watch?v=${videoId}`,
+        format: false,
+      }),
+    }).finally(() => clearTimeout(t));
+    if (r.ok) {
+      const data = (await r.json()) as {
+        transcript?: string;
+      };
+      if (data.transcript && data.transcript.length > 50) {
+        // kome.ai returns plain text without timestamps. Synthesise
+        // timestamps assuming average reading speed (~150wpm = 2.5 wps).
+        // Split by sentence-ish punctuation so each cue lands on a
+        // natural unit; the downstream merger handles further refinement.
+        const sentences = data.transcript
+          .split(/(?<=[.!?])\s+/)
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0);
+        let t = 0;
+        const cues = sentences.map((text) => {
+          const words = text.split(/\s+/).length;
+          const dur = Math.max(1, words / 2.5);
+          const cue = { text, offsetSec: t, durationSec: dur };
+          t += dur;
+          return cue;
+        });
+        if (cues.length > 0) {
+          console.log(`[yt-captions] kome.ai success: ${cues.length} cues (synth timing)`);
+          return { cues, availableLangs: ["en"] };
+        }
+      }
+      attempts.push("kome.ai: transcript trống");
+    } else {
+      attempts.push(`kome.ai: HTTP ${r.status}`);
+    }
+  } catch (e) {
+    attempts.push(`kome.ai: ${e instanceof Error ? e.message : e}`);
+  }
+
+  // Path 4 — youtube-transcript.io (POST ids[]) — they cache popular
   // videos. Returns { tracks: [{ transcript: [{ text, start, dur }] }] }.
   // Free tier, no auth needed for short lookups.
   try {
@@ -875,7 +977,7 @@ export async function fetchYouTubeCaptionsViaPublicApi(
   }
 
   throw new Error(
-    `Tất cả ${2} public transcript API fail: ${attempts.join(" | ")}`,
+    `Tất cả ${4} public transcript API fail: ${attempts.join(" | ")}`,
   );
 }
 

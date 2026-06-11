@@ -47,6 +47,46 @@ export function PodcastsAdminClient({ initial }: { initial: PodcastRow[] }) {
     if (!url.trim()) return toast.error("Dán URL YouTube");
     setBusy(true);
     try {
+      // Try BROWSER-SIDE captions first — admin's residential IP isn't
+      // bot-flagged by YouTube the way Railway IPs are.
+      try {
+        const { extractYoutubeId } = await import("@/lib/youtube-client-shared");
+        const ytId = extractYoutubeId(url.trim());
+        if (ytId) {
+          const { fetchYouTubeCaptionsViaBrowser } = await import(
+            "@/lib/youtube-browser-captions"
+          );
+          const { cues } = await fetchYouTubeCaptionsViaBrowser(ytId);
+          const browserRes = await fetch("/api/admin/podcasts/from-cues", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              youtubeUrl: url.trim(),
+              title: title.trim() || undefined,
+              channel: channel.trim() || undefined,
+              cues,
+            }),
+          });
+          const browserData = await browserRes.json().catch(() => ({}));
+          if (browserRes.ok) {
+            toast.success(
+              `Đã tạo podcast qua trình duyệt (${browserData.segmentCount} đoạn)`,
+            );
+            setUrl("");
+            setTitle("");
+            setChannel("");
+            router.refresh();
+            return;
+          }
+          console.warn("[admin/podcasts] browser path /from-cues fail:", browserData);
+        }
+      } catch (browserErr) {
+        console.warn(
+          "[admin/podcasts] browser path fail, falling back to server:",
+          browserErr,
+        );
+      }
+
       const res = await fetch("/api/admin/podcasts/from-youtube", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
