@@ -12,6 +12,7 @@ import { LearnBackground } from "@/components/learn/learn-background";
 import { FloatingHelpers } from "@/components/learn/floating-helpers";
 import { BackgroundMusicPlayer } from "@/components/learn/background-music";
 import { SelectionVocab } from "@/components/learn/selection-vocab";
+import { AchievementUnlockProvider } from "@/components/achievements/achievement-unlock-popup";
 import { BeeLogo } from "@/components/brand";
 
 export default async function LearnLayout({ children }: { children: React.ReactNode }) {
@@ -70,6 +71,10 @@ export default async function LearnLayout({ children }: { children: React.ReactN
           popup dịch + nút "Lưu vào sổ từ". Active trên toàn (learn).
           Vùng nào không muốn: thêm data-no-vocab vào wrapper. */}
       <SelectionVocab />
+      {/* Achievement unlock popup — fanfare + confetti + medal animation.
+          Fires when any API response includes a non-empty `unlocked[]`
+          and a client component calls triggerUnlocksFromResponse(). */}
+      <AchievementUnlockProvider />
     </div>
   );
 }

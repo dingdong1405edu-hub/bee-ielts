@@ -5,6 +5,8 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { gradeWritingGroq, gradeSpeakingGroq } from "@/lib/groq";
 import { isAnswerCorrect } from "@/lib/utils";
+import { awardBandTier } from "@/lib/achievements/award";
+import type { Achievement } from "@/lib/achievements/catalog";
 
 const gradableQuestion = z.object({
   id: z.string(),
@@ -373,9 +375,28 @@ export async function POST(req: Request) {
     isCorrect: isAnswerCorrect(reading.answers[q.id], q.correctAnswer, q.type),
   }));
 
+  // Achievement check — award per-skill tiers + overall mock tiers based on
+  // the bands earned. awardBandTier walks every tier at-or-below the band
+  // so a 7.5 reader picks up BOTH "Reading 6.0+" and "Reading 7.0+" medals.
+  const unlocked: Achievement[] = [];
+  for (const family of [
+    { name: "listening", band: lBand },
+    { name: "reading", band: rBand },
+    { name: "writing", band: wBand },
+    { name: "speaking", band: sBand },
+    { name: "mock", band: overallBand },
+  ]) {
+    const newly = await awardBandTier(userId, family.name, family.band, {
+      attemptId: attempt.id,
+      band: family.band,
+    });
+    unlocked.push(...newly);
+  }
+
   return NextResponse.json({
     attemptId: attempt.id,
     overallBand,
+    unlocked,
     perSkill: {
       listening: { band: lBand, correct: lCorrect, total: listening.questions.length, attempted: lAttempted },
       reading: { band: rBand, correct: rCorrect, total: reading.questions.length, attempted: rAttempted },

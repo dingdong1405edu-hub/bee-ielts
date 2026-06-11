@@ -175,6 +175,10 @@ export function MockRunner({ targetBand, listenings, readings, writing, speaking
       if (!res.ok) throw new Error(data.error);
       setResult(data);
       setStage("done");
+      const { triggerUnlocksFromResponse } = await import(
+        "@/lib/achievements/client-trigger"
+      );
+      triggerUnlocksFromResponse(data);
     } catch (e) {
       console.error(e);
       toast.error("Chấm bài thất bại. Đã lưu draft.");

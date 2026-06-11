@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { deepgramTranscribe } from "@/lib/deepgram";
+import { awardAchievement } from "@/lib/achievements/award";
+import type { Achievement } from "@/lib/achievements/catalog";
 
 /**
  * Score a shadowing attempt. The client POSTs raw audio bytes; query
@@ -226,6 +228,24 @@ export async function POST(req: Request) {
     },
   });
 
+  // Achievement check — 10 distinct shadowing lessons attempted. groupBy is
+  // cheap (one indexed query) and the count check is a no-op once unlocked.
+  let unlocked: Achievement[] = [];
+  if (score >= 50) {
+    const distinctLessons = await prisma.shadowingAttempt.groupBy({
+      by: ["lessonId"],
+      where: { userId: session.user.id, score: { gte: 50 } },
+    });
+    if (distinctLessons.length >= 10) {
+      const result = await awardAchievement(
+        session.user.id,
+        "shadowing_marathon_10",
+        { count: distinctLessons.length },
+      );
+      if (result.unlocked && result.achievement) unlocked = [result.achievement];
+    }
+  }
+
   return NextResponse.json({
     transcript,
     expected: segment.textEn,
@@ -234,6 +254,7 @@ export async function POST(req: Request) {
     total: expectedWords.length,
     missingWords,
     extraWords,
+    unlocked,
   });
 }
 

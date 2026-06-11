@@ -715,6 +715,11 @@ export function ShadowingPlayer({ lesson, segments, mode = "shadowing" }: Shadow
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || "Chấm thất bại");
         setScore(data as ScoreResult);
+        // Fire any achievement unlocks from the response.
+        const { triggerUnlocksFromResponse } = await import(
+          "@/lib/achievements/client-trigger"
+        );
+        triggerUnlocksFromResponse(data);
         setCompletedIds((s) => {
           const next = new Set(s).add(active.id);
           // User asked "thêm nhiều sound effect càng nhiều càng tốt".

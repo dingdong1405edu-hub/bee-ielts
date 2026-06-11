@@ -3,6 +3,8 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { recordActivity } from "@/lib/activity";
+import { awardAchievement } from "@/lib/achievements/award";
+import type { Achievement } from "@/lib/achievements/catalog";
 
 const schema = z.object({
   lessonId: z.string(),
@@ -42,5 +44,16 @@ export async function POST(req: Request) {
 
   await recordActivity(session.user.id, { xpGain });
 
-  return NextResponse.json({ ok: true, xpGain });
+  // Achievement check — 90%+ score unlocks "Bậc Thầy Từ Vựng".
+  let unlocked: Achievement[] = [];
+  if (score >= 90) {
+    const result = await awardAchievement(
+      session.user.id,
+      "vocab_master_90",
+      { lessonId, score, totalCorrect, total },
+    );
+    if (result.unlocked && result.achievement) unlocked = [result.achievement];
+  }
+
+  return NextResponse.json({ ok: true, xpGain, unlocked });
 }

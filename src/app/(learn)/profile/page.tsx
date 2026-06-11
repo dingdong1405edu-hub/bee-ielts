@@ -3,10 +3,13 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
-import { BookOpen, Headphones, PenLine, Mic, Sparkles, BookOpenText, Zap, Flame, Target, ChevronRight, GraduationCap, Trophy } from "lucide-react";
+import { BookOpen, Headphones, PenLine, Mic, Sparkles, BookOpenText, Zap, Flame, Target, ChevronRight, GraduationCap, Trophy, Lock } from "lucide-react";
+import * as LucideIcons from "lucide-react";
 import { ProfileHeader } from "./profile-header";
 import { DeleteAttemptButton } from "@/components/learn/delete-attempt-button";
 import { EmptyState, Leaf } from "@/components/brand";
+import { ACHIEVEMENTS } from "@/lib/achievements/catalog";
+import { listUnlockedCodes } from "@/lib/achievements/award";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +34,7 @@ export default async function ProfilePage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const [user, attempts, mocks] = await Promise.all([
+  const [user, attempts, mocks, unlockedCodes] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
@@ -66,7 +69,9 @@ export default async function ProfilePage() {
         speakingBand: true,
       },
     }),
+    listUnlockedCodes(session.user.id),
   ]);
+  const unlockedSet = new Set(unlockedCodes);
   if (!user) redirect("/login");
 
   return (
@@ -85,6 +90,56 @@ export default async function ProfilePage() {
         <StatTile icon={Flame} label="Streak" value={`${user.streakDays} ngày`} grad="from-gold-500 to-red-500" />
         <StatTile icon={Target} label="Mục tiêu" value={`Band ${user.targetBand.toFixed(1)}`} grad="from-honey to-honey-deep" />
         <StatTile icon={BookOpen} label="Bài đã làm" value={String(attempts.length)} grad="from-sage-500 to-teal-500" />
+      </div>
+
+      {/* Achievement / badge wall */}
+      <div>
+        <h2 className="text-lg font-extrabold mb-3 flex items-center gap-2">
+          <Trophy className="h-5 w-5 text-honey-deep" />
+          Huy chương & Danh hiệu
+          <span className="ml-auto text-xs font-bold text-muted-foreground">
+            {unlockedSet.size} / {ACHIEVEMENTS.length}
+          </span>
+        </h2>
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4">
+          {ACHIEVEMENTS.map((a) => {
+            const unlocked = unlockedSet.has(a.code);
+            const Icon =
+              ((LucideIcons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[
+                kebabToPascal(a.iconKey)
+              ]) || LucideIcons.Award;
+            const colorClasses = unlocked ? medalColors(a.color) : medalColorsLocked();
+            return (
+              <div
+                key={a.code}
+                className={`relative rounded-2xl border-2 p-3 text-center transition-all ${
+                  unlocked
+                    ? "border-honey/40 bg-paper shadow-sm hover:shadow-md"
+                    : "border-dashed border-muted bg-muted/20 opacity-70"
+                }`}
+                title={a.description}
+              >
+                <div className="relative mx-auto h-16 w-16 grid place-items-center rounded-full"
+                  style={{ backgroundImage: `linear-gradient(135deg, ${colorClasses.light}, ${colorClasses.dark})` }}
+                >
+                  <Icon className="h-8 w-8 text-white drop-shadow" />
+                  {!unlocked && (
+                    <div className="absolute inset-0 grid place-items-center rounded-full bg-black/40 backdrop-blur-[1px]">
+                      <Lock className="h-5 w-5 text-white/90" />
+                    </div>
+                  )}
+                </div>
+                <p className="mt-2 text-[11px] uppercase tracking-wider font-bold text-honey-deep">
+                  {a.tier === "gold" ? "Vàng" : a.tier === "silver" ? "Bạc" : "Đồng"}
+                </p>
+                <p className="font-display font-extrabold text-sm leading-tight mt-0.5">
+                  {a.title}
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">{a.name}</p>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Mock test history */}
@@ -200,6 +255,25 @@ export default async function ProfilePage() {
       </div>
     </div>
   );
+}
+
+function kebabToPascal(s: string): string {
+  return s.split("-").map((p) => p[0]?.toUpperCase() + p.slice(1)).join("");
+}
+
+function medalColors(color: string): { light: string; dark: string } {
+  const map: Record<string, { light: string; dark: string }> = {
+    amber: { light: "#fde68a", dark: "#b45309" },
+    rose: { light: "#fda4af", dark: "#9f1239" },
+    violet: { light: "#c4b5fd", dark: "#5b21b6" },
+    sky: { light: "#7dd3fc", dark: "#075985" },
+    emerald: { light: "#6ee7b7", dark: "#065f46" },
+  };
+  return map[color] ?? map.amber;
+}
+
+function medalColorsLocked(): { light: string; dark: string } {
+  return { light: "#cbd5e1", dark: "#475569" };
 }
 
 function MiniBand({ label, v }: { label: string; v: number }) {
