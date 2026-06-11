@@ -121,25 +121,39 @@ export async function POST(
   }
 
   // Full replace: delete the old rows, write the freshly-split ones.
-  await prisma.$transaction(async (tx) => {
-    await tx.shadowingSegment.deleteMany({ where: { lessonId: id } });
-    for (let i = 0; i < merged.length; i++) {
-      const s = merged[i];
-      const enriched = enrichedMap.get(i);
-      const kept = carried[i];
-      await tx.shadowingSegment.create({
-        data: {
-          lessonId: id,
-          order: i + 1,
-          startSec: s.startSec,
-          endSec: s.endSec,
-          textEn: s.textEn,
-          textVi: kept?.textVi ?? enriched?.textVi ?? null,
-          ipa: kept?.ipa ?? enriched?.ipa ?? null,
-        },
-      });
-    }
+  // Use deleteMany + a SINGLE createMany inside the batched ($transaction
+  // array) form — NOT an interactive transaction with a per-row create loop.
+  // The interactive form has a hard 5s timeout, so a lesson with many
+  // segments would throw "Transaction already closed"; createMany is one
+  // fast statement with no such limit.
+  const rows = merged.map((s, i) => {
+    const enriched = enrichedMap.get(i);
+    const kept = carried[i];
+    return {
+      lessonId: id,
+      order: i + 1,
+      startSec: s.startSec,
+      endSec: s.endSec,
+      textEn: s.textEn,
+      textVi: kept?.textVi ?? enriched?.textVi ?? null,
+      ipa: kept?.ipa ?? enriched?.ipa ?? null,
+    };
   });
+  try {
+    await prisma.$transaction([
+      prisma.shadowingSegment.deleteMany({ where: { lessonId: id } }),
+      prisma.shadowingSegment.createMany({ data: rows }),
+    ]);
+  } catch (e) {
+    console.error(
+      `[resegment] DB write failed lesson=${id} rows=${rows.length}:`,
+      e instanceof Error ? e.message : e,
+    );
+    return NextResponse.json(
+      { error: "Lưu DB lỗi khi chia lại. Thử lại — nếu lặp lại, báo dev." },
+      { status: 500 },
+    );
+  }
 
   return NextResponse.json({
     ok: true,
