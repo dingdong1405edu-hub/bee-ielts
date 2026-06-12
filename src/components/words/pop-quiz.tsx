@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { CheckCircle2, XCircle, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { playCorrectSfx, playWrongSfx } from "@/lib/quiz-sfx";
 
 type QuizCard = { term: string; answer: string; options: string[] };
 
@@ -65,7 +66,11 @@ export function PopQuiz({ enabled }: { enabled: boolean }) {
               <button
                 key={opt}
                 disabled={answered}
-                onClick={() => setPicked(opt)}
+                onClick={() => {
+                  setPicked(opt);
+                  if (opt === quiz.answer) playCorrectSfx();
+                  else playWrongSfx();
+                }}
                 className={cn(
                   "flex w-full items-center gap-2 rounded-lg border-2 p-3 text-left text-sm transition-colors",
                   !answered && "hover:border-primary/50",

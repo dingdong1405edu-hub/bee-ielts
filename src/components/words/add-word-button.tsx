@@ -6,6 +6,7 @@ import { BookPlus, Loader2, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { playCorrectSfx } from "@/lib/quiz-sfx";
 
 type Deck = { id: string; title: string };
 
@@ -65,6 +66,7 @@ export function AddWordButton() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Lỗi");
       toast.success("Đã lưu từ vào bộ thẻ");
+      playCorrectSfx();
       setTerm("");
       setDefinition("");
       setExample("");

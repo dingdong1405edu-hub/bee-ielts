@@ -6,6 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { StudyCard } from "./types";
+import {
+  playCorrectSfx,
+  playWrongSfx,
+  playTypingTickSfx,
+  playLessonCompleteSfx,
+} from "@/lib/quiz-sfx";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -137,7 +143,11 @@ function MCQQuestion({
               key={i}
               type="button"
               disabled={state.graded}
-              onClick={() => !state.graded && onChange(String(i))}
+              onClick={() => {
+                if (state.graded) return;
+                playTypingTickSfx();
+                onChange(String(i));
+              }}
               className={cn(
                 "w-full text-left px-5 py-4 rounded-xl border-2 transition-colors text-lg font-semibold",
                 !state.graded && isSelected &&
@@ -238,9 +248,15 @@ export function TestMode({ cards }: { cards: StudyCard[] }) {
   }, []);
 
   const handleSubmit = useCallback(() => {
-    setStates((prev) => gradeAll(prev));
+    const graded = gradeAll(states);
+    setStates(graded);
     setSubmitted(true);
-  }, []);
+    // Reward sound scaled to the result.
+    const correctCount = graded.filter((s) => s.correct).length;
+    if (correctCount === graded.length) playLessonCompleteSfx();
+    else if (correctCount >= Math.ceil(graded.length * 0.7)) playCorrectSfx();
+    else playWrongSfx();
+  }, [states]);
 
   const handleRetry = useCallback(() => {
     setStates(initStates(buildTest(cards)));

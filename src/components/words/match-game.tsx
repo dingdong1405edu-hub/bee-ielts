@@ -6,6 +6,12 @@ import { Button } from "@/components/ui/button";
 import { BeeMascot } from "@/components/brand";
 import { cn } from "@/lib/utils";
 import type { StudyCard } from "./types";
+import {
+  playCorrectSfx,
+  playWrongSfx,
+  playTypingTickSfx,
+  playLessonCompleteSfx,
+} from "@/lib/quiz-sfx";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -101,6 +107,7 @@ function GameBoard({ cards }: { cards: StudyCard[] }) {
     if (totalTiles > 0 && matchedCount === totalTiles && !finished) {
       if (timerRef.current !== null) clearInterval(timerRef.current);
       setFinished(true);
+      playLessonCompleteSfx();
     }
   }, [matchedCount, totalTiles, finished]);
 
@@ -119,6 +126,7 @@ function GameBoard({ cards }: { cards: StudyCard[] }) {
 
       if (selected === null) {
         // first pick
+        playTypingTickSfx();
         setSelected(tileId);
         setTileStates((prev) => ({ ...prev, [tileId]: "selected" }));
         return;
@@ -130,6 +138,7 @@ function GameBoard({ cards }: { cards: StudyCard[] }) {
 
       if (firstTile.cardId === secondTile.cardId && firstTile.kind !== secondTile.kind) {
         // MATCH
+        playCorrectSfx();
         setTileStates((prev) => ({
           ...prev,
           [selected]: "matched",
@@ -138,6 +147,7 @@ function GameBoard({ cards }: { cards: StudyCard[] }) {
         setSelected(null);
       } else {
         // WRONG — flash red then reset
+        playWrongSfx();
         lockRef.current = true;
         setTileStates((prev) => ({
           ...prev,

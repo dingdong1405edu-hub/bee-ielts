@@ -7,6 +7,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { BeeMascot, MascotBubble } from "@/components/brand";
 import { cn } from "@/lib/utils";
 import type { StudyCard } from "./types";
+import {
+  playCorrectSfx,
+  playWrongSfx,
+  playSwooshSfx,
+  playStreakSfx,
+  playLessonCompleteSfx,
+} from "@/lib/quiz-sfx";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -54,6 +61,7 @@ export function LearnMode({
   // -------------------------------------------------------------------------
 
   const handleReveal = useCallback(() => {
+    playSwooshSfx();
     setRevealed(true);
   }, []);
 
@@ -65,21 +73,27 @@ export function LearnMode({
     if (rest.length === 0) {
       setMastered(newMastered);
       setDone(true);
+      playLessonCompleteSfx();
     } else {
       setQueue(rest);
       setMastered(newMastered);
       setRevealed(false);
+      playCorrectSfx();
+      // Every 5th mastered word layers a brighter streak chime on top.
+      if (newMastered % 5 === 0) setTimeout(playStreakSfx, 220);
     }
   }, [queue, mastered]);
 
   const handleNotMastered = useCallback(() => {
     if (queue.length === 0) return;
+    playWrongSfx();
     const [current, ...rest] = queue;
     setQueue([...rest, current]);
     setRevealed(false);
   }, [queue]);
 
   const handleRestart = useCallback(() => {
+    playSwooshSfx();
     setQueue(shuffle(cards));
     setMastered(0);
     setRevealed(false);

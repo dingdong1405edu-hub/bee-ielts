@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Shuffle, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { StudyCard } from "./types";
+import { playSwooshSfx } from "@/lib/quiz-sfx";
 
 function shuffleArray<T>(arr: T[]): T[] {
   const copy = [...arr];
@@ -42,7 +43,10 @@ export function Flashcards({ cards }: { cards: StudyCard[] }) {
     goTo((index + 1) % deck.length);
   }, [deck.length, goTo, index]);
 
-  const flip = useCallback(() => setFlipped((f) => !f), []);
+  const flip = useCallback(() => {
+    playSwooshSfx();
+    setFlipped((f) => !f);
+  }, []);
 
   const handleShuffle = useCallback(() => {
     setDeck(shuffleArray(cards));
