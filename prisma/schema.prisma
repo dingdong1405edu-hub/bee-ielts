@@ -705,6 +705,9 @@ model ShadowingLesson {
   user        User?    @relation(fields: [createdBy], references: [id], onDelete: SetNull)
   /// Hidden lessons stay private to creator until admin promotes.
   published   Boolean  @default(true)
+  /// Premium-gated: when true, only Premium (or admin/owner) accounts can open
+  /// the lesson. Free users see it locked in the list.
+  premium     Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

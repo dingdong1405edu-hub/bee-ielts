@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { Headphones, Keyboard, Sparkles, Upload, Clock } from "lucide-react";
+import { Headphones, Keyboard, Sparkles, Upload, Clock, Crown, Lock } from "lucide-react";
 import type { CEFRLevel } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { effectivePremium } from "@/lib/premium";
 import {EmptyState } from "@/components/brand";
 import { PRACTICE_LEVELS, LEVEL_DESC, LEVEL_BADGE_CLASS, LEVEL_PILL_CLASS } from "@/lib/cefr";
 
@@ -15,6 +16,13 @@ export default async function ShadowingLandingPage({
 }) {
   const session = await auth();
   if (!session?.user?.id) return null;
+  const me = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { role: true, isPremium: true },
+  });
+  const isPremium = effectivePremium(
+    me as { role: "LEARNER" | "ADMIN" | "OWNER"; isPremium: boolean } | null,
+  );
   const sp = await searchParams;
   const mode = sp.mode === "dictation" ? "DICTATION" : "SHADOWING";
   const levelFilter = (PRACTICE_LEVELS as readonly string[]).includes(sp.level ?? "")
@@ -138,10 +146,16 @@ export default async function ShadowingLandingPage({
         </Link>
 
         {/* Lesson cards */}
-        {lessons.map((l) => (
+        {lessons.map((l) => {
+          // Premium-gated lessons: free users land on the upsell page instead.
+          const locked = l.premium && !isPremium;
+          const href = locked
+            ? "/premium?from=shadowing"
+            : `/shadowing/${l.id}${mode === "DICTATION" ? "?mode=dictation" : ""}`;
+          return (
           <Link
             key={l.id}
-            href={`/shadowing/${l.id}${mode === "DICTATION" ? "?mode=dictation" : ""}`}
+            href={href}
             className="group rounded-2xl bg-card border-2 overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all"
           >
             <div className="relative aspect-video bg-muted">
@@ -153,7 +167,7 @@ export default async function ShadowingLandingPage({
                   className="h-full w-full object-cover"
                 />
               )}
-              <div className="absolute top-2 left-2 flex gap-1">
+              <div className="absolute top-2 left-2 flex gap-1 flex-wrap">
                 <span className="rounded-md bg-rose-600 text-white px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider shadow-sm">
                   {l.source}
                 </span>
@@ -162,6 +176,11 @@ export default async function ShadowingLandingPage({
                     className={`rounded-md px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider shadow-sm text-white ${LEVEL_BADGE_CLASS[l.level]}`}
                   >
                     {l.level}
+                  </span>
+                )}
+                {l.premium && (
+                  <span className="inline-flex items-center gap-0.5 rounded-md bg-gold-500 text-gold-950 px-1.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider shadow-sm">
+                    <Crown className="h-2.5 w-2.5" /> Premium
                   </span>
                 )}
               </div>
@@ -173,13 +192,22 @@ export default async function ShadowingLandingPage({
               <div className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-md bg-black/60 text-white px-1.5 py-0.5 text-[10px] font-bold backdrop-blur-sm">
                 <Clock className="h-2.5 w-2.5" /> {l._count.segments} đoạn
               </div>
+              {/* Lock overlay for free users */}
+              {locked && (
+                <div className="absolute inset-0 grid place-items-center bg-black/55 backdrop-blur-[1px]">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-gold-500 px-3 py-1.5 text-xs font-extrabold text-gold-950 shadow-lg">
+                    <Lock className="h-3.5 w-3.5" /> Mở khoá Premium
+                  </span>
+                </div>
+              )}
             </div>
             <div className="p-3">
               <p className="font-bold text-sm leading-snug line-clamp-2">{l.title}</p>
               <p className="text-xs text-muted-foreground mt-1">{l._count.segments} phân đoạn</p>
             </div>
           </Link>
-        ))}
+          );
+        })}
       </div>
 
       {lessons.length === 0 && (

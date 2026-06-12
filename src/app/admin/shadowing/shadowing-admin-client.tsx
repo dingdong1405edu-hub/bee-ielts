@@ -2,7 +2,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Video, Plus, Loader2, Trash2, Youtube, ExternalLink, Sparkles, ChevronDown, Wand2, Pencil, Scissors } from "lucide-react";
+import { Video, Plus, Loader2, Trash2, Youtube, ExternalLink, Sparkles, ChevronDown, Wand2, Pencil, Scissors, Crown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ export interface LessonRow {
   title: string;
   source: string;
   level: "A1" | "A2" | "B1" | "B2" | "C1" | "C2" | null;
+  premium: boolean;
   youtubeId: string;
   thumbnailUrl: string | null;
   segmentCount: number;
@@ -298,6 +299,23 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
       setLessons((prev) =>
         prev.map((x) => (x.id === l.id ? { ...x, level: l.level } : x)),
       );
+    }
+  };
+
+  /** Toggle premium-gate on a lesson — only Premium accounts can open it. */
+  const setPremiumFor = async (l: LessonRow, next: boolean) => {
+    setLessons((prev) => prev.map((x) => (x.id === l.id ? { ...x, premium: next } : x)));
+    try {
+      const res = await fetch(`/api/admin/shadowing/${l.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ premium: next }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success(next ? "Đã đặt chỉ Premium mới xem 👑" : "Đã mở cho tất cả");
+    } catch {
+      toast.error("Lưu thất bại");
+      setLessons((prev) => prev.map((x) => (x.id === l.id ? { ...x, premium: l.premium } : x)));
     }
   };
 
@@ -692,6 +710,11 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start gap-1.5">
                       <p className="font-bold leading-tight line-clamp-2 flex-1">{l.title}</p>
+                      {l.premium && (
+                        <span className="shrink-0 inline-flex items-center gap-0.5 rounded-md bg-gold-500 px-1.5 py-0.5 text-[10px] font-extrabold text-gold-950">
+                          <Crown className="h-2.5 w-2.5" /> PRO
+                        </span>
+                      )}
                       {l.level && (
                         <span
                           className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-extrabold text-white ${LEVEL_BADGE_CLASS[l.level]}`}
@@ -727,6 +750,15 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
                           </option>
                         ))}
                       </select>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className={`h-7 text-xs ${l.premium ? "border-gold-400 bg-gold-100 text-gold-700 dark:bg-gold-500/15 dark:text-gold-300" : ""}`}
+                        onClick={() => setPremiumFor(l, !l.premium)}
+                        title="Chỉ tài khoản Premium mới xem được video này"
+                      >
+                        <Crown className="h-3 w-3" /> {l.premium ? "Premium ✓" : "Premium"}
+                      </Button>
                       <Button asChild size="sm" variant="outline" className="h-7 text-xs">
                         <a href={`/admin/shadowing/${l.id}/edit`}>
                           <Pencil className="h-3 w-3" /> Sửa

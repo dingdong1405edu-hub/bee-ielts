@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { effectivePremium } from "@/lib/premium";
 import { ShadowingPlayer, type ShadowingPlayerProps } from "./shadowing-player";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +24,17 @@ export default async function ShadowingLessonPage({
     include: { segments: { orderBy: { order: "asc" } } },
   });
   if (!lesson) notFound();
+
+  // Premium gate: free users can't open a premium-marked lesson → upsell page.
+  if (lesson.premium) {
+    const me = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { role: true, isPremium: true },
+    });
+    if (!effectivePremium(me as { role: "LEARNER" | "ADMIN" | "OWNER"; isPremium: boolean } | null)) {
+      redirect("/premium?from=shadowing");
+    }
+  }
 
   const props: ShadowingPlayerProps = {
     lesson: {
