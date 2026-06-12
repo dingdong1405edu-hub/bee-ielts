@@ -58,25 +58,27 @@ export function StatsRow({ streakDays, streakRestoreRemaining, targetBand, weekM
 
   return (
     <div className="grid gap-4 sm:grid-cols-3">
-      {/* Streak card */}
-      <div className="relative overflow-hidden rounded-3xl bg-foreground border border-border p-5 text-background">
-        <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-gold-500/20 blur-2xl" />
+      {/* Streak card — glassy surface (bg-card) so it adapts to the theme:
+          frosted white in light, frosted dark over the dreamy night bg in dark. */}
+      <div className="group relative overflow-hidden rounded-3xl border border-border/60 bg-card/70 p-5 shadow-lg shadow-black/5 backdrop-blur-xl transition-all hover:-translate-y-0.5 dark:shadow-black/40">
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.07] to-transparent" />
+        <div className="absolute -right-5 -top-5 h-28 w-28 rounded-full bg-gradient-to-br from-orange-400/30 to-rose-500/30 blur-2xl" />
         <div className="relative flex items-start justify-between">
-          <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-gold-400 to-rose-500 shadow-lg shadow-gold-500/30">
+          <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-orange-400 to-rose-500 text-white shadow-lg shadow-rose-500/30">
             <Flame className="h-5 w-5 fill-white" />
           </div>
-          <div className="text-3xl md:text-4xl font-extrabold bg-gradient-to-br from-gold-300 to-rose-400 bg-clip-text text-transparent">
-            {streakDays} <span className="text-base font-bold text-gold-200">ngày</span>
+          <div className="text-3xl md:text-4xl font-extrabold bg-gradient-to-br from-orange-500 to-rose-500 bg-clip-text text-transparent">
+            {streakDays} <span className="text-base font-bold text-muted-foreground">ngày</span>
           </div>
         </div>
         <div className="relative mt-4">
           <div className="font-bold">Streak</div>
           <div className="flex items-center justify-between text-xs text-muted-foreground mt-0.5">
-            <span>Restore còn lại: <span className="text-gold-300 font-bold">{streakRestoreRemaining}/5</span></span>
+            <span>Restore còn lại: <span className="font-bold text-orange-500 dark:text-orange-300">{streakRestoreRemaining}/5</span></span>
             <button
               onClick={restoreStreak}
               disabled={pending || streakRestoreRemaining <= 0}
-              className="inline-flex items-center gap-1 rounded-full bg-background/10 hover:bg-background/20 disabled:opacity-40 px-2 py-1 text-[11px] font-semibold transition-colors"
+              className="inline-flex items-center gap-1 rounded-full bg-foreground/[0.06] hover:bg-foreground/[0.12] disabled:opacity-40 px-2 py-1 text-[11px] font-semibold text-foreground transition-colors"
             >
               <RefreshCw className="h-3 w-3" /> Restore
             </button>
@@ -85,15 +87,16 @@ export function StatsRow({ streakDays, streakRestoreRemaining, targetBand, weekM
       </div>
 
       {/* Target Band card */}
-      <div className="relative overflow-hidden rounded-3xl bg-foreground border border-border p-5 text-background">
-        <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-honey/20 blur-2xl" />
+      <div className="group relative overflow-hidden rounded-3xl border border-border/60 bg-card/70 p-5 shadow-lg shadow-black/5 backdrop-blur-xl transition-all hover:-translate-y-0.5 dark:shadow-black/40">
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.07] to-transparent" />
+        <div className="absolute -right-5 -top-5 h-28 w-28 rounded-full bg-honey/30 blur-2xl" />
         <div className="relative flex items-start justify-between">
-          <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-honey to-honey-deep shadow-lg shadow-honey/30">
+          <div className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-to-br from-honey to-honey-deep text-white shadow-lg shadow-honey/30">
             <Target className="h-5 w-5" />
           </div>
           {!editingBand ? (
-            <div className="text-3xl md:text-4xl font-extrabold bg-gradient-to-br from-honey-tint to-honey bg-clip-text text-transparent">
-              {targetBand.toFixed(1)} <span className="text-base font-bold text-honey-tint">band</span>
+            <div className="text-3xl md:text-4xl font-extrabold bg-gradient-to-br from-honey to-honey-deep bg-clip-text text-transparent">
+              {targetBand.toFixed(1)} <span className="text-base font-bold text-muted-foreground">band</span>
             </div>
           ) : (
             <div className="flex items-center gap-2">
@@ -104,7 +107,7 @@ export function StatsRow({ streakDays, streakRestoreRemaining, targetBand, weekM
                 max={9}
                 value={bandDraft}
                 onChange={(e) => setBandDraft(parseFloat(e.target.value) || 0)}
-                className="w-20 rounded-lg bg-foreground border border-border text-background text-xl font-bold px-2 py-1 text-center"
+                className="w-20 rounded-lg bg-background border border-border text-foreground text-xl font-bold px-2 py-1 text-center"
               />
             </div>
           )}
@@ -117,13 +120,13 @@ export function StatsRow({ streakDays, streakRestoreRemaining, targetBand, weekM
           {!editingBand ? (
             <button
               onClick={() => setEditingBand(true)}
-              className="rounded-full bg-background/10 hover:bg-background/20 px-3 py-1 text-[11px] font-semibold transition-colors"
+              className="rounded-full bg-foreground/[0.06] hover:bg-foreground/[0.12] px-3 py-1 text-[11px] font-semibold text-foreground transition-colors"
             >
               Sửa
             </button>
           ) : (
             <div className="flex gap-1">
-              <Button size="sm" variant="ghost" onClick={() => { setEditingBand(false); setBandDraft(targetBand); }} className="text-background hover:bg-background/10 h-7 px-2">
+              <Button size="sm" variant="ghost" onClick={() => { setEditingBand(false); setBandDraft(targetBand); }} className="text-foreground hover:bg-foreground/10 h-7 px-2">
                 <X className="h-3.5 w-3.5" />
               </Button>
               <Button size="sm" onClick={saveBand} disabled={pending} className="h-7 px-2 text-xs">
@@ -135,15 +138,16 @@ export function StatsRow({ streakDays, streakRestoreRemaining, targetBand, weekM
       </div>
 
       {/* Weekly hours card */}
-      <div className="relative overflow-hidden rounded-3xl bg-foreground border border-border p-5 text-background">
-        <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-primary/20 blur-2xl" />
+      <div className="group relative overflow-hidden rounded-3xl border border-border/60 bg-card/70 p-5 shadow-lg shadow-black/5 backdrop-blur-xl transition-all hover:-translate-y-0.5 dark:shadow-black/40">
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.07] to-transparent" />
+        <div className="absolute -right-5 -top-5 h-28 w-28 rounded-full bg-primary/30 blur-2xl" />
         <div className="relative flex items-start justify-between">
-          <div className="grid h-11 w-11 place-items-center rounded-xl gradient-brand shadow-lg shadow-primary/30">
+          <div className="grid h-11 w-11 place-items-center rounded-xl gradient-brand text-white shadow-lg shadow-primary/30">
             <Clock className="h-5 w-5" />
           </div>
           <div className="text-3xl md:text-4xl font-extrabold gradient-brand-text">
             {hours > 0 ? `${hours}` : `${mins}`}
-            <span className="text-base font-bold text-primary ml-1">{hours > 0 ? "giờ" : "phút"}</span>
+            <span className="text-base font-bold text-muted-foreground ml-1">{hours > 0 ? "giờ" : "phút"}</span>
           </div>
         </div>
         <div className="relative mt-4">
