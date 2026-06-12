@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
 import { Crown, Shield, User, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_GROUPS, isNavActive, type NavItem } from "./nav-config";
@@ -14,6 +15,22 @@ import { NAV_GROUPS, isNavActive, type NavItem } from "./nav-config";
  */
 export function Sidebar({ isAdmin, isPremium }: { isAdmin?: boolean; isPremium?: boolean }) {
   const pathname = usePathname();
+  const asideRef = useRef<HTMLElement>(null);
+
+  // The rail expands on :hover OR :focus-within. After a mouse click the link
+  // keeps focus, so :focus-within would keep the rail expanded even after the
+  // cursor leaves — feeling "stuck open". Drop focus from any link inside the
+  // rail (a) the moment the cursor leaves it, and (b) right after navigating,
+  // so it collapses immediately. Keyboard users never fire mouseleave, so the
+  // focus-within affordance still works for them.
+  const dropInnerFocus = () => {
+    const aside = asideRef.current;
+    const active = document.activeElement as HTMLElement | null;
+    if (aside && active && active !== aside && aside.contains(active)) active.blur();
+  };
+  useEffect(() => {
+    dropInnerFocus();
+  }, [pathname]);
 
   const itemClass = (active: boolean) =>
     cn(
@@ -51,7 +68,11 @@ export function Sidebar({ isAdmin, isPremium }: { isAdmin?: boolean; isPremium?:
   };
 
   return (
-    <aside className="group hidden md:flex flex-col fixed left-0 top-16 bottom-0 w-[68px] hover:w-60 focus-within:w-60 overflow-hidden border-r border-border bg-background z-40 transition-[width] duration-200 ease-out hover:shadow-2xl focus-within:shadow-2xl">
+    <aside
+      ref={asideRef}
+      onMouseLeave={dropInnerFocus}
+      className="group hidden md:flex flex-col fixed left-0 top-16 bottom-0 w-[68px] hover:w-60 focus-within:w-60 overflow-hidden border-r border-border bg-background z-40 transition-[width] duration-150 ease-out hover:shadow-2xl focus-within:shadow-2xl"
+    >
       <nav className="flex-1 overflow-y-auto overflow-x-hidden p-3 scrollbar-thin">
         {NAV_GROUPS.map((group, gi) => (
           <div key={group.label ?? "home"} className={cn(gi > 0 && "mt-4")}>
