@@ -776,6 +776,23 @@ model ShadowingAttempt {
 /// transcript along. Transcript is inlined as JSON because the player
 /// renders the entire list at once and we never query into individual
 /// segments — keeping it inline saves a join + N+1 risk.
+/// Tin nhắn góp ý / yêu cầu hỗ trợ từ người dùng gửi tới admin (từ landing).
+/// `kind` = "feedback" (góp ý) hoặc "support" (cần hỗ trợ). `status` = "new"
+/// | "read" để admin lọc tin chưa đọc. userId/email/name đều optional vì
+/// khách chưa đăng nhập vẫn gửi được.
+model Feedback {
+  id        String   @id @default(cuid())
+  kind      String   @default("feedback")
+  name      String?
+  email     String?
+  message   String   @db.Text
+  userId    String?
+  status    String   @default("new")
+  createdAt DateTime @default(now())
+
+  @@index([status, createdAt])
+}
+
 model PodcastEpisode {
   id           String   @id @default(cuid())
   title        String

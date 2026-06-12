@@ -59,9 +59,15 @@
   #honey{position:absolute;inset:0;width:100%;height:100%;z-index:1}
   .hero .wrap{position:relative;z-index:3;padding-top:30px;padding-bottom:60px}
   .hero h1{
-    display:inline-block;font-weight:900;font-size:clamp(46px,7vw,86px);line-height:1;color:#241d10;
-    background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
-    border-radius:6px;padding:6px 14px;margin-top:6px;
+    display:block;font-family:"Poppins",sans-serif;font-weight:900;
+    font-size:clamp(46px,7.6vw,90px);line-height:.96;letter-spacing:-.025em;
+    color:#fff;text-shadow:0 3px 16px rgba(43,36,23,.32);margin-top:10px;
+  }
+  .hero h1 .hl{
+    background:linear-gradient(180deg,#fff0b8 0%,#ffce4d 45%,#f2a81e 100%);
+    -webkit-background-clip:text;background-clip:text;
+    -webkit-text-fill-color:transparent;color:transparent;
+    text-shadow:none;
   }
   .hero .lead{color:rgba(255,255,255,.95);font-size:17px;max-width:430px;margin-top:22px;font-weight:500}
   .pill{display:inline-flex;align-items:center;gap:10px;background:rgba(43,36,23,.28);border:1px solid rgba(255,255,255,.18);color:#fff;font-weight:600;font-size:14px;padding:11px 18px;border-radius:999px;margin-top:18px;transition:.2s}
@@ -164,18 +170,23 @@
   @media(max-width:1100px){.grid{grid-template-columns:repeat(3,1fr)}}
   @media(max-width:720px){.grid{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:460px){.grid{grid-template-columns:1fr}}
-  .card{position:relative;border-radius:20px;padding:22px 20px 30px;color:#fff;min-height:300px;overflow:hidden;transition:.25s;cursor:pointer}
-  .card:hover{transform:translateY(-7px);box-shadow:0 22px 44px rgba(0,0,0,.2)}
-  .card .cic{width:48px;height:48px;border-radius:13px;background:rgba(255,255,255,.22);display:grid;place-items:center;margin-bottom:42px}
-  .card .cic svg{width:24px;height:24px;color:#fff}
-  .card h3{font-size:21px;font-weight:800;margin-bottom:10px}
-  .card p{font-size:12.5px;line-height:1.55;color:rgba(255,255,255,.85)}
+  .card{position:relative;border-radius:28px;padding:24px 22px 30px;color:#fff;min-height:300px;overflow:hidden;transition:transform .28s ease,box-shadow .28s ease;cursor:pointer;box-shadow:0 14px 32px rgba(0,0,0,.16)}
+  .card:hover{transform:translateY(-9px);box-shadow:0 30px 56px rgba(0,0,0,.28)}
+  /* vầng sáng trang trí: góc trên sáng, đáy tối nhẹ → chiều sâu */
+  .card::before{content:"";position:absolute;right:-44px;top:-54px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.32),rgba(255,255,255,0) 70%);pointer-events:none}
+  .card::after{content:"";position:absolute;left:-34px;bottom:-64px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(0,0,0,.18),rgba(0,0,0,0) 70%);pointer-events:none}
+  .card>*{position:relative;z-index:1}
+  .card .cic{width:54px;height:54px;border-radius:16px;background:rgba(255,255,255,.22);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.35),0 8px 18px rgba(0,0,0,.18);display:grid;place-items:center;margin-bottom:40px;transition:transform .28s ease}
+  .card:hover .cic{transform:scale(1.08) rotate(-5deg)}
+  .card .cic svg{width:26px;height:26px;color:#fff}
+  .card h3{font-size:23px;font-weight:800;margin-bottom:10px;letter-spacing:-.01em;line-height:1.12}
+  .card p{font-size:13px;line-height:1.6;color:rgba(255,255,255,.92)}
   .c-listen{background:#3a4ed4}
   .c-read{background:#2f9e5e}
   .c-speak{background:#df6f33}
   .c-write{background:#d75e79}
-  .c-orient{background:#5b3a9e}
-  .c-vocab{background:#2e8c88}
+  .c-orient{background:linear-gradient(150deg,#8358d8 0%,#5b3a9e 52%,#412468 100%)}
+  .c-vocab{background:linear-gradient(150deg,#3bb9ac 0%,#2e8c88 52%,#1d6661 100%)}
 
   /* thẻ kỹ năng dạng ảnh, bấm mở trang riêng */
   .skill-link{display:block;border-radius:28px;overflow:hidden;transition:.25s;cursor:pointer;box-shadow:0 10px 26px rgba(0,0,0,.12)}
@@ -330,21 +341,21 @@
   <div class="score-layer" id="scoreLayer"></div>
 
   <div class="wrap">
-    <h1>Luyện thi IELTS</h1>
+    <h1>Luyện thi <span class="hl">IELTS</span></h1>
     <p class="lead">Đầy đủ tài liệu, bài luyện, phương pháp và từ vựng giúp bạn chinh phục IELTS dễ dàng hơn mỗi ngày.</p>
 
-    <a class="pill" href="#" target="_blank" rel="noopener">
-      Có góp ý cho Bee? Nhắn tụi mình tại đây
+    <a class="pill" href="/feedback">
+      Có góp ý hoặc cần hỗ trợ? Nhắn Bee tại đây
       <span class="ic"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm3 11.5c0 2-1.6 3.2-3.4 3.2-1.7 0-3-1-3-2.4 0-1.3 1.1-2.2 2.9-2.2.5 0 1 .05 1.4.15-.05-.9-.5-1.4-1.3-1.4-.6 0-1 .2-1.3.6l-1.2-.8c.6-.8 1.4-1.2 2.6-1.2 1.8 0 2.9 1.1 2.9 3.1v1.2z"/></svg></span>
     </a>
 
     <div class="cta-row">
-      <a class="btn-white" href="#">Bài viết của Bee
+      <a class="btn-white" href="/story">Bài viết của Bee
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
       </a>
-      <a class="btn-link" href="#cards">
+      <a class="btn-link" href="/dashboard">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.5 19 2c1 2 2 4.18 2 8a7 7 0 0 1-7 7h-3z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg>
-        Khám phá tài liệu miễn phí
+        Khám phá luyện tập miễn phí
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
       </a>
     </div>
