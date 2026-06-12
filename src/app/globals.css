@@ -561,6 +561,121 @@ body.mock-exam [data-mock-pane] {
 @keyframes beeflap { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(0.3); } }
 @media (prefers-reduced-motion: reduce) { .bee-swarm { display: none; } }
 
+/* ===== Night ambience (DARK MODE ONLY) — dreamy "mờ ảo" haze, a twinkling
+   starfield, and fireflies drifting across the screen (replacing the daytime
+   bee swarm). Everything is display:none by default and only switches on under
+   `.dark`, so the light theme stays a clean flat surface and pays zero cost. */
+.night-bg,
+.night-fireflies { display: none; }
+.dark .night-bg,
+.dark .night-fireflies { display: block; }
+
+/* Layer 1 — behind the transparent body */
+.night-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -10;
+  overflow: hidden;
+  pointer-events: none;
+}
+.night-glow {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(100px);
+  opacity: 0.55;
+  will-change: transform, opacity;
+}
+.night-glow.g1 {
+  width: 40rem; height: 32rem; top: -12rem; left: -8rem;
+  background: rgba(247, 181, 0, 0.12);   /* honey haze */
+  animation: ambient-breathe 11s ease-in-out infinite;
+}
+.night-glow.g2 {
+  width: 34rem; height: 30rem; bottom: -10rem; right: -6rem;
+  background: rgba(95, 160, 70, 0.11);   /* leaf haze */
+  animation: ambient-drift 26s ease-in-out infinite;
+}
+.night-glow.g3 {
+  width: 30rem; height: 26rem; top: 38%; left: 52%;
+  background: rgba(110, 126, 230, 0.09); /* cool indigo haze */
+  animation: ambient-drift 32s ease-in-out infinite reverse;
+}
+
+/* Stars — tiny twinkling dots in the dark sky */
+.night-star {
+  position: absolute;
+  border-radius: 9999px;
+  background: #fff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
+  animation-name: star-twinkle;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+@keyframes star-twinkle {
+  0%, 100% { opacity: 0.12; transform: scale(0.6); }
+  50%      { opacity: 0.95; transform: scale(1); }
+}
+
+/* Layer 2 — fireflies over the page (below nav z-40 / modals, above content) */
+.night-fireflies {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  overflow: hidden;
+  pointer-events: none;
+}
+.firefly {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(255, 247, 200, 1) 0%, rgba(255, 200, 60, 0.9) 38%, rgba(247, 181, 0, 0) 70%);
+  filter: drop-shadow(0 0 8px rgba(255, 210, 90, 0.95)) drop-shadow(0 0 18px rgba(255, 190, 60, 0.6));
+  will-change: transform, opacity;
+}
+@keyframes ff-flicker {
+  0%, 100% { opacity: 0.4; }
+  40%      { opacity: 1; }
+  65%      { opacity: 0.6; }
+  85%      { opacity: 0.92; }
+}
+@keyframes ff-a {
+  0%   { transform: translate(-6vw, 88vh) scale(0.8); }
+  30%  { transform: translate(28vw, 60vh) scale(1); }
+  60%  { transform: translate(58vw, 72vh) scale(0.9); }
+  100% { transform: translate(108vw, 12vh) scale(1); }
+}
+@keyframes ff-b {
+  0%   { transform: translate(106vw, 80vh) scale(0.9); }
+  35%  { transform: translate(66vw, 40vh) scale(1); }
+  70%  { transform: translate(30vw, 58vh) scale(0.85); }
+  100% { transform: translate(-6vw, 22vh) scale(1); }
+}
+@keyframes ff-c {
+  0%   { transform: translate(8vw, 104vh) scale(0.85); }
+  40%  { transform: translate(40vw, 55vh) scale(1); }
+  75%  { transform: translate(20vw, 35vh) scale(0.9); }
+  100% { transform: translate(60vw, -8vh) scale(1); }
+}
+@keyframes ff-d {
+  0%   { transform: translate(95vw, 102vh) scale(0.8); }
+  40%  { transform: translate(70vw, 50vh) scale(1); }
+  72%  { transform: translate(85vw, 30vh) scale(0.95); }
+  100% { transform: translate(50vw, -8vh) scale(1); }
+}
+.firefly.f1 { animation: ff-a 28s linear infinite, ff-flicker 2.4s ease-in-out infinite; }
+.firefly.f2 { width: 10px; height: 10px; animation: ff-b 34s linear infinite, ff-flicker 3.1s ease-in-out infinite 0.6s; }
+.firefly.f3 { animation: ff-c 31s linear infinite, ff-flicker 2.7s ease-in-out infinite 1.2s; }
+.firefly.f4 { width: 11px; height: 11px; animation: ff-d 37s linear infinite, ff-flicker 3.5s ease-in-out infinite 0.3s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .night-glow,
+  .night-star { animation: none !important; }
+  .firefly { animation: ff-flicker 4s ease-in-out infinite !important; } /* still glow softly, no travel */
+}
+
 /* ===== Story page ("Bài viết của Bee") — lively backdrop flourishes =====
    Soft honey glows, twinkling sparkles, floating honeycomb + a drifting bee.
    All decorative (aria-hidden, pointer-events-none) and motion-safe. */

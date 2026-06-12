@@ -1,16 +1,16 @@
 "use client";
 import { usePathname } from "next/navigation";
-import { AmbientBackground } from "@/components/ambient-background";
+import { NightAmbience } from "./night-ambience";
 
 /**
- * Ambient background for learner pages. The Community feed keeps a plain white
- * background, so the effect is skipped there; every other learner page shares
- * this backdrop so they stay visually in sync.
+ * Ambient background for learner pages. Light mode stays a clean flat surface
+ * (NightAmbience renders nothing there — gated to `.dark` in CSS). The Community
+ * feed keeps a plain background, so the effect is skipped there entirely.
  */
 export function LearnBackground() {
   const pathname = usePathname();
   if (pathname.startsWith("/community")) {
     return null;
   }
-  return <AmbientBackground />;
+  return <NightAmbience />;
 }
