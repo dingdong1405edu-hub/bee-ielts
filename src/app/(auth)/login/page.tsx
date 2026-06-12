@@ -44,15 +44,20 @@ function LoginForm() {
   return (
     <div className="relative min-h-screen lg:grid lg:grid-cols-2 overflow-hidden">
       {/* ── Branded panel ── (right on desktop, under the form on mobile) */}
-      <aside className="relative order-last hidden overflow-hidden bg-sage text-cream lg:flex lg:flex-col lg:justify-between lg:p-12">
-        
+      {/* The panel background (bg-sage) is fixed green in BOTH themes, so its
+          text/logo must stay light regardless of the theme — `text-cream`
+          flips dark in dark mode and turned the logo + copy muddy. Use white. */}
+      <aside className="relative order-last hidden overflow-hidden bg-sage text-white lg:flex lg:flex-col lg:justify-between lg:p-12">
+
         <LeafField className="absolute inset-0" />
         <div className="pointer-events-none absolute -top-16 -right-16 h-72 w-72 rounded-full bg-gold/10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-20 -left-10 h-72 w-72 rounded-full bg-slate/20 blur-3xl" />
 
         <div className="relative flex items-center gap-3">
-          <BeeLogo variant="full" className="h-10 w-10 text-cream" />
-          <span className="font-display text-xl font-extrabold tracking-tight">Bee IELTS</span>
+          <span className="grid h-12 w-12 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/30 shadow-lg shadow-black/10 backdrop-blur-sm">
+            <BeeLogo variant="full" className="h-8 w-8 text-white" />
+          </span>
+          <span className="font-display text-xl font-extrabold tracking-tight text-white">Bee IELTS</span>
         </div>
 
         <div className="relative">
@@ -62,7 +67,7 @@ function LoginForm() {
             <br />
             tiến bộ thấy rõ.
           </h2>
-          <p className="mt-4 max-w-sm text-cream/80 leading-relaxed">
+          <p className="mt-4 max-w-sm text-white/85 leading-relaxed">
             Luyện 4 kỹ năng IELTS với phản hồi từ AI, từ vựng &amp; ngữ pháp
             gamified — học vui như chơi, chắc như ong xây tổ.
           </p>
@@ -72,7 +77,7 @@ function LoginForm() {
               "Reading & Listening sát đề thật",
               "Streak, XP, hearts giữ lửa mỗi ngày",
             ].map((line) => (
-              <li key={line} className="flex items-center gap-2.5 text-sm text-cream/90">
+              <li key={line} className="flex items-center gap-2.5 text-sm text-white/90">
                 <Leaf className="h-4 w-4 shrink-0 text-gold" />
                 <span>{line}</span>
               </li>
@@ -80,8 +85,8 @@ function LoginForm() {
           </ul>
         </div>
 
-        <p className="relative text-xs text-cream/60">
-          Be smarter, be master, <span className="font-semibold text-cream/90">beeielts</span>.
+        <p className="relative text-xs text-white/60">
+          Be smarter, be master, <span className="font-semibold text-white/90">beeielts</span>.
         </p>
       </aside>
 
