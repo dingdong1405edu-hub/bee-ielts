@@ -561,3 +561,30 @@ body.mock-exam [data-mock-pane] {
 @keyframes beeflap { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(0.3); } }
 @media (prefers-reduced-motion: reduce) { .bee-swarm { display: none; } }
 
+/* ===== Story page ("Bài viết của Bee") — lively backdrop flourishes =====
+   Soft honey glows, twinkling sparkles, floating honeycomb + a drifting bee.
+   All decorative (aria-hidden, pointer-events-none) and motion-safe. */
+@keyframes story-twinkle {
+  0%, 100% { opacity: 0.18; transform: scale(0.7); }
+  50%      { opacity: 0.95; transform: scale(1.15); }
+}
+@keyframes story-bob {
+  0%, 100% { transform: translateY(0) rotate(var(--rot, 0deg)); }
+  50%      { transform: translateY(-18px) rotate(var(--rot, 0deg)); }
+}
+@keyframes story-sway {
+  0%, 100% { transform: translate(0, 0) rotate(-5deg); }
+  50%      { transform: translate(16px, -12px) rotate(7deg); }
+}
+.story-glow      { will-change: transform, opacity; }
+.story-twinkle   { animation: story-twinkle 4s ease-in-out infinite; }
+.story-bob       { animation: story-bob 7s ease-in-out infinite; }
+.story-sway      { animation: story-sway 9s ease-in-out infinite; }
+.story-breathe   { animation: ambient-breathe 9s ease-in-out infinite; }
+.story-drift     { animation: ambient-drift 22s ease-in-out infinite; }
+.story-drift-rev { animation: ambient-drift 28s ease-in-out infinite reverse; }
+@media (prefers-reduced-motion: reduce) {
+  .story-twinkle, .story-bob, .story-sway,
+  .story-breathe, .story-drift, .story-drift-rev { animation: none !important; }
+}
+
