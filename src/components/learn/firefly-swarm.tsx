@@ -56,14 +56,14 @@ export function FireflySwarm() {
         y: hy + (Math.random() - 0.5) * H * 0.24,
       });
 
-      // enter → 4 loiter points → exit
+      // enter → 4 loiter points → exit. Slow, dreamy drift (~30s total).
       const pts = [edge(), wander(), wander(), wander(), wander(), edge()];
-      const segs = [2600, 3400, 3800, 3300, 4200].map((d) => d * (0.85 + Math.random() * 0.3));
+      const segs = [4600, 6000, 6600, 5800, 7200].map((d) => d * (0.85 + Math.random() * 0.3));
       const total = segs.reduce((a, b) => a + b, 0);
       const cum = [0];
       segs.forEach((d, i) => cum.push(cum[i] + d));
 
-      const freq = 1.4 + Math.random() * 1.2;
+      const freq = 0.85 + Math.random() * 0.7;
       const amp = 9 + Math.random() * 11;
       const phase = Math.random() * Math.PI * 2;
       const sc = 0.8 + Math.random() * 0.55;

@@ -7,6 +7,7 @@ import { Home, LogOut, Crown, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BeeLogo } from "@/components/brand/bee-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { NotificationBell } from "./notification-bell";
 import { isNavActive } from "./nav-config";
 
 // Chỉ hiển thị "Trang chủ" trên thanh trên; các mục khác đã được gỡ khỏi đây
@@ -54,6 +55,7 @@ export function TopNav({ rightSlot, isPremium }: { rightSlot?: ReactNode; isPrem
 
         {/* Right side */}
         <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+          <NotificationBell />
           <ThemeToggle />
           <Link
             href="/premium"

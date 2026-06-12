@@ -793,6 +793,22 @@ model Feedback {
   @@index([status, createdAt])
 }
 
+// Admin-posted announcements shown in the notification bell (landing + app):
+// product updates, discount codes, useful info. The bell badge = how many are
+// newer than what the visitor last saw (tracked client-side in localStorage).
+model Announcement {
+  id        String   @id @default(cuid())
+  kind      String   @default("info") // "update" | "discount" | "info"
+  title     String
+  body      String   @db.Text
+  code      String? // optional discount code to copy
+  active    Boolean  @default(true)
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([active, createdAt])
+}
+
 model PodcastEpisode {
   id           String   @id @default(cuid())
   title        String

@@ -45,6 +45,22 @@
   .bell{position:relative;color:rgba(255,255,255,.9);cursor:pointer}
   .bell svg{width:22px;height:22px}
   .bell .dot{position:absolute;top:-5px;right:-6px;background:#e8443a;color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:9px;display:grid;place-items:center;padding:0 3px}
+  /* dropdown thông báo (admin đăng) */
+  .bell-panel{position:absolute;top:34px;right:-8px;width:330px;max-width:88vw;background:#fff;color:#2b2417;border-radius:16px;box-shadow:0 22px 54px rgba(43,36,23,.32);overflow:hidden;display:none;z-index:60}
+  .bell-panel.open{display:block}
+  .bell-head{padding:11px 14px;border-bottom:1px solid #eee;font-weight:800;font-size:14px}
+  .bell-list{max-height:70vh;overflow-y:auto}
+  .bell-item{padding:12px 14px;border-bottom:1px solid #f2ece0}
+  .bell-item:last-child{border-bottom:0}
+  .bell-time{float:right;font-size:11px;color:#9a9079;font-weight:600}
+  .bell-kind{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:2px 9px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.03em}
+  .bell-k-update{background:#dbeafe;color:#1d4ed8}
+  .bell-k-discount{background:#ffe4e6;color:#be123c}
+  .bell-k-info{background:#fdf0d2;color:#c98a14}
+  .bell-title{font-weight:800;font-size:13.5px;margin:7px 0 3px}
+  .bell-body{font-size:12px;color:#6e6450;line-height:1.55;white-space:pre-wrap}
+  .bell-code{display:inline-flex;align-items:center;gap:5px;margin-top:8px;border:1px dashed #fca5a5;background:#fff1f2;color:#be123c;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:800;cursor:pointer}
+  .bell-empty{padding:24px;text-align:center;color:#9a9079;font-size:13px}
   .user{display:flex;align-items:center;gap:8px;border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.12);border-radius:999px;padding:4px 12px 4px 4px}
   .user .av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#f7b500,#ffcf57);display:grid;place-items:center;color:#fff;font-weight:700;font-size:13px}
   .user .u-name{font-weight:700;font-size:13px;line-height:1.1;color:#fff}
@@ -312,9 +328,10 @@
       <span class="name">Bee<b>English</b></span>
     </a>
     <div class="hdr-right">
-      <div class="bell">
+      <div class="bell" id="beeBell" role="button" tabindex="0" aria-label="Thông báo">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
-        <span class="dot">2</span>
+        <span class="dot" id="beeBellDot" style="display:none">0</span>
+        <div class="bell-panel" id="beeBellPanel" aria-hidden="true"></div>
       </div>
       <div class="user">
         <span class="av">đ</span>
@@ -775,6 +792,62 @@
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
+})();
+</script>
+
+<!-- THÊM MỚI: chuông thông báo (admin đăng update / mã giảm giá / info) -->
+<script>
+(function(){
+  var bell=document.getElementById('beeBell');
+  var dot=document.getElementById('beeBellDot');
+  var panel=document.getElementById('beeBellPanel');
+  if(!bell||!panel||!dot) return;
+  var SEEN='bee_ann_seen';
+  var items=[];
+  function kindMeta(k){
+    if(k==='update') return {l:'Cập nhật',c:'bell-k-update'};
+    if(k==='discount') return {l:'Mã giảm giá',c:'bell-k-discount'};
+    return {l:'Thông tin',c:'bell-k-info'};
+  }
+  function esc(s){return (s==null?'':String(s)).replace(/[&<>"]/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m];});}
+  function fmt(iso){try{return new Date(iso).toLocaleDateString('vi-VN');}catch(e){return '';}}
+  function render(){
+    if(!items.length){ panel.innerHTML='<div class="bell-head">🔔 Thông báo</div><div class="bell-empty">Chưa có thông báo nào.</div>'; return; }
+    var h='<div class="bell-head">🔔 Thông báo</div><div class="bell-list">';
+    items.forEach(function(a){
+      var m=kindMeta(a.kind);
+      h+='<div class="bell-item"><span class="bell-time">'+fmt(a.createdAt)+'</span>'
+        +'<span class="bell-kind '+m.c+'">'+m.l+'</span>'
+        +'<div class="bell-title">'+esc(a.title)+'</div>'
+        +'<div class="bell-body">'+esc(a.body)+'</div>';
+      if(a.code){ h+='<button class="bell-code" data-code="'+esc(a.code)+'">📋 '+esc(a.code)+'</button>'; }
+      h+='</div>';
+    });
+    h+='</div>';
+    panel.innerHTML=h;
+    Array.prototype.forEach.call(panel.querySelectorAll('.bell-code'),function(b){
+      b.addEventListener('click',function(e){e.stopPropagation();var c=b.getAttribute('data-code');try{navigator.clipboard&&navigator.clipboard.writeText(c);}catch(_){}b.textContent='✓ Đã copy';});
+    });
+  }
+  function updateBadge(){
+    var seen=Number(localStorage.getItem(SEEN)||0);
+    var n=items.filter(function(a){return new Date(a.createdAt).getTime()>seen;}).length;
+    if(n>0){ dot.textContent=n>9?'9+':String(n); dot.style.display='grid'; }
+    else { dot.style.display='none'; }
+  }
+  fetch('/api/announcements').then(function(r){return r.json();}).then(function(d){
+    items=(d&&d.items)||[]; render(); updateBadge();
+  }).catch(function(){});
+  bell.addEventListener('click',function(e){
+    e.stopPropagation();
+    var open=panel.classList.toggle('open');
+    if(open && items.length){
+      var latest=Math.max.apply(null,items.map(function(a){return new Date(a.createdAt).getTime();}));
+      localStorage.setItem(SEEN,String(latest));
+      updateBadge();
+    }
+  });
+  document.addEventListener('click',function(e){ if(!bell.contains(e.target)) panel.classList.remove('open'); });
 })();
 </script>
 
