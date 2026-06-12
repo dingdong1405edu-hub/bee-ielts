@@ -11,11 +11,28 @@ import {
   Check,
   Wand2,
   Sparkles,
+  ClipboardList,
+  Lightbulb,
+  AlertTriangle,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type Skill = "READING" | "LISTENING" | "WRITING" | "SPEAKING" | "VOCAB" | "GRAMMAR";
+
+type SkillDiagnosis = {
+  skill: Skill;
+  status: "strong" | "ok" | "weak" | "untested";
+  level: string;
+  weakness: string;
+  improve: string;
+};
+type Assessment = {
+  summary: string;
+  skills: SkillDiagnosis[];
+  priorities: string[];
+};
 
 type Entry = {
   id: string;
@@ -110,6 +127,7 @@ export function StudySchedule({
   const [selectedDate, setSelectedDate] = useState<string>(todayISO());
   const [refreshKey, setRefreshKey] = useState(0);
   const [showGenerator, setShowGenerator] = useState(false);
+  const [assessment, setAssessment] = useState<Assessment | null>(null);
 
   const days = useMemo(() => buildMonthGrid(cursor.year, cursor.month), [cursor]);
   const rangeFrom = useMemo(() => toISO(days[0]), [days]);
@@ -221,8 +239,15 @@ export function StudySchedule({
       toast.error((await res.json().catch(() => ({}))).error || "Tạo lộ trình thất bại");
       return;
     }
-    const data = (await res.json()) as { count: number; advice: string };
-    toast.success(`Đã tạo lộ trình ${data.count} buổi học`, { description: data.advice, duration: 8000 });
+    const data = (await res.json()) as {
+      count: number;
+      advice: string;
+      assessment?: Assessment | null;
+    };
+    toast.success(`Đã tạo lộ trình ${data.count} buổi học`, { description: data.advice, duration: 6000 });
+    if (data.assessment && Array.isArray(data.assessment.skills)) {
+      setAssessment(data.assessment);
+    }
     setShowGenerator(false);
     setRefreshKey((k) => k + 1);
   };
@@ -268,6 +293,14 @@ export function StudySchedule({
           examDate={examDate}
           onGenerate={generatePlan}
           onClose={() => setShowGenerator(false)}
+        />
+      )}
+
+      {assessment && (
+        <AssessmentPanel
+          assessment={assessment}
+          targetBand={targetBand}
+          onClose={() => setAssessment(null)}
         />
       )}
 
@@ -468,6 +501,106 @@ function RoadmapGenerator({
         <Button size="sm" variant="ghost" className="rounded-xl" onClick={onClose} disabled={generating}>
           Huỷ
         </Button>
+      </div>
+    </div>
+  );
+}
+
+const STATUS_META: Record<SkillDiagnosis["status"], { label: string; cls: string }> = {
+  strong: { label: "Tốt", cls: "bg-sage-500/15 text-sage-700 dark:text-sage-300" },
+  ok: { label: "Ổn", cls: "bg-gold-500/15 text-gold-700 dark:text-gold-300" },
+  weak: { label: "Yếu", cls: "bg-rose-500/15 text-rose-600 dark:text-rose-400" },
+  untested: { label: "Chưa luyện", cls: "bg-muted text-muted-foreground" },
+};
+
+/** Detailed AI diagnosis shown after generating a roadmap: where the learner
+ *  is weak, what's missing, and concretely how to improve — per skill. */
+function AssessmentPanel({
+  assessment,
+  targetBand,
+  onClose,
+}: {
+  assessment: Assessment;
+  targetBand: number;
+  onClose: () => void;
+}) {
+  return (
+    <div className="border-b bg-gradient-to-br from-primary/5 via-honey/5 to-rose-500/5 p-4 md:p-5 space-y-4">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary to-sage-600 text-white shadow-md">
+            <ClipboardList className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="font-extrabold tracking-tight">Đánh giá &amp; định hướng</div>
+            <div className="text-xs text-muted-foreground">
+              Dựa trên bài bạn đã làm + thi thử · mục tiêu band {targetBand.toFixed(1)}
+            </div>
+          </div>
+        </div>
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground" aria-label="Đóng">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      {assessment.summary && (
+        <p className="text-sm leading-relaxed text-foreground">{assessment.summary}</p>
+      )}
+
+      {assessment.priorities?.length > 0 && (
+        <div className="rounded-2xl border-2 border-gold-300 bg-gold-50 p-3.5 dark:border-gold-500/30 dark:bg-gold-500/10">
+          <div className="mb-2 flex items-center gap-1.5 text-sm font-extrabold text-gold-700 dark:text-gold-300">
+            <Lightbulb className="h-4 w-4" /> Ưu tiên ngay
+          </div>
+          <ol className="space-y-1.5">
+            {assessment.priorities.map((p, i) => (
+              <li key={i} className="flex gap-2 text-sm">
+                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-gold-500 text-[11px] font-extrabold text-gold-950">
+                  {i + 1}
+                </span>
+                <span className="text-foreground">{p}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+
+      <div className="grid gap-2.5 sm:grid-cols-2">
+        {assessment.skills.map((s) => {
+          const meta = skillMeta(s.skill);
+          const st = STATUS_META[s.status] ?? STATUS_META.untested;
+          return (
+            <div key={s.skill} className="space-y-1.5 rounded-2xl border bg-card p-3.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-extrabold uppercase tracking-wider",
+                    meta?.chip ?? "bg-muted text-muted-foreground",
+                  )}
+                >
+                  <span className={cn("h-1.5 w-1.5 rounded-full", meta?.dot ?? "bg-muted-foreground")} />
+                  {meta?.label ?? s.skill}
+                </span>
+                <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-extrabold", st.cls)}>{st.label}</span>
+                {s.level && <span className="ml-auto text-[11px] font-bold text-muted-foreground">{s.level}</span>}
+              </div>
+              {s.weakness && (
+                <p className="text-xs leading-relaxed">
+                  <span className="inline-flex items-center gap-1 font-bold text-rose-600 dark:text-rose-400">
+                    <AlertTriangle className="h-3 w-3" /> Điểm yếu:
+                  </span>{" "}
+                  <span className="text-muted-foreground">{s.weakness}</span>
+                </p>
+              )}
+              {s.improve && (
+                <p className="text-xs leading-relaxed">
+                  <span className="font-bold text-sage-700 dark:text-sage-400">Cải thiện:</span>{" "}
+                  <span className="text-foreground/90">{s.improve}</span>
+                </p>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

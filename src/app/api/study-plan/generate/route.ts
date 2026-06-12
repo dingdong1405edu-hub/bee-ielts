@@ -3,7 +3,7 @@ import { z } from "zod";
 import { Skill } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { generateStudyPlan } from "@/lib/claude";
+import { generateStudyPlan, type StudyAssessment } from "@/lib/claude";
 
 // availableWeekdays: Monday-start indices (0=Mon … 6=Sun) the learner can study.
 // focusNotes: optional free-text from the learner describing weak skills,
@@ -96,9 +96,25 @@ export async function POST(req: Request) {
     attempts: v.n,
   }));
 
+  // Recent full mock-test results — the strongest cross-skill signal for the
+  // AI's diagnostic assessment.
+  const recentMocks = await prisma.mockAttempt.findMany({
+    where: { userId },
+    orderBy: { completedAt: "desc" },
+    take: 3,
+    select: {
+      overallBand: true,
+      listeningBand: true,
+      readingBand: true,
+      writingBand: true,
+      speakingBand: true,
+    },
+  });
+
   // ---- Build the weekly template: AI first, static rotation as fallback ----
   let weeklyTemplate: { skill: Skill; title: string; note: string }[] = [];
   let overview = "";
+  let assessment: StudyAssessment | null = null;
   let aiUsed = false;
 
   if (process.env.ANTHROPIC_API_KEY) {
@@ -109,6 +125,7 @@ export async function POST(req: Request) {
         hasExamDate: examDay != null,
         daysPerWeek,
         skillScores,
+        recentMocks,
         focusNotes,
       });
       const tmpl = (plan.weeklyTemplate ?? [])
@@ -119,6 +136,9 @@ export async function POST(req: Request) {
         weeklyTemplate = Array.from({ length: daysPerWeek }, (_, i) => tmpl[i % tmpl.length]);
         overview = typeof plan.overview === "string" ? plan.overview : "";
         aiUsed = true;
+      }
+      if (plan.assessment && Array.isArray(plan.assessment.skills)) {
+        assessment = plan.assessment;
       }
     } catch (e) {
       console.error("AI study plan failed, using fallback:", e);
@@ -189,5 +209,6 @@ export async function POST(req: Request) {
     aiUsed,
     recommendedPerWeek: recommendedDays(targetBand),
     advice,
+    assessment,
   });
 }

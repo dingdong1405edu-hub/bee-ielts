@@ -66,10 +66,30 @@ If they ask for a specific QUESTION TYPE within a skill (e.g. "Listening Part 3 
 
 Design exactly one session per available day. Each session focuses on ONE main skill. Write everything in Vietnamese. Every "note" must be a CONCRETE, actionable study-method tip — never generic encouragement.
 
+You must ALSO return a DETAILED diagnostic assessment ("assessment") of the learner based STRICTLY on their real data (per-skill average bands from practice + full mock-test bands). Rules for the assessment:
+- Cover ALL SIX skills (READING, LISTENING, WRITING, SPEAKING, VOCAB, GRAMMAR), every one present in "skills".
+- "status": "strong" (đã tốt, ≥ mục tiêu), "ok" (gần đạt), "weak" (kém mục tiêu rõ rệt), or "untested" (CHƯA có dữ liệu — học viên chưa luyện kỹ năng này).
+- "level": band ước lượng hiện tại hoặc mô tả ngắn trình độ. Nếu untested, nói rõ "chưa có dữ liệu".
+- "weakness": điểm yếu CỤ THỂ, đoán dựa trên band (vd Listening yếu Part 3-4, Writing yếu Task Response/cohesion, Reading yếu T/F/NG & matching headings, Speaking yếu fluency/phát âm…). Nếu untested → nói học viên CHƯA luyện nên chưa rõ, cần bắt đầu để đo.
+- "improve": phải CHI TIẾT — nêu cần cải thiện cái gì VÀ làm thế nào (các bước/bài tập/mẹo cụ thể, đo lường được). Tránh chung chung.
+- "priorities": 3-4 việc cần làm NGAY, xếp theo thứ tự ưu tiên, dựa trên kỹ năng yếu nhất + khoảng cách tới mục tiêu + "Yêu cầu" của học viên.
+Be honest and specific — nếu dữ liệu ít, nói rõ độ tin cậy còn thấp và khuyên làm thêm 1 bài thi thử để đánh giá chính xác.
+
 Return ONLY valid JSON matching this exact TypeScript type — no markdown, no commentary:
 
 type StudyPlan = {
   overview: string;          // 1-2 sentences, personalised + motivating, Vietnamese. If "Yêu cầu" was provided, acknowledge it here.
+  assessment: {
+    summary: string;         // 2-3 câu: trình độ hiện tại so với mục tiêu, dựa trên dữ liệu thật. Nêu độ tin cậy nếu ít dữ liệu.
+    skills: {
+      skill: "READING" | "LISTENING" | "WRITING" | "SPEAKING" | "VOCAB" | "GRAMMAR";
+      status: "strong" | "ok" | "weak" | "untested";
+      level: string;         // band ước lượng / mô tả trình độ hiện tại (Vietnamese)
+      weakness: string;      // điểm yếu cụ thể (Vietnamese)
+      improve: string;       // cần cải thiện gì + LÀM THẾ NÀO, chi tiết (Vietnamese)
+    }[];                      // PHẢI đủ 6 skill
+    priorities: string[];    // 3-4 việc ưu tiên làm ngay, xếp theo thứ tự (Vietnamese)
+  };
   weeklyTemplate: {
     skill: "READING" | "LISTENING" | "WRITING" | "SPEAKING" | "VOCAB" | "GRAMMAR";
     title: string;           // short Vietnamese task title
@@ -78,7 +98,7 @@ type StudyPlan = {
   examPrepAdvice: string;    // Vietnamese advice for the final 2 weeks (mock-test phase)
 };
 
-weeklyTemplate MUST contain exactly the requested number of entries.`;
+weeklyTemplate MUST contain exactly the requested number of entries. assessment.skills MUST contain all 6 skills.`;
 
 export interface StudyPlanInput {
   targetBand: number;
@@ -86,12 +106,35 @@ export interface StudyPlanInput {
   hasExamDate: boolean;
   daysPerWeek: number;
   skillScores: { skill: string; avgBand: number; attempts: number }[];
+  /** Recent full mock-test results (newest first) — the strongest signal. */
+  recentMocks?: {
+    overallBand: number;
+    listeningBand: number;
+    readingBand: number;
+    writingBand: number;
+    speakingBand: number;
+  }[];
   /** Free-text from the learner — weak areas, focus asks, constraints. May be empty. */
   focusNotes?: string;
 }
 
+export interface SkillDiagnosis {
+  skill: string;
+  status: "strong" | "ok" | "weak" | "untested";
+  level: string;
+  weakness: string;
+  improve: string;
+}
+
+export interface StudyAssessment {
+  summary: string;
+  skills: SkillDiagnosis[];
+  priorities: string[];
+}
+
 export interface StudyPlanResult {
   overview: string;
+  assessment?: StudyAssessment;
   weeklyTemplate: { skill: string; title: string; note: string }[];
   examPrepAdvice: string;
 }
@@ -105,6 +148,16 @@ export async function generateStudyPlan(input: StudyPlanInput): Promise<StudyPla
           .join("\n")
       : "Chưa có dữ liệu luyện tập — coi như người mới, cân bằng mọi kỹ năng.";
 
+  const mocks = input.recentMocks ?? [];
+  const mockBlock = mocks.length
+    ? `\n\nKết quả THI THỬ gần đây (full 4 kỹ năng — tín hiệu MẠNH NHẤT để đánh giá):\n${mocks
+        .map(
+          (m, i) =>
+            `- Lần ${i + 1}: Overall ${m.overallBand.toFixed(1)} (Listening ${m.listeningBand.toFixed(1)} · Reading ${m.readingBand.toFixed(1)} · Writing ${m.writingBand.toFixed(1)} · Speaking ${m.speakingBand.toFixed(1)})`,
+        )
+        .join("\n")}`
+    : `\n\nThi thử: học viên CHƯA làm bài thi thử nào — khuyên làm 1 bài để đánh giá chính xác hơn.`;
+
   const focus = (input.focusNotes ?? "").trim();
   const focusBlock = focus
     ? `\n\nYêu cầu của học viên (ƯU TIÊN CAO NHẤT — đọc kỹ và phải bám vào đây khi chọn skill mỗi buổi):\n"""\n${focus}\n"""`
@@ -115,15 +168,15 @@ export async function generateStudyPlan(input: StudyPlanInput): Promise<StudyPla
 - ${input.hasExamDate ? `Còn ${input.weeksUntilExam} tuần đến ngày thi` : `Chưa đặt ngày thi — lập kế hoạch ${input.weeksUntilExam} tuần`}
 - Học ${input.daysPerWeek} buổi/tuần
 
-Kết quả luyện tập gần đây:
-${perf}${focusBlock}
+Kết quả luyện tập từng kỹ năng (trung bình):
+${perf}${mockBlock}${focusBlock}
 
-Hãy thiết kế weeklyTemplate gồm đúng ${input.daysPerWeek} buổi và trả về JSON.`;
+Hãy: (1) viết "assessment" đánh giá chi tiết đủ 6 kỹ năng + priorities, (2) thiết kế weeklyTemplate gồm đúng ${input.daysPerWeek} buổi. Trả về JSON.`;
 
   const response = await client.messages.create({
     model: MODEL,
-    max_tokens: 2000,
-    temperature: 0.6,
+    max_tokens: 4000,
+    temperature: 0.5,
     system: STUDY_PLAN_SYSTEM,
     messages: [{ role: "user", content: userMessage }],
   });
