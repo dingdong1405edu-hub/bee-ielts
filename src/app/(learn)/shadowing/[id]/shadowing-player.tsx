@@ -605,15 +605,27 @@ export function ShadowingPlayer({ lesson, segments, mode = "shadowing" }: Shadow
     clearFollow();
     if (active) playSegment(active);
   };
+  /** "Tiếp tục" — jump to the next segment right now instead of waiting out
+   *  the 15s auto-advance. The next segment auto-plays + (if enabled)
+   *  auto-records via the activeIdx effect. */
+  const continueNow = () => {
+    clearAutoNext();
+    clearFollow();
+    if (activeIdx < total - 1) {
+      playSwooshSfx();
+      setActiveIdx((i) => Math.min(i + 1, total - 1));
+    }
+  };
 
   /** Schedule auto-advance to the next segment after the score lands.
-   *  2.5s gives the user time to read the score + cancel via Tab/Ctrl
-   *  (which call clearAutoNext through prev/replay). Last segment doesn't
+   *  15s gives the user time to read the score + decide. They can jump
+   *  immediately with the "Tiếp tục" button, hold via Tab/Ctrl (prev/replay
+   *  call clearAutoNext), or just wait it out. Last segment doesn't
    *  auto-advance — it would loop or stop at the same place. */
   const scheduleAutoNext = useCallback(() => {
     if (activeIdx >= total - 1) return;
     clearAutoNext();
-    const SECONDS = 3;
+    const SECONDS = 15;
     setAutoNextIn(SECONDS);
     autoNextTickRef.current = setInterval(() => {
       setAutoNextIn((s) => (s == null || s <= 1 ? null : s - 1));
@@ -1222,17 +1234,25 @@ export function ShadowingPlayer({ lesson, segments, mode = "shadowing" }: Shadow
               </p>
             )}
             {autoNextIn !== null && (
-              <div className="flex items-center justify-between gap-2 pt-2 border-t mt-2">
+              <div className="flex items-center justify-between gap-2 pt-2 border-t mt-2 flex-wrap">
                 <p className="text-xs text-muted-foreground">
                   Tự chuyển câu sau <span className="font-extrabold text-foreground">{autoNextIn}s</span>
-                  <span className="ml-1 italic">(Tab/Ctrl để giữ lại)</span>
+                  <span className="ml-1 italic">— hoặc bấm Tiếp tục</span>
                 </p>
-                <button
-                  onClick={clearAutoNext}
-                  className="text-xs font-bold rounded-md px-2 py-1 bg-muted hover:bg-accent"
-                >
-                  Huỷ
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={clearAutoNext}
+                    className="text-xs font-bold rounded-md px-2.5 py-1.5 bg-muted hover:bg-accent"
+                  >
+                    Ở lại
+                  </button>
+                  <button
+                    onClick={continueNow}
+                    className="inline-flex items-center gap-1 rounded-lg bg-sage-500 hover:bg-sage-600 px-4 py-1.5 text-xs font-extrabold text-white shadow-sm ring-2 ring-sage-300 active:scale-95 transition-transform"
+                  >
+                    Tiếp tục <ChevronRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
             )}
           </div>
