@@ -14,17 +14,20 @@ export function BeeMascot({
   className,
   frame = "rounded",
   pose,
+  src: srcProp,
   alt = "Bee — linh vật Bee IELTS",
   priority,
 }: {
   className?: string;
   frame?: "rounded" | "circle" | "none";
   pose?: string;
+  /** Explicit image path — overrides the pose/default lookup. */
+  src?: string;
   alt?: string;
   priority?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
-  const src = pose ? `/textures/bee-${pose}.png` : "/textures/bee.png";
+  const src = srcProp ?? (pose ? `/textures/bee-${pose}.png` : "/textures/bee.png");
 
   if (failed) return <BeeMascotFallback className={className} title={alt} />;
 

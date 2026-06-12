@@ -484,7 +484,7 @@ function Bee() {
         className="h-18 w-18 drop-shadow-lg"
         style={{ width: 72, height: 72 }}
       >
-        <BeeMascot priority frame="circle" className="h-full w-full" />
+        <BeeMascot src="/bee-mascot.jpg" priority frame="circle" className="h-full w-full" />
       </motion.div>
       {/* Trail dots */}
       <motion.span

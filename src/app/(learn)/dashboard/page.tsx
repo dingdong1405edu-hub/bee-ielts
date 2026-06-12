@@ -92,7 +92,7 @@ export default async function DashboardPage() {
               className="h-full w-full object-cover"
             />
           ) : (
-            <BeeMascot className="w-full" priority />
+            <BeeMascot src="/bee-mascot.jpg" className="w-full" priority />
           )}
         </div>
         <div className="min-w-0">
