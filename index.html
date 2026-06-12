@@ -171,7 +171,7 @@
   @media(max-width:720px){.grid{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:460px){.grid{grid-template-columns:1fr}}
   .card{position:relative;border-radius:28px;padding:24px 22px 30px;color:#fff;min-height:300px;overflow:hidden;transition:transform .28s ease,box-shadow .28s ease;cursor:pointer;box-shadow:0 14px 32px rgba(0,0,0,.16)}
-  .card:hover{transform:translateY(-9px);box-shadow:0 30px 56px rgba(0,0,0,.28)}
+  .card:hover{transform:translateY(-10px) scale(1.018);box-shadow:0 30px 56px rgba(0,0,0,.28)}
   /* vầng sáng trang trí: góc trên sáng, đáy tối nhẹ → chiều sâu */
   .card::before{content:"";position:absolute;right:-44px;top:-54px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.32),rgba(255,255,255,0) 70%);pointer-events:none}
   .card::after{content:"";position:absolute;left:-34px;bottom:-64px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(0,0,0,.18),rgba(0,0,0,0) 70%);pointer-events:none}
@@ -189,13 +189,56 @@
   .c-vocab{background:linear-gradient(150deg,#3bb9ac 0%,#2e8c88 52%,#1d6661 100%)}
 
   /* thẻ kỹ năng dạng ảnh, bấm mở trang riêng */
-  .skill-link{display:block;border-radius:28px;overflow:hidden;transition:.25s;cursor:pointer;box-shadow:0 10px 26px rgba(0,0,0,.12)}
+  .skill-link{position:relative;display:block;border-radius:28px;overflow:hidden;transition:.25s;cursor:pointer;box-shadow:0 10px 26px rgba(0,0,0,.12)}
   .skill-link img{width:100%;height:auto;display:block}
-  .skill-link:hover{transform:translateY(-7px);box-shadow:0 24px 46px rgba(0,0,0,.22)}
+  .skill-link:hover{transform:translateY(-8px) scale(1.018);box-shadow:0 24px 46px rgba(0,0,0,.22)}
   .card{border-radius:28px}
 
   .bee-mini{position:absolute;right:24px;bottom:10px;width:78px;height:90px;object-fit:contain;z-index:4;filter:drop-shadow(0 8px 16px rgba(0,0,0,.18))}
   @media(max-width:1100px){.bee-mini{display:none}}
+
+  /* ===== CARDS — hiệu ứng sống động (THÊM MỚI) ===== */
+  /* cuộn tới đâu các thẻ hiện dần lên lần lượt */
+  .cards .grid>*.reveal{opacity:0;transform:translateY(38px) scale(.95);
+    transition:opacity .7s ease,transform .7s cubic-bezier(.18,.72,.2,1)}
+  .cards .grid>*.reveal.in{opacity:1;transform:none}
+
+  /* vệt sáng lướt qua khi rê chuột */
+  .card .shine,.skill-link .shine{position:absolute;inset:0;z-index:2;border-radius:inherit;overflow:hidden;pointer-events:none}
+  .card .shine::before,.skill-link .shine::before{content:"";position:absolute;top:-60%;left:-130%;
+    width:55%;height:220%;transform:rotate(18deg);
+    background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.55),rgba(255,255,255,0));
+    transition:left .8s ease}
+  .card:hover .shine::before,.skill-link:hover .shine::before{left:135%}
+
+  /* icon: nhịp sáng nhẹ (không đụng transform khi hover) */
+  .card .cic{animation:cicGlow 3.6s ease-in-out infinite}
+  @keyframes cicGlow{
+    0%,100%{box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.35),0 8px 18px rgba(0,0,0,.18)}
+    50%{box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.62),0 10px 26px rgba(0,0,0,.22),0 0 20px rgba(255,255,255,.3)}}
+
+  /* đốm sáng lấp lánh bay nhẹ trong thẻ */
+  .card .spk{position:absolute;z-index:1;width:7px;height:7px;border-radius:50%;
+    background:rgba(255,255,255,.92);box-shadow:0 0 9px rgba(255,255,255,.75);
+    pointer-events:none;animation:spkFloat 4.2s ease-in-out infinite}
+  .card .spk.s2{width:5px;height:5px;animation-duration:5.1s;animation-delay:.8s}
+  .card .spk.s3{width:9px;height:9px;animation-duration:3.6s;animation-delay:1.5s;opacity:.85}
+  @keyframes spkFloat{0%,100%{transform:translateY(0);opacity:.4}50%{transform:translateY(-16px);opacity:1}}
+
+  /* thẻ Vượt Band: mũi tên leo dốc + chip điểm bay */
+  .c-band .cic svg{animation:climb 2.6s ease-in-out infinite}
+  @keyframes climb{0%,100%{transform:translateY(2px)}50%{transform:translateY(-3px)}}
+  .card .pop{position:absolute;right:14px;top:14px;z-index:3;display:inline-flex;align-items:center;gap:6px;
+    background:#fff;color:#2b2417;font-family:"Poppins",sans-serif;font-weight:800;font-size:12px;
+    padding:5px 11px;border-radius:999px;box-shadow:0 8px 20px rgba(0,0,0,.22);
+    animation:popFloat 3.4s ease-in-out infinite}
+  @keyframes popFloat{0%,100%{transform:translateY(0) rotate(-2.5deg)}50%{transform:translateY(-7px) rotate(2.5deg)}}
+
+  @media(prefers-reduced-motion:reduce){
+    .card .cic,.card .spk,.card .pop,.c-band .cic svg{animation:none}
+    .card .shine::before,.skill-link .shine::before{display:none}
+    .cards .grid>*.reveal{opacity:1;transform:none}
+  }
 
   /* ===== ROADMAP ===== */
   .path{background:#fffdf6;padding:66px 0;position:relative;overflow:hidden}
@@ -367,19 +410,27 @@
   <svg class="comb-bg comb-light" aria-hidden="true"><path id="combsCards"></path></svg>
   <div class="wrap">
     <div class="grid">
-      <a class="skill-link" href="/listening"><img src="/public/textures/listening.svg" alt="Listening — luyện nghe IELTS" /></a>
-      <a class="skill-link" href="/reading"><img src="/public/textures/reading.svg" alt="Reading — luyện đọc IELTS" /></a>
-      <a class="skill-link" href="/speaking"><img src="/public/textures/speaking.svg" alt="Speaking — luyện nói IELTS" /></a>
-      <a class="skill-link" href="/writing"><img src="/public/textures/writing.svg" alt="Writing — luyện viết IELTS" /></a>
-      <a class="card c-orient" href="/band-climber">
-        <div class="cic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg></div>
-        <h3>Lộ Trình<br/>Tự Học</h3>
-        <p>Lộ trình học cá nhân hóa, tài liệu chọn lọc và mẹo học hiệu quả giúp bạn tiến bộ mỗi ngày.</p>
+      <a class="skill-link" href="/listening"><img src="/public/textures/listening.svg" alt="Listening — luyện nghe IELTS" /><span class="shine" aria-hidden="true"></span></a>
+      <a class="skill-link" href="/reading"><img src="/public/textures/reading.svg" alt="Reading — luyện đọc IELTS" /><span class="shine" aria-hidden="true"></span></a>
+      <a class="skill-link" href="/speaking"><img src="/public/textures/speaking.svg" alt="Speaking — luyện nói IELTS" /><span class="shine" aria-hidden="true"></span></a>
+      <a class="skill-link" href="/writing"><img src="/public/textures/writing.svg" alt="Writing — luyện viết IELTS" /><span class="shine" aria-hidden="true"></span></a>
+      <a class="card c-orient c-band" href="/band-climber">
+        <span class="shine" aria-hidden="true"></span>
+        <span class="pop" aria-hidden="true">🚀 6.5 → 8.0</span>
+        <div class="cic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></div>
+        <h3>Vượt Band</h3>
+        <p>Chiến lược tăng band cấp tốc, mẹo phòng thi và bài luyện trọng tâm — bứt phá điểm số nhanh hơn mỗi tuần.</p>
+        <span class="spk" style="left:18px;bottom:58px" aria-hidden="true"></span>
+        <span class="spk s2" style="right:30px;bottom:96px" aria-hidden="true"></span>
+        <span class="spk s3" style="left:42%;bottom:32px" aria-hidden="true"></span>
       </a>
       <a class="card c-vocab" href="/vocab">
+        <span class="shine" aria-hidden="true"></span>
         <div class="cic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></div>
         <h3>Vocab &amp;<br/>Grammar</h3>
         <p>Mở rộng vốn từ theo chủ đề và củng cố cấu trúc ngữ pháp giao tiếp, học thuật.</p>
+        <span class="spk" style="right:22px;top:120px" aria-hidden="true"></span>
+        <span class="spk s2" style="left:26px;bottom:60px" aria-hidden="true"></span>
       </a>
     </div>
 
@@ -488,6 +539,34 @@
   }
   drawHoneyBg();
   window.addEventListener("resize", drawHoneyBg);
+</script>
+
+<!-- THÊM MỚI: thẻ tính năng hiện dần lần lượt khi cuộn tới -->
+<script>
+(function(){
+  var grid = document.querySelector('.cards .grid');
+  if(!grid) return;
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if(!('IntersectionObserver' in window)) return;
+  var kids = Array.prototype.slice.call(grid.children);
+  kids.forEach(function(el,i){
+    el.classList.add('reveal');
+    el.style.transitionDelay = (i*0.09).toFixed(2)+'s';
+  });
+  var io = new IntersectionObserver(function(entries){
+    for(var i=0;i<entries.length;i++){
+      if(entries[i].isIntersecting){
+        kids.forEach(function(el){ el.classList.add('in'); });
+        io.disconnect();
+        setTimeout(function(){
+          kids.forEach(function(el){ el.classList.remove('reveal','in'); el.style.transitionDelay=''; });
+        }, 1500);
+        break;
+      }
+    }
+  }, {threshold:0.16});
+  io.observe(grid);
+})();
 </script>
 
 <!-- THÊM MỚI: đàn ong bay chéo + điểm IELTS thi thoảng hiện (chỉ ở hero) -->
