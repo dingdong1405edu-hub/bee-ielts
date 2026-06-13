@@ -102,10 +102,11 @@
   .btn-link{display:inline-flex;align-items:center;gap:9px;color:#fff;font-weight:700;font-size:15px}
   .btn-link svg{width:18px;height:18px}
 
-  /* bee mascot */
-  .bee-wrap{position:absolute;right:10px;bottom:-60px;width:515px;height:552px;z-index:2;pointer-events:none}
+  /* bee mascot — ảnh PNG (tỉ lệ gốc 610×760) */
+  .bee-wrap{position:absolute;right:24px;bottom:-40px;width:472px;height:588px;z-index:2;pointer-events:none}
   .bee-wrap svg{width:100%;height:100%;overflow:visible}
-  .bee-wrap img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 24px 40px rgba(43,36,23,.28))}
+  .bee-wrap img{width:100%;height:100%;object-fit:contain;image-rendering:auto;filter:drop-shadow(0 24px 40px rgba(43,36,23,.28))}
+  #beeHero{transform-box:border-box;transform-origin:center;animation:beeBob 4.6s ease-in-out infinite;will-change:transform}
   /* ── Ong SVG (kiểu ảnh mẫu): bay nhẹ, vẫy cánh, vẫy tay, hướng theo chuột, cười ── */
   #beeSvg{filter:drop-shadow(0 26px 36px rgba(43,36,23,.28))}
   #beeFloat{transform-box:fill-box;transform-origin:center;animation:beeBob 4.6s ease-in-out infinite;will-change:transform}
@@ -139,14 +140,14 @@
   .enr-fill{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#f7b500,#ffd45e);animation:enrfill 3.4s ease-in-out infinite}
   @keyframes enrfill{0%{width:38%}50%{width:92%}100%{width:38%}}
   @media(max-width:980px){.bee-orbit{display:none}}
-  @media(prefers-reduced-motion:reduce){#beeFloat,#wingFlapL,#wingFlapR,#antL,#antR,#armL,#armR,.bdg,.enr-fill{animation:none}}
+  @media(prefers-reduced-motion:reduce){#beeHero,#beeFloat,#wingFlapL,#wingFlapR,#antL,#antR,#armL,#armR,.bdg,.enr-fill{animation:none}}
   .bubble{
     position:absolute;z-index:4;top:180px;right:430px;max-width:210px;
     background:#fff;color:#2b2417;font-weight:700;font-size:15px;line-height:1.4;
     padding:14px 18px;border-radius:18px;box-shadow:0 10px 30px rgba(43,36,23,.2);
   }
   .bubble::after{content:"";position:absolute;bottom:-12px;left:34px;border:8px solid transparent;border-top-color:#fff;border-bottom:0}
-  @media(max-width:980px){.bee-wrap{right:-200px;bottom:-220px;width:540px;height:540px;opacity:.9}.bubble{display:none}}
+  @media(max-width:980px){.bee-wrap{right:-150px;bottom:-180px;width:430px;height:536px;opacity:.9}.bubble{display:none}}
   @media(max-width:680px){.bee-wrap{display:none}.hero{min-height:auto}}
 
   /* ===== HERO: đàn ong bay chéo + điểm IELTS (THÊM MỚI — chỉ ở hero) ===== */
@@ -347,44 +348,8 @@
 <section class="hero">
   <svg class="comb-bg" aria-hidden="true"><path id="combsHero"></path></svg>
   <div class="bee-wrap">
-    <svg id="beeSvg" viewBox="0 0 520 560" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Ong — linh vật BeeEnglish">
-      <defs>
-        <radialGradient id="bodyGrad" cx="44%" cy="30%" r="74%"><stop offset="0%" stop-color="#FFE08A"/><stop offset="52%" stop-color="#FBC640"/><stop offset="100%" stop-color="#F2A81E"/></radialGradient>
-        <linearGradient id="wingGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#DCF1FA"/><stop offset="100%" stop-color="#BCE0F0"/></linearGradient>
-      </defs>
-      <g id="beeFloat"><g id="beeLean">
-        <!-- cánh: 2 cánh oval to chĩa LÊN 2 bên (như ảnh note) -->
-        <g id="wings">
-          <g id="wingFlapL"><ellipse cx="152" cy="118" rx="88" ry="45" fill="url(#wingGrad)" stroke="#2b2017" stroke-width="8" transform="rotate(37 152 118)"/></g>
-          <g id="wingFlapR"><ellipse cx="368" cy="118" rx="88" ry="45" fill="url(#wingGrad)" stroke="#2b2017" stroke-width="8" transform="rotate(-37 368 118)"/></g>
-        </g>
-        <!-- râu: 2 ăng-ten mảnh đầu tròn (như ong mẫu) — KHÔNG tay chân -->
-        <g id="antL"><path d="M238 178 C228 120 214 92 210 66" fill="none" stroke="#2b2017" stroke-width="8" stroke-linecap="round"/><circle cx="209" cy="60" r="10" fill="#2b2017"/></g>
-        <g id="antR"><path d="M282 178 C292 120 306 92 310 66" fill="none" stroke="#2b2017" stroke-width="8" stroke-linecap="round"/><circle cx="311" cy="60" r="10" fill="#2b2017"/></g>
-        <!-- thân: TRÒN XOE (bỏ viền xù như sầu riêng) -->
-        <path d="M412.0 300.0L414.2 303.4L414.2 306.7L412.0 310.0L409.4 313.1L408.6 316.3L410.0 319.8L412.0 323.4L412.2 326.8L410.1 329.8L406.9 332.6L405.1 335.5L405.6 339.0L407.1 342.9L407.4 346.5L405.4 349.4L402.0 351.7L399.3 354.2L398.7 357.5L399.6 361.4L400.0 365.3L398.2 368.1L394.6 370.1L391.2 372.0L389.7 374.9L389.8 378.8L390.0 382.8L388.4 385.8L384.9 387.4L381.0 388.7L378.6 391.0L377.9 394.7L377.7 398.8L376.2 401.9L372.9 403.4L368.8 404.1L365.6 405.6L364.1 408.8L363.4 412.9L361.9 416.2L358.8 417.7L354.7 417.9L351.0 418.6L348.7 421.0L347.4 424.9L345.8 428.4L342.8 430.0L338.8 429.8L334.9 429.7L332.0 431.2L330.1 434.6L328.1 438.2L325.3 440.0L321.4 439.6L317.5 438.7L314.2 439.3L311.7 442.0L309.4 445.4L306.5 447.4L302.9 447.1L299.0 445.6L295.5 445.1L292.6 446.9L289.8 450.1L286.8 452.2L283.4 452.0L279.8 450.0L276.3 448.6L273.1 449.4L270.0 452.0L266.7 454.2L263.4 454.2L260.0 452.0L256.7 449.8L253.5 449.5L250.1 451.3L246.6 453.4L243.2 453.6L240.1 451.4L237.1 448.5L234.1 447.2L230.5 448.1L226.8 449.9L223.3 450.2L220.3 448.1L217.8 444.8L215.1 442.5L211.6 442.4L207.7 443.7L204.0 444.0L201.1 442.1L199.0 438.6L196.8 435.5L193.7 434.5L189.7 435.0L185.8 435.3L182.9 433.6L181.1 430.0L179.5 426.4L176.9 424.4L173.1 424.1L169.0 424.1L165.9 422.6L164.4 419.2L163.4 415.2L161.5 412.3L158.1 411.3L153.9 410.8L150.7 409.3L149.2 406.1L148.7 401.9L147.7 398.5L144.8 396.6L140.8 395.6L137.4 394.1L135.9 391.0L135.9 386.9L135.6 383.1L133.6 380.5L130.0 378.9L126.4 377.1L124.7 374.2L125.0 370.3L125.5 366.3L124.5 363.2L121.4 361.0L117.9 358.9L116.0 356.0L116.3 352.3L117.6 348.4L117.5 344.9L115.2 342.2L111.9 339.7L109.8 336.7L110.1 333.2L111.9 329.5L112.8 325.9L111.5 322.9L108.6 319.9L106.4 316.8L106.6 313.4L108.7 309.9L110.5 306.5L110.2 303.3L108.0 300.0L105.8 296.6L105.8 293.3L108.0 290.0L110.6 286.9L111.4 283.7L110.0 280.2L108.0 276.6L107.8 273.2L109.9 270.2L113.1 267.4L114.9 264.5L114.4 261.0L112.9 257.1L112.6 253.5L114.6 250.6L118.0 248.3L120.7 245.8L121.3 242.5L120.4 238.6L120.0 234.7L121.8 231.9L125.4 229.9L128.8 228.0L130.3 225.1L130.2 221.2L130.0 217.2L131.6 214.2L135.1 212.6L139.0 211.3L141.4 209.0L142.1 205.3L142.3 201.2L143.8 198.1L147.1 196.6L151.2 195.9L154.4 194.4L155.9 191.2L156.6 187.1L158.1 183.8L161.2 182.3L165.3 182.1L169.0 181.4L171.3 179.0L172.6 175.1L174.2 171.6L177.2 170.0L181.2 170.2L185.1 170.3L188.0 168.8L189.9 165.4L191.9 161.8L194.7 160.0L198.6 160.4L202.5 161.3L205.8 160.7L208.3 158.0L210.6 154.6L213.5 152.6L217.1 152.9L221.0 154.4L224.5 154.9L227.4 153.1L230.2 149.9L233.2 147.8L236.6 148.0L240.2 150.0L243.7 151.4L246.9 150.6L250.0 148.0L253.3 145.8L256.6 145.8L260.0 148.0L263.3 150.2L266.5 150.5L269.9 148.7L273.4 146.6L276.8 146.4L279.9 148.6L282.9 151.5L285.9 152.8L289.5 151.9L293.2 150.1L296.7 149.8L299.7 151.9L302.2 155.2L304.9 157.5L308.4 157.6L312.3 156.3L316.0 156.0L318.9 157.9L321.0 161.4L323.2 164.5L326.3 165.5L330.3 165.0L334.2 164.7L337.1 166.4L338.9 170.0L340.5 173.6L343.1 175.6L346.9 175.9L351.0 175.9L354.1 177.4L355.6 180.8L356.6 184.8L358.5 187.7L361.9 188.7L366.1 189.2L369.3 190.7L370.8 193.9L371.3 198.1L372.3 201.5L375.2 203.4L379.2 204.4L382.6 205.9L384.1 209.0L384.1 213.1L384.4 216.9L386.4 219.5L390.0 221.1L393.6 222.9L395.3 225.8L395.0 229.7L394.5 233.7L395.5 236.8L398.6 239.0L402.1 241.1L404.0 244.0L403.7 247.7L402.4 251.6L402.5 255.1L404.8 257.8L408.1 260.3L410.2 263.3L409.9 266.8L408.1 270.5L407.2 274.1L408.5 277.1L411.4 280.1L413.6 283.2L413.4 286.6L411.3 290.1L409.5 293.5L409.8 296.7Z" fill="url(#bodyGrad)" stroke="#2b2017" stroke-width="10" stroke-linejoin="round"/>
-        <!-- mặt -->
-        <g id="face">
-          <!-- má hồng -->
-          <ellipse cx="198" cy="308" rx="19" ry="11" fill="#F2A0B0" opacity=".7"/>
-          <ellipse cx="322" cy="308" rx="19" ry="11" fill="#F2A0B0" opacity=".7"/>
-          <!-- MẮT MỞ (mặc định) — lòng trắng (ngoài) + lòng đen (trong) + đốm sáng, dõi theo chuột -->
-          <g id="eyesOpen" style="opacity:1">
-            <circle cx="212" cy="282" r="22" fill="#fff" stroke="#2b2017" stroke-width="4.5"/>
-            <circle cx="308" cy="282" r="22" fill="#fff" stroke="#2b2017" stroke-width="4.5"/>
-            <g id="pupilL"><circle cx="212" cy="284" r="12.5" fill="#1d1407"/><circle cx="206" cy="278" r="4.6" fill="#fff"/><circle cx="216" cy="289" r="2" fill="#fff" opacity=".85"/></g>
-            <g id="pupilR"><circle cx="308" cy="284" r="12.5" fill="#1d1407"/><circle cx="302" cy="278" r="4.6" fill="#fff"/><circle cx="312" cy="289" r="2" fill="#fff" opacity=".85"/></g>
-          </g>
-          <!-- MẮT NHẮM cười (chỉ hiện khi chuột lại gần) -->
-          <g id="eyesClosed" style="opacity:0">
-            <path d="M188 288 Q212 266 236 288" fill="none" stroke="#2b2017" stroke-width="8" stroke-linecap="round"/>
-            <path d="M284 288 Q308 266 332 288" fill="none" stroke="#2b2017" stroke-width="8" stroke-linecap="round"/>
-          </g>
-          <!-- miệng cười nhỏ -->
-          <path id="mouthSmile" d="M240 313 Q260 332 280 313" fill="none" stroke="#2b2017" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-        </g>
-      </g></g>
-    </svg>
+    <img id="beeHero" src="/public/textures/bee.png" alt="Ong — linh vật BeeEnglish"
+         width="610" height="760" decoding="async" fetchpriority="high" />
 
     <!-- badge số liệu bay quanh ong -->
     <div class="bee-orbit" aria-hidden="true">
