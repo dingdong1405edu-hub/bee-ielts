@@ -316,6 +316,35 @@
   .foot-top .meta a{color:#ffd45e;font-weight:700}
   .foot-bottom{border-top:1px solid #46402f;margin-top:26px;padding-top:18px;display:flex;flex-wrap:wrap;gap:8px 22px;justify-content:space-between;font-size:12.5px;color:#9a917a}
   .foot-bottom a:hover{color:#fff}
+
+  /* ===== ĐIỆN THOẠI — chỉ tinh chỉnh màn nhỏ, KHÔNG đụng tới desktop ===== */
+  @media(max-width:600px){
+    html,body{overflow-x:hidden}                 /* chặn tràn ngang gây cuộn lệch */
+    .hero{min-height:auto}
+    .hero .wrap{padding-top:22px;padding-bottom:42px}
+    .hero h1{font-size:clamp(30px,8.5vw,54px);line-height:1.04;margin-top:6px}
+    .hero .lead{font-size:15px;max-width:100%;margin-top:16px}
+    /* pill góp ý: cho phép xuống dòng, không tràn mép phải */
+    .pill{font-size:13px;padding:10px 14px;max-width:100%;line-height:1.4}
+    .pill .ic{flex:0 0 24px}
+    .cta-row{gap:14px;margin-top:26px}
+    .btn-white{padding:13px 22px;font-size:14px}
+    .btn-link{font-size:14px}
+    .free-card{padding:28px 22px}
+    .form-row .btn-send{width:100%}
+    .cards .wrap{padding-left:18px;padding-right:18px}
+  }
+  @media(max-width:480px){
+    .wrap{padding:0 18px}
+    .nav{height:58px}
+    .logo .name{font-size:16px}
+    .logo .mark{width:32px;height:32px}
+    .hdr-right{gap:13px}            /* giữ đủ chỗ cho chuông + avatar + icon */
+    .bell svg{width:20px;height:20px}
+    .user{padding:3px 4px}          /* thu gọn còn avatar tròn */
+    .user .av{width:28px;height:28px}
+    .hdr-link svg{width:18px;height:18px}
+  }
 </style>
 </head>
 <body>
