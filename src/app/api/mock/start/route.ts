@@ -2,9 +2,12 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { checkMockQuota } from "@/lib/premium";
+import { pickLeastRecentId, recentRefIdsForSkill } from "@/lib/pick-next";
 
-function pickOne<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
+/** Pick the least-recently-done item (by id) from a pool of objects. */
+function pickFresh<T extends { id: string }>(arr: T[], recentIds: string[]): T {
+  const id = pickLeastRecentId(arr.map((x) => x.id), recentIds);
+  return arr.find((x) => x.id === id) ?? arr[0];
 }
 
 export async function POST() {
@@ -45,11 +48,19 @@ export async function POST() {
     return NextResponse.json({ error: "Content chưa đủ để thi thử" }, { status: 400 });
   }
 
+  // Tránh ra lại đề đã thi gần đây — chọn least-recently-done từng phần.
+  const [rL, rR, rW, rS] = await Promise.all([
+    recentRefIdsForSkill(prisma, session.user.id, "LISTENING"),
+    recentRefIdsForSkill(prisma, session.user.id, "READING"),
+    recentRefIdsForSkill(prisma, session.user.id, "WRITING"),
+    recentRefIdsForSkill(prisma, session.user.id, "SPEAKING"),
+  ]);
+
   return NextResponse.json({
-    listening: pickOne(listenings),
-    reading: pickOne(readings),
-    writing1: pickOne(writingTask1s),
-    writing2: pickOne(writingTask2s),
-    speaking: pickOne(speakings),
+    listening: pickFresh(listenings, rL),
+    reading: pickFresh(readings, rR),
+    writing1: pickFresh(writingTask1s, rW),
+    writing2: pickFresh(writingTask2s, rW),
+    speaking: pickFresh(speakings, rS),
   });
 }
