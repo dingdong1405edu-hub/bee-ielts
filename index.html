@@ -6,7 +6,7 @@
 <title>BeeEnglish - Học tiếng Anh cùng đàn ong</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800;900&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
     --honey:#e0a52b;
@@ -28,7 +28,7 @@
   *{box-sizing:border-box;margin:0;padding:0}
   html{scroll-behavior:smooth}
   body{font-family:"Be Vietnam Pro",system-ui,sans-serif;color:var(--ink);background:#fff;-webkit-font-smoothing:antialiased}
-  h1,h2,h3,.disp{font-family:"Poppins",sans-serif;letter-spacing:-.01em}
+  h1,h2,h3,.disp{font-family:"Montserrat","Be Vietnam Pro",sans-serif;letter-spacing:-.01em}
   a{color:inherit;text-decoration:none}
   img{display:block;max-width:100%}
   .wrap{max-width:var(--max);margin:0 auto;padding:0 34px}
@@ -39,7 +39,7 @@
   .logo{display:flex;align-items:center;gap:11px}
   .logo .mark{width:38px;height:38px;display:grid;place-items:center}
   .logo .mark img{width:100%;height:100%;object-fit:contain}
-  .logo .name{font-family:"Poppins";font-weight:800;font-size:18px;color:#fff}
+  .logo .name{font-family:"Montserrat","Be Vietnam Pro",sans-serif;font-weight:800;font-size:18px;color:#fff}
   .logo .name b{color:#ffe08a}
   .hdr-right{display:flex;align-items:center;gap:18px}
   .bell{position:relative;color:rgba(255,255,255,.9);cursor:pointer}
@@ -75,7 +75,7 @@
   #honey{position:absolute;inset:0;width:100%;height:100%;z-index:1}
   .hero .wrap{position:relative;z-index:3;padding-top:30px;padding-bottom:60px}
   .hero h1{
-    display:block;font-family:"Poppins",sans-serif;font-weight:900;
+    display:block;font-family:"Montserrat","Be Vietnam Pro",sans-serif;font-weight:900;
     font-size:clamp(46px,7.6vw,90px);line-height:.96;letter-spacing:-.025em;
     color:#fff;text-shadow:0 3px 16px rgba(43,36,23,.32);margin-top:10px;
   }
@@ -127,7 +127,7 @@
   @keyframes beeWaveHi{0%,100%{transform:rotate(-9deg)}50%{transform:rotate(10deg)}}
   /* badge số liệu bay quanh ong */
   .bee-orbit{position:absolute;inset:0;z-index:5;pointer-events:none}
-  .bdg{position:absolute;display:flex;align-items:center;gap:9px;background:#fff;color:#2b2417;border-radius:15px;padding:8px 14px;box-shadow:0 12px 28px rgba(43,36,23,.22);font-family:"Poppins",sans-serif;white-space:nowrap;will-change:transform}
+  .bdg{position:absolute;display:flex;align-items:center;gap:9px;background:#fff;color:#2b2417;border-radius:15px;padding:8px 14px;box-shadow:0 12px 28px rgba(43,36,23,.22);font-family:"Montserrat","Be Vietnam Pro",sans-serif;white-space:nowrap;will-change:transform}
   .bdg .ic{font-size:18px;line-height:1}
   .bdg b{font-weight:800;font-size:16px;line-height:1}
   .bdg i{font-style:normal;font-weight:700;font-size:10px;letter-spacing:.05em;color:#a2926f;text-transform:uppercase}
@@ -161,7 +161,7 @@
 
   .score-layer{position:absolute;inset:0;z-index:4;pointer-events:none;overflow:hidden}
   .score-pop{position:absolute;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;
-    background:#fff;color:#2b2417;font-family:"Poppins",sans-serif;font-weight:800;font-size:15px;
+    background:#fff;color:#2b2417;font-family:"Montserrat","Be Vietnam Pro",sans-serif;font-weight:800;font-size:15px;
     padding:9px 15px 9px 10px;border-radius:999px;box-shadow:0 10px 26px rgba(43,36,23,.22);
     opacity:0;animation:scorePop 3.4s ease forwards}
   .score-pop .ic{width:22px;height:22px;border-radius:50%;background:#f7b500;display:grid;place-items:center;flex:none}
@@ -246,7 +246,7 @@
   .c-band .cic svg{animation:climb 2.6s ease-in-out infinite}
   @keyframes climb{0%,100%{transform:translateY(2px)}50%{transform:translateY(-3px)}}
   .card .pop{position:absolute;right:14px;top:14px;z-index:3;display:inline-flex;align-items:center;gap:6px;
-    background:#fff;color:#2b2417;font-family:"Poppins",sans-serif;font-weight:800;font-size:12px;
+    background:#fff;color:#2b2417;font-family:"Montserrat","Be Vietnam Pro",sans-serif;font-weight:800;font-size:12px;
     padding:5px 11px;border-radius:999px;box-shadow:0 8px 20px rgba(0,0,0,.22);
     animation:popFloat 3.4s ease-in-out infinite}
   @keyframes popFloat{0%,100%{transform:translateY(0) rotate(-2.5deg)}50%{transform:translateY(-7px) rotate(2.5deg)}}
@@ -269,8 +269,8 @@
   @media(max-width:460px){.steps{grid-template-columns:1fr;gap:40px}}
   .step{position:relative;background:#fff;border:1px solid #f0e6cd;border-radius:18px;padding:34px 22px 26px;text-align:center;transition:.25s}
   .step:hover{transform:translateY(-6px);box-shadow:0 18px 40px rgba(201,138,20,.18);border-color:transparent}
-  .hexb{width:58px;height:64px;margin:-60px auto 18px;display:grid;place-items:center;color:#2b2417;font-family:"Poppins";font-weight:800;font-size:21px;background:#f7b500;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);box-shadow:0 8px 18px rgba(201,138,20,.35)}
-  .step h4{font-family:"Poppins";font-weight:800;font-size:19px;color:#2b2417;margin-bottom:8px}
+  .hexb{width:58px;height:64px;margin:-60px auto 18px;display:grid;place-items:center;color:#2b2417;font-family:"Montserrat","Be Vietnam Pro",sans-serif;font-weight:800;font-size:21px;background:#f7b500;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);box-shadow:0 8px 18px rgba(201,138,20,.35)}
+  .step h4{font-family:"Montserrat","Be Vietnam Pro",sans-serif;font-weight:800;font-size:19px;color:#2b2417;margin-bottom:8px}
   .step .band{display:inline-block;font-weight:700;font-size:12.5px;color:#c98a14;background:#fdf0d2;padding:4px 12px;border-radius:999px;margin-bottom:12px}
   .step p{font-size:13px;color:#7a715c;line-height:1.55}
 
@@ -310,7 +310,7 @@
   /* ===== FOOTER ===== */
   footer{background:#2b2417;color:#d8cfb8;padding:46px 0 26px}
   .foot-top{display:flex;flex-wrap:wrap;gap:22px;justify-content:space-between;align-items:center}
-  .foot-logo{font-family:"Poppins";font-weight:800;font-size:19px;color:#fff}
+  .foot-logo{font-family:"Montserrat","Be Vietnam Pro",sans-serif;font-weight:800;font-size:19px;color:#fff}
   .foot-logo b{color:#f7b500}
   .foot-top .meta{font-size:13px;color:#a59c84}
   .foot-top .meta a{color:#ffd45e;font-weight:700}
