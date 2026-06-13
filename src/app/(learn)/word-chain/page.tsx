@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+import { auth } from "@/auth";
 import { WordChainGame } from "@/components/learn/word-chain-game";
 
 export const metadata: Metadata = {
@@ -6,21 +9,21 @@ export const metadata: Metadata = {
   description: "Mini-game nối từ tiếng Anh: luyện phản xạ từ vựng theo chữ cái cuối.",
 };
 
-export default function WordChainPage() {
+export default async function WordChainPage() {
+  const session = await auth();
+  const name = session?.user?.name?.split(" ").slice(-1)[0] ?? "";
+
   return (
     <div className="relative py-4 sm:py-6">
-      <div className="text-center mb-5">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-          Mini-game
-        </span>
-        <h1 className="mt-2 font-display text-3xl md:text-4xl font-extrabold tracking-tight">
-          Nối Từ
-        </h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Luyện phản xạ từ vựng — nối từ theo chữ cái cuối, tăng dần độ khó!
-        </p>
+      <div className="mx-auto max-w-2xl mb-4">
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center gap-1.5 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" /> Mục tiêu
+        </Link>
       </div>
-      <WordChainGame />
+      <WordChainGame playerName={name} />
     </div>
   );
 }

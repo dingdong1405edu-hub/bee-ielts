@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Sparkles, BookOpenText, BookOpen, Headphones, PenLine, Mic, ArrowRight, GraduationCap, Video, Play } from "lucide-react";
+import { Sparkles, BookOpenText, BookOpen, Headphones, PenLine, Mic, ArrowRight, GraduationCap, Video, Play, Link2 } from "lucide-react";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
@@ -157,6 +157,27 @@ export default async function DashboardPage() {
             <div className="flex-1 min-w-0">
               <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">Shadowing với YouTube</h2>
               <p className="text-white/90 text-sm mt-0.5">Nghe – nói theo video → AI chấm phát âm từng câu</p>
+            </div>
+            <ArrowRight className="h-6 w-6 group-hover:translate-x-1 transition-transform" />
+          </div>
+        </div>
+      </Link>
+
+      {/* Mini-game "Nối từ" — chỉ truy cập từ đây (Mục tiêu), không nằm ở sidebar. */}
+      <Link href="/word-chain" className="block group">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#38bdf8] via-[#0ea5e9] to-[#2563eb] p-6 md:p-8 text-white shadow-xl shadow-sky-500/30 transition-all hover:shadow-2xl hover:shadow-sky-500/40 hover:-translate-y-0.5">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_15%,rgba(255,255,255,0.28),transparent_55%)]" />
+          <div className="absolute -left-6 -bottom-8 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+          <span className="absolute top-4 right-4 inline-flex items-center gap-1 rounded-full bg-white/20 backdrop-blur px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider border border-white/30">
+            <Sparkles className="h-3 w-3" /> Mini-game
+          </span>
+          <div className="relative flex items-center gap-4 flex-wrap">
+            <div className="grid h-14 w-14 place-items-center rounded-2xl bg-white/15 backdrop-blur border border-white/20">
+              <Link2 className="h-7 w-7" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">Nối Từ — Last Letter</h2>
+              <p className="text-white/90 text-sm mt-0.5">Nối từ tiếng Anh theo chữ cái cuối — luyện phản xạ từ vựng, giữ chuỗi 🔥</p>
             </div>
             <ArrowRight className="h-6 w-6 group-hover:translate-x-1 transition-transform" />
           </div>
