@@ -64,15 +64,7 @@ export default function TermsPage() {
             </p>
           </Section>
 
-          <Section title="4. Chấm điểm bằng AI">
-            <p>
-              Điểm và nhận xét cho Writing &amp; Speaking được tạo bởi AI nhằm mục đích
-              <b> tham khảo và luyện tập</b>. Kết quả có thể chênh lệch so với kỳ thi
-              IELTS chính thức và không phải là cam kết về band điểm thực tế.
-            </p>
-          </Section>
-
-          <Section title="5. Gói trả phí (Premium)">
+          <Section title="4. Gói trả phí (Premium)">
             <p>
               Một số nội dung có thể yêu cầu tài khoản Premium. Quyền lợi và thời hạn
               được mô tả tại thời điểm bạn đăng ký. Vui lòng liên hệ chúng tôi nếu cần
@@ -80,7 +72,7 @@ export default function TermsPage() {
             </p>
           </Section>
 
-          <Section title="6. Thay đổi điều khoản">
+          <Section title="5. Thay đổi điều khoản">
             <p>
               Chúng tôi có thể cập nhật điều khoản theo thời gian. Khi có thay đổi quan
               trọng, chúng tôi sẽ thông báo trên nền tảng. Việc tiếp tục sử dụng đồng
@@ -88,7 +80,7 @@ export default function TermsPage() {
             </p>
           </Section>
 
-          <Section title="7. Liên hệ">
+          <Section title="6. Liên hệ">
             <ul className="list-disc pl-5 space-y-1.5">
               <li>Email: nguyenminhsantafe@gmail.com</li>
               <li>Zalo: 0378315088</li>
