@@ -17,7 +17,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Gauge, ListMusic } from "lucide-react";
+import { ArrowLeft, Gauge, ListMusic, Captions, CaptionsOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface PodcastSegment {
@@ -73,6 +73,27 @@ export function PodcastPlayer({
   const [activeIdx, setActiveIdx] = useState(-1);
   const [speed, setSpeed] = useState(1);
   const [ready, setReady] = useState(false);
+  // Phụ đề tiếng Anh phủ trên video (giống YouTube), bật/tắt tuỳ thích.
+  // Lưu lựa chọn để lần sau giữ nguyên.
+  const [showCaptions, setShowCaptions] = useState(true);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("bee_podcast_cc");
+      if (saved != null) setShowCaptions(saved === "1");
+    } catch {
+      /* ignore */
+    }
+  }, []);
+  const toggleCaptions = () =>
+    setShowCaptions((v) => {
+      const next = !v;
+      try {
+        localStorage.setItem("bee_podcast_cc", next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
 
   const playerRef = useRef<{
     seekTo: (s: number, allowSeekAhead?: boolean) => void;
@@ -208,23 +229,47 @@ export function PodcastPlayer({
           <ArrowLeft className="h-4 w-4" />
           Tất cả podcasts
         </Link>
-        <div className="flex items-center gap-1 rounded-full border-2 border-primary/40 bg-paper p-1 shadow-sm">
-          <Gauge className="h-3.5 w-3.5 ml-1.5 text-primary" />
-          {SPEEDS.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setSpeed(s)}
-              className={cn(
-                "rounded-full px-2.5 py-0.5 text-xs font-bold transition-colors",
-                speed === s
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {s}x
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          {/* Bật/tắt phụ đề tiếng Anh trên video */}
+          <button
+            type="button"
+            onClick={toggleCaptions}
+            aria-pressed={showCaptions}
+            title={showCaptions ? "Tắt phụ đề tiếng Anh" : "Bật phụ đề tiếng Anh"}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-xs font-bold transition-colors shadow-sm",
+              showCaptions
+                ? "border-primary/40 bg-primary text-primary-foreground"
+                : "border-primary/40 bg-paper text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {showCaptions ? (
+              <Captions className="h-3.5 w-3.5" />
+            ) : (
+              <CaptionsOff className="h-3.5 w-3.5" />
+            )}
+            <span className="hidden sm:inline">Phụ đề</span>
+            <span>{showCaptions ? "Bật" : "Tắt"}</span>
+          </button>
+
+          <div className="flex items-center gap-1 rounded-full border-2 border-primary/40 bg-paper p-1 shadow-sm">
+            <Gauge className="h-3.5 w-3.5 ml-1.5 text-primary" />
+            {SPEEDS.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setSpeed(s)}
+                className={cn(
+                  "rounded-full px-2.5 py-0.5 text-xs font-bold transition-colors",
+                  speed === s
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {s}x
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -233,6 +278,17 @@ export function PodcastPlayer({
         <div className="aspect-video w-full">
           <div ref={playerContainerRef} className="h-full w-full" />
         </div>
+
+        {/* Phụ đề tiếng Anh phủ trên video (giống YouTube).
+            pointer-events-none để click vẫn xuyên xuống điều khiển YouTube;
+            đặt cao hơn thanh điều khiển của YouTube để không bị che. */}
+        {showCaptions && activeIdx >= 0 && segments[activeIdx]?.textEn && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-[12%] flex justify-center px-3 sm:px-6">
+            <span className="max-w-[92%] sm:max-w-3xl rounded-md bg-black/75 px-3 py-1 text-center text-white text-sm sm:text-base md:text-lg font-medium leading-snug [text-shadow:0_1px_2px_rgba(0,0,0,.9)]">
+              {segments[activeIdx].textEn}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Title block */}
