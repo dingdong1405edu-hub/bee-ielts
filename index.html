@@ -315,7 +315,12 @@
   .foot-top .meta{font-size:13px;color:#a59c84}
   .foot-top .meta a{color:#ffd45e;font-weight:700}
   .foot-bottom{border-top:1px solid #46402f;margin-top:26px;padding-top:18px;display:flex;flex-wrap:wrap;gap:8px 22px;justify-content:space-between;font-size:12.5px;color:#9a917a}
+  .foot-bottom a{color:inherit;border-radius:6px;transition:color .15s}
   .foot-bottom a:hover{color:#fff}
+  .foot-top .meta a{border-radius:6px}
+  /* bỏ khung viền xấu khi bấm chuột, vẫn giữ viền khi dùng bàn phím (a11y) */
+  footer a:focus:not(:focus-visible){outline:none}
+  footer a:focus-visible{outline:2px solid #ffd45e;outline-offset:2px}
 
   /* ===== ĐIỆN THOẠI — chỉ tinh chỉnh màn nhỏ, KHÔNG đụng tới desktop ===== */
   @media(max-width:600px){
@@ -507,11 +512,15 @@
   <div class="wrap">
     <div class="foot-top">
       <div class="foot-logo">BEE<b>ENGLISH</b></div>
-      <span class="meta">💬 Zalo: <a href="https://zalo.me/0378315088">0378315088</a> &nbsp;•&nbsp; ✉️ <a href="mailto:nguyenminhsantafe@gmail.com">nguyenminhsantafe@gmail.com</a></span>
+      <span class="meta">💬 Zalo: <a href="https://zalo.me/0378315088">0378315088</a> &nbsp;•&nbsp; ✉️ <a href="mailto:nguyenminhsantafe@gmail.com">nguyenminhsantafe@gmail.com</a> &nbsp;•&nbsp; 📘 <a href="https://www.facebook.com/profile.php?id=61590634713044" target="_blank" rel="noopener">Facebook</a></span>
     </div>
     <div class="foot-bottom">
       <span>© 2026 BeeEnglish. All rights reserved.</span>
-      <span>📞 Hotline 24/7 &nbsp;•&nbsp; <a href="#">Về chúng tôi</a> &nbsp; <a href="#">Chính sách bảo mật</a> &nbsp; <a href="#">Điều khoản dịch vụ</a></span>
+      <span>📞 Hotline 24/7 &nbsp;•&nbsp; <a href="/privacy">Chính sách bảo mật</a> &nbsp; <a href="/terms">Điều khoản dịch vụ</a></span>
+    </div>
+    <div class="foot-bottom" style="margin-top:10px;border-top:none;padding-top:0">
+      <span></span>
+      <span>🔗 Theo dõi Bee trên <a href="https://www.facebook.com/profile.php?id=61590634713044" target="_blank" rel="noopener">Facebook</a> để nhận tin mới &amp; ưu đãi</span>
     </div>
   </div>
 </footer>
