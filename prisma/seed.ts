@@ -171,12 +171,17 @@ async function main() {
     console.log("Writing: skipped (đã có dữ liệu).");
   }
 
-  // Speaking Roulette cards — static deck for /speaking/roulette. Only
-  // seeded on a fresh DB; once admin curates (future feature) we leave it
-  // alone. Cards are unrelated to SpeakingSet (that's the existing IELTS
-  // band-set flow).
-  if ((await prisma.speakingTopicCard.count()) === 0) {
-    for (const c of SPEAKING_ROULETTE_CARDS) {
+  // Speaking Roulette cards — static deck for /speaking/roulette. Idempotent
+  // by question text: insert any card not already in the DB so new prompts
+  // roll out on each deploy WITHOUT duplicating the existing deck. Cards are
+  // unrelated to SpeakingSet (that's the existing IELTS band-set flow).
+  {
+    const existing = await prisma.speakingTopicCard.findMany({
+      select: { question: true },
+    });
+    const have = new Set(existing.map((c) => c.question));
+    const missing = SPEAKING_ROULETTE_CARDS.filter((c) => !have.has(c.question));
+    for (const c of missing) {
       await prisma.speakingTopicCard.create({
         data: {
           part: c.part,
@@ -189,9 +194,11 @@ async function main() {
         },
       });
     }
-    console.log("Speaking Roulette: seeded.");
-  } else {
-    console.log("Speaking Roulette: skipped (đã có dữ liệu).");
+    console.log(
+      missing.length > 0
+        ? `Speaking Roulette: added ${missing.length} new card(s).`
+        : "Speaking Roulette: up to date.",
+    );
   }
 
   // Speaking — only on a fresh DB.
