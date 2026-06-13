@@ -5,7 +5,7 @@ import { ArrowLeft } from "lucide-react";
 export const metadata: Metadata = {
   title: "Chính sách bảo mật — Bee IELTS",
   description:
-    "Chính sách bảo mật của Bee IELTS (BeeEnglish): cách chúng tôi thu thập, sử dụng và bảo vệ thông tin của bạn.",
+    "Chính sách bảo mật của Bee IELTS: cách chúng tôi thu thập, sử dụng và bảo vệ thông tin của bạn.",
 };
 
 const UPDATED = "13/06/2026";
@@ -28,7 +28,7 @@ export default function PrivacyPage() {
 
         <div className="mt-8 space-y-7 text-[15px] leading-relaxed text-ink-soft">
           <p>
-            BeeEnglish (&ldquo;Bee IELTS&rdquo;, &ldquo;chúng tôi&rdquo;) tôn trọng quyền riêng tư của
+            Bee IELTS (&ldquo;chúng tôi&rdquo;) tôn trọng quyền riêng tư của
             bạn. Trang này giải thích chúng tôi thu thập, sử dụng và bảo vệ thông
             tin cá nhân như thế nào khi bạn sử dụng nền tảng học IELTS của chúng tôi.
           </p>
@@ -102,7 +102,7 @@ export default function PrivacyPage() {
                   rel="noopener"
                   className="font-semibold text-honey hover:underline"
                 >
-                  fb.com/BeeEnglish
+                  Bee IELTS
                 </a>
               </li>
             </ul>
@@ -110,7 +110,7 @@ export default function PrivacyPage() {
         </div>
 
         <div className="mt-10 border-t border-ink/10 pt-5 text-sm text-ink-faint">
-          © 2026 BeeEnglish.{" "}
+          © 2026 Bee IELTS.{" "}
           <Link href="/terms" className="font-semibold text-honey hover:underline">
             Điều khoản dịch vụ
           </Link>

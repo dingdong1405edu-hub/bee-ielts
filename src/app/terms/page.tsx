@@ -5,7 +5,7 @@ import { ArrowLeft } from "lucide-react";
 export const metadata: Metadata = {
   title: "Điều khoản dịch vụ — Bee IELTS",
   description:
-    "Điều khoản dịch vụ của Bee IELTS (BeeEnglish): các quy định khi sử dụng nền tảng học IELTS.",
+    "Điều khoản dịch vụ của Bee IELTS: các quy định khi sử dụng nền tảng học IELTS.",
 };
 
 const UPDATED = "13/06/2026";
@@ -28,7 +28,7 @@ export default function TermsPage() {
 
         <div className="mt-8 space-y-7 text-[15px] leading-relaxed text-ink-soft">
           <p>
-            Bằng việc tạo tài khoản và sử dụng BeeEnglish (&ldquo;Bee IELTS&rdquo;),
+            Bằng việc tạo tài khoản và sử dụng Bee IELTS,
             bạn đồng ý với các điều khoản dưới đây. Vui lòng đọc kỹ trước khi sử dụng.
           </p>
 
@@ -58,7 +58,7 @@ export default function TermsPage() {
           <Section title="3. Nội dung &amp; bản quyền">
             <p>
               Toàn bộ bài học, đề luyện, hình ảnh và thương hiệu của Bee thuộc quyền
-              sở hữu của BeeEnglish. Nội dung do bạn tạo ra (bài viết, bản ghi âm) vẫn
+              sở hữu của Bee IELTS. Nội dung do bạn tạo ra (bài viết, bản ghi âm) vẫn
               thuộc về bạn; bạn cho phép chúng tôi xử lý chúng để cung cấp dịch vụ chấm
               điểm và lưu tiến độ.
             </p>
@@ -92,7 +92,7 @@ export default function TermsPage() {
                   rel="noopener"
                   className="font-semibold text-honey hover:underline"
                 >
-                  fb.com/BeeEnglish
+                  Bee IELTS
                 </a>
               </li>
             </ul>
@@ -100,7 +100,7 @@ export default function TermsPage() {
         </div>
 
         <div className="mt-10 border-t border-ink/10 pt-5 text-sm text-ink-faint">
-          © 2026 BeeEnglish.{" "}
+          © 2026 Bee IELTS.{" "}
           <Link href="/privacy" className="font-semibold text-honey hover:underline">
             Chính sách bảo mật
           </Link>

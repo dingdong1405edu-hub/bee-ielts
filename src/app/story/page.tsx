@@ -8,7 +8,7 @@ import { ReadingProgress } from "./reading-progress";
 export const metadata: Metadata = {
   title: "Ong Bee và Khu Vườn Ngàn Tiếng Nói — Bài viết của Bee",
   description:
-    "Một câu chuyện cổ tích về chú ong nhỏ chăm chỉ, lấy cảm hứng cho hành trình học tiếng Anh cùng BeeEnglish.",
+    "Một câu chuyện cổ tích về chú ong nhỏ chăm chỉ, lấy cảm hứng cho hành trình học tiếng Anh cùng Bee IELTS.",
 };
 
 // The tale, paragraph by paragraph. Kept as data so the layout stays clean.

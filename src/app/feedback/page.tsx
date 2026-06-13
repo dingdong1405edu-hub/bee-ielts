@@ -158,7 +158,7 @@ export default function FeedbackPage() {
                   {busy ? "Đang gửi..." : "Gửi cho Bee"}
                 </button>
                 <p className="text-center text-xs text-ink-faint">
-                  Tin nhắn gửi trực tiếp tới admin BeeEnglish.
+                  Tin nhắn gửi trực tiếp tới admin Bee IELTS.
                 </p>
               </form>
             </>
