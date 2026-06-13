@@ -1,12 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Poppins, Be_Vietnam_Pro } from "next/font/google";
+import { Montserrat, Be_Vietnam_Pro } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 import { Providers } from "./providers";
 
-// Display (headings) — Poppins: geometric, confident (BeeEnglish landing)
-const display = Poppins({
-  subsets: ["latin", "latin-ext"],
+// Display (headings) — Montserrat: geometric & confident, AND has full
+// Vietnamese coverage (Poppins lacked vi glyphs → broken accents on headings).
+const display = Montserrat({
+  subsets: ["latin", "latin-ext", "vietnamese"],
   weight: ["500", "600", "700", "800", "900"],
   variable: "--font-display",
   display: "swap",

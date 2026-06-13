@@ -37,9 +37,21 @@ function Hex({ className, style }: { className?: string; style?: CSSProperties }
   );
 }
 
+// Trang story luôn dùng nền sáng (gradient vàng) nên ép màu chữ "ink" về
+// giá trị tối của theme sáng — tránh lỗi chữ sáng-trên-nền-sáng khi điện thoại
+// đang bật chế độ tối (lúc đó --ink mặc định bị lật thành màu sáng).
+const LIGHT_INK = {
+  "--ink": "#2B2417",
+  "--ink-soft": "#6E6450",
+  "--ink-faint": "#9A9079",
+} as CSSProperties;
+
 export default function StoryPage() {
   return (
-    <main className="relative min-h-screen overflow-hidden bg-gradient-to-b from-[#FFE6A0] via-[#FFF2CF] to-[#FFFCF3]">
+    <main
+      style={LIGHT_INK}
+      className="relative min-h-screen overflow-hidden bg-gradient-to-b from-[#FFE6A0] via-[#FFF2CF] to-[#FFFCF3]"
+    >
       <ReadingProgress />
 
       {/* ===== Decorative backdrop — soft glows, honeycomb, sparkles, a bee ===== */}
