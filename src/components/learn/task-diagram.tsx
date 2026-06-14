@@ -8,7 +8,7 @@ export function TaskDiagram({ svg }: { svg: string | null | undefined }) {
   if (!svg) return null;
   return (
     <div
-      className="w-full overflow-hidden rounded-lg border bg-card"
+      className="w-full overflow-x-auto rounded-lg border bg-card [&>svg]:block [&>svg]:w-full [&>svg]:h-auto"
       dangerouslySetInnerHTML={{ __html: svg }}
     />
   );

@@ -237,10 +237,10 @@ export default async function GrammarPathPage() {
                 i % 4 === 0
                   ? "ml-0"
                   : i % 4 === 1
-                    ? "ml-24"
+                    ? "ml-8 md:ml-24"
                     : i % 4 === 2
-                      ? "ml-12"
-                      : "-ml-12";
+                      ? "ml-4 md:ml-12"
+                      : "ml-0 md:-ml-12";
               return (
                 <PathNode
                   key={l.id}

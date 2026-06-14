@@ -305,7 +305,7 @@ export function RouletteDeck({ cards }: { cards: RouletteCard[] }) {
                 type="button"
                 onClick={() => setPart(p)}
                 className={cn(
-                  "rounded-2xl px-5 py-2.5 text-center min-w-[110px] transition-all font-display",
+                  "flex-1 sm:flex-none rounded-2xl px-3 sm:px-5 py-2.5 text-center sm:min-w-[110px] transition-all font-display",
                   active
                     ? "bg-cream text-[#3b5128] shadow-lg"
                     : "bg-white/10 text-white/80 hover:bg-white/20",

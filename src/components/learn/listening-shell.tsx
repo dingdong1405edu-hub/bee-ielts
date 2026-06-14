@@ -304,7 +304,7 @@ function ShellHeader({
             }
           }}
         >
-          <Search className="h-3.5 w-3.5" /> Review
+          <Search className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Review</span>
         </Button>
         {!submitted && (
           <Button
@@ -312,7 +312,7 @@ function ShellHeader({
             onClick={onSubmit}
             className="rounded-xl gap-1.5 bg-primary"
           >
-            {submitLabel} <Send className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{submitLabel}</span> <Send className="h-3.5 w-3.5" />
           </Button>
         )}
       </div>
@@ -450,7 +450,7 @@ function AudioStrip({
                 <Play className="h-3.5 w-3.5 ml-0.5" />
               </button>
             )}
-            <Volume2 className="h-4 w-4 text-muted-foreground shrink-0" />
+            <Volume2 className="h-4 w-4 text-muted-foreground shrink-0 hidden sm:block" />
             <input
               type="range"
               min={0}
@@ -458,7 +458,7 @@ function AudioStrip({
               step={0.05}
               value={volume}
               onChange={(e) => setVolume(parseFloat(e.target.value))}
-              className="w-20 accent-primary"
+              className="w-20 accent-primary hidden sm:block"
               aria-label="Âm lượng"
             />
             {playOnce ? (

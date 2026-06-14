@@ -14,12 +14,12 @@ export default async function AdminUsersPage() {
       <Card>
         <CardContent className="p-0 divide-y">
           {users.map((u) => (
-            <div key={u.id} className="flex items-center justify-between p-4">
-              <div>
-                <div className="font-medium">{u.name || "—"} <span className="text-muted-foreground text-sm">({u.email})</span></div>
-                <div className="text-xs text-muted-foreground">{new Date(u.createdAt).toLocaleString("vi-VN")} • XP {u.xp} • Streak {u.streakDays}</div>
+            <div key={u.id} className="flex items-center justify-between gap-3 p-4">
+              <div className="min-w-0">
+                <div className="font-medium truncate">{u.name || "—"} <span className="text-muted-foreground text-sm">({u.email})</span></div>
+                <div className="text-xs text-muted-foreground truncate">{new Date(u.createdAt).toLocaleString("vi-VN")} • XP {u.xp} • Streak {u.streakDays}</div>
               </div>
-              <Badge variant={u.role === "ADMIN" ? "default" : "secondary"}>{u.role}</Badge>
+              <Badge variant={u.role === "ADMIN" ? "default" : "secondary"} className="shrink-0">{u.role}</Badge>
             </div>
           ))}
         </CardContent>

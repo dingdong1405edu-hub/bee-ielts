@@ -97,7 +97,7 @@ export function Flashcards({ cards }: { cards: StudyCard[] }) {
   return (
     <div className="flex flex-col items-center gap-7 px-4 py-8 select-none">
       {/* Progress */}
-      <div className="flex w-full max-w-5xl items-center justify-between">
+      <div className="flex w-full max-w-5xl flex-wrap items-center justify-between gap-2">
         <span className="text-lg font-bold text-muted-foreground tabular-nums">
           {index + 1} / {deck.length}
         </span>
@@ -108,7 +108,7 @@ export function Flashcards({ cards }: { cards: StudyCard[] }) {
             onClick={handleShuffle}
             aria-label="Trộn thẻ"
             title="Trộn thẻ"
-            className="text-base"
+            className="text-base px-3 md:px-6"
           >
             <Shuffle className="h-5 w-5 mr-1.5" />
             Trộn thẻ
@@ -119,7 +119,7 @@ export function Flashcards({ cards }: { cards: StudyCard[] }) {
             onClick={handleReset}
             aria-label="Đặt lại"
             title="Đặt lại thứ tự gốc"
-            className="text-base"
+            className="text-base px-3 md:px-6"
           >
             <RotateCw className="h-5 w-5 mr-1.5" />
             Đặt lại
@@ -173,7 +173,7 @@ export function Flashcards({ cards }: { cards: StudyCard[] }) {
                 <span className="absolute top-5 right-6 text-sm font-bold text-muted-foreground uppercase tracking-widest">
                   Từ
                 </span>
-                <p className="font-extrabold text-6xl md:text-7xl lg:text-8xl text-foreground leading-tight text-center break-words">
+                <p className="font-extrabold text-4xl sm:text-5xl md:text-7xl lg:text-8xl text-foreground leading-tight text-center break-words">
                   {card.term}
                 </p>
                 <p className="mt-8 text-base text-muted-foreground">
@@ -187,7 +187,7 @@ export function Flashcards({ cards }: { cards: StudyCard[] }) {
                 <span className="absolute top-5 right-6 text-sm font-bold text-muted-foreground uppercase tracking-widest">
                   Nghĩa
                 </span>
-                <p className="font-extrabold text-4xl md:text-5xl lg:text-6xl text-foreground leading-tight text-center break-words">
+                <p className="font-extrabold text-2xl sm:text-3xl md:text-5xl lg:text-6xl text-foreground leading-tight text-center break-words">
                   {card.definition}
                 </p>
                 {card.example && (
@@ -255,7 +255,7 @@ function CardFace({ side, children }: CardFaceProps) {
     <div
       className={cn(
         "absolute inset-0 flex flex-col items-center justify-center",
-        "rounded-3xl border-2 bg-card px-10 py-14 shadow-xl",
+        "rounded-3xl border-2 bg-card px-5 py-10 md:px-10 md:py-14 shadow-xl",
         "backface-hidden",
         side === "back" && "[transform:rotateY(180deg)]",
       )}

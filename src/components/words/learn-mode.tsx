@@ -187,13 +187,13 @@ export function LearnMode({
 
       {/* Flashcard — bigger so the term reads from across the room */}
       <Card className="rounded-3xl shadow-xl border-2">
-        <CardContent className="flex min-h-[26rem] flex-col items-center justify-center gap-8 p-10 text-center">
+        <CardContent className="flex min-h-[26rem] flex-col items-center justify-center gap-8 p-5 md:p-10 text-center">
           {/* Term */}
           <div className="space-y-3">
             <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
               Từ / Thuật ngữ
             </p>
-            <h2 className="text-6xl md:text-7xl lg:text-8xl font-extrabold tracking-tight leading-tight break-words">
+            <h2 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-extrabold tracking-tight leading-tight break-words">
               {current.term}
             </h2>
           </div>

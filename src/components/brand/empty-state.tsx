@@ -26,7 +26,7 @@ export function EmptyState({
     <div
       className={cn(
         "relative overflow-hidden rounded-3xl border border-border bg-card text-center",
-        compact ? "p-8" : "p-10 md:p-14",
+        compact ? "p-6 md:p-8" : "p-6 sm:p-10 md:p-14",
         className,
       )}
     >

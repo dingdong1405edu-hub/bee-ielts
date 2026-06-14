@@ -41,8 +41,8 @@ export function PopQuiz({ enabled }: { enabled: boolean }) {
   if (!quiz) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] grid place-items-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-2xl border bg-card p-5 shadow-xl space-y-3">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto bg-black/50 p-4">
+      <div className="w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-2xl border bg-card p-5 shadow-xl space-y-3">
         <div className="flex items-center gap-2">
           <div className="grid h-9 w-9 place-items-center rounded-xl gradient-brand text-white">
             <Sparkles className="h-4 w-4" />

@@ -236,7 +236,7 @@ function ActionButton({
       onClick={onClick}
       aria-label={label}
       className={cn(
-        "flex items-center gap-1 rounded-full px-2 py-1.5 transition-colors hover:bg-muted",
+        "flex items-center gap-1 rounded-full px-2.5 py-2 md:px-2 md:py-1.5 min-h-9 md:min-h-0 transition-colors hover:bg-muted",
         active ? activeClass : "text-foreground",
       )}
     >
@@ -513,7 +513,7 @@ function CommentNode({ comment, postId }: { comment: FeedComment; postId: string
         )}
 
         {comment.replies.length > 0 && (
-          <div className="mt-2 space-y-3 border-l-2 border-border pl-3">
+          <div className="mt-2 space-y-3 border-l-2 border-border pl-1.5 md:pl-3">
             {comment.replies.map((r) => (
               <CommentNode key={r.id} comment={r} postId={postId} />
             ))}

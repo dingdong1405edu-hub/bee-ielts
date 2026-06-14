@@ -94,7 +94,7 @@ export function AddWordButton() {
           onClick={() => setOpen(false)}
         >
           <div
-            className="w-full max-w-md rounded-2xl border bg-card p-5 shadow-xl space-y-3"
+            className="w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-2xl border bg-card p-5 shadow-xl space-y-3"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">

@@ -222,7 +222,7 @@ export function SpeakingSetForm({
         </Card>
       )}
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Button variant="outline" onClick={() => router.push("/admin/speaking")}>Huỷ</Button>
         <Button onClick={submit} disabled={loading}>
           {loading && <Loader2 className="h-4 w-4 animate-spin" />}

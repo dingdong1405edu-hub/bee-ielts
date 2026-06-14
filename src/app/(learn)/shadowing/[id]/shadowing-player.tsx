@@ -784,7 +784,7 @@ export function ShadowingPlayer({ lesson, segments, mode = "shadowing" }: Shadow
   }, [active]);
 
   return (
-    <div className="grid lg:grid-cols-[1fr_1fr] gap-4 -mx-4 md:-mx-8 -mt-4 md:-mt-8 min-h-screen bg-card">
+    <div className="grid lg:grid-cols-[1fr_1fr] gap-4 -mx-4 md:-mx-6 -mt-4 md:-mt-6 min-h-screen bg-card">
       {/* LEFT: video + tabs + bee progress + segment list / notes */}
       <div className="p-4 md:p-6 space-y-3 border-r">
         <div className="flex items-center gap-2 mb-2">

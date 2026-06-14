@@ -221,7 +221,7 @@ export function PodcastPlayer({
   return (
     <div className="mx-auto max-w-6xl px-3 sm:px-6 py-4 sm:py-6">
       {/* Top bar */}
-      <div className="flex items-center justify-between gap-3 mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <Link
           href="/podcasts"
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"

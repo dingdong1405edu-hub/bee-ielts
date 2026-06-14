@@ -229,7 +229,7 @@ function WritingBody({ data }: { data: WritingReviewData }) {
         <p>{data.result.summary}</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 avoid-break">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 avoid-break">
         {Object.entries(data.result.criteria ?? {}).map(([k, v]) =>
           v ? (
             <div key={k} className="rounded-xl border p-3 text-sm">
@@ -287,7 +287,7 @@ function SpeakingBody({ data }: { data: SpeakingReviewData }) {
         <p>{data.result.summary}</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 avoid-break">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 avoid-break">
         {Object.entries(data.result.criteria).map(([k, v]) => (
           <div key={k} className="rounded-xl border p-3 text-sm">
             <div className="flex items-center justify-between font-bold">
