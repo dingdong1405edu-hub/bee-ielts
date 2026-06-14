@@ -10,15 +10,27 @@
 <style>
   :root{
     --honey:#e0a52b;
+    --honey-deep:#9a6608;            /* gold ink đậm — đạt AA trên nền kem */
     --honey-line:rgba(255,255,255,.12);
     --ink:#2b2417;
+    --ink-soft:#5f5743;
     --bee:#f7b500;
     --cream:#fff6e2;
     --max:1280px;
-    /* nền lưới ô xanh nhẹ cho header + hero */
-    --leaf:#92b07c;
-    --grid-line:rgba(255,255,255,.13);
+    /* nền xanh lá (header + hero) — đậm hơn để chữ trắng đạt WCAG AA */
+    --leaf:#5d7d4f;
+    --leaf-deep:#4e6b42;
+    --grid-line:rgba(255,255,255,.16);
     --grid-size:42px;
+    /* ===== design tokens: bo góc / đổ bóng / chuyển động / focus / nhịp section ===== */
+    --r-sm:14px; --r-md:18px; --r-lg:24px; --r-pill:999px;
+    --sh-1:0 6px 16px rgba(43,36,23,.10);
+    --sh-2:0 12px 28px rgba(43,36,23,.16);
+    --sh-3:0 22px 50px rgba(43,36,23,.22);
+    --sh-hover:0 30px 56px rgba(43,36,23,.30);
+    --t:.22s cubic-bezier(.2,.7,.2,1);
+    --focus:#ffd45e;
+    --sec-pad:clamp(60px,8vw,96px);
   }
   .grid-bg{ background-color:var(--leaf); }
   /* lớp lưới tổ ong (lục giác) — vẽ bằng JS, nét mờ như cũ */
@@ -29,9 +41,12 @@
   html{scroll-behavior:smooth}
   body{font-family:"Be Vietnam Pro",system-ui,sans-serif;color:var(--ink);background:#fff;-webkit-font-smoothing:antialiased}
   h1,h2,h3,.disp{font-family:"Montserrat","Be Vietnam Pro",sans-serif;letter-spacing:-.01em}
-  a{color:inherit;text-decoration:none}
+  a{color:inherit;text-decoration:none;-webkit-tap-highlight-color:transparent}
   img{display:block;max-width:100%}
   .wrap{max-width:var(--max);margin:0 auto;padding:0 34px}
+  /* focus-visible thống nhất cho mọi phần tử tương tác (a11y, chuyên nghiệp) */
+  :where(a,button,[role="button"],input,summary,.skill-link,.card,.step):focus-visible{
+    outline:2px solid var(--focus);outline-offset:3px;border-radius:inherit}
 
   /* ===== HEADER ===== */
   header{border-bottom:none;position:relative;overflow:hidden}
@@ -66,8 +81,14 @@
   .user .u-name{font-weight:700;font-size:13px;line-height:1.1;color:#fff}
   .user .u-stat{font-size:10px;color:#eafbe4;font-weight:600;display:flex;align-items:center;gap:4px}
   .user .u-stat::before{content:"";width:6px;height:6px;border-radius:50%;background:#9be88a}
-  .hdr-link{display:flex;align-items:center;gap:6px;font-size:13.5px;font-weight:600;color:rgba(255,255,255,.95)}
+  .hdr-link{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600;color:rgba(255,255,255,.95);transition:color var(--t),opacity var(--t)}
+  .hdr-link:hover{color:#fff}
   .hdr-link svg{width:16px;height:16px}
+  .bell{transition:transform var(--t)}
+  .bell:hover{transform:scale(1.08)}
+  .bell:active{transform:scale(.95)}
+  .user{transition:background var(--t)}
+  .user:hover{background:rgba(255,255,255,.20)}
   @media(max-width:780px){.user .u-name,.user .u-stat,.hdr-link span{display:none}}
 
   /* ===== HERO ===== */
@@ -76,16 +97,33 @@
   .hero .wrap{position:relative;z-index:3;padding-top:30px;padding-bottom:60px}
   .hero h1{
     display:block;font-family:"Montserrat","Be Vietnam Pro",sans-serif;font-weight:900;
-    font-size:clamp(46px,7.6vw,90px);line-height:.96;letter-spacing:-.025em;
-    color:#fff;text-shadow:0 3px 16px rgba(43,36,23,.32);margin-top:10px;
+    font-size:clamp(44px,7vw,82px);line-height:1.05;letter-spacing:-.015em;
+    color:#fff;text-shadow:0 2px 8px rgba(43,36,23,.28);margin-top:8px;
   }
   .hero h1 .hl{
-    background:linear-gradient(180deg,#fff0b8 0%,#ffce4d 45%,#f2a81e 100%);
+    background:linear-gradient(180deg,#fff3c2 0%,#ffd25a 55%,#ffbe33 100%);
     -webkit-background-clip:text;background-clip:text;
     -webkit-text-fill-color:transparent;color:transparent;
-    text-shadow:none;
+    text-shadow:none;filter:drop-shadow(0 1px 1px rgba(43,36,23,.35));
   }
-  .hero .lead{color:rgba(255,255,255,.95);font-size:17px;max-width:430px;margin-top:22px;font-weight:500}
+  .hero .lead{color:#fff;font-size:18px;line-height:1.55;max-width:482px;margin-top:20px;font-weight:500}
+  .hero .lead b{color:#ffe08a;font-weight:700}
+  /* eyebrow trắng trên nền hero xanh */
+  .hero .eb-light{display:inline-flex;align-items:center;gap:8px;font-family:"Montserrat","Be Vietnam Pro",sans-serif;
+    font-weight:700;font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;color:#fff;
+    background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);padding:7px 15px;border-radius:999px}
+  /* hàng lợi ích dưới lead */
+  .benefits{display:flex;flex-wrap:wrap;gap:10px 20px;margin-top:20px;list-style:none;padding:0}
+  .benefits li{display:flex;align-items:center;gap:8px;color:#fff;font-size:14px;font-weight:500}
+  .benefits li svg{width:18px;height:18px;flex:none;color:#ffe08a}
+  /* trust strip dưới CTA */
+  .trust-strip{display:flex;flex-wrap:wrap;gap:10px 0;list-style:none;margin-top:24px;padding:0;
+    color:rgba(255,255,255,.92);font-size:13.5px;font-weight:500}
+  .trust-strip li{display:flex;align-items:center;gap:7px;padding-right:18px}
+  .trust-strip li:not(:last-child){margin-right:18px;position:relative}
+  .trust-strip li:not(:last-child)::after{content:"";position:absolute;right:0;width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,.45)}
+  .trust-strip b{font-weight:800;color:#ffe08a}
+  .trust-strip svg{width:16px;height:16px;color:#ffe08a;flex:none}
   .pill{display:inline-flex;align-items:center;gap:10px;background:rgba(43,36,23,.28);border:1px solid rgba(255,255,255,.18);color:#fff;font-weight:600;font-size:14px;padding:11px 18px;border-radius:999px;margin-top:18px;transition:.2s}
   .pill:hover{background:rgba(43,36,23,.42)}
   .pill .ic{width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.2);display:grid;place-items:center}
@@ -97,10 +135,20 @@
   .follow .sm a{width:24px;height:24px;border-radius:50%;background:#fff;display:grid;place-items:center;color:#2b2417}
   .follow .sm a svg{width:13px;height:13px}
   .cta-row{display:flex;flex-wrap:wrap;align-items:center;gap:22px;margin-top:38px}
-  .btn-white{display:inline-flex;align-items:center;gap:10px;background:#fff;color:#2b2417;font-weight:700;font-size:15px;padding:15px 26px;border-radius:999px;box-shadow:0 8px 22px rgba(43,36,23,.18);transition:.2s}
-  .btn-white:hover{transform:translateY(-2px)}
-  .btn-link{display:inline-flex;align-items:center;gap:9px;color:#fff;font-weight:700;font-size:15px}
-  .btn-link svg{width:18px;height:18px}
+  /* PRIMARY CTA — gold mật, hành động chính */
+  .btn-primary{display:inline-flex;align-items:center;gap:10px;background:#f7b500;color:#2b2417;font-weight:800;font-size:16px;padding:16px 30px;border-radius:999px;box-shadow:0 10px 26px rgba(201,138,20,.45);transition:transform var(--t),box-shadow var(--t),background var(--t)}
+  .btn-primary:hover{transform:translateY(-2px);background:#ffc62e;box-shadow:0 14px 32px rgba(201,138,20,.55)}
+  .btn-primary:active{transform:translateY(0) scale(.98)}
+  .btn-primary svg{width:18px;height:18px;transition:transform var(--t)}
+  .btn-primary:hover svg{transform:translateX(4px)}
+  /* SECONDARY — ghost viền trắng trên hero xanh */
+  .btn-white{display:inline-flex;align-items:center;gap:10px;background:rgba(255,255,255,.10);color:#fff;font-weight:700;font-size:15px;padding:15px 26px;border-radius:999px;border:1.5px solid rgba(255,255,255,.65);transition:transform var(--t),background var(--t),border-color var(--t)}
+  .btn-white:hover{transform:translateY(-2px);background:rgba(255,255,255,.2);border-color:#fff}
+  .btn-white:active{transform:translateY(0) scale(.98)}
+  .btn-link{display:inline-flex;align-items:center;gap:9px;color:#fff;font-weight:700;font-size:15px;transition:opacity var(--t)}
+  .btn-link:hover{opacity:.85}
+  .btn-link svg{width:18px;height:18px;transition:transform var(--t)}
+  .btn-link:hover svg:last-child{transform:translateX(3px)}
 
   /* bee mascot — ảnh PNG (tỉ lệ gốc 610×760) */
   .bee-wrap{position:absolute;right:24px;bottom:-40px;width:472px;height:588px;z-index:2;pointer-events:none}
@@ -127,7 +175,7 @@
   @keyframes beeWaveHi{0%,100%{transform:rotate(-9deg)}50%{transform:rotate(10deg)}}
   /* badge số liệu bay quanh ong */
   .bee-orbit{position:absolute;inset:0;z-index:5;pointer-events:none}
-  .bdg{position:absolute;display:flex;align-items:center;gap:9px;background:#fff;color:#2b2417;border-radius:15px;padding:8px 14px;box-shadow:0 12px 28px rgba(43,36,23,.22);font-family:"Montserrat","Be Vietnam Pro",sans-serif;white-space:nowrap;will-change:transform}
+  .bdg{position:absolute;display:flex;align-items:center;gap:9px;background:#fff;color:#2b2417;border-radius:999px;padding:8px 14px;box-shadow:var(--sh-2);font-family:"Montserrat","Be Vietnam Pro",sans-serif;white-space:nowrap;will-change:transform}
   .bdg .ic{font-size:18px;line-height:1}
   .bdg b{font-weight:800;font-size:16px;line-height:1}
   .bdg i{font-style:normal;font-weight:700;font-size:10px;letter-spacing:.05em;color:#a2926f;text-transform:uppercase}
@@ -151,10 +199,10 @@
   /* MOBILE: giữ con ong (linh vật) — peek ở góc phải-dưới hero, không ẩn nữa */
   @media(max-width:680px){
     .hero{min-height:auto}
-    .bee-wrap{display:block;right:-18px;bottom:-6px;width:150px;height:188px;opacity:.97}
+    .bee-wrap{display:block;right:6px;bottom:0;width:140px;height:175px;opacity:1}
   }
   @media(max-width:380px){
-    .bee-wrap{width:128px;height:160px;right:-20px}
+    .bee-wrap{width:118px;height:148px;right:6px}
   }
 
   /* ===== HERO: đàn ong bay chéo + điểm IELTS (THÊM MỚI — chỉ ở hero) ===== */
@@ -190,12 +238,12 @@
   /* ===== CARDS ===== */
   .cards{background:#fff;position:relative;overflow:hidden}
   .cards .wrap{position:relative;z-index:1;padding:54px 34px 70px}
-  .grid{display:grid;grid-template-columns:repeat(6,1fr);gap:16px}
+  .grid{display:grid;grid-template-columns:repeat(6,1fr);gap:20px}
   @media(max-width:1100px){.grid{grid-template-columns:repeat(3,1fr)}}
   @media(max-width:720px){.grid{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:460px){.grid{grid-template-columns:1fr}}
-  .card{position:relative;border-radius:28px;padding:24px 22px 30px;color:#fff;min-height:300px;overflow:hidden;transition:transform .28s ease,box-shadow .28s ease;cursor:pointer;box-shadow:0 14px 32px rgba(0,0,0,.16)}
-  .card:hover{transform:translateY(-10px) scale(1.018);box-shadow:0 30px 56px rgba(0,0,0,.28)}
+  .card{position:relative;border-radius:var(--r-lg);padding:24px 22px 30px;color:#fff;min-height:300px;overflow:hidden;transition:transform var(--t),box-shadow var(--t);cursor:pointer;box-shadow:var(--sh-3)}
+  .card:hover{transform:translateY(-10px) scale(1.018);box-shadow:var(--sh-hover)}
   /* vầng sáng trang trí: góc trên sáng, đáy tối nhẹ → chiều sâu */
   .card::before{content:"";position:absolute;right:-44px;top:-54px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.32),rgba(255,255,255,0) 70%);pointer-events:none}
   .card::after{content:"";position:absolute;left:-34px;bottom:-64px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(0,0,0,.18),rgba(0,0,0,0) 70%);pointer-events:none}
@@ -203,8 +251,8 @@
   .card .cic{width:54px;height:54px;border-radius:16px;background:rgba(255,255,255,.22);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.35),0 8px 18px rgba(0,0,0,.18);display:grid;place-items:center;margin-bottom:40px;transition:transform .28s ease}
   .card:hover .cic{transform:scale(1.08) rotate(-5deg)}
   .card .cic svg{width:26px;height:26px;color:#fff}
-  .card h3{font-size:23px;font-weight:800;margin-bottom:10px;letter-spacing:-.01em;line-height:1.12}
-  .card p{font-size:13px;line-height:1.6;color:rgba(255,255,255,.92)}
+  .card h3{font-size:22px;font-weight:800;margin-bottom:10px;letter-spacing:-.01em;line-height:1.15}
+  .card p{font-size:14px;line-height:1.55;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.28)}
   .c-listen{background:#3a4ed4}
   .c-read{background:#2f9e5e}
   .c-speak{background:#df6f33}
@@ -213,10 +261,10 @@
   .c-vocab{background:linear-gradient(150deg,#3bb9ac 0%,#2e8c88 52%,#1d6661 100%)}
 
   /* thẻ kỹ năng dạng ảnh, bấm mở trang riêng */
-  .skill-link{position:relative;display:block;border-radius:28px;overflow:hidden;transition:.25s;cursor:pointer;box-shadow:0 10px 26px rgba(0,0,0,.12)}
+  .skill-link{position:relative;display:block;border-radius:var(--r-lg);overflow:hidden;transition:transform var(--t),box-shadow var(--t);cursor:pointer;box-shadow:var(--sh-2)}
   .skill-link img{width:100%;height:auto;display:block}
-  .skill-link:hover{transform:translateY(-8px) scale(1.018);box-shadow:0 24px 46px rgba(0,0,0,.22)}
-  .card{border-radius:28px}
+  .skill-link:hover{transform:translateY(-8px) scale(1.018);box-shadow:var(--sh-3)}
+  .card{border-radius:var(--r-lg)}
 
   .bee-mini{position:absolute;right:24px;bottom:10px;width:78px;height:90px;object-fit:contain;z-index:4;filter:drop-shadow(0 8px 16px rgba(0,0,0,.18))}
   @media(max-width:1100px){.bee-mini{display:none}}
@@ -268,17 +316,17 @@
   .path{background:#fffdf6;padding:66px 0;position:relative;overflow:hidden}
   .path .wrap{position:relative;z-index:1}
   .sec-head{text-align:center;max-width:640px;margin:0 auto 56px}
-  .sec-head .eb{display:inline-block;font-weight:700;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:#c98a14;background:#fdf0d2;padding:6px 15px;border-radius:999px;margin-bottom:14px}
+  .sec-head .eb{display:inline-block;font-weight:700;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--honey-deep);background:#fdf0d2;padding:6px 15px;border-radius:999px;margin-bottom:14px}
   .sec-head h2{font-size:clamp(28px,4vw,42px);font-weight:800;color:#2b2417;margin-bottom:12px}
   .sec-head p{color:#7a715c;font-size:16px}
   .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
   @media(max-width:820px){.steps{grid-template-columns:repeat(2,1fr);gap:34px 20px}}
   @media(max-width:460px){.steps{grid-template-columns:1fr;gap:40px}}
-  .step{position:relative;background:#fff;border:1px solid #f0e6cd;border-radius:18px;padding:34px 22px 26px;text-align:center;transition:.25s}
-  .step:hover{transform:translateY(-6px);box-shadow:0 18px 40px rgba(201,138,20,.18);border-color:transparent}
+  .step{position:relative;background:#fff;border:1px solid #f0e6cd;border-radius:var(--r-md);padding:34px 22px 26px;text-align:center;box-shadow:var(--sh-1);transition:transform var(--t),box-shadow var(--t)}
+  .step:hover{transform:translateY(-6px);box-shadow:0 18px 40px rgba(201,138,20,.20)}
   .hexb{width:58px;height:64px;margin:-60px auto 18px;display:grid;place-items:center;color:#2b2417;font-family:"Montserrat","Be Vietnam Pro",sans-serif;font-weight:800;font-size:21px;background:#f7b500;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);box-shadow:0 8px 18px rgba(201,138,20,.35)}
   .step h4{font-family:"Montserrat","Be Vietnam Pro",sans-serif;font-weight:800;font-size:19px;color:#2b2417;margin-bottom:8px}
-  .step .band{display:inline-block;font-weight:700;font-size:12.5px;color:#c98a14;background:#fdf0d2;padding:4px 12px;border-radius:999px;margin-bottom:12px}
+  .step .band{display:inline-block;font-weight:700;font-size:12.5px;color:var(--honey-deep);background:#fdf0d2;padding:4px 12px;border-radius:999px;margin-bottom:12px}
   .step p{font-size:13px;color:#7a715c;line-height:1.55}
 
   /* ===== JOURNEY (mountain infographic) ===== */
@@ -289,7 +337,7 @@
     box-shadow:0 22px 50px var(--j-shadow,rgba(201,138,20,.18));overflow:hidden;transition:.3s ease}
   .j-frame::before{content:"";position:absolute;inset:0;border-radius:26px;pointer-events:none;
     box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
-  .j-frame img{width:100%;height:auto;display:block;border-radius:16px}
+  .j-frame img{width:100%;height:auto;display:block;border-radius:14px}
 
   /* sẵn sàng cho giao diện tối: chỉ cần set data-theme="dark" trên <html>/<body> */
   [data-theme="dark"] .journey{--j-bg:#171410;--j-border:#39321f;--j-shadow:rgba(0,0,0,.55)}
@@ -329,11 +377,74 @@
   footer a:focus:not(:focus-visible){outline:none}
   footer a:focus-visible{outline:2px solid #ffd45e;outline-offset:2px}
 
+  /* ===== STATS STRIP (proof ngay sau hero) ===== */
+  .stats{background:#fffdf6;border-bottom:1px solid #f3ead3}
+  .stats .wrap{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;padding:clamp(36px,5vw,56px) 34px}
+  .stat{text-align:center}
+  .stat b{display:block;font-family:"Montserrat","Be Vietnam Pro",sans-serif;font-weight:800;font-size:clamp(28px,4vw,42px);line-height:1;color:var(--honey-deep)}
+  .stat span{display:block;margin-top:8px;font-size:13.5px;color:var(--ink-soft);font-weight:500;line-height:1.4}
+
+  /* ===== WHY BEE (3 lợi thế khác biệt) ===== */
+  .why{background:#fff;padding:var(--sec-pad) 0}
+  .why-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  .why-card{position:relative;background:#fffdf6;border:1px solid #f0e6cd;border-radius:var(--r-lg);padding:30px 26px;box-shadow:var(--sh-1);transition:transform var(--t),box-shadow var(--t)}
+  .why-card:hover{transform:translateY(-6px);box-shadow:var(--sh-2)}
+  .why-card .wic{width:54px;height:54px;border-radius:var(--r-sm);display:grid;place-items:center;color:#fff;margin-bottom:18px;box-shadow:var(--sh-1)}
+  .why-card .wic svg{width:26px;height:26px}
+  .why-card h3{font-family:"Montserrat","Be Vietnam Pro",sans-serif;font-weight:800;font-size:19px;color:var(--ink);margin-bottom:8px}
+  .why-card p{font-size:14.5px;line-height:1.6;color:var(--ink-soft)}
+
+  /* ===== FAQ (native <details>, không cần JS) ===== */
+  .faq{background:#fffdf6;padding:var(--sec-pad) 0}
+  .faq .wrap{max-width:780px}
+  .faq-item{border:1px solid #f0e6cd;border-radius:var(--r-sm);background:#fff;margin-bottom:12px;overflow:hidden;box-shadow:var(--sh-1)}
+  .faq-item summary{display:flex;align-items:center;justify-content:space-between;gap:12px;list-style:none;cursor:pointer;
+    font-family:"Montserrat","Be Vietnam Pro",sans-serif;font-weight:700;font-size:16px;color:var(--ink);padding:18px 20px}
+  .faq-item summary::-webkit-details-marker{display:none}
+  .faq-item summary .chev{width:20px;height:20px;flex:none;color:var(--honey-deep);transition:transform var(--t)}
+  .faq-item[open] summary .chev{transform:rotate(180deg)}
+  .faq-item .ans{padding:0 20px 18px;font-size:14.5px;line-height:1.65;color:var(--ink-soft)}
+
+  /* ===== FINAL CTA BAND (trước footer) ===== */
+  .cta-band{position:relative;overflow:hidden;background:linear-gradient(135deg,#2b2417,#6a531d);color:#fff;padding:var(--sec-pad) 0}
+  .cta-band .comb-bg path{stroke:rgba(255,255,255,.06)}
+  .cta-band .wrap{position:relative;z-index:1;text-align:center;max-width:780px}
+  .cta-band h2{font-family:"Montserrat","Be Vietnam Pro",sans-serif;font-weight:800;font-size:clamp(26px,3.6vw,40px);line-height:1.15;margin-bottom:14px}
+  .cta-band h2 .hl{color:#ffd45e}
+  .cta-band p{color:#e8dec5;font-size:16px;line-height:1.6;max-width:560px;margin:0 auto 26px}
+  .cta-band .row{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;align-items:center}
+  .cta-band .bee-foot{position:absolute;right:-6px;bottom:-24px;width:172px;opacity:.92;pointer-events:none;filter:drop-shadow(0 18px 30px rgba(0,0,0,.4))}
+
+  /* ===== FOOTER nâng cấp (đa cột) ===== */
+  .foot-grid{display:grid;grid-template-columns:1.5fr 1fr 1fr 1.2fr;gap:30px;padding-bottom:30px}
+  .foot-brand p{font-size:13.5px;line-height:1.7;color:#a59c84;max-width:280px;margin-top:12px}
+  .foot-col h4{font-family:"Montserrat","Be Vietnam Pro",sans-serif;font-weight:800;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:#cdbf9e;margin-bottom:14px}
+  .foot-col a{display:block;font-size:14px;color:#bdb293;padding:5px 0;transition:color var(--t)}
+  .foot-col a:hover{color:#fff}
+  .foot-contact a{display:flex;align-items:center;gap:9px;font-size:13.5px;color:#bdb293;padding:5px 0;transition:color var(--t)}
+  .foot-contact a:hover{color:#fff}
+  .foot-contact svg{width:16px;height:16px;flex:none;color:#ffd45e}
+  .foot-social{display:flex;gap:10px;margin-top:16px}
+  .foot-social a{width:38px;height:38px;display:grid;place-items:center;border-radius:11px;background:rgba(255,255,255,.08);color:#ffd45e;transition:background var(--t),transform var(--t)}
+  .foot-social a:hover{background:rgba(255,255,255,.16);transform:translateY(-2px)}
+  .foot-social svg{width:18px;height:18px}
+
+  /* nhịp section đồng bộ (đè giá trị ad-hoc cũ) */
+  .cards .wrap{padding-top:var(--sec-pad);padding-bottom:var(--sec-pad)}
+  .path{padding:var(--sec-pad) 0}
+  .journey{padding:var(--sec-pad) 0}
+
+  /* responsive lưới section mới */
+  @media(max-width:820px){.foot-grid{grid-template-columns:1fr 1fr;gap:26px}}
+  @media(max-width:760px){.why-grid{grid-template-columns:1fr;gap:16px}}
+  @media(max-width:680px){.stats .wrap{grid-template-columns:repeat(2,1fr);gap:24px 16px;padding:32px 18px}.cta-band .bee-foot{display:none}}
+  @media(max-width:480px){.foot-grid{grid-template-columns:1fr;gap:24px}}
+
   /* ===== MOBILE MENU (hamburger) — chỉ hiện trên mobile, KHÔNG đụng desktop ===== */
   .burger{display:none}
   @media(max-width:780px){
     .hdr-link{display:none}                 /* các link chuyển hết vào menu trượt */
-    .burger{display:grid;place-items:center;width:40px;height:40px;flex:0 0 40px;
+    .burger{display:grid;place-items:center;width:44px;height:44px;flex:0 0 44px;
       border:1px solid rgba(255,255,255,.45);background:rgba(255,255,255,.14);
       border-radius:12px;color:#fff;cursor:pointer;-webkit-tap-highlight-color:transparent}
     .burger:active{background:rgba(255,255,255,.28)}
@@ -376,28 +487,40 @@
   @media(max-width:600px){
     html,body{overflow-x:hidden}                 /* chặn tràn ngang gây cuộn lệch */
     .hero{min-height:auto}
-    .hero .wrap{padding-top:22px;padding-bottom:42px}
-    .hero h1{font-size:clamp(30px,8.5vw,54px);line-height:1.04;margin-top:6px}
-    .hero .lead{font-size:15px;max-width:100%;margin-top:16px}
+    .hero .wrap{padding-top:22px;padding-bottom:180px}   /* chừa chỗ cho ong góc phải-dưới */
+    .hero h1{font-size:clamp(32px,8.5vw,52px);line-height:1.08;margin-top:6px}
+    .hero .lead{font-size:15.5px;line-height:1.5;max-width:100%;margin-top:14px}
+    .benefits{gap:8px 16px;margin-top:16px}
+    .benefits li{font-size:13.5px}
     /* pill góp ý: cho phép xuống dòng, không tràn mép phải */
-    .pill{font-size:13px;padding:10px 14px;max-width:100%;line-height:1.4}
+    .pill{font-size:13px;padding:10px 14px;max-width:100%;line-height:1.4;align-items:flex-start}
     .pill .ic{flex:0 0 24px}
-    .cta-row{gap:14px;margin-top:26px}
-    .btn-white{padding:13px 22px;font-size:14px}
-    .btn-link{font-size:14px}
+    /* CTA full-width, tách khỏi con ong */
+    .cta-row{flex-direction:column;align-items:stretch;gap:12px;margin-top:22px}
+    .cta-row .btn-primary,.cta-row .btn-white{width:100%;justify-content:center}
+    .btn-primary{font-size:15px;padding:15px 24px}
+    .btn-white{padding:14px 22px;font-size:14px}
+    .trust-strip{gap:8px 0;font-size:12.5px;margin-top:18px}
     .free-card{padding:28px 22px}
     .form-row .btn-send{width:100%}
-    .cards .wrap{padding-left:18px;padding-right:18px}
+    /* nhịp dọc gọn hơn trên điện thoại */
+    .cards .wrap{padding:40px 18px}
+    .why,.faq,.cta-band{padding:48px 0}
+    .path{padding:48px 0}
+    .journey{padding:42px 0 48px}
+    .sec-head{margin-bottom:34px}
+    .why-card{padding:24px 22px}
+    .foot-top{flex-direction:column;align-items:flex-start;gap:14px}
   }
   @media(max-width:480px){
     .wrap{padding:0 18px}
     .nav{height:58px}
     .logo .name{font-size:16px}
     .logo .mark{width:32px;height:32px}
-    .hdr-right{gap:13px}            /* giữ đủ chỗ cho chuông + avatar + icon */
+    .hdr-right{gap:12px}            /* giữ đủ chỗ cho chuông + avatar + icon */
     .bell svg{width:20px;height:20px}
-    .user{padding:3px 4px}          /* thu gọn còn avatar tròn */
-    .user .av{width:28px;height:28px}
+    .user{padding:3px 4px;min-height:40px}   /* thu gọn còn avatar tròn */
+    .user .av{width:34px;height:34px}
     .hdr-link svg{width:18px;height:18px}
   }
 </style>
@@ -483,24 +606,44 @@
   <div class="score-layer" id="scoreLayer"></div>
 
   <div class="wrap">
-    <h1>Luyện thi <span class="hl">IELTS</span></h1>
-    <p class="lead">Đầy đủ tài liệu, bài luyện, phương pháp và từ vựng giúp bạn chinh phục IELTS dễ dàng hơn mỗi ngày.</p>
+    <span class="eb-light">Luyện IELTS 4 kỹ năng • AI chấm điểm</span>
+    <h1>Luyện thi <span class="hl">IELTS</span><br>chuẩn band, ngọt như mật</h1>
+    <p class="lead">Luyện đủ 4 kỹ năng, có <b>AI chấm Writing &amp; Speaking theo band IELTS</b> kèm nhận xét chi tiết — biết ngay bạn đang ở band mấy và cần sửa gì để lên điểm.</p>
+
+    <ul class="benefits">
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Chấm Writing &amp; Speaking bằng AI</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Lộ trình từ mất gốc → 7.0+</li>
+      <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Tài liệu &amp; đề luyện miễn phí</li>
+    </ul>
+
+    <div class="cta-row">
+      <a class="btn-primary" href="/dashboard">Bắt đầu miễn phí
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+      <a class="btn-white" href="#cards">Khám phá kỹ năng</a>
+    </div>
+
+    <ul class="trust-strip">
+      <li><b>AI</b> chấm Writing/Speaking 24/7</li>
+      <li><b>4</b> kỹ năng + Vocab/Grammar</li>
+      <li><b>Lộ trình</b> mất gốc → 7.0+</li>
+      <li><b>100%</b> miễn phí để bắt đầu</li>
+    </ul>
 
     <a class="pill" href="/feedback">
       Có góp ý hoặc cần hỗ trợ? Nhắn Bee tại đây
       <span class="ic"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm3 11.5c0 2-1.6 3.2-3.4 3.2-1.7 0-3-1-3-2.4 0-1.3 1.1-2.2 2.9-2.2.5 0 1 .05 1.4.15-.05-.9-.5-1.4-1.3-1.4-.6 0-1 .2-1.3.6l-1.2-.8c.6-.8 1.4-1.2 2.6-1.2 1.8 0 2.9 1.1 2.9 3.1v1.2z"/></svg></span>
     </a>
+  </div>
+</section>
 
-    <div class="cta-row">
-      <a class="btn-white" href="/story">Bài viết của Bee
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-      </a>
-      <a class="btn-link" href="/dashboard">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.5 19 2c1 2 2 4.18 2 8a7 7 0 0 1-7 7h-3z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg>
-        Khám phá luyện tập miễn phí
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-      </a>
-    </div>
+<!-- STATS / SOCIAL PROOF -->
+<section class="stats">
+  <div class="wrap">
+    <div class="stat"><b>4</b><span>kỹ năng + Vocab &amp; Grammar</span></div>
+    <div class="stat"><b>100+</b><span>đề &amp; bài luyện chọn lọc</span></div>
+    <div class="stat"><b>24/7</b><span>AI chấm Writing &amp; Speaking</span></div>
+    <div class="stat"><b>0đ</b><span>miễn phí để bắt đầu</span></div>
   </div>
 </section>
 
@@ -508,6 +651,11 @@
 <section class="cards" id="cards">
   <svg class="comb-bg comb-light" aria-hidden="true"><path id="combsCards"></path></svg>
   <div class="wrap">
+    <div class="sec-head">
+      <span class="eb">Kỹ năng</span>
+      <h2>Luyện đủ 4 kỹ năng + Vocab &amp; Grammar</h2>
+      <p>Mỗi kỹ năng một lộ trình riêng — chọn phần bạn muốn bứt phá trước.</p>
+    </div>
     <div class="grid">
       <a class="skill-link" href="/listening"><img src="/public/textures/listening.svg" alt="Listening — luyện nghe IELTS" /><span class="shine" aria-hidden="true"></span></a>
       <a class="skill-link" href="/reading"><img src="/public/textures/reading.svg" alt="Reading — luyện đọc IELTS" /><span class="shine" aria-hidden="true"></span></a>
@@ -535,6 +683,34 @@
 
     <!-- chú ong nhỏ góc phải -->
     <img class="bee-mini" src="/public/textures/bee.png" alt="" aria-hidden="true" />
+  </div>
+</section>
+
+<!-- WHY BEE -->
+<section class="why">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eb">Vì sao Bee</span>
+      <h2>Học thông minh hơn, không học nhiều hơn</h2>
+      <p>Công nghệ AI cùng lộ trình rõ ràng giúp bạn tiến bộ nhìn thấy được mỗi tuần.</p>
+    </div>
+    <div class="why-grid">
+      <div class="why-card">
+        <div class="wic" style="background:linear-gradient(135deg,#8358d8,#5b3a9e)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1 2.7 3 6 3s6-2 6-3v-5"/></svg></div>
+        <h3>AI chấm như giám khảo IELTS</h3>
+        <p>Bài Writing &amp; Speaking được chấm theo 4 tiêu chí band score, kèm nhận xét chi tiết và gợi ý sửa cụ thể.</p>
+      </div>
+      <div class="why-card">
+        <div class="wic" style="background:linear-gradient(135deg,#f7b500,#e0a52b)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7z"/></svg></div>
+        <h3>Phản hồi tức thì</h3>
+        <p>Nộp bài là có điểm và lời khuyên ngay — không phải chờ giáo viên, luyện được bất cứ lúc nào.</p>
+      </div>
+      <div class="why-card">
+        <div class="wic" style="background:linear-gradient(135deg,#43b86e,#2f9e5e)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/></svg></div>
+        <h3>Lộ trình &amp; học như chơi</h3>
+        <p>Đi từ mất gốc đến 7.0+ theo từng chặng, giữ động lực bằng XP, streak và mục tiêu mỗi ngày.</p>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -590,20 +766,91 @@
   </div>
 </section>
 
+<!-- FAQ -->
+<section class="faq">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eb">Hỏi đáp</span>
+      <h2>Câu hỏi thường gặp</h2>
+    </div>
+    <details class="faq-item" open>
+      <summary>Bee IELTS có miễn phí không?<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></summary>
+      <div class="ans">Có. Bạn tạo tài khoản và bắt đầu học miễn phí ngay — luyện các kỹ năng, làm đề và nhận chấm AI mà không cần thẻ thanh toán.</div>
+    </details>
+    <details class="faq-item">
+      <summary>AI chấm Writing &amp; Speaking hoạt động thế nào?<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></summary>
+      <div class="ans">Bạn nộp bài viết hoặc ghi âm nói, AI chấm theo 4 tiêu chí band score IELTS, trả về điểm tổng + điểm từng tiêu chí, nhận xét chi tiết và gợi ý sửa.</div>
+    </details>
+    <details class="faq-item">
+      <summary>Mất gốc thì nên bắt đầu từ đâu?<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></summary>
+      <div class="ans">Hãy bắt đầu từ chặng IELTS Basic trong lộ trình. Bee dẫn bạn đi từng bước từ mất gốc → 3.0 → 4.5 → 6.0 → 7.0+ một cách chắc chắn.</div>
+    </details>
+    <details class="faq-item">
+      <summary>Có theo dõi tiến độ học không?<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></summary>
+      <div class="ans">Có. Bạn xem được XP, streak, lịch sử luyện tập và band ước lượng theo từng kỹ năng để biết mình đang tiến bộ tới đâu.</div>
+    </details>
+    <details class="faq-item">
+      <summary>Học trên điện thoại được không?<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></summary>
+      <div class="ans">Hoàn toàn được. Giao diện tối ưu cho điện thoại, có menu riêng để bạn luyện mọi lúc, mọi nơi.</div>
+    </details>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="cta-band">
+  <svg class="comb-bg" aria-hidden="true"><path id="combsCta"></path></svg>
+  <div class="wrap">
+    <h2>Sẵn sàng chinh phục <span class="hl">IELTS</span> cùng đàn ong?</h2>
+    <p>Bắt đầu miễn phí hôm nay — luyện đủ 4 kỹ năng và để AI chấm Writing &amp; Speaking cho bạn.</p>
+    <div class="row">
+      <a class="btn-primary" href="/dashboard">Bắt đầu miễn phí
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+      <a class="btn-white" href="/story">Bài viết của Bee</a>
+    </div>
+  </div>
+  <img class="bee-foot" src="/public/textures/bee.png" alt="" aria-hidden="true" />
+</section>
+
 <!-- FOOTER -->
 <footer>
   <div class="wrap">
-    <div class="foot-top">
-      <div class="foot-logo">BEE<b>IELTS</b></div>
-      <span class="meta">💬 Zalo: <a href="https://zalo.me/0378315088">0378315088</a> &nbsp;•&nbsp; ✉️ <a href="mailto:nguyenminhsantafe@gmail.com">nguyenminhsantafe@gmail.com</a> &nbsp;•&nbsp; 📘 <a href="https://www.facebook.com/profile.php?id=61590634713044" target="_blank" rel="noopener">Facebook</a></span>
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <div class="foot-logo">BEE<b>IELTS</b></div>
+        <p>Nền tảng luyện IELTS 4 kỹ năng với AI chấm Writing &amp; Speaking theo band — học vui như chơi, lên band thật.</p>
+        <div class="foot-social">
+          <a href="https://www.facebook.com/profile.php?id=61590634713044" target="_blank" rel="noopener" aria-label="Facebook"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 9h3l.5-3H14V4.4c0-.85.28-1.4 1.5-1.4H18V.3C17.5.2 16.4 0 15.3 0 12.6 0 11 1.6 11 4.2V6H8v3h3v9h3V9z"/></svg></a>
+          <a href="https://zalo.me/0378315088" target="_blank" rel="noopener" aria-label="Zalo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></a>
+          <a href="mailto:nguyenminhsantafe@gmail.com" aria-label="Email"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 6 10 7L22 6"/></svg></a>
+        </div>
+      </div>
+      <div class="foot-col">
+        <h4>Kỹ năng</h4>
+        <a href="/listening">Listening</a>
+        <a href="/reading">Reading</a>
+        <a href="/speaking">Speaking</a>
+        <a href="/writing">Writing</a>
+        <a href="/vocab">Vocab &amp; Grammar</a>
+      </div>
+      <div class="foot-col">
+        <h4>Khám phá</h4>
+        <a href="/dashboard">Vào luyện tập</a>
+        <a href="/band-climber">Vượt Band</a>
+        <a href="/words">Sổ từ vựng</a>
+        <a href="/story">Bài viết của Bee</a>
+        <a href="/feedback">Góp ý / Hỗ trợ</a>
+      </div>
+      <div class="foot-col foot-contact">
+        <h4>Liên hệ</h4>
+        <a href="https://zalo.me/0378315088" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>Zalo: 0378315088</a>
+        <a href="mailto:nguyenminhsantafe@gmail.com"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 6 10 7L22 6"/></svg>Email hỗ trợ</a>
+        <a href="https://www.facebook.com/profile.php?id=61590634713044" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 9h3l.5-3H14V4.4c0-.85.28-1.4 1.5-1.4H18V.3C17.5.2 16.4 0 15.3 0 12.6 0 11 1.6 11 4.2V6H8v3h3v9h3V9z"/></svg>Facebook</a>
+      </div>
     </div>
     <div class="foot-bottom">
-      <span>© 2026 Bee IELTS. All rights reserved.</span>
-      <span>📞 Hotline 24/7 &nbsp;•&nbsp; <a href="/privacy">Chính sách bảo mật</a> &nbsp; <a href="/terms">Điều khoản dịch vụ</a></span>
-    </div>
-    <div class="foot-bottom" style="margin-top:10px;border-top:none;padding-top:0">
-      <span></span>
-      <span>🔗 Theo dõi Bee trên <a href="https://www.facebook.com/profile.php?id=61590634713044" target="_blank" rel="noopener">Facebook</a> để nhận tin mới &amp; ưu đãi</span>
+      <span>© 2026 Bee IELTS. Bảo lưu mọi quyền.</span>
+      <span><a href="/privacy">Chính sách bảo mật</a> &nbsp;•&nbsp; <a href="/terms">Điều khoản dịch vụ</a></span>
     </div>
   </div>
 </footer>
@@ -639,6 +886,8 @@
     var path=document.querySelector(".path");
     if(cards) buildCombs("combsCards", 26, cards.clientWidth, cards.clientHeight);
     if(path) buildCombs("combsPath", 26, path.clientWidth, path.clientHeight);
+    var cta=document.querySelector(".cta-band");
+    if(cta) buildCombs("combsCta", 24, cta.clientWidth, cta.clientHeight);
   }
   drawHoneyBg();
   window.addEventListener("resize", drawHoneyBg);
