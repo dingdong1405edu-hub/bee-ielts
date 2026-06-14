@@ -68,6 +68,18 @@
   .user .u-stat::before{content:"";width:6px;height:6px;border-radius:50%;background:#9be88a}
   .hdr-link{display:flex;align-items:center;gap:6px;font-size:13.5px;font-weight:600;color:rgba(255,255,255,.95)}
   .hdr-link svg{width:16px;height:16px}
+  /* nav ngang giữa header */
+  .nav-links{display:flex;align-items:center;gap:4px}
+  .nav-links a{padding:8px 15px;border-radius:999px;font-size:14.5px;font-weight:600;color:rgba(255,255,255,.9);transition:background .2s ease,color .2s ease}
+  .nav-links a:hover{background:rgba(255,255,255,.16);color:#fff}
+  /* nút CTA gold bên phải */
+  .hdr-cta{display:inline-flex;align-items:center;gap:7px;background:#f7b500;color:#2b2417;font-weight:800;font-size:14.5px;padding:9px 20px;border-radius:999px;box-shadow:0 6px 16px rgba(201,138,20,.40);transition:transform .2s ease,box-shadow .2s ease,background .2s ease}
+  .hdr-cta svg{width:17px;height:17px;transition:transform .2s ease}
+  .hdr-cta:hover{transform:translateY(-1px);background:#ffc62e;box-shadow:0 10px 22px rgba(201,138,20,.5)}
+  .hdr-cta:hover svg{transform:translateX(3px)}
+  .hdr-cta:active{transform:translateY(0) scale(.98)}
+  @media(max-width:880px){.nav-links{display:none}}
+  @media(max-width:780px){.hdr-cta{display:none}}
   @media(max-width:780px){.user .u-name,.user .u-stat,.hdr-link span{display:none}}
 
   /* ===== HERO ===== */
@@ -412,18 +424,20 @@
       <span class="mark"><img src="/public/textures/bee.png" alt="" /></span>
       <span class="name">Bee<b>IELTS</b></span>
     </a>
+    <nav class="nav-links">
+      <a href="#cards">Kỹ năng</a>
+      <a href="#path">Lộ trình</a>
+      <a href="#journey">Hành trình</a>
+    </nav>
     <div class="hdr-right">
       <div class="bell" id="beeBell" role="button" tabindex="0" aria-label="Thông báo">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
         <span class="dot" id="beeBellDot" style="display:none">0</span>
         <div class="bell-panel" id="beeBellPanel" aria-hidden="true"></div>
       </div>
-      <div class="user">
-        <span class="av">đ</span>
-        <span><span class="u-name">đông</span><span class="u-stat">ONLINE</span></span>
-      </div>
-      <a class="hdr-link" href="/words"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg><span>Sổ từ vựng</span></a>
-      <a class="hdr-link" href="/profile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Lịch sử</span></a>
+      <a class="hdr-cta" href="/dashboard">Vào học
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
       <button class="burger" id="burger" aria-label="Mở menu" aria-expanded="false" aria-controls="mPanel">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
       </button>
@@ -539,7 +553,7 @@
 </section>
 
 <!-- ROADMAP -->
-<section class="path">
+<section class="path" id="path">
   <svg class="comb-bg comb-light" aria-hidden="true"><path id="combsPath"></path></svg>
   <div class="wrap">
     <div class="sec-head">
@@ -577,7 +591,7 @@
 </section>
 
 <!-- JOURNEY (mountain infographic) -->
-<section class="journey">
+<section class="journey" id="journey">
   <div class="wrap">
     <div class="sec-head">
       <span class="eb">Hành trình</span>
