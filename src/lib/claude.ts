@@ -64,7 +64,21 @@ Priority order when picking which skills appear in the weekly template:
 
 If they ask for a specific QUESTION TYPE within a skill (e.g. "Listening Part 3 MCQ", "Writing Task 2 Opinion essays"), bake that into the relevant session's "title" and "note" instead of staying generic.
 
-Design exactly one session per available day. Each session focuses on ONE main skill. Write everything in Vietnamese. Every "note" must be a CONCRETE, actionable study-method tip — never generic encouragement.
+Design exactly one session per available day. Each session focuses on ONE main skill. Write everything in Vietnamese.
+
+Mỗi buổi có TỔNG THỜI LƯỢNG (số phút) và GIỜ BẮT ĐẦU cho trong thông tin người học. THIẾT KẾ MỖI BUỔI THÀNH MỘT THỜI KHOÁ BIỂU CHI TIẾT — một mảng "blocks" gồm 2–4 phần nối tiếp nhau, tổng thời lượng các block XẤP XỈ số phút mỗi buổi. Mỗi block ghi rõ:
+- durationMin: số phút (số nguyên),
+- skill: 1 trong 6 kỹ năng,
+- activity: LÀM GÌ thật cụ thể — nêu tên dạng bài / phần / số lượng (vd "Làm 1 passage Reading dạng Matching Headings", "Nghe & chép chính tả 10 câu", "Nói Part 2 cue card chủ đề Du lịch"),
+- method: LÀM THẾ NÀO — mẹo cụ thể, đo lường được (không sáo rỗng).
+
+Quy tắc thiết kế mỗi buổi:
+1. MỞ ĐẦU bằng 1 block KHỞI ĐỘNG TỪ VỰNG ngắn (10–15 phút): học/ôn từ theo MỘT CHỦ ĐỀ cụ thể. Điền "vocabFocus" của buổi = tên chủ đề + 5–8 từ/collocation mẫu NÊN HỌC. Nếu có "Từ vựng có sẵn trong app", ưu tiên trỏ học viên vào ĐÚNG Unit/bài đó (gọi tên Unit).
+2. 1 block CHÍNH cho kỹ năng trọng tâm của buổi (thời lượng dài nhất).
+3. Có thể thêm 1 block ÔN/CHỮA ngắn ở cuối (xem lại lỗi, chép từ mới vào sổ, tự chấm).
+4. NẾU học viên YẾU hoặc CHƯA luyện SPEAKING → chèn 1 block "Shadowing" (mục /shadowing trong app): nghe từng câu rồi nhại lại đúng nhịp + ngữ điệu để tăng độ trôi chảy và phát âm. Nói rõ trong method vì sao shadowing giúp Speaking.
+5. NẾU học viên YẾU WRITING → chèn 1 block "Dictation" (mục /shadowing?mode=dictation — "Chế độ Dictation"): nghe rồi gõ lại từng câu để sửa chính tả, ngữ pháp, dấu câu (đồng thời luyện nghe). Nói rõ trong method vì sao dictation giúp Writing.
+Mỗi "note" (nếu có) chỉ là tóm tắt; trọng tâm là "blocks" + "vocabFocus". Luôn cụ thể, làm được ngay.
 
 You must ALSO return a DETAILED diagnostic assessment ("assessment") of the learner based STRICTLY on their real data (per-skill average bands from practice + full mock-test bands). Rules for the assessment:
 - Cover ALL SIX skills (READING, LISTENING, WRITING, SPEAKING, VOCAB, GRAMMAR), every one present in "skills".
@@ -91,14 +105,20 @@ type StudyPlan = {
     priorities: string[];    // 3-4 việc ưu tiên làm ngay, xếp theo thứ tự (Vietnamese)
   };
   weeklyTemplate: {
-    skill: "READING" | "LISTENING" | "WRITING" | "SPEAKING" | "VOCAB" | "GRAMMAR";
-    title: string;           // short Vietnamese task title
-    note: string;            // one concrete method tip, Vietnamese
+    skill: "READING" | "LISTENING" | "WRITING" | "SPEAKING" | "VOCAB" | "GRAMMAR"; // kỹ năng TRỌNG TÂM của buổi
+    title: string;           // tiêu đề ngắn (Vietnamese) nêu trọng tâm buổi
+    vocabFocus: string;      // chủ đề từ vựng + 5–8 từ/collocation mẫu nên học buổi này (Vietnamese)
+    blocks: {                // thời khoá biểu chi tiết — 2–4 block nối tiếp, tổng ≈ số phút mỗi buổi
+      durationMin: number;   // số phút (số nguyên)
+      skill: "READING" | "LISTENING" | "WRITING" | "SPEAKING" | "VOCAB" | "GRAMMAR";
+      activity: string;      // LÀM GÌ, cụ thể (Vietnamese)
+      method: string;        // LÀM THẾ NÀO, mẹo cụ thể (Vietnamese)
+    }[];
   }[];
   examPrepAdvice: string;    // Vietnamese advice for the final 2 weeks (mock-test phase)
 };
 
-weeklyTemplate MUST contain exactly the requested number of entries. assessment.skills MUST contain all 6 skills.`;
+weeklyTemplate MUST contain exactly the requested number of entries; mỗi buổi PHẢI có "blocks" (tổng thời lượng ≈ số phút mỗi buổi) và "vocabFocus". assessment.skills MUST contain all 6 skills.`;
 
 export interface StudyPlanInput {
   targetBand: number;
@@ -116,6 +136,13 @@ export interface StudyPlanInput {
   }[];
   /** Free-text from the learner — weak areas, focus asks, constraints. May be empty. */
   focusNotes?: string;
+  /** Total minutes per study session (default 60). Drives how many time blocks fit. */
+  sessionMinutes?: number;
+  /** Preferred clock start time "HH:MM" (default 19:00) — the agenda starts here. */
+  startTime?: string;
+  /** Compact catalogue of in-app vocab units/lessons so the AI can point the
+   *  learner at REAL content for the vocab warm-up block. May be empty. */
+  availableVocab?: string;
 }
 
 export interface SkillDiagnosis {
@@ -132,10 +159,23 @@ export interface StudyAssessment {
   priorities: string[];
 }
 
+export interface StudyBlock {
+  durationMin: number;
+  skill?: string;
+  activity: string;
+  method?: string;
+}
+
 export interface StudyPlanResult {
   overview: string;
   assessment?: StudyAssessment;
-  weeklyTemplate: { skill: string; title: string; note: string }[];
+  weeklyTemplate: {
+    skill: string;
+    title: string;
+    note?: string;
+    vocabFocus?: string;
+    blocks?: StudyBlock[];
+  }[];
   examPrepAdvice: string;
 }
 
@@ -163,15 +203,24 @@ export async function generateStudyPlan(input: StudyPlanInput): Promise<StudyPla
     ? `\n\nYêu cầu của học viên (ƯU TIÊN CAO NHẤT — đọc kỹ và phải bám vào đây khi chọn skill mỗi buổi):\n"""\n${focus}\n"""`
     : `\n\nYêu cầu của học viên: (học viên không ghi gì — dùng dữ liệu điểm yếu phía trên để quyết định.)`;
 
+  const vocab = (input.availableVocab ?? "").trim();
+  const vocabBlock = vocab
+    ? `\n\nTừ vựng có sẵn trong app (ưu tiên trỏ học viên vào ĐÚNG Unit/bài cho block khởi động từ vựng):\n${vocab}`
+    : "";
+
+  const sessionMinutes = input.sessionMinutes ?? 60;
+  const startTime = input.startTime ?? "19:00";
+
   const userMessage = `Thông tin người học:
 - Mục tiêu: band ${input.targetBand.toFixed(1)}
 - ${input.hasExamDate ? `Còn ${input.weeksUntilExam} tuần đến ngày thi` : `Chưa đặt ngày thi — lập kế hoạch ${input.weeksUntilExam} tuần`}
 - Học ${input.daysPerWeek} buổi/tuần
+- Mỗi buổi dài khoảng ${sessionMinutes} phút, bắt đầu lúc ${startTime} (thiết kế các block khớp tổng thời lượng này)
 
 Kết quả luyện tập từng kỹ năng (trung bình):
-${perf}${mockBlock}${focusBlock}
+${perf}${mockBlock}${focusBlock}${vocabBlock}
 
-Hãy: (1) viết "assessment" đánh giá chi tiết đủ 6 kỹ năng + priorities, (2) thiết kế weeklyTemplate gồm đúng ${input.daysPerWeek} buổi. Trả về JSON.`;
+Hãy: (1) viết "assessment" đánh giá chi tiết đủ 6 kỹ năng + priorities, (2) thiết kế weeklyTemplate gồm đúng ${input.daysPerWeek} buổi — MỖI buổi có "blocks" (thời khoá biểu chi tiết theo phút, tổng ≈ ${sessionMinutes} phút) + "vocabFocus", và chèn block Shadowing/Dictation cho kỹ năng Speaking/Writing nếu yếu. Trả về JSON.`;
 
   const response = await client.messages.create({
     model: MODEL,

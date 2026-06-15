@@ -11,7 +11,55 @@ import { generateStudyPlan, type StudyAssessment } from "@/lib/claude";
 const schema = z.object({
   availableWeekdays: z.array(z.number().int().min(0).max(6)).min(1).max(7),
   focusNotes: z.string().max(800).optional().default(""),
+  // Clock start time of each session ("HH:MM") + total minutes per session —
+  // used to lay out a detailed time-blocked agenda for every study day.
+  startTime: z.string().regex(/^([01]?\d|2[0-3]):[0-5]\d$/).optional().default("19:00"),
+  sessionMinutes: z.number().int().min(20).max(240).optional().default(60),
 });
+
+/** "HH:MM" → minutes from midnight (defaults to 19:00 on a bad value). */
+function startMinutes(t: string): number {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(t);
+  if (!m) return 19 * 60;
+  return (parseInt(m[1], 10) % 24) * 60 + (parseInt(m[2], 10) % 60);
+}
+
+/** minutes from midnight → "HH:MM" (wraps past midnight). */
+function fmtClock(min: number): string {
+  const h = Math.floor((min % 1440) / 60);
+  const m = Math.round(min % 60);
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+type AgendaBlock = { durationMin: number; activity: string; method: string };
+
+/** Turn the AI's time blocks into a multi-line agenda string with real clock
+ *  times laid out from `startMin`. Falls back to the plain note when the AI
+ *  didn't return blocks (older response shape / fallback rotation). */
+function buildAgenda(
+  startMin: number,
+  blocks: AgendaBlock[],
+  vocabFocus: string,
+  fallbackNote: string,
+): string {
+  if (!blocks.length) {
+    return [vocabFocus ? `📚 Từ vựng: ${vocabFocus}` : "", fallbackNote]
+      .filter(Boolean)
+      .join("\n\n");
+  }
+  let t = startMin;
+  const lines = blocks.map((b) => {
+    const dur = Math.min(180, Math.max(5, Math.round(b.durationMin || 15)));
+    const from = fmtClock(t);
+    t += dur;
+    const to = fmtClock(t);
+    const head = `🕒 ${from}–${to} · ${b.activity}`;
+    return b.method ? `${head}\n   ↳ ${b.method}` : head;
+  });
+  let note = lines.join("\n");
+  if (vocabFocus) note += `\n\n📚 Từ vựng buổi này: ${vocabFocus}`;
+  return note;
+}
 
 /** Static fallback rotation used when the AI call fails. */
 const FALLBACK_SESSIONS: { skill: Skill; title: string; note: string }[] = [
@@ -48,6 +96,8 @@ export async function POST(req: Request) {
   const available = new Set(parsed.data.availableWeekdays);
   const daysPerWeek = available.size;
   const focusNotes = parsed.data.focusNotes ?? "";
+  const startMin = startMinutes(parsed.data.startTime);
+  const sessionMinutes = parsed.data.sessionMinutes;
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -111,8 +161,26 @@ export async function POST(req: Request) {
     },
   });
 
+  // In-app vocab catalogue so the AI points the warm-up block at REAL units
+  // instead of inventing word lists. Compact "[level] Unit: lesson, lesson".
+  const vocabUnits = await prisma.vocabUnit.findMany({
+    orderBy: [{ level: "asc" }, { order: "asc" }],
+    select: { title: true, level: true, lessons: { orderBy: { order: "asc" }, select: { title: true } } },
+  });
+  let availableVocab = vocabUnits
+    .map((u) => `- [${u.level}] ${u.title}: ${u.lessons.map((l) => l.title).join(", ")}`)
+    .join("\n");
+  if (availableVocab.length > 1800) availableVocab = availableVocab.slice(0, 1800) + "…";
+
   // ---- Build the weekly template: AI first, static rotation as fallback ----
-  let weeklyTemplate: { skill: Skill; title: string; note: string }[] = [];
+  type Session = {
+    skill: Skill;
+    title: string;
+    note: string;
+    vocabFocus: string;
+    blocks: AgendaBlock[];
+  };
+  let weeklyTemplate: Session[] = [];
   let overview = "";
   let assessment: StudyAssessment | null = null;
   let aiUsed = false;
@@ -127,10 +195,27 @@ export async function POST(req: Request) {
         skillScores,
         recentMocks,
         focusNotes,
+        sessionMinutes,
+        startTime: parsed.data.startTime,
+        availableVocab,
       });
-      const tmpl = (plan.weeklyTemplate ?? [])
+      const tmpl: Session[] = (plan.weeklyTemplate ?? [])
         .filter((s) => s && s.title && SKILL_VALUES.includes(s.skill as Skill))
-        .map((s) => ({ skill: s.skill as Skill, title: String(s.title), note: String(s.note ?? "") }));
+        .map((s) => ({
+          skill: s.skill as Skill,
+          title: String(s.title),
+          note: String(s.note ?? ""),
+          vocabFocus: typeof s.vocabFocus === "string" ? s.vocabFocus : "",
+          blocks: Array.isArray(s.blocks)
+            ? s.blocks
+                .filter((b) => b && typeof b.activity === "string" && b.activity.trim().length > 0)
+                .map((b) => ({
+                  durationMin: Number(b.durationMin) || 15,
+                  activity: String(b.activity),
+                  method: String(b.method ?? ""),
+                }))
+            : [],
+        }));
       if (tmpl.length > 0) {
         // Make the template exactly daysPerWeek long.
         weeklyTemplate = Array.from({ length: daysPerWeek }, (_, i) => tmpl[i % tmpl.length]);
@@ -146,7 +231,10 @@ export async function POST(req: Request) {
   }
 
   if (weeklyTemplate.length === 0) {
-    weeklyTemplate = Array.from({ length: daysPerWeek }, (_, i) => FALLBACK_SESSIONS[i % FALLBACK_SESSIONS.length]);
+    weeklyTemplate = Array.from({ length: daysPerWeek }, (_, i) => {
+      const f = FALLBACK_SESSIONS[i % FALLBACK_SESSIONS.length];
+      return { ...f, vocabFocus: "", blocks: [] as AgendaBlock[] };
+    });
   }
 
   type NewEntry = { date: Date; skill: Skill | null; title: string; note: string };
@@ -170,7 +258,8 @@ export async function POST(req: Request) {
       });
     } else {
       const s = weeklyTemplate[idx % weeklyTemplate.length];
-      toCreate.push({ date: d, skill: s.skill, title: s.title, note: s.note });
+      const note = buildAgenda(startMin, s.blocks, s.vocabFocus, s.note);
+      toCreate.push({ date: d, skill: s.skill, title: s.title, note });
     }
   });
 

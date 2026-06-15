@@ -229,11 +229,13 @@ export function StudySchedule({
   const generatePlan = async (
     availableWeekdays: number[],
     focusNotes: string,
+    startTime: string,
+    sessionMinutes: number,
   ) => {
     const res = await fetch("/api/study-plan/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ availableWeekdays, focusNotes }),
+      body: JSON.stringify({ availableWeekdays, focusNotes, startTime, sessionMinutes }),
     });
     if (!res.ok) {
       toast.error((await res.json().catch(() => ({}))).error || "Tạo lộ trình thất bại");
@@ -399,7 +401,7 @@ function RoadmapGenerator({
 }: {
   targetBand: number;
   examDate: string | null;
-  onGenerate: (weekdays: number[], focusNotes: string) => Promise<void>;
+  onGenerate: (weekdays: number[], focusNotes: string, startTime: string, sessionMinutes: number) => Promise<void>;
   onClose: () => void;
 }) {
   const recommended = recommendedDays(targetBand);
@@ -408,6 +410,10 @@ function RoadmapGenerator({
   // (weak skills, specific question types, time constraints, etc.). Capped
   // at 800 chars so the AI prompt stays within sensible bounds.
   const [focusNotes, setFocusNotes] = useState("");
+  // Clock start time + total length of each session — the AI lays out a
+  // detailed time-blocked agenda (giờ nào làm gì) from these.
+  const [startTime, setStartTime] = useState("19:00");
+  const [sessionMinutes, setSessionMinutes] = useState(60);
   const [generating, setGenerating] = useState(false);
 
   const toggle = (idx: number) =>
@@ -419,7 +425,7 @@ function RoadmapGenerator({
       return;
     }
     setGenerating(true);
-    await onGenerate(picked, focusNotes.trim());
+    await onGenerate(picked, focusNotes.trim(), startTime, sessionMinutes);
     setGenerating(false);
   };
 
@@ -460,6 +466,38 @@ function RoadmapGenerator({
             </button>
           );
         })}
+      </div>
+
+      {/* Giờ học + thời lượng mỗi buổi → AI dựng thời khoá biểu chi tiết theo giờ. */}
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="space-y-1">
+          <label className="text-xs font-bold text-foreground/80">Giờ bắt đầu học</label>
+          <input
+            type="time"
+            value={startTime}
+            onChange={(e) => setStartTime(e.target.value || "19:00")}
+            disabled={generating}
+            className="h-9 rounded-xl border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+          />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-bold text-foreground/80">Thời lượng mỗi buổi</label>
+          <select
+            value={sessionMinutes}
+            onChange={(e) => setSessionMinutes(Number(e.target.value))}
+            disabled={generating}
+            className="h-9 rounded-xl border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+          >
+            <option value={45}>45 phút</option>
+            <option value={60}>60 phút</option>
+            <option value={90}>90 phút</option>
+            <option value={120}>120 phút</option>
+          </select>
+        </div>
+        <p className="text-[11px] text-muted-foreground flex-1 min-w-[180px]">
+          AI sẽ chia mỗi buổi thành các mốc giờ cụ thể (khởi động từ vựng → kỹ năng chính → ôn),
+          và gợi ý Shadowing/Dictation nếu bạn yếu Speaking/Writing.
+        </p>
       </div>
 
       {/* Free-form focus notes — the AI weights these heavily when picking
