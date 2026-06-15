@@ -66,7 +66,7 @@ export function FireflySwarm() {
       const freq = 0.85 + Math.random() * 0.7;
       const amp = 9 + Math.random() * 11;
       const phase = Math.random() * Math.PI * 2;
-      const sc = 0.8 + Math.random() * 0.55;
+      const sc = 0.55 + Math.random() * 0.4;
       const start = performance.now();
 
       const step = (now: number) => {
