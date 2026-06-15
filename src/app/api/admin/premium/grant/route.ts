@@ -41,7 +41,11 @@ export async function POST(req: Request) {
   await prisma.$transaction(async (tx) => {
     await tx.user.update({
       where: { id: target.id },
-      data: { isPremium: true, premiumGrantedAt: now, premiumGrantedBy: me.id },
+      // premiumUntil: null marks this as a PERMANENT grant — the auth.ts jwt
+      // sweep only expires rows whose premiumUntil is a past date, so nulling
+      // it here stops a leftover date from a prior paid plan silently lapsing
+      // this grant.
+      data: { isPremium: true, premiumUntil: null, premiumGrantedAt: now, premiumGrantedBy: me.id },
     });
     if (requestId) {
       await tx.premiumRequest.update({

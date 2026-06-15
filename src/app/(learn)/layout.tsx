@@ -27,12 +27,13 @@ export default async function LearnLayout({ children }: { children: React.ReactN
   // "Premium ON" badge. Cheap single-column lookup.
   const dbUser = await prisma.user.findUnique({
     where: { id: userId },
-    select: { role: true, isPremium: true },
+    select: { role: true, isPremium: true, premiumUntil: true },
   });
   const isPremium = effectivePremium(
-    (dbUser ?? { role: "LEARNER", isPremium: false }) as {
+    (dbUser ?? { role: "LEARNER", isPremium: false, premiumUntil: null }) as {
       role: "LEARNER" | "ADMIN" | "OWNER";
       isPremium: boolean;
+      premiumUntil: Date | null;
     },
   );
 

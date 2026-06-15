@@ -18,10 +18,10 @@ export default async function ShadowingLandingPage({
   if (!session?.user?.id) return null;
   const me = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { role: true, isPremium: true },
+    select: { role: true, isPremium: true, premiumUntil: true },
   });
   const isPremium = effectivePremium(
-    me as { role: "LEARNER" | "ADMIN" | "OWNER"; isPremium: boolean } | null,
+    me as { role: "LEARNER" | "ADMIN" | "OWNER"; isPremium: boolean; premiumUntil: Date | null } | null,
   );
   const sp = await searchParams;
   const mode = sp.mode === "dictation" ? "DICTATION" : "SHADOWING";

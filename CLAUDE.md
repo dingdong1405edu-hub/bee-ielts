@@ -27,7 +27,7 @@ Giao diện: **chuyên nghiệp, tối giản, mobile-first**, responsive cho m�
 | Animation | framer-motion (cho Duolingo-style feedback) |
 | Database | **PostgreSQL** (Railway managed) |
 | ORM | **Prisma** |
-| Auth | **Auth.js (NextAuth v5)** — email/password + Google OAuth |
+| Auth | **Auth.js (NextAuth v5)** — Google OAuth ONLY (no email/password) |
 | AI Grading | **Anthropic Claude API** (`@anthropic-ai/sdk`, model `claude-sonnet-4-6` cho writing/speaking) |
 | Speech-to-Text | OpenAI Whisper API hoặc Web Speech API (fallback) |
 | File Storage | Railway volume hoặc Cloudflare R2 cho audio uploads |
@@ -396,7 +396,7 @@ pnpm prisma migrate dev --name <change>
 Khi Claude Code làm việc trên repo này, tuân theo thứ tự sau (mỗi bước = 1 PR/commit nhóm):
 
 1. **Skeleton**: init Next.js + TS + Tailwind + shadcn + Prisma + Auth.js. Health route.
-2. **Auth**: đăng ký/đăng nhập email + Google. Middleware bảo vệ routes.
+2. **Auth**: đăng nhập **chỉ bằng Google** (tự tạo tài khoản lần đầu). Middleware bảo vệ routes.
 3. **DB schema + migrations**: tất cả model ở mục 4. Seed dữ liệu mẫu (2 reading tests, 2 listening, 1 writing, 1 speaking set, 3 vocab units).
 4. **Learner dashboard**: trang chính sau login — XP, streak, hearts, list các module.
 5. **Vocab & Grammar Duolingo-style**: lesson flow + animations + XP/heart logic.

@@ -29,9 +29,13 @@ export default async function ShadowingLessonPage({
   if (lesson.premium) {
     const me = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { role: true, isPremium: true },
+      select: { role: true, isPremium: true, premiumUntil: true },
     });
-    if (!effectivePremium(me as { role: "LEARNER" | "ADMIN" | "OWNER"; isPremium: boolean } | null)) {
+    if (
+      !effectivePremium(
+        me as { role: "LEARNER" | "ADMIN" | "OWNER"; isPremium: boolean; premiumUntil: Date | null } | null,
+      )
+    ) {
       redirect("/premium?from=shadowing");
     }
   }

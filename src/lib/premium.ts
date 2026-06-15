@@ -20,6 +20,14 @@ export { OWNER_EMAIL };
 export interface PremiumCheckUser {
   role: "LEARNER" | "ADMIN" | "OWNER";
   isPremium: boolean;
+  /**
+   * Expiry of a *timed* (PayOS-paid) plan. Optional so existing call sites
+   * that only select { role, isPremium } keep compiling. A paid upgrade sets
+   * BOTH isPremium=true AND premiumUntil, and the auth jwt callback flips
+   * isPremium back to false once premiumUntil passes — so gates reading the
+   * isPremium column straight from the DB stay correct without selecting this.
+   */
+  premiumUntil?: Date | null;
 }
 
 /** True when this user's role is OWNER (DB role check, distinct from email check). */
@@ -38,7 +46,13 @@ export function isAdminOrOwner(user: { role: string } | null | undefined): boole
 export function effectivePremium(user: PremiumCheckUser | null | undefined): boolean {
   if (!user) return false;
   if (user.role === "OWNER" || user.role === "ADMIN") return true;
-  return user.isPremium === true;
+  // isPremium covers permanent grants (owner/coupon) AND active paid plans
+  // (which set it alongside premiumUntil). premiumUntil is a belt-and-braces
+  // check for the brief window before the jwt callback sweeps a lapsed flag,
+  // and for callers that pass it explicitly (e.g. the premium page).
+  if (user.isPremium === true) return true;
+  if (user.premiumUntil && user.premiumUntil.getTime() > Date.now()) return true;
+  return false;
 }
 
 /**
@@ -97,7 +111,7 @@ export async function checkMockQuota(userId: string): Promise<{
 }> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { role: true, isPremium: true },
+    select: { role: true, isPremium: true, premiumUntil: true },
   });
   if (!user) {
     // Defensive: missing user should still fail closed.

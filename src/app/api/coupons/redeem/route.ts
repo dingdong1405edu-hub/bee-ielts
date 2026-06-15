@@ -58,6 +58,9 @@ export async function POST(req: Request) {
           where: { id: userId },
           data: {
             isPremium: true,
+            // Coupon premium is permanent — null premiumUntil so a leftover
+            // paid-plan date can't make the auth.ts sweep expire it later.
+            premiumUntil: null,
             premiumGrantedAt: new Date(),
             premiumGrantedBy: coupon.createdBy,
           },

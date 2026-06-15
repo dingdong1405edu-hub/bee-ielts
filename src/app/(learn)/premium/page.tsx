@@ -18,7 +18,14 @@ export default async function PremiumPage() {
   const [user, latest] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { role: true, isPremium: true, premiumGrantedAt: true, email: true, name: true },
+      select: {
+        role: true,
+        isPremium: true,
+        premiumUntil: true,
+        premiumGrantedAt: true,
+        email: true,
+        name: true,
+      },
     }),
     prisma.premiumRequest.findFirst({
       where: { userId: session.user.id },
@@ -29,13 +36,18 @@ export default async function PremiumPage() {
   if (!user) redirect("/login");
 
   const premium = effectivePremium(
-    user as { role: "LEARNER" | "ADMIN" | "OWNER"; isPremium: boolean },
+    user as {
+      role: "LEARNER" | "ADMIN" | "OWNER";
+      isPremium: boolean;
+      premiumUntil: Date | null;
+    },
   );
 
   return (
     <PremiumLanding
       role={user.role}
       isPremium={premium}
+      premiumUntil={user.premiumUntil?.toISOString() ?? null}
       premiumGrantedAt={user.premiumGrantedAt?.toISOString() ?? null}
       latestRequest={
         latest

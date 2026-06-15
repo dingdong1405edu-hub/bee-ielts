@@ -1,81 +1,105 @@
 import NextAuth from "next-auth";
-import Credentials from "next-auth/providers/credentials";
-import bcrypt from "bcryptjs";
-import { z } from "zod";
+import Google from "next-auth/providers/google";
 import { prisma } from "@/lib/db";
 import { isOwner } from "@/lib/admin";
 import { authConfig } from "./auth.config";
 
-const credentialsSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
-});
-
+/**
+ * Auth.js (NextAuth v5) — Google is the ONLY sign-in method. There is no
+ * email/password path. JWT session strategy (no adapter tables): on Google
+ * sign-in we upsert the user into our own User table by email, then the jwt
+ * callback resolves our DB id + role onto the token.
+ *
+ * Google OAuth credentials come from env (AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET)
+ * and the redirect URI to whitelist in Google Cloud Console is:
+ *   <NEXT_PUBLIC_APP_URL>/api/auth/callback/google
+ */
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
   providers: [
-    Credentials({
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
-      },
-      authorize: async (raw) => {
-        const parsed = credentialsSchema.safeParse(raw);
-        if (!parsed.success) return null;
-        const { email, password } = parsed.data;
-        const user = await prisma.user.findUnique({ where: { email } });
-        if (!user?.passwordHash) return null;
-        const ok = await bcrypt.compare(password, user.passwordHash);
-        if (!ok) return null;
-        // Owner luôn được nâng lên OWNER (kể cả lần đăng nhập đầu).
-        // OWNER là role cao nhất — vừa được premium auto, vừa là người
-        // duy nhất có quyền cấp/thu premium cho user khác. Idempotent.
-        const owner = isOwner(user.email);
-        if (owner && user.role !== "OWNER") {
-          await prisma.user.update({
-            where: { id: user.id },
-            data: { role: "OWNER", isPremium: true },
-          });
-        }
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name ?? undefined,
-          role: owner ? "OWNER" : user.role,
-        };
-      },
+    Google({
+      clientId: process.env.AUTH_GOOGLE_ID,
+      clientSecret: process.env.AUTH_GOOGLE_SECRET,
+      allowDangerousEmailAccountLinking: true,
     }),
   ],
   callbacks: {
     ...authConfig.callbacks,
-    // Server-side jwt callback (Node runtime only). The edge-safe variant
-    // in auth.config.ts can't query Prisma, so it only copies role from
-    // the sign-in payload — that's why a freshly-promoted admin was stuck
-    // with a stale LEARNER role until they logged out and back in.
-    //
-    // Here we refresh role from the DB whenever auth() is called on the
-    // server: re-issued tokens propagate immediately to every protected
-    // route (admin pages, admin APIs, sidebar gate). The lookup is cached
-    // on `roleSyncedAt` so we don't hammer the DB on bursty traffic —
-    // 30 s is plenty fresh for an authoring app.
+    // Provision our User row from the Google profile. Runs before jwt(), so by
+    // the time the token is minted the DB row (with our cuid + role) exists.
+    signIn: async ({ user, account, profile }) => {
+      // Google is the only provider, but assert it and reject unverified
+      // emails before any upsert/owner promotion — owner identity is email-only,
+      // so this callback must never trust an unverified address.
+      if (account?.provider !== "google") return false;
+      if (profile && (profile as { email_verified?: boolean }).email_verified === false) {
+        return false;
+      }
+      const email = user.email?.toLowerCase();
+      if (!email) return false;
+      // Owner is promoted to OWNER on every sign-in (idempotent): highest role,
+      // auto-premium, the only account that can grant/revoke premium.
+      const owner = isOwner(email);
+      await prisma.user.upsert({
+        where: { email },
+        create: {
+          email,
+          name: user.name ?? undefined,
+          avatarUrl: user.image ?? undefined,
+          role: owner ? "OWNER" : "LEARNER",
+          isPremium: owner,
+        },
+        // Don't clobber a learner's edited name/avatar on later logins; only
+        // ever (re)assert the owner's role + premium.
+        update: owner ? { role: "OWNER", isPremium: true } : {},
+      });
+      return true;
+    },
+    // Server-side jwt callback (Node runtime). Two jobs:
+    //  1. Sign-in: Google's `user.id` is the provider sub, NOT our cuid — look
+    //     up the DB row by email to stamp our real id + role onto the token.
+    //  2. Subsequent requests: refresh role from DB (cached 30 s) so a freshly
+    //     promoted admin propagates immediately, AND self-heal a lapsed timed
+    //     premium so every isPremium-based gate locks again on expiry.
     jwt: async ({ token, user }) => {
-      // Sign-in path: copy id+role from credentials authorize() return.
       if (user) {
-        token.id = (user as { id: string }).id;
-        token.role = (user as { role: string }).role;
-        (token as { roleSyncedAt?: number }).roleSyncedAt = Date.now();
+        const email = user.email?.toLowerCase();
+        if (email) {
+          const dbUser = await prisma.user.findUnique({
+            where: { email },
+            select: { id: true, role: true },
+          });
+          if (dbUser) {
+            token.id = dbUser.id;
+            token.role = dbUser.role;
+            (token as { roleSyncedAt?: number }).roleSyncedAt = Date.now();
+          }
+        }
         return token;
       }
-      // Subsequent request: refresh role from DB if cache is stale.
       const id = token.id as string | undefined;
       if (!id) return token;
       const lastSync = (token as { roleSyncedAt?: number }).roleSyncedAt ?? 0;
       if (Date.now() - lastSync > 30_000) {
         const fresh = await prisma.user.findUnique({
           where: { id },
-          select: { role: true },
+          select: { role: true, isPremium: true, premiumUntil: true },
         });
         if (fresh) {
+          // Drop a lapsed paid plan back to free. Paid plans set isPremium=true
+          // AND premiumUntil; permanent grants (premiumUntil=null) and
+          // OWNER/ADMIN are never touched.
+          if (
+            fresh.role === "LEARNER" &&
+            fresh.isPremium &&
+            fresh.premiumUntil &&
+            fresh.premiumUntil.getTime() < Date.now()
+          ) {
+            await prisma.user.update({
+              where: { id },
+              data: { isPremium: false, premiumUntil: null },
+            });
+          }
           token.role = fresh.role;
           (token as { roleSyncedAt?: number }).roleSyncedAt = Date.now();
         }

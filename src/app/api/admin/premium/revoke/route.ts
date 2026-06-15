@@ -42,7 +42,10 @@ export async function POST(req: Request) {
   }
   await prisma.user.update({
     where: { id: target.id },
-    data: { isPremium: false, premiumGrantedAt: null, premiumGrantedBy: null },
+    // Clear premiumUntil too: otherwise a leftover paid-plan date keeps the
+    // user "premium" on premiumUntil-aware reads (the /premium page) and would
+    // be stacked onto a later re-purchase by the webhook.
+    data: { isPremium: false, premiumUntil: null, premiumGrantedAt: null, premiumGrantedBy: null },
   });
   return NextResponse.json({ ok: true });
 }

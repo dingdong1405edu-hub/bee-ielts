@@ -1,12 +1,9 @@
 "use client";
 import Link from "next/link";
 import { Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -20,25 +17,45 @@ export default function LoginPage() {
   );
 }
 
+/** Google "G" mark — inline so we don't pull in an icon dependency. */
+function GoogleIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38Z"
+      />
+    </svg>
+  );
+}
+
 function LoginForm() {
-  const router = useRouter();
   const params = useSearchParams();
   const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const signInGoogle = () => {
     setLoading(true);
-    const res = await signIn("credentials", { email, password, redirect: false });
-    setLoading(false);
-    if (res?.error) {
-      toast.error("Email hoặc mật khẩu không đúng");
-      return;
-    }
-    toast.success("Welcome back 🐝");
-    router.push(params.get("from") ?? "/dashboard");
-    router.refresh();
+    // Google handles the redirect; on return Auth.js sends the user to
+    // callbackUrl. `redirect: true` (default) navigates away, so we never
+    // reset loading — the spinner stays until the page unloads.
+    // `from` is set by the edge middleware; `callbackUrl` is what Auth.js's own
+    // pages.signIn redirect appends — accept either so server-gated deep links
+    // survive the Google round-trip.
+    signIn("google", {
+      callbackUrl: params.get("from") ?? params.get("callbackUrl") ?? "/dashboard",
+    });
   };
 
   return (
@@ -90,7 +107,7 @@ function LoginForm() {
         </p>
       </aside>
 
-      {/* ── Form column ── */}
+      {/* ── Sign-in column ── */}
       <div className="relative grid min-h-screen place-items-center overflow-hidden px-4 py-12">
         <div className="pointer-events-none absolute inset-0 -z-10">
           <div className="absolute top-10 left-10 h-72 w-72 rounded-full bg-gold/15 blob" />
@@ -114,7 +131,7 @@ function LoginForm() {
               <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-paper text-ink shadow-lg shadow-sage/10 ring-1 ring-sage/15">
                 <BeeLogo variant="full" className="h-10 w-10 text-ink" />
               </div>
-              <h1 className="font-display text-3xl font-extrabold tracking-tight">Chào mừng quay lại</h1>
+              <h1 className="font-display text-3xl font-extrabold tracking-tight">Chào mừng đến Bee IELTS</h1>
               <p className="text-muted-foreground mt-1 font-semibold">
                 Be smarter, be master, <span className="gradient-brand-text">beeielts</span>
               </p>
@@ -123,43 +140,33 @@ function LoginForm() {
 
           <ScrollReveal delay={150}>
             <div className="relative overflow-hidden rounded-3xl border bg-card/80 p-6 shadow-xl shadow-sage/5 backdrop-blur md:p-8">
-              
-              <form onSubmit={onSubmit} className="relative space-y-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="password">Mật khẩu</Label>
-                  <Input id="password" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
-                </div>
-                <Button type="submit" variant="brand" className="w-full" size="lg" disabled={loading}>
-                  {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                  Đăng nhập
-                </Button>
-              </form>
-              <p className="relative mt-6 text-center text-sm text-muted-foreground">
-                Chưa có tài khoản?{" "}
-                <Link href="/register" className="font-semibold text-primary hover:underline">
-                  Đăng ký free
-                </Link>
-              </p>
-            </div>
-          </ScrollReveal>
-
-          <ScrollReveal delay={300}>
-            <div className="mt-4 flex items-center gap-3 rounded-2xl border-2 border-dashed border-sage/25 bg-sage-tint/40 p-4 text-xs">
-              <BeeMascot className="w-10 shrink-0" />
-              <div className="text-left">
-                <p className="mb-0.5 flex items-center gap-1.5 font-semibold">
-                  <Leaf className="h-3.5 w-3.5 text-leaf" /> Thử demo nhanh
+              <div className="relative space-y-4 text-center">
+                <p className="text-sm text-muted-foreground">
+                  Đăng nhập hoặc tạo tài khoản chỉ với một chạm bằng Google.
+                  Lần đầu đăng nhập sẽ tự tạo tài khoản cho bạn.
                 </p>
-                <code className="text-[11px]">demo@bee-ielts.com</code> · <code className="text-[11px]">demo1234</code>
+                <Button
+                  onClick={signInGoogle}
+                  disabled={loading}
+                  variant="outline"
+                  size="lg"
+                  className="w-full gap-3 border-2 font-semibold"
+                >
+                  {loading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <GoogleIcon className="h-5 w-5" />
+                  )}
+                  {loading ? "Đang chuyển tới Google…" : "Tiếp tục với Google"}
+                </Button>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  Khi tiếp tục, bạn đồng ý với Điều khoản &amp; Chính sách bảo mật của Bee IELTS.
+                </p>
               </div>
             </div>
           </ScrollReveal>
 
-          <ScrollReveal delay={450}>
+          <ScrollReveal delay={300}>
             <div className="mt-5 text-center text-xs text-muted-foreground leading-relaxed">
               <p className="font-semibold text-foreground">📞 Thông tin liên hệ</p>
               <p className="mt-1">

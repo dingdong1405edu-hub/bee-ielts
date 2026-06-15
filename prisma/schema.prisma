@@ -96,8 +96,15 @@ model User {
   isPremium          Boolean   @default(false)
   premiumGrantedAt   DateTime?
   /// User id (OWNER) who flipped isPremium → true. Used in the admin UI
-  /// to attribute who approved which user. Null on revoke.
+  /// to attribute who approved which user. Null on revoke. A paid PayOS
+  /// upgrade sets this to "payos".
   premiumGrantedBy   String?
+  /// Expiry for a *timed* (PayOS-paid) premium plan. When set and in the
+  /// future, the user is premium until that date; the auth layer drops
+  /// isPremium back to false once it passes (see jwt callback in auth.ts).
+  /// Null = the premium grant (if any) is permanent — owner/coupon grants
+  /// leave this null so they never expire.
+  premiumUntil       DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
@@ -345,6 +352,11 @@ model Payment {
   checkoutUrl String?       @db.Text
   paidAt      DateTime?
   rawWebhook  Json?
+  /// Order intent, written server-side at checkout. For a premium upgrade:
+  /// { kind: "premium", planId: string, months: number }. The webhook reads
+  /// this to know what to grant when PayOS confirms payment. Null = a plain
+  /// generic payment (the /pay page) that grants nothing.
+  meta        Json?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 

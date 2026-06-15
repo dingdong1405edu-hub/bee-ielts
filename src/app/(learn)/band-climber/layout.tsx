@@ -21,10 +21,14 @@ export default async function BandClimberLayout({
   if (!session?.user?.id) redirect("/login");
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { role: true, isPremium: true },
+    select: { role: true, isPremium: true, premiumUntil: true },
   });
   if (!user) redirect("/login");
-  if (!effectivePremium(user as { role: "LEARNER" | "ADMIN" | "OWNER"; isPremium: boolean })) {
+  if (
+    !effectivePremium(
+      user as { role: "LEARNER" | "ADMIN" | "OWNER"; isPremium: boolean; premiumUntil: Date | null },
+    )
+  ) {
     redirect("/premium?from=band-climber");
   }
   return <>{children}</>;
