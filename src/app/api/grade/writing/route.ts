@@ -26,6 +26,15 @@ export async function POST(req: Request) {
   const task = await prisma.writingTask.findUnique({ where: { id: parsed.data.taskId } });
   if (!task) return NextResponse.json({ error: "Task không tồn tại" }, { status: 404 });
 
+  // The model essay is written to the learner's target band. Floor at 6.0 so a
+  // low target still yields a genuinely strong exemplar, and round to 0.5.
+  const me = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { targetBand: true },
+  });
+  const rawTarget = me?.targetBand ?? 6.5;
+  const modelBand = Math.max(6, Math.round(rawTarget * 2) / 2);
+
   const essay = parsed.data.essay;
 
   // Empty / near-empty essay → band 0.0, no AI call wasted.
@@ -46,6 +55,7 @@ export async function POST(req: Request) {
       openingSentences: [],
       closingSentences: [],
       improvedVersion: "",
+      modelBand,
       summary: "Bạn chưa viết bài (hoặc viết quá ít). Hãy viết ít nhất 150 từ cho Task 1 và 250 từ cho Task 2 để được chấm điểm.",
     };
     await prisma.attempt.create({
@@ -63,11 +73,14 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = (await gradeWritingGroq({
+    const graded = (await gradeWritingGroq({
       taskType: task.taskType as 1 | 2,
       prompt: task.prompt,
       essay,
-    })) as { overallBand: number };
+      targetBand: modelBand,
+    })) as { overallBand: number; modelBand?: number };
+    // Guarantee the UI always has a model-essay band even if the model omitted it.
+    const result = { ...graded, modelBand: graded.modelBand ?? modelBand };
 
     await prisma.attempt.create({
       data: {

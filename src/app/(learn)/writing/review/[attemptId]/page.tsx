@@ -69,14 +69,12 @@ export default async function WritingReviewPage({ params }: { params: { attemptI
             <>
               {result?.annotations && result.annotations.length > 0 && (
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Các cụm <span className="font-bold underline decoration-2">in đậm gạch chân</span> là chỗ
-                  viết sai — di chuột vào để xem lỗi &amp; cách sửa.{" "}
-                  <span className="font-semibold text-rose-600 dark:text-rose-400">Ngữ pháp</span> ·{" "}
-                  <span className="font-semibold text-honey-deep dark:text-honey">Từ vựng</span> ·{" "}
-                  <span className="font-semibold text-gold-600 dark:text-gold-400">Mạch ý</span>
+                  Phần <span className="text-rose-500 line-through decoration-rose-400">gạch bỏ</span> là chỗ
+                  viết sai, phần <span className="rounded bg-emerald-200/80 px-1 font-bold text-emerald-900 dark:bg-emerald-500/25 dark:text-emerald-100">in đậm tô màu</span> là bản sửa
+                  — di chuột vào để xem lý do.
                 </p>
               )}
-              <AnnotatedEssay essay={essay} annotations={result?.annotations ?? []} />
+              <AnnotatedEssay essay={essay} annotations={result?.annotations ?? []} showCorrections />
             </>
           ) : (
             <p className="text-sm text-muted-foreground italic">Bạn không nộp bài viết nào.</p>

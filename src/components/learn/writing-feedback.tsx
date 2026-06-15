@@ -30,7 +30,7 @@ export interface WritingResult {
     lexicalResource?: { band: number; feedback: string };
     grammaticalRange?: { band: number; feedback: string };
   };
-  annotations?: { category?: string; excerpt: string; issue: string; suggestion: string }[];
+  annotations?: { category?: string; excerpt: string; issue: string; suggestion: string; correction?: string }[];
   linkingPhrases?: { phrase: string; use: string }[];
   usefulStructures?: { structure: string; example: string; note: string }[];
   collocations?: VocabItem[];
@@ -38,6 +38,8 @@ export interface WritingResult {
   openingSentences?: string[];
   closingSentences?: string[];
   improvedVersion?: string;
+  /** Band the model essay (improvedVersion) targets — drives its heading. */
+  modelBand?: number;
   summary?: string;
 }
 
@@ -70,17 +72,18 @@ export function WritingFeedback({
       {essay && (
         <Card>
           <CardContent className="p-5 space-y-2">
-            <h3 className="font-extrabold">Bài viết của bạn</h3>
+            <h3 className="font-extrabold">Bài viết của bạn — đã sửa lỗi</h3>
             {result.annotations && result.annotations.length > 0 && (
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Các cụm <span className="font-bold underline decoration-2">in đậm gạch chân</span> là chỗ
-                viết sai — di chuột vào để xem lỗi &amp; cách sửa.{" "}
-                <span className="font-semibold text-rose-600 dark:text-rose-400">Ngữ pháp / cấu trúc</span> ·{" "}
+                Phần <span className="text-rose-500 line-through decoration-rose-400">gạch bỏ</span> là chỗ
+                viết sai, phần <span className="rounded bg-emerald-200/80 px-1 font-bold text-emerald-900 dark:bg-emerald-500/25 dark:text-emerald-100">in đậm tô màu</span> là bản sửa
+                — di chuột vào để xem lý do. Màu theo loại lỗi:{" "}
+                <span className="font-semibold text-emerald-700 dark:text-emerald-400">Ngữ pháp / cấu trúc</span> ·{" "}
                 <span className="font-semibold text-gold-700 dark:text-gold-400">Từ vựng</span> ·{" "}
                 <span className="font-semibold text-sage-700 dark:text-sage-400">Mạch ý</span>
               </p>
             )}
-            <AnnotatedEssay essay={essay} annotations={result.annotations ?? []} />
+            <AnnotatedEssay essay={essay} annotations={result.annotations ?? []} showCorrections />
           </CardContent>
         </Card>
       )}
@@ -132,6 +135,12 @@ export function WritingFeedback({
                     </div>
                     <p className="text-sm">
                       <span className="text-destructive line-through">{a.excerpt}</span>
+                      {a.correction && (
+                        <>
+                          {" → "}
+                          <span className="font-bold text-success">{a.correction}</span>
+                        </>
+                      )}
                     </p>
                     <p className="text-xs text-muted-foreground">⚠️ {a.issue}</p>
                     <p className="text-xs text-success font-medium">✅ {a.suggestion}</p>
@@ -226,7 +235,7 @@ export function WritingFeedback({
       )}
 
       {/* Model essay */}
-      {result.improvedVersion && <ModelEssay text={result.improvedVersion} />}
+      {result.improvedVersion && <ModelEssay text={result.improvedVersion} band={result.modelBand} />}
     </div>
   );
 }
@@ -306,17 +315,18 @@ function VocabGroup({
   );
 }
 
-function ModelEssay({ text }: { text: string }) {
+function ModelEssay({ text, band }: { text: string; band?: number }) {
   // Open by default so the sample essay is visible right after submitting.
   const [open, setOpen] = useState(true);
+  const bandLabel = band && band > 0 ? `band ${band.toFixed(1)}` : "band 7.0–7.5";
   return (
     <Card className="border-2 border-primary/20">
       <CardContent className="p-5">
         <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-2 w-full">
           <FileText className="h-5 w-5 text-primary" />
           <div className="flex-1 text-left">
-            <h3 className="font-extrabold">Bài viết mẫu (band 7.0–7.5)</h3>
-            <p className="text-xs text-muted-foreground">Tham khảo cách viết tốt hơn cho đúng đề bài này</p>
+            <h3 className="font-extrabold">Bài viết mẫu chuẩn ({bandLabel})</h3>
+            <p className="text-xs text-muted-foreground">Bài mẫu đạt đúng band bạn cần cho chính đề này — học cách triển khai ý, từ vựng &amp; cấu trúc</p>
           </div>
           <ChevronDown className={cn("h-5 w-5 transition-transform shrink-0", open && "rotate-180")} />
         </button>

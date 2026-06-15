@@ -118,7 +118,7 @@ Return ONLY valid JSON matching this exact shape:
     "grammaticalRange": { "band": 6.5, "feedback": "<tiếng Việt>" }
   },
   "annotations": [
-    { "category": "grammar" | "vocabulary" | "coherence" | "task", "excerpt": "<câu/cụm sai trích từ bài>", "issue": "<lỗi gì — tiếng Việt>", "suggestion": "<sửa thế nào — tiếng Việt, kèm bản đúng>" }
+    { "category": "grammar" | "vocabulary" | "coherence" | "task", "excerpt": "<chỉ đúng cụm SAI, trích NGUYÊN VĂN từ bài, càng NGẮN càng tốt>", "correction": "<cụm tiếng Anh ĐÚNG thay thế TRỰC TIẾP cho excerpt — chỉ phần sửa, KHÔNG kèm giải thích>", "issue": "<lỗi gì — tiếng Việt>", "suggestion": "<sửa thế nào — tiếng Việt>" }
   ],
   "linkingPhrases": [
     { "phrase": "<cụm từ nối tiếng Anh>", "use": "<dùng khi nào — tiếng Việt>" }
@@ -134,10 +134,12 @@ Return ONLY valid JSON matching this exact shape:
   ],
   "openingSentences": ["<3-4 câu MỞ BÀI mẫu HOÀN CHỈNH bằng tiếng Anh cho ĐÚNG đề bài này — gồm câu paraphrase đề và câu thesis; mỗi phần tử là một câu/cụm tiếng Anh dùng được ngay>"],
   "closingSentences": ["<3-4 câu KẾT BÀI mẫu bằng tiếng Anh cho đúng đề bài này — dùng được ngay>"],
-  "improvedVersion": "<bài viết mẫu hoàn chỉnh band 7.0-7.5 cho đúng đề bài này>",
+  "modelBand": <số band của bài mẫu — ĐÚNG bằng TARGET BAND nêu trong đề>,
+  "improvedVersion": "<bài viết mẫu HOÀN CHỈNH đạt ĐÚNG band mục tiêu (TARGET BAND) cho đúng đề bài này — đủ số từ (≥150 cho Task 1, ≥250 cho Task 2), bố cục chuẩn, đúng dạng Task 1/Task 2>",
   "summary": "<nhận xét tổng quan ngắn — tiếng Việt>"
 }
 
+Mỗi annotation BẮT BUỘC có cả "excerpt" (trích NGUYÊN VĂN phần SAI, ngắn) và "correction" (bản tiếng Anh ĐÚNG thay thế trực tiếp) để app hiển thị track-changes (gạch phần sai + chèn phần đúng). "modelBand" và độ khó của "improvedVersion" PHẢI khớp TARGET BAND.
 Provide 4-8 annotations, 5-7 linkingPhrases, 4-6 usefulStructures, 5-7 collocations and 4-6 phrasalVerbs — collocations and phrasalVerbs MUST be tailored to THIS essay's topic (not generic) and pitched at band 7+ so the learner can upgrade their vocabulary. ALWAYS give 3-4 English example sentences in each of openingSentences and closingSentences. If the essay is empty give empty annotation/structure arrays but STILL provide linkingPhrases, collocations, phrasalVerbs, openingSentences, closingSentences and improvedVersion as study material.`;
 
 const SPEAKING_SYS = `You are a STRICT, certified IELTS Speaking examiner. Score the candidate's spoken response using official band descriptors. Do not be charitable — apply the descriptors literally. Cambridge raters are notoriously hard on Fluency & Coherence at band 5-6, and even harder on Grammatical Range. You should be too.
@@ -235,6 +237,8 @@ export interface WritingGradeInput {
   taskType: 1 | 2;
   prompt: string;
   essay: string;
+  /** Band the learner is aiming for — the model essay is written to this band. */
+  targetBand?: number;
 }
 
 export interface SpeakingGradeInput {
@@ -247,7 +251,9 @@ export interface SpeakingGradeInput {
 }
 
 export async function gradeWritingGroq(input: WritingGradeInput): Promise<unknown> {
+  const target = input.targetBand && input.targetBand > 0 ? input.targetBand : 6.5;
   const userMessage = `IELTS Writing Task ${input.taskType}
+TARGET BAND (band học viên CẦN ĐẠT — viết "improvedVersion" đạt ĐÚNG band này và đặt "modelBand" = ${target.toFixed(1)}): ${target.toFixed(1)}
 
 PROMPT:
 ${input.prompt}
