@@ -16,7 +16,7 @@ const schema = z.object({
   questions: z
     .array(
       z.object({
-        type: z.enum(["MCQ", "MATCHING_HEADINGS", "FILL_BLANK", "TRUE_FALSE_NOT_GIVEN"]),
+        type: z.enum(["MCQ", "MATCHING_HEADINGS", "MATCHING_INFO", "FILL_BLANK", "TRUE_FALSE_NOT_GIVEN"]),
         prompt: z.string().min(1),
         options: z.array(z.string()).optional(),
         correctAnswer: z.string().min(1),

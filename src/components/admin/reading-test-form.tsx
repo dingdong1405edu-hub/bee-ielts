@@ -17,7 +17,7 @@ import { countBlanks, parseTablePaste, buildFormQuestions } from "@/lib/form-com
 import { BeeLogo } from "@/components/brand";
 
 type Bank = "PRACTICE" | "MOCK";
-type QType = "MCQ" | "MATCHING_HEADINGS" | "FILL_BLANK" | "TRUE_FALSE_NOT_GIVEN" | "MULTI_SELECT";
+type QType = "MCQ" | "MATCHING_HEADINGS" | "MATCHING_INFO" | "FILL_BLANK" | "TRUE_FALSE_NOT_GIVEN" | "MULTI_SELECT";
 
 type Q = {
   type: QType;
@@ -49,6 +49,7 @@ const TYPE_LABEL: Record<QType, string> = {
   MCQ: "Trắc nghiệm 1 đáp án (Multiple choice)",
   MULTI_SELECT: "Chọn nhiều đáp án (Choose TWO letters A–E)",
   MATCHING_HEADINGS: "Nối tiêu đề (Matching Headings)",
+  MATCHING_INFO: "Nối thông tin với đoạn (Matching Information — chọn đoạn A/B/C…)",
   FILL_BLANK: "Điền vào chỗ trống (Completion)",
   TRUE_FALSE_NOT_GIVEN: "Xác nhận thông tin (True / False / Not Given)",
 };
@@ -94,7 +95,11 @@ export type ReadingInitial = {
 };
 
 function coerceType(t: string): QType {
-  if (t === "MCQ" || t === "MATCHING_HEADINGS" || t === "FILL_BLANK" || t === "TRUE_FALSE_NOT_GIVEN") return t;
+  if (t === "MCQ" || t === "MATCHING_HEADINGS" || t === "MATCHING_INFO" || t === "FILL_BLANK" || t === "TRUE_FALSE_NOT_GIVEN") return t;
+  // Matching Information ("which paragraph contains…") keeps its own editor so
+  // the paragraph-letter answer survives a load → save round-trip. It must be
+  // checked before the generic MATCHING fallback (which assumes roman headings).
+  if (t === "MATCHING_INFO") return "MATCHING_INFO";
   if (t.startsWith("MATCHING")) return "MATCHING_HEADINGS";
   if (t.startsWith("TRUE_FALSE")) return "TRUE_FALSE_NOT_GIVEN";
   return "FILL_BLANK";
@@ -103,6 +108,8 @@ function coerceType(t: string): QType {
 type ReadingFormState = {
   questions: Q[];
   headings: string[];
+  /** How many paragraph letters (A, B, C…) the Matching Information answers pick from. */
+  infoParagraphs: number;
   formPassage: string;
   formAnswers: string[];
   tablePassage: string;
@@ -120,6 +127,7 @@ function toFormState(initial?: ReadingInitial): ReadingFormState {
     return {
       questions: [blankQ("MCQ")],
       headings: ["", "", "", ""],
+      infoParagraphs: 6,
       formPassage: "",
       formAnswers: [],
       tablePassage: "",
@@ -133,9 +141,19 @@ function toFormState(initial?: ReadingInitial): ReadingFormState {
   );
   const regular = initial.questions.filter((q) => !q.formGroup || q.formGroup.startsWith("ms"));
   let headings: string[] = [];
+  // Matching Information answers are paragraph letters (A, B, C…). Size the
+  // shared letter list to the widest option array seen so every stored answer
+  // resolves; default to 6 (IELTS passages are usually A–F).
+  let infoParagraphs = 0;
   const questions: Q[] = regular.map((q) => {
     const explanation = q.explanation ?? "";
     const displayNumber = q.displayNumber != null ? String(q.displayNumber) : "";
+    if (coerceType(q.type) === "MATCHING_INFO") {
+      // Keep the paragraph letter as-is ("C"); the editor renders a letter
+      // dropdown so the answer survives the round-trip.
+      if ((q.options?.length ?? 0) > infoParagraphs) infoParagraphs = q.options!.length;
+      return { type: "MATCHING_INFO", prompt: q.prompt, options: [], correctAnswer: (q.correctAnswer || "").toUpperCase(), explanation, displayNumber };
+    }
     if (q.formGroup?.startsWith("ms")) {
       // Multi-select: stored correctAnswer is the correct option texts; the
       // editor works with their indices into the options list.
@@ -166,6 +184,7 @@ function toFormState(initial?: ReadingInitial): ReadingFormState {
   return {
     questions: finalQuestions,
     headings: headings.length >= 2 ? headings : ["", "", "", ""],
+    infoParagraphs: infoParagraphs >= 2 ? infoParagraphs : 6,
     formPassage: formQs.length ? stitch(formQs) : "",
     formAnswers: formQs.map((q) => q.correctAnswer),
     tablePassage: tableQs.length ? stitch(tableQs) : "",
@@ -207,6 +226,7 @@ export function ReadingTestForm({
   const [init] = useState(() => toFormState(initial));
   const [questions, setQuestions] = useState<Q[]>(init.questions);
   const [headings, setHeadings] = useState<string[]>(init.headings);
+  const [infoParagraphs, setInfoParagraphs] = useState<number>(init.infoParagraphs);
   const [formPassage, setFormPassage] = useState(init.formPassage);
   const [formAnswers, setFormAnswers] = useState<string[]>(init.formAnswers);
   const [tablePassage, setTablePassage] = useState(init.tablePassage);
@@ -215,6 +235,7 @@ export function ReadingTestForm({
   const tableImgRef = useRef<HTMLInputElement>(null);
 
   const hasMatching = questions.some((q) => q.type === "MATCHING_HEADINGS");
+  const hasInfo = questions.some((q) => q.type === "MATCHING_INFO");
   const blankCount = countBlanks(formPassage);
   const tableBlankCount = countBlanks(tablePassage);
 
@@ -366,6 +387,14 @@ export function ReadingTestForm({
         const newIdx = Number.isNaN(origIdx) ? undefined : headingRemap.get(origIdx);
         if (newIdx === undefined) return toast.error(`Câu ${i + 1}: chọn heading đúng cho đoạn này`);
         payload.push({ type: "MATCHING_HEADINGS", prompt: q.prompt.trim(), options: numberedHeadings, correctAnswer: ROMAN[newIdx], explanation: q.explanation.trim() || undefined, displayNumber });
+      } else if (q.type === "MATCHING_INFO") {
+        // Matching Information: the answer is a paragraph letter the admin types/picks
+        // (A, B, C…). Options stay the plain letter list so the learner dropdown matches.
+        const letter = q.correctAnswer.trim().toUpperCase();
+        const letterIdx = LETTERS.indexOf(letter);
+        if (letterIdx < 0 || letterIdx >= infoParagraphs)
+          return toast.error(`Câu ${i + 1}: chọn đoạn văn đúng (A–${LETTERS[infoParagraphs - 1]})`);
+        payload.push({ type: "MATCHING_INFO", prompt: q.prompt.trim(), options: LETTERS.slice(0, infoParagraphs), correctAnswer: letter, explanation: q.explanation.trim() || undefined, displayNumber });
       } else if (q.type === "TRUE_FALSE_NOT_GIVEN") {
         if (!["True", "False", "Not Given"].includes(q.correctAnswer))
           return toast.error(`Câu ${i + 1}: chọn đáp án đúng`);
@@ -703,6 +732,34 @@ export function ReadingTestForm({
         </Card>
       )}
 
+      {hasInfo && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <List className="h-5 w-5 text-primary" /> Matching Information — số đoạn văn
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Đoạn đọc của bạn được chia thành các đoạn dán nhãn A, B, C… Chọn số đoạn để mỗi câu
+              “Matching Information” bên dưới có đủ lựa chọn đáp án (A–{LETTERS[infoParagraphs - 1]}).
+            </p>
+            <div className="flex items-center gap-2">
+              <Label className="shrink-0">Số đoạn (A–?)</Label>
+              <select
+                value={String(infoParagraphs)}
+                onChange={(e) => setInfoParagraphs(Number(e.target.value))}
+                className="h-10 rounded-md border bg-background px-3 text-sm"
+              >
+                {Array.from({ length: 11 }, (_, i) => i + 2).map((n) => (
+                  <option key={n} value={n}>{n} đoạn (A–{LETTERS[n - 1]})</option>
+                ))}
+              </select>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -773,9 +830,11 @@ export function ReadingTestForm({
                           ? "Một nhận định để người học xác nhận."
                           : q.type === "MATCHING_HEADINGS"
                             ? "VD: Paragraph A"
-                            : q.type === "MULTI_SELECT"
-                              ? "VD: Which TWO of the following statements are true?"
-                              : "Nội dung câu hỏi..."
+                            : q.type === "MATCHING_INFO"
+                              ? "VD: A reference to a piece of physical evidence."
+                              : q.type === "MULTI_SELECT"
+                                ? "VD: Which TWO of the following statements are true?"
+                                : "Nội dung câu hỏi..."
                     }
                   />
                 </div>
@@ -784,6 +843,9 @@ export function ReadingTestForm({
                 {q.type === "MULTI_SELECT" && <MultiCorrectOptions q={q} qi={qi} patchQ={patchQ} />}
                 {q.type === "MATCHING_HEADINGS" && (
                   <HeadingPicker headings={headings} value={q.correctAnswer} onChange={(v) => patchQ(qi, { correctAnswer: v })} />
+                )}
+                {q.type === "MATCHING_INFO" && (
+                  <InfoParagraphPicker count={infoParagraphs} value={q.correctAnswer} onChange={(v) => patchQ(qi, { correctAnswer: v })} />
                 )}
 
                 {q.type === "TRUE_FALSE_NOT_GIVEN" && (
@@ -959,6 +1021,36 @@ function MultiCorrectOptions({
       <p className="text-xs text-muted-foreground">
         Đã đánh dấu <strong>{correctIdx.size}</strong> đáp án đúng — học viên phải chọn đúng{" "}
         {correctIdx.size || "?"} đáp án. IELTS thường là “Choose TWO” với 5 lựa chọn A–E.
+      </p>
+    </div>
+  );
+}
+
+/** Dropdown for a Matching Information question — picks the paragraph letter (A, B, C…). */
+function InfoParagraphPicker({
+  count,
+  value,
+  onChange,
+}: {
+  count: number;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div>
+      <Label>Đoạn văn chứa thông tin này (đáp án)</Label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+      >
+        <option value="">— Chọn đoạn —</option>
+        {LETTERS.slice(0, count).map((l) => (
+          <option key={l} value={l}>Đoạn {l}</option>
+        ))}
+      </select>
+      <p className="text-xs text-muted-foreground mt-1">
+        Đáp án là chữ cái đoạn văn (A, B, C…). Một đoạn có thể là đáp án cho nhiều câu.
       </p>
     </div>
   );
