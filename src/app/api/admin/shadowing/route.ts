@@ -4,6 +4,8 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { isAdminOrOwner } from "@/lib/premium";
 import { extractYoutubeId, youtubeThumbnail } from "@/lib/youtube";
+import { estimateCefrLevel } from "@/lib/claude";
+import { toCefrLevel } from "@/lib/cefr";
 
 const segmentSchema = z.object({
   startSec: z.number().min(0),
@@ -66,11 +68,19 @@ export async function POST(req: Request) {
       );
     }
   }
+  // Difficulty: admin's pick, else AI auto-classifies from the pasted text so
+  // the lesson still lands under the right level filter without manual effort.
+  let level = toCefrLevel(parsed.data.level);
+  if (!level) {
+    const sample = parsed.data.segments.slice(0, 25).map((s) => s.textEn).join(" ");
+    level = await estimateCefrLevel(sample);
+  }
+
   const lesson = await prisma.shadowingLesson.create({
     data: {
       title: parsed.data.title.trim(),
       source: parsed.data.source.trim(),
-      level: parsed.data.level ?? null,
+      level,
       youtubeId: ytId,
       thumbnailUrl: youtubeThumbnail(ytId),
       createdBy: null, // admin-created lessons stay community-owned

@@ -11,6 +11,7 @@ import {
   Sparkles,
   Trash2,
   ExternalLink,
+  Wand2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -45,6 +46,28 @@ export function PodcastsAdminClient({ initial }: { initial: PodcastRow[] }) {
   const [level, setLevel] = useState<"" | "B1" | "B2" | "C1" | "C2">("");
   const [busy, setBusy] = useState(false);
   const [delId, setDelId] = useState<string | null>(null);
+  const [classifying, setClassifying] = useState(false);
+
+  /** AI auto-classify CEFR level for every episode missing one. Runs off the
+   *  stored transcript on the server — no YouTube fetch needed. */
+  const classifyLevels = async () => {
+    setClassifying(true);
+    try {
+      const res = await fetch("/api/admin/podcasts/classify-levels", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Xếp loại thất bại");
+      toast.success(
+        `Đã tự xếp loại ${data.classified} podcast` +
+          (data.remaining ? ` · còn ${data.remaining}, bấm lại để tiếp` : ""),
+      );
+      router.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Lỗi");
+    } finally {
+      setClassifying(false);
+    }
+  };
+  const noLevelCount = rows.filter((r) => !r.level).length;
 
   const create = async () => {
     if (!url.trim()) return toast.error("Dán URL YouTube");
@@ -215,7 +238,22 @@ export function PodcastsAdminClient({ initial }: { initial: PodcastRow[] }) {
       {/* List */}
       <Card>
         <CardContent className="p-5">
-          <h2 className="font-extrabold mb-3">Episodes ({rows.length})</h2>
+          <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
+            <h2 className="font-extrabold">Episodes ({rows.length})</h2>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={classifyLevels}
+              disabled={classifying || noLevelCount === 0}
+              className="h-8 text-xs"
+              title="Để AI tự xếp loại trình độ cho các podcast chưa có (dựa trên transcript đã lưu)"
+            >
+              {classifying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+              {noLevelCount > 0
+                ? `AI tự xếp loại trình độ (${noLevelCount} chưa có)`
+                : "Mọi podcast đã có trình độ"}
+            </Button>
+          </div>
           {rows.length === 0 ? (
             <p className="text-sm text-muted-foreground italic">
               Chưa có podcast nào — dán URL ở trên để bắt đầu.

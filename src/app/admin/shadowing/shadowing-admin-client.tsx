@@ -61,6 +61,7 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
   const [bulkPaste, setBulkPaste] = useState("");
   const [creating, setCreating] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [classifying, setClassifying] = useState(false);
   // AI auto-create
   const [aiTitle, setAiTitle] = useState("");
   const [aiSource, setAiSource] = useState("");
@@ -409,6 +410,28 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
       setBusyId(null);
     }
   };
+
+  /** AI auto-classify CEFR level for every lesson that has none yet. Uses the
+   *  stored segment text on the server — no YouTube fetch — so it works even
+   *  while YouTube blocks the server. */
+  const classifyLevels = async () => {
+    setClassifying(true);
+    try {
+      const res = await fetch("/api/admin/shadowing/classify-levels", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Xếp loại thất bại");
+      toast.success(
+        `Đã tự xếp loại ${data.classified} bài` +
+          (data.remaining ? ` · còn ${data.remaining} bài, bấm lại để tiếp` : ""),
+      );
+      router.refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Lỗi");
+    } finally {
+      setClassifying(false);
+    }
+  };
+  const noLevelCount = lessons.filter((l) => !l.level).length;
 
   const segmentDuration = useMemo(() => {
     return segments.reduce((sum, s) => {
@@ -845,7 +868,22 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
       )}
 
       <section className="space-y-2">
-        <h2 className="font-extrabold">Tất cả bài ({lessons.length})</h2>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <h2 className="font-extrabold">Tất cả bài ({lessons.length})</h2>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={classifyLevels}
+            disabled={classifying || noLevelCount === 0}
+            className="h-8 text-xs border-sage-300 text-sage-700 hover:bg-sage-50"
+            title="Để AI tự xếp loại trình độ cho các bài chưa có (dựa trên transcript đã lưu)"
+          >
+            {classifying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+            {noLevelCount > 0
+              ? `AI tự xếp loại trình độ (${noLevelCount} bài chưa có)`
+              : "Mọi bài đã có trình độ"}
+          </Button>
+        </div>
         {lessons.length === 0 ? (
           <Card>
             <CardContent className="p-6 text-sm text-muted-foreground text-center">
