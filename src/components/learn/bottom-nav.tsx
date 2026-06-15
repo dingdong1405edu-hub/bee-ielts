@@ -3,8 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Target, GraduationCap, Users, User, LayoutGrid, X, Crown, Shield, Lock, LogOut } from "lucide-react";
-import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
+import { LogoutButton } from "./logout-button";
 import { SHEET_GROUPS, isNavActive, type NavItem } from "./nav-config";
 
 const TABS: NavItem[] = [
@@ -166,16 +166,15 @@ export function BottomNav({ isAdmin, isPremium }: { isAdmin?: boolean; isPremium
               <div className="grid grid-cols-3 gap-2.5">
                 <SheetTile item={{ href: "/premium", label: "Premium", icon: Crown }} />
                 {isAdmin && <SheetTile item={{ href: "/admin", label: "Admin", icon: Shield }} />}
-                <button
-                  type="button"
-                  onClick={() => signOut({ callbackUrl: "/" })}
+                <LogoutButton
+                  ariaLabel="Đăng xuất"
                   className="flex flex-col items-center gap-2 rounded-2xl border border-border bg-card p-3 text-center transition-colors active:bg-muted"
                 >
                   <span className="grid h-11 w-11 place-items-center rounded-xl bg-muted text-destructive">
                     <LogOut className="h-5 w-5" />
                   </span>
                   <span className="text-xs font-semibold leading-tight">Đăng xuất</span>
-                </button>
+                </LogoutButton>
               </div>
             </div>
           </div>

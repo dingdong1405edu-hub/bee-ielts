@@ -2,12 +2,12 @@
 import { type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
 import { Home, LogOut, Crown, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BeeLogo } from "@/components/brand/bee-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationBell } from "./notification-bell";
+import { LogoutButton } from "./logout-button";
 import { isNavActive } from "./nav-config";
 
 // Chỉ hiển thị "Trang chủ" trên thanh trên; các mục khác đã được gỡ khỏi đây
@@ -64,13 +64,13 @@ export function TopNav({ rightSlot, isPremium }: { rightSlot?: ReactNode; isPrem
             {isPremium ? <Crown size={13} /> : <Lock size={12} />} Premium
           </Link>
           {rightSlot}
-          <button
-            onClick={() => signOut({ callbackUrl: "/" })}
+          <LogoutButton
             title="Đăng xuất"
+            ariaLabel="Đăng xuất"
             className="hidden rounded-lg p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive md:inline-flex"
           >
             <LogOut size={16} />
-          </button>
+          </LogoutButton>
         </div>
       </nav>
     </header>
