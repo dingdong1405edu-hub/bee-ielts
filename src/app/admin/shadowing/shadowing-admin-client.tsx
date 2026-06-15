@@ -81,6 +81,65 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
   // blocks the second request before it ever leaves the browser.
   const aiInFlightRef = useRef(false);
 
+  // "Paste transcript" path — the reliable fallback when YouTube blocks the
+  // server IP. Admin copies the transcript from YouTube's own "Show
+  // transcript" panel (works in their logged-in browser) and the server adds
+  // segmentation + Vietnamese + IPA without ever fetching YouTube content.
+  const [tsUrl, setTsUrl] = useState("");
+  const [tsTitle, setTsTitle] = useState("");
+  const [tsSource, setTsSource] = useState("");
+  const [tsText, setTsText] = useState("");
+  const [tsBusy, setTsBusy] = useState(false);
+  const tsInFlightRef = useRef(false);
+
+  const createFromTranscript = async () => {
+    if (tsInFlightRef.current) return;
+    if (!tsUrl.trim()) return toast.error("Dán URL YouTube");
+    if (tsText.trim().length < 20)
+      return toast.error("Dán transcript (mốc thời gian + câu) vào ô bên dưới");
+    tsInFlightRef.current = true;
+    setTsBusy(true);
+    const controller = new AbortController();
+    const abortTimer = setTimeout(() => controller.abort(), 600_000);
+    try {
+      const res = await fetch("/api/admin/shadowing/from-transcript", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          youtubeUrl: tsUrl.trim(),
+          transcript: tsText,
+          title: tsTitle.trim(),
+          source: tsSource.trim(),
+          level: level || undefined,
+        }),
+        signal: controller.signal,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error || "Tạo bài thất bại");
+        return;
+      }
+      toast.success(
+        `Đã tạo bài (${data.segmentCount} đoạn · AI dịch ${data.enriched}). Đang mở...`,
+      );
+      setTsUrl("");
+      setTsTitle("");
+      setTsSource("");
+      setTsText("");
+      window.location.href = `/shadowing/${data.id}`;
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") {
+        toast.error("Quá 10 phút không phản hồi — mở /admin/shadowing để kiểm tra bài mới.");
+      } else {
+        toast.error(e instanceof Error ? e.message : "Lỗi");
+      }
+    } finally {
+      clearTimeout(abortTimer);
+      tsInFlightRef.current = false;
+      setTsBusy(false);
+    }
+  };
+
   const createWithAI = async () => {
     if (aiInFlightRef.current) return; // hard guard against double-click
     // title + source are optional — the server auto-fills them from the
@@ -506,6 +565,109 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
             <p className="text-xs text-gold-700 dark:text-gold-300 italic">
               Đừng đóng tab — quá trình này chạy nền và lấy 30s tới vài phút
               cho video dài. Audio fallback có thể mất tới 3-5 phút cho video 20+ phút.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Paste-transcript path — reliable when YouTube blocks the server IP.
+          Always visible (not collapsed) because it's the go-to fix when the
+          auto path errors with "bot detection / video không khả dụng". */}
+      <Card className="border-2 border-sage-400/60 bg-gradient-to-br from-sage-50 to-emerald-50 dark:from-sage-950/30 dark:to-emerald-950/20">
+        <CardContent className="p-5 space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-sage-500 to-emerald-500 text-white shadow-md shrink-0">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div className="flex-1">
+              <h2 className="font-extrabold text-lg">Dán transcript → AI dịch &amp; tạo bài</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Dùng khi cách trên báo lỗi “YouTube chặn server / video không khả dụng”. Cách này{" "}
+                <strong>không cần server tải video</strong> nên luôn chạy được — AI vẫn tự chia câu,
+                dịch tiếng Việt và sinh IPA.
+              </p>
+            </div>
+          </div>
+
+          <details className="rounded-lg bg-white/60 dark:bg-card/40 border border-sage-300/60 p-3 text-xs">
+            <summary className="cursor-pointer font-bold text-sage-800 dark:text-sage-200">
+              Lấy transcript ở đâu? (2 bước)
+            </summary>
+            <ol className="list-decimal pl-5 mt-2 space-y-1 text-muted-foreground">
+              <li>
+                Mở video trên YouTube (đã đăng nhập) → bấm “...thêm / more” dưới video →{" "}
+                <strong>“Hiện bản chép lời / Show transcript”</strong>.
+              </li>
+              <li>
+                Bôi đen toàn bộ khung transcript (gồm mốc thời gian) → copy → dán vào ô dưới đây.
+                Cũng nhận file <strong>.vtt / .srt</strong>.
+              </li>
+            </ol>
+          </details>
+
+          <div>
+            <Label className="text-sm font-bold">
+              URL YouTube <span className="text-rose-600">*</span>
+            </Label>
+            <Input
+              value={tsUrl}
+              onChange={(e) => setTsUrl(e.target.value)}
+              placeholder="https://www.youtube.com/watch?v=..."
+              disabled={tsBusy}
+            />
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label className="text-xs">Tiêu đề (tuỳ chọn)</Label>
+              <Input
+                value={tsTitle}
+                onChange={(e) => setTsTitle(e.target.value)}
+                placeholder="VD: TED-Ed — How memory works"
+                disabled={tsBusy}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Nguồn / kênh (tuỳ chọn)</Label>
+              <Input
+                value={tsSource}
+                onChange={(e) => setTsSource(e.target.value)}
+                placeholder="TED-Ed / BBC / Netflix..."
+                disabled={tsBusy}
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label className="text-sm font-bold">
+              Transcript <span className="text-rose-600">*</span>
+            </Label>
+            <Textarea
+              value={tsText}
+              onChange={(e) => setTsText(e.target.value)}
+              disabled={tsBusy}
+              className="min-h-[180px] font-mono text-[13px]"
+              placeholder={
+                "0:00 Hello and welcome to today's lesson.\n0:04 We're going to talk about...\n\nHoặc dán VTT/SRT:\n00:00:00.000 --> 00:00:04.000\nHello and welcome to today's lesson."
+              }
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Mỗi dòng cần có mốc thời gian (vd <span className="font-mono">0:04</span>) để cắt đúng
+              đoạn cho người học nghe lại. Độ khó dùng chung lựa chọn CEFR ở khung trên.
+            </p>
+          </div>
+
+          <Button
+            onClick={createFromTranscript}
+            disabled={tsBusy}
+            className="rounded-xl bg-gradient-to-r from-sage-600 to-emerald-600 hover:brightness-110 text-white shadow-md"
+          >
+            {tsBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {tsBusy ? "Đang dịch + tạo bài..." : "Tạo bài từ transcript"}
+          </Button>
+          {tsBusy && (
+            <p className="text-xs text-sage-700 dark:text-sage-300 italic">
+              Đừng đóng tab — AI đang chia câu, dịch nghĩa và sinh IPA (~30s tới vài phút).
             </p>
           )}
         </CardContent>
