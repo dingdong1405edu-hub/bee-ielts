@@ -3,10 +3,11 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
-  Heart, MessageCircle, Repeat2, Send, Loader2, ImagePlus, X, MoreHorizontal,
+  Heart, MessageCircle, Repeat2, Send, Loader2, ImagePlus, X, MoreHorizontal, BadgeCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/brand";
+import { VerifiedBadge } from "@/components/learn/verified-badge";
 
 /** Resize an image file to fit within maxW×maxH and return a JPEG data URL. */
 async function resizeImage(file: File, maxW: number, maxH: number, quality = 0.8): Promise<string> {
@@ -37,6 +38,10 @@ async function resizeImage(file: File, maxW: number, maxH: number, quality = 0.8
 interface Author {
   name: string;
   avatarUrl: string | null;
+  /** Owner / official "Bee" account — shows the Bee chip + blue tick. */
+  isOwner?: boolean;
+  /** Premium learner — shows a blue tick (computed live, lapses with premium). */
+  isPremium?: boolean;
 }
 export interface FeedComment {
   id: string;
@@ -95,14 +100,19 @@ function Avatar({ author, size = 36 }: { author: Author; size?: number }) {
 export function CommunityFeed({
   posts,
   currentUser,
+  canPostAsOwner = false,
 }: {
   posts: FeedPost[];
   currentUser: Author;
+  /** Owner, or an admin the owner authorised — unlocks the "post as Bee" toggle. */
+  canPostAsOwner?: boolean;
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState("");
   const [image, setImage] = useState<string | null>(null);
   const [posting, setPosting] = useState(false);
+  // Opt-in per post: publish under the Bee identity AND notify everyone.
+  const [asOwner, setAsOwner] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const pickImage = async (file: File) => {
@@ -125,11 +135,15 @@ export function CommunityFeed({
       const res = await fetch("/api/community/post", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: draft.trim(), ...(image ? { imageUrl: image } : {}) }),
+        body: JSON.stringify({
+          content: draft.trim(),
+          ...(image ? { imageUrl: image } : {}),
+          ...(canPostAsOwner && asOwner ? { asOwner: true } : {}),
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Lỗi");
-      toast.success("Đã đăng bài");
+      toast.success(canPostAsOwner && asOwner ? "Đã đăng dưới danh nghĩa Bee 🐝" : "Đã đăng bài");
       setDraft("");
       setImage(null);
       router.refresh();
@@ -178,14 +192,33 @@ export function CommunityFeed({
               e.target.value = "";
             }}
           />
-          <div className="mt-2 flex items-center justify-between">
-            <button
-              onClick={() => fileInput.current?.click()}
-              className="grid h-9 w-9 place-items-center rounded-full text-muted-foreground hover:bg-muted"
-              aria-label="Thêm ảnh"
-            >
-              <ImagePlus className="h-5 w-5" />
-            </button>
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => fileInput.current?.click()}
+                className="grid h-9 w-9 place-items-center rounded-full text-muted-foreground hover:bg-muted"
+                aria-label="Thêm ảnh"
+              >
+                <ImagePlus className="h-5 w-5" />
+              </button>
+              {canPostAsOwner && (
+                <button
+                  type="button"
+                  onClick={() => setAsOwner((v) => !v)}
+                  aria-pressed={asOwner}
+                  title="Đăng dưới danh nghĩa Bee và gửi thông báo cho mọi người"
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold transition-colors",
+                    asOwner
+                      ? "border-sky-400 bg-sky-500/10 text-sky-600 dark:text-sky-400"
+                      : "border-border text-muted-foreground hover:bg-muted",
+                  )}
+                >
+                  <BadgeCheck className="h-4 w-4" />
+                  Đăng dưới danh nghĩa Bee
+                </button>
+              )}
+            </div>
             <button
               onClick={submitPost}
               disabled={posting || (!draft.trim() && !image)}
@@ -195,6 +228,11 @@ export function CommunityFeed({
               Đăng
             </button>
           </div>
+          {canPostAsOwner && asOwner && (
+            <p className="mt-1.5 text-[11px] text-sky-600 dark:text-sky-400">
+              Bài này sẽ hiển thị dưới tên <b>Bee</b> (tích xanh) và gửi thông báo tới mọi người.
+            </p>
+          )}
         </div>
       </div>
 
@@ -326,6 +364,7 @@ function PostCard({ post }: { post: FeedPost }) {
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
           <span className="font-semibold text-[15px] text-foreground truncate">{post.author.name}</span>
+          <VerifiedBadge isOwner={post.author.isOwner} isPremium={post.author.isPremium} />
           <span className="text-[15px] text-muted-foreground">{timeAgo(post.createdAt)}</span>
           {post.isMine && (
             <button
@@ -464,6 +503,7 @@ function CommentNode({ comment, postId }: { comment: FeedComment; postId: string
         <div className="rounded-2xl bg-muted px-3 py-2">
           <div className="flex items-center gap-1.5">
             <span className="text-xs font-bold text-foreground">{comment.author.name}</span>
+            <VerifiedBadge isOwner={comment.author.isOwner} isPremium={comment.author.isPremium} size={12} />
             <span className="text-[10px] text-muted-foreground">· {timeAgo(comment.createdAt)}</span>
             {comment.isMine && (
               <button

@@ -1,15 +1,27 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Bell, Megaphone, Tag, Info, X, Copy } from "lucide-react";
+import Link from "next/link";
+import { Bell, Megaphone, Tag, Info, X, Copy, Users } from "lucide-react";
 import { toast } from "sonner";
 
-type Ann = { id: string; kind: string; title: string; body: string; code: string | null; createdAt: string };
+type Ann = {
+  id: string;
+  kind: string;
+  title: string;
+  body: string;
+  code: string | null;
+  createdAt: string;
+  /** When set, the whole notification links here (official community posts). */
+  href?: string;
+};
 
-// Shared with the landing bell (index.html): "new" = announcements created
-// after the timestamp the visitor last opened the bell.
+// Shared with the landing bell (index.html): "new" = items created after the
+// timestamp the visitor last opened the bell.
 const SEEN_KEY = "bee_ann_seen";
 
 function meta(k: string) {
+  if (k === "post")
+    return { label: "Cộng đồng", Icon: Users, cls: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300" };
   if (k === "update")
     return { label: "Cập nhật", Icon: Megaphone, cls: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300" };
   if (k === "discount")
@@ -25,13 +37,20 @@ export function NotificationBell() {
 
   useEffect(() => {
     let alive = true;
-    fetch("/api/announcements")
-      .then((r) => r.json())
-      .then((d) => {
-        if (!alive || !Array.isArray(d.items)) return;
-        setItems(d.items);
+    // Merge admin announcements + official "Bee" community posts into one feed.
+    Promise.all([
+      fetch("/api/announcements").then((r) => r.json()).catch(() => ({ items: [] })),
+      fetch("/api/community/official-posts").then((r) => r.json()).catch(() => ({ items: [] })),
+    ])
+      .then(([ann, posts]) => {
+        if (!alive) return;
+        const merged: Ann[] = [
+          ...(Array.isArray(ann.items) ? ann.items : []),
+          ...(Array.isArray(posts.items) ? posts.items : []),
+        ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setItems(merged);
         const seen = Number(localStorage.getItem(SEEN_KEY) || 0);
-        setNewCount(d.items.filter((a: Ann) => new Date(a.createdAt).getTime() > seen).length);
+        setNewCount(merged.filter((a) => new Date(a.createdAt).getTime() > seen).length);
       })
       .catch(() => {});
     return () => {
@@ -105,8 +124,8 @@ export function NotificationBell() {
               items.map((a) => {
                 const m = meta(a.kind);
                 const Icon = m.Icon;
-                return (
-                  <div key={a.id} className="space-y-1.5 p-3.5">
+                const inner = (
+                  <>
                     <div className="flex items-center gap-2">
                       <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold ${m.cls}`}>
                         <Icon className="h-3 w-3" /> {m.label}
@@ -125,6 +144,20 @@ export function NotificationBell() {
                         <Copy className="h-3 w-3" /> {a.code}
                       </button>
                     )}
+                  </>
+                );
+                return a.href ? (
+                  <Link
+                    key={a.id}
+                    href={a.href}
+                    onClick={() => setOpen(false)}
+                    className="block space-y-1.5 p-3.5 transition-colors hover:bg-muted/50"
+                  >
+                    {inner}
+                  </Link>
+                ) : (
+                  <div key={a.id} className="space-y-1.5 p-3.5">
+                    {inner}
                   </div>
                 );
               })

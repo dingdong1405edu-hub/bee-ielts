@@ -1,10 +1,22 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { effectivePremium } from "@/lib/premium";
 import { CommunityFeed, type FeedPost, type FeedComment } from "./community-feed";
 import { BeeLogo, Leaf } from "@/components/brand";
 
 export const dynamic = "force-dynamic";
+
+/** Author fields needed to compute owner/premium badges. */
+const AUTHOR_SELECT = {
+  id: true,
+  name: true,
+  email: true,
+  avatarUrl: true,
+  role: true,
+  isPremium: true,
+  premiumUntil: true,
+} as const;
 
 export default async function CommunityPage() {
   const session = await auth();
@@ -13,8 +25,21 @@ export default async function CommunityPage() {
 
   const meUser = await prisma.user.findUnique({
     where: { id: me },
+    select: { name: true, email: true, avatarUrl: true, role: true, canPostAsOwner: true },
+  });
+  // Owner profile used to render "asOwner" posts under the Bee identity even
+  // when an authorised admin wrote them.
+  const owner = await prisma.user.findFirst({
+    where: { role: "OWNER" },
     select: { name: true, email: true, avatarUrl: true },
   });
+  const ownerName = owner?.name ?? owner?.email?.split("@")[0] ?? "Bee";
+  const ownerAvatar = owner?.avatarUrl ?? null;
+
+  // Whether the composer offers the "post as Bee" toggle.
+  const canPostAsOwner =
+    meUser?.role === "OWNER" || (meUser?.role === "ADMIN" && meUser?.canPostAsOwner === true);
+
   const currentUser = {
     name: meUser?.name ?? meUser?.email?.split("@")[0] ?? "Bạn",
     avatarUrl: meUser?.avatarUrl ?? null,
@@ -24,27 +49,44 @@ export default async function CommunityPage() {
     orderBy: { createdAt: "desc" },
     take: 60,
     include: {
-      user: { select: { id: true, name: true, email: true, avatarUrl: true } },
+      user: { select: AUTHOR_SELECT },
       likes: { select: { userId: true } },
       comments: {
         orderBy: { createdAt: "asc" },
-        include: { user: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+        include: { user: { select: AUTHOR_SELECT } },
       },
     },
   });
 
+  /** Resolve display name/avatar + verified badges for a post/comment author. */
+  type AuthorRow = {
+    name: string | null;
+    email: string;
+    avatarUrl: string | null;
+    role: "LEARNER" | "ADMIN" | "OWNER";
+    isPremium: boolean;
+    premiumUntil: Date | null;
+  };
+  const resolveAuthor = (u: AuthorRow, official: boolean) => {
+    const isOwner = official || u.role === "OWNER";
+    return {
+      name: isOwner ? ownerName : (u.name ?? u.email.split("@")[0]),
+      avatarUrl: isOwner ? ownerAvatar : u.avatarUrl,
+      isOwner,
+      // Owner already carries the "Bee" badge; only show the premium tick for
+      // non-owner authors. Computed live → lapses with the user's premium.
+      isPremium: !isOwner && effectivePremium(u),
+    };
+  };
+
   const feed: FeedPost[] = posts.map((p) => {
-    // Build a nested reply tree from the flat (createdAt-ordered) comment list.
     const nodes = new Map<string, FeedComment>();
     for (const c of p.comments) {
       nodes.set(c.id, {
         id: c.id,
         content: c.content,
         createdAt: c.createdAt.toISOString(),
-        author: {
-          name: c.user.name ?? c.user.email.split("@")[0],
-          avatarUrl: c.user.avatarUrl,
-        },
+        author: resolveAuthor(c.user, false),
         isMine: c.userId === me,
         replies: [],
       });
@@ -62,10 +104,7 @@ export default async function CommunityPage() {
       content: p.content,
       imageUrl: p.imageUrl,
       createdAt: p.createdAt.toISOString(),
-      author: {
-        name: p.user.name ?? p.user.email.split("@")[0],
-        avatarUrl: p.user.avatarUrl,
-      },
+      author: resolveAuthor(p.user, p.asOwner),
       isMine: p.userId === me,
       likeCount: p.likes.length,
       likedByMe: p.likes.some((l) => l.userId === me),
@@ -79,14 +118,13 @@ export default async function CommunityPage() {
       <div className="mx-auto flex max-w-[1000px] gap-6 px-4">
         <main className="mx-auto w-full max-w-[600px]">
           <header className="relative my-4 overflow-hidden rounded-2xl border border-border bg-card px-4 py-3 text-center">
-            
             <h1 className="relative flex items-center justify-center gap-1.5 text-[15px] font-bold text-foreground">
               <Leaf className="h-3.5 w-3.5 text-leaf" aria-hidden />
               Trang chủ
               <Leaf className="h-3.5 w-3.5 -scale-x-100 text-leaf" aria-hidden />
             </h1>
           </header>
-          <CommunityFeed posts={feed} currentUser={currentUser} />
+          <CommunityFeed posts={feed} currentUser={currentUser} canPostAsOwner={canPostAsOwner} />
         </main>
         <aside className="hidden w-[290px] shrink-0 py-4 lg:block">
           <div className="sticky top-20 space-y-3">

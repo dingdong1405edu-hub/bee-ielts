@@ -15,6 +15,9 @@ const createSchema = z.object({
     .max(MAX_IMAGE)
     .refine((s) => s.startsWith("data:image/"), "Ảnh không hợp lệ")
     .optional(),
+  /** Publish under the Bee (Owner) identity + notify everyone. Only honoured
+   *  for the OWNER or an ADMIN the owner granted `canPostAsOwner`. */
+  asOwner: z.boolean().optional(),
 });
 const deleteSchema = z.object({ id: z.string().min(1) });
 
@@ -55,8 +58,19 @@ export async function POST(req: Request) {
     }
   }
 
+  // Resolve "post as Bee" — only the OWNER, or an ADMIN the owner authorised,
+  // may publish under the Bee identity (and trigger the broadcast notification).
+  let asOwner = false;
+  if (parsed.data.asOwner) {
+    const me = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { role: true, canPostAsOwner: true },
+    });
+    asOwner = me?.role === "OWNER" || (me?.role === "ADMIN" && me?.canPostAsOwner === true);
+  }
+
   const post = await prisma.post.create({
-    data: { userId: session.user.id, content, imageUrl: imageUrl ?? null },
+    data: { userId: session.user.id, content, imageUrl: imageUrl ?? null, asOwner },
   });
   return NextResponse.json({ ok: true, id: post.id });
 }
@@ -69,8 +83,16 @@ export async function DELETE(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Bad input" }, { status: 400 });
 
   const post = await prisma.post.findUnique({ where: { id: parsed.data.id }, select: { userId: true } });
-  if (!post || post.userId !== session.user.id) {
-    return NextResponse.json({ error: "Không tìm thấy bài" }, { status: 404 });
+  if (!post) return NextResponse.json({ error: "Không tìm thấy bài" }, { status: 404 });
+  // Author can delete their own; the OWNER can moderate any post.
+  if (post.userId !== session.user.id) {
+    const me = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { role: true },
+    });
+    if (me?.role !== "OWNER") {
+      return NextResponse.json({ error: "Không có quyền xoá bài này" }, { status: 403 });
+    }
   }
   await prisma.post.delete({ where: { id: parsed.data.id } });
   return NextResponse.json({ ok: true });

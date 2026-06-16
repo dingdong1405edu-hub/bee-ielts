@@ -85,6 +85,10 @@ model User {
   placementBand      Float?
   placementDoneAt    DateTime?
   popQuizOn          Boolean   @default(false)
+  /// OWNER can grant this to an ADMIN so they may post in the community under
+  /// the Owner's identity (asOwner posts). Ignored for non-admins; OWNER can
+  /// always post as owner regardless of this flag.
+  canPostAsOwner     Boolean   @default(false)
   streakRestoresUsed Int       @default(0)
   streakRestoreMonth String?
   avatarUrl          String?   @db.Text
@@ -395,11 +399,16 @@ model Post {
   user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   content   String        @db.Text
   imageUrl  String?       @db.Text
+  /// True = an OFFICIAL post shown under the Owner's identity ("Bee" + tick),
+  /// even when an authorised admin actually wrote it (userId stays the real
+  /// author for audit). These also surface in the notification bell.
+  asOwner   Boolean       @default(false)
   createdAt DateTime      @default(now())
   likes     PostLike[]
   comments  PostComment[]
 
   @@index([createdAt])
+  @@index([asOwner, createdAt])
 }
 
 model PostLike {
