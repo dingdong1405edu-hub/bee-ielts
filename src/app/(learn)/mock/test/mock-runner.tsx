@@ -529,7 +529,12 @@ function MockResultView({
 
       {/* Examiner's report (nhận xét) generated right after the mock */}
       {(() => {
-        const fb = asMockFeedback(result.feedbackDoc);
+        const fb = asMockFeedback(result.feedbackDoc, {
+          LISTENING: result.perSkill.listening.band,
+          READING: result.perSkill.reading.band,
+          WRITING: result.perSkill.writing.band,
+          SPEAKING: result.perSkill.speaking.band,
+        });
         return fb ? <MockFeedbackReport feedback={fb} /> : null;
       })()}
 

@@ -99,7 +99,12 @@ export function MockReviewClient({ attempt }: { attempt: Attempt }) {
 
       {/* Examiner's report (nhận xét) — falls back to the one-line summary. */}
       {(() => {
-        const fb = asMockFeedback(attempt.feedbackDoc);
+        const fb = asMockFeedback(attempt.feedbackDoc, {
+          LISTENING: attempt.listeningBand,
+          READING: attempt.readingBand,
+          WRITING: attempt.writingBand,
+          SPEAKING: attempt.speakingBand,
+        });
         return fb ? (
           <MockFeedbackReport feedback={fb} />
         ) : attempt.summary ? (

@@ -554,68 +554,196 @@ export async function enrichShadowingSegments(
   return (parsed.items ?? []).filter((x) => x && typeof x.index === "number");
 }
 
+/** One skill's detailed diagnosis in the post-mock examiner report. */
+export interface MockFeedbackSkill {
+  skill: "LISTENING" | "READING" | "WRITING" | "SPEAKING";
+  band: number;
+  /** Specific mistakes / weaknesses found, grounded in the real evidence. */
+  errors: string[];
+  /** Concrete, do-it-now improvement steps for those mistakes. */
+  howToImprove: string[];
+}
+
 /** Per-mock examiner report shown to the learner after a full mock test. */
 export interface MockFeedback {
   overall: string;
-  skills: { skill: "LISTENING" | "READING" | "WRITING" | "SPEAKING"; comment: string }[];
-  strengths: string[];
+  skills: MockFeedbackSkill[];
+  /** Cross-skill action plan, ordered by impact on the overall band. */
   priorities: string[];
   encouragement: string;
 }
 
-const MOCK_FEEDBACK_SYSTEM = `Bạn là giám khảo IELTS giàu kinh nghiệm, viết một BẢN NHẬN XÉT cá nhân hoá (tiếng Việt) cho học viên ngay sau khi họ làm xong một bài thi thử ĐỦ 4 kỹ năng.
+export interface MockFeedbackInput {
+  overallBand: number;
+  targetBand: number;
+  listening: {
+    band: number;
+    correct: number;
+    total: number;
+    /** Question types the learner got wrong, worst first. */
+    weakTypes: { label: string; wrong: number; total: number }[];
+  };
+  reading: {
+    band: number;
+    correct: number;
+    total: number;
+    weakTypes: { label: string; wrong: number; total: number }[];
+  };
+  writing: {
+    band: number;
+    criteria: { name: string; band: number; feedback: string }[];
+    /** Concrete in-essay mistakes from the grader (excerpt → correction). */
+    annotations: { category?: string; excerpt?: string; issue: string; correction?: string }[];
+    summary: string;
+    /** Set when there's NO real evidence (essay too short / grading failed) —
+     *  the model must explain the reason instead of inventing errors. */
+    noGradeReason?: string;
+  };
+  speaking: {
+    band: number;
+    criteria: { name: string; band: number; feedback: string }[];
+    corrections: { original: string; corrected: string; explanation: string }[];
+    observations: string[];
+    summary: string;
+    /** As writing.noGradeReason — empty transcript / grading failure. */
+    noGradeReason?: string;
+  };
+}
 
-Bạn nhận: overall band, band mục tiêu, điểm + số câu đúng của Listening/Reading, band + nhận xét ngắn của Writing/Speaking.
+const MOCK_FEEDBACK_SYSTEM = `Bạn là giám khảo IELTS giàu kinh nghiệm, viết một BÁO CÁO CHI TIẾT (tiếng Việt) cho học viên ngay sau khi họ làm xong bài thi thử ĐỦ 4 kỹ năng.
 
-Hãy viết chân thành, cụ thể, mang tính xây dựng — KHÔNG sáo rỗng. So sánh trình độ hiện tại với mục tiêu, chỉ rõ kỹ năng mạnh/yếu, và việc cần làm để kéo overall band lên. Mọi text bằng tiếng Việt (ví dụ tiếng Anh giữ nguyên).
+Trọng tâm KHÔNG phải lời khen — mà là CHỈ RÕ LỖI CỤ THỂ và CÁCH SỬA. Với MỖI kỹ năng:
+- "errors": liệt kê các lỗi/điểm yếu CỤ THỂ, BÁM SÁT BẰNG CHỨNG được cung cấp (loại câu sai nhiều ở Listening/Reading; tiêu chí thấp + lỗi lặp ở Writing/Speaking; trích lỗi thật khi có, vd "I has → I have"). TUYỆT ĐỐI không bịa lỗi không có trong bằng chứng. Nếu kỹ năng đã tốt và gần như không có lỗi, ghi 1 ý ngắn nói rõ điều đó.
+- "howToImprove": cách cải thiện CỤ THỂ, làm được ngay và đo lường được — nêu rõ LÀM GÌ + LÀM THẾ NÀO (bài tập/mẹo/số lượng). Gợi ý mục luyện phù hợp trong app khi hợp lý: Reading/Listening practice, Writing/Speaking practice, Shadowing (/shadowing) cho phát âm & độ trôi chảy, Dictation (/shadowing?mode=dictation) cho nghe + chính tả.
+
+Quy tắc:
+- Mọi text bằng tiếng Việt; ví dụ/từ tiếng Anh giữ nguyên.
+- Cụ thể, đo lường được — cấm sáo rỗng kiểu "cần luyện thêm".
+- Nếu một kỹ năng ghi "CHƯA CÓ BẰNG CHỨNG" (bài quá ngắn / chưa nộp / chấm lỗi): TUYỆT ĐỐI KHÔNG bịa lỗi — "errors" chỉ nêu đúng lý do đó (vd "Bài Writing Task 2 quá ngắn nên chưa chấm được"); "howToImprove" nêu 1-2 bước chung (làm lại nghiêm túc, nộp đủ độ dài bài, đảm bảo micro/ghi âm rõ).
+- Mỗi kỹ năng: TỐI ĐA 4 "errors" và 3 "howToImprove" — chọn cái quan trọng nhất.
+- "priorities": 3-5 việc ưu tiên trên TOÀN BÀI, xếp theo mức tác động lên overall band (kỹ năng yếu nhất + khoảng cách tới mục tiêu trước).
+- "encouragement": 1 câu động viên ngắn (được phép có, nhưng đừng dài).
+- CHỈ IN JSON THUẦN — KHÔNG bọc trong \`\`\`json, KHÔNG thêm bất kỳ chữ nào ngoài JSON.
 
 Trả về DUY NHẤT JSON đúng schema:
 {
-  "overall": "<3-5 câu tổng quan: band hiện tại so với mục tiêu, ấn tượng chung, kỹ năng kéo điểm nhiều nhất>",
+  "overall": "<2-4 câu: band hiện tại so với mục tiêu + 1-2 vấn đề lớn nhất đang kéo điểm>",
   "skills": [
-    { "skill": "LISTENING" | "READING" | "WRITING" | "SPEAKING", "comment": "<1-2 câu nhận xét cụ thể cho kỹ năng này dựa trên band + dữ liệu>" }
+    {
+      "skill": "LISTENING" | "READING" | "WRITING" | "SPEAKING",
+      "errors": ["<lỗi/điểm yếu cụ thể, bám bằng chứng>"],
+      "howToImprove": ["<cách sửa cụ thể, làm được ngay>"]
+    }
   ],            // PHẢI đủ 4 kỹ năng, đúng thứ tự Listening, Reading, Writing, Speaking
-  "strengths": ["<2-3 điểm mạnh cụ thể>"],
-  "priorities": ["<3-4 việc cần ưu tiên làm tiếp để lên band, xếp theo thứ tự, đo lường được>"],
-  "encouragement": "<1 câu động viên ấm áp>"
+  "priorities": ["<3-5 việc ưu tiên toàn bài, xếp theo tác động>"],
+  "encouragement": "<1 câu động viên ngắn>"
 }`;
 
-/**
- * Generate a personalised examiner's report after a full mock test. Best-effort:
- * returns null on any error so the mock-complete flow never fails because of it.
- */
-export async function generateMockFeedback(input: {
-  overallBand: number;
-  targetBand: number;
-  listening: { band: number; correct: number; total: number };
-  reading: { band: number; correct: number; total: number };
-  writing: { band: number; summary: string };
-  speaking: { band: number; summary: string };
-}): Promise<MockFeedback | null> {
-  try {
-    const userMessage = `Kết quả thi thử:
-- Overall band: ${input.overallBand.toFixed(1)} · Mục tiêu: band ${input.targetBand.toFixed(1)}
-- Listening: band ${input.listening.band.toFixed(1)} (${input.listening.correct}/${input.listening.total} câu đúng)
-- Reading: band ${input.reading.band.toFixed(1)} (${input.reading.correct}/${input.reading.total} câu đúng)
-- Writing: band ${input.writing.band.toFixed(1)} — nhận xét chấm: ${input.writing.summary.slice(0, 600)}
-- Speaking: band ${input.speaking.band.toFixed(1)} — nhận xét chấm: ${input.speaking.summary.slice(0, 600)}
+function fmtWeakTypes(weak: { label: string; wrong: number; total: number }[]): string {
+  if (weak.length === 0) return "không sai dạng nào đáng kể";
+  return weak.map((w) => `${w.label} sai ${w.wrong}/${w.total}`).join("; ");
+}
 
-Viết bản nhận xét theo schema JSON.`;
+/**
+ * Generate a DETAILED examiner's report after a full mock test — grounded in
+ * the real per-type errors (Listening/Reading), essay annotations (Writing)
+ * and spoken corrections (Speaking). Best-effort: returns null on any error so
+ * the mock-complete flow never fails because of it. The real per-skill bands
+ * are stamped onto the result (not trusted from the model).
+ */
+export async function generateMockFeedback(input: MockFeedbackInput): Promise<MockFeedback | null> {
+  try {
+    const w = input.writing;
+    const s = input.speaking;
+
+    const writingCrit = w.criteria.map((c) => `  · ${c.name}: band ${c.band} — ${c.feedback}`).join("\n") || "  (không có)";
+    const writingErrs =
+      w.annotations
+        .slice(0, 8)
+        .map((a) => {
+          const pair = a.excerpt && a.correction ? `"${a.excerpt}" → "${a.correction}"` : a.correction ? `→ "${a.correction}"` : "";
+          return `  · [${a.category ?? "lỗi"}] ${a.issue}${pair ? ` ${pair}` : ""}`;
+        })
+        .join("\n") || "  (grader không nêu lỗi cụ thể)";
+    const writingBlock = w.noGradeReason
+      ? `  CHƯA CÓ BẰNG CHỨNG để phân tích (lý do: ${w.noGradeReason}). KHÔNG bịa lỗi.`
+      : `  Tiêu chí:\n${writingCrit}\n  Lỗi cụ thể trong bài (từ grader):\n${writingErrs}\n  Tóm tắt chấm: ${w.summary.slice(0, 500)}`;
+
+    const speakingCrit = s.criteria.map((c) => `  · ${c.name}: band ${c.band} — ${c.feedback}`).join("\n") || "  (không có)";
+    const speakingErrs =
+      s.corrections.slice(0, 6).map((c) => `  · "${c.original}" → "${c.corrected}" (${c.explanation})`).join("\n") || "  (không có lỗi trích dẫn)";
+    const speakingObs = s.observations.slice(0, 4).map((o) => `  · ${o}`).join("\n");
+    const speakingBlock = s.noGradeReason
+      ? `  CHƯA CÓ BẰNG CHỨNG để phân tích (lý do: ${s.noGradeReason}). KHÔNG bịa lỗi.`
+      : `  Tiêu chí:\n${speakingCrit}\n  Lỗi nói cụ thể (từ grader):\n${speakingErrs}${speakingObs ? `\n  Quan sát:\n${speakingObs}` : ""}\n  Tóm tắt chấm: ${s.summary.slice(0, 500)}`;
+
+    const userMessage = `Kết quả thi thử của học viên:
+- Overall band: ${input.overallBand.toFixed(1)} · Mục tiêu: band ${input.targetBand.toFixed(1)}
+
+[LISTENING] band ${input.listening.band.toFixed(1)} (${input.listening.correct}/${input.listening.total} đúng)
+  Sai theo dạng câu: ${fmtWeakTypes(input.listening.weakTypes)}
+
+[READING] band ${input.reading.band.toFixed(1)} (${input.reading.correct}/${input.reading.total} đúng)
+  Sai theo dạng câu: ${fmtWeakTypes(input.reading.weakTypes)}
+
+[WRITING] band ${w.band.toFixed(1)}
+${writingBlock}
+
+[SPEAKING] band ${s.band.toFixed(1)}
+${speakingBlock}
+
+Viết BÁO CÁO CHI TIẾT theo schema JSON: mỗi kỹ năng có "errors" (BÁM bằng chứng trên — không bịa) và "howToImprove" (cách sửa cụ thể).`;
 
     const response = await client.messages.create({
       model: MODEL,
-      max_tokens: 1600,
-      temperature: 0.5,
+      max_tokens: 4500,
+      temperature: 0.4,
       system: MOCK_FEEDBACK_SYSTEM,
       messages: [{ role: "user", content: userMessage }],
     });
+    if (response.stop_reason === "max_tokens") {
+      console.warn("[generateMockFeedback] response hit max_tokens — report may be truncated.");
+    }
     const text = response.content
       .filter((b): b is Anthropic.TextBlock => b.type === "text")
       .map((b) => b.text)
       .join("");
-    const parsed = extractJSON(text) as MockFeedback;
+    const parsed = extractJSON(text) as Partial<MockFeedback>;
     if (!parsed || typeof parsed.overall !== "string" || !Array.isArray(parsed.skills)) return null;
-    return parsed;
+
+    // Normalise: guarantee all 4 skills present, in order, with the REAL band
+    // stamped from our data (never trust the model's band).
+    const bandBySkill: Record<MockFeedbackSkill["skill"], number> = {
+      LISTENING: input.listening.band,
+      READING: input.reading.band,
+      WRITING: w.band,
+      SPEAKING: s.band,
+    };
+    const order: MockFeedbackSkill["skill"][] = ["LISTENING", "READING", "WRITING", "SPEAKING"];
+    const fromAi = new Map<string, Partial<MockFeedbackSkill>>();
+    for (const sk of parsed.skills as Partial<MockFeedbackSkill>[]) {
+      if (sk && typeof sk.skill === "string") fromAi.set(sk.skill.toUpperCase(), sk);
+    }
+    const skills: MockFeedbackSkill[] = order.map((skill) => {
+      const a = fromAi.get(skill);
+      return {
+        skill,
+        band: bandBySkill[skill],
+        errors: Array.isArray(a?.errors) ? a!.errors!.filter((x): x is string => typeof x === "string") : [],
+        howToImprove: Array.isArray(a?.howToImprove)
+          ? a!.howToImprove!.filter((x): x is string => typeof x === "string")
+          : [],
+      };
+    });
+
+    return {
+      overall: parsed.overall,
+      skills,
+      priorities: Array.isArray(parsed.priorities)
+        ? parsed.priorities.filter((x): x is string => typeof x === "string")
+        : [],
+      encouragement: typeof parsed.encouragement === "string" ? parsed.encouragement : "",
+    };
   } catch (e) {
     console.error("[generateMockFeedback] failed:", e instanceof Error ? e.message : e);
     return null;

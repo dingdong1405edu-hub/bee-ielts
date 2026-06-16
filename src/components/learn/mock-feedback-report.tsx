@@ -1,10 +1,16 @@
-import { ClipboardList, Sparkles, Lightbulb, CheckCircle2 } from "lucide-react";
+import { ClipboardList, Sparkles, Lightbulb, AlertTriangle, Wrench } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+
+export interface MockFeedbackSkill {
+  skill: "LISTENING" | "READING" | "WRITING" | "SPEAKING";
+  band: number;
+  errors: string[];
+  howToImprove: string[];
+}
 
 export interface MockFeedback {
   overall: string;
-  skills: { skill: "LISTENING" | "READING" | "WRITING" | "SPEAKING"; comment: string }[];
-  strengths: string[];
+  skills: MockFeedbackSkill[];
   priorities: string[];
   encouragement: string;
 }
@@ -15,22 +21,51 @@ const SKILL_LABEL: Record<string, string> = {
   WRITING: "Writing",
   SPEAKING: "Speaking",
 };
-const SKILL_DOT: Record<string, string> = {
-  LISTENING: "bg-gold-500",
-  READING: "bg-sage-500",
-  WRITING: "bg-honey-deep",
-  SPEAKING: "bg-leaf",
+const SKILL_ACCENT: Record<string, string> = {
+  LISTENING: "from-gold-400 to-gold-600",
+  READING: "from-sage-500 to-teal-500",
+  WRITING: "from-honey to-honey-deep",
+  SPEAKING: "from-leaf to-leaf-deep",
 };
 
-/** Validate an unknown JSON blob into a MockFeedback (or null). */
-export function asMockFeedback(v: unknown): MockFeedback | null {
+/** Validate an unknown JSON blob into a MockFeedback (or null). Tolerates the
+ *  older shape (skills with `comment` instead of errors/howToImprove). */
+export function asMockFeedback(
+  v: unknown,
+  /** Authoritative per-skill bands — override the stored band so legacy rows
+   *  (which had no per-skill band) and any model drift never show "Band 0.0". */
+  bands?: Partial<Record<MockFeedbackSkill["skill"], number>>,
+): MockFeedback | null {
   if (!v || typeof v !== "object") return null;
   const o = v as Record<string, unknown>;
   if (typeof o.overall !== "string" || !Array.isArray(o.skills)) return null;
-  return o as unknown as MockFeedback;
+  const skills: MockFeedbackSkill[] = (o.skills as Record<string, unknown>[]).map((s) => {
+    const skill = (typeof s.skill === "string" ? s.skill.toUpperCase() : "LISTENING") as MockFeedbackSkill["skill"];
+    const authoritative = bands?.[skill];
+    return {
+      skill,
+      band: typeof authoritative === "number" ? authoritative : typeof s.band === "number" ? s.band : 0,
+      errors: Array.isArray(s.errors)
+        ? (s.errors as unknown[]).filter((x): x is string => typeof x === "string")
+        : typeof s.comment === "string"
+          ? [s.comment]
+          : [],
+      howToImprove: Array.isArray(s.howToImprove)
+        ? (s.howToImprove as unknown[]).filter((x): x is string => typeof x === "string")
+        : [],
+    };
+  });
+  return {
+    overall: o.overall as string,
+    skills,
+    priorities: Array.isArray(o.priorities)
+      ? (o.priorities as unknown[]).filter((x): x is string => typeof x === "string")
+      : [],
+    encouragement: typeof o.encouragement === "string" ? o.encouragement : "",
+  };
 }
 
-/** The examiner's report (nhận xét) shown after a mock test. */
+/** Detailed examiner's report (lỗi chi tiết + cách cải thiện) shown after a mock. */
 export function MockFeedbackReport({ feedback }: { feedback: MockFeedback }) {
   return (
     <Card className="border-2 border-primary/20 print:border-border">
@@ -40,63 +75,81 @@ export function MockFeedbackReport({ feedback }: { feedback: MockFeedback }) {
             <ClipboardList className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="font-extrabold tracking-tight">Nhận xét của giám khảo Bee</h3>
-            <p className="text-xs text-muted-foreground">Đánh giá tổng thể bài thi thử &amp; định hướng luyện tiếp</p>
+            <h3 className="font-extrabold tracking-tight">Báo cáo chi tiết của giám khảo Bee</h3>
+            <p className="text-xs text-muted-foreground">Lỗi cụ thể từng kỹ năng &amp; cách cải thiện</p>
           </div>
         </div>
 
         {feedback.overall && (
-          <p className="text-sm leading-relaxed text-foreground">{feedback.overall}</p>
+          <p className="rounded-xl bg-muted/40 p-3 text-sm leading-relaxed text-foreground">{feedback.overall}</p>
         )}
 
-        {feedback.skills?.length > 0 && (
-          <div className="grid gap-2 sm:grid-cols-2">
-            {feedback.skills.map((s) => (
-              <div key={s.skill} className="rounded-2xl border bg-card p-3">
-                <div className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider">
-                  <span className={`h-2 w-2 rounded-full ${SKILL_DOT[s.skill] ?? "bg-muted-foreground"}`} />
-                  {SKILL_LABEL[s.skill] ?? s.skill}
-                </div>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{s.comment}</p>
+        {/* Per-skill detail: errors (red) + how to improve (green) */}
+        <div className="space-y-3">
+          {feedback.skills.map((s) => (
+            <div key={s.skill} className="rounded-2xl border bg-card p-3.5">
+              <div className="mb-2 flex items-center gap-2">
+                <span className={`grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br ${SKILL_ACCENT[s.skill] ?? "from-primary to-sage-600"} text-[11px] font-extrabold text-white print:hidden`}>
+                  {s.band.toFixed(1)}
+                </span>
+                <span className="text-sm font-extrabold">{SKILL_LABEL[s.skill] ?? s.skill}</span>
+                <span className="ml-auto text-xs font-bold text-muted-foreground">Band {s.band.toFixed(1)}</span>
               </div>
-            ))}
+
+              {s.errors.length > 0 && (
+                <div className="mb-2">
+                  <div className="mb-1 flex items-center gap-1.5 text-xs font-extrabold text-rose-600 dark:text-rose-400">
+                    <AlertTriangle className="h-3.5 w-3.5" /> Lỗi / điểm yếu
+                  </div>
+                  <ul className="space-y-1">
+                    {s.errors.map((e, i) => (
+                      <li key={i} className="flex gap-1.5 text-xs leading-relaxed text-foreground/90">
+                        <span className="text-rose-500">•</span>
+                        <span>{e}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {s.howToImprove.length > 0 && (
+                <div>
+                  <div className="mb-1 flex items-center gap-1.5 text-xs font-extrabold text-sage-700 dark:text-sage-400">
+                    <Wrench className="h-3.5 w-3.5" /> Cách cải thiện
+                  </div>
+                  <ol className="space-y-1">
+                    {s.howToImprove.map((h, i) => (
+                      <li key={i} className="flex gap-1.5 text-xs leading-relaxed">
+                        <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-sage-500 text-[10px] font-extrabold text-white">
+                          {i + 1}
+                        </span>
+                        <span>{h}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {feedback.priorities.length > 0 && (
+          <div className="rounded-2xl border-2 border-gold-300 bg-gold-50 p-3.5 dark:border-gold-500/30 dark:bg-gold-500/10">
+            <div className="mb-1.5 flex items-center gap-1.5 text-sm font-extrabold text-gold-700 dark:text-gold-300">
+              <Lightbulb className="h-4 w-4" /> Ưu tiên luyện tiếp (toàn bài)
+            </div>
+            <ol className="space-y-1.5">
+              {feedback.priorities.map((p, i) => (
+                <li key={i} className="flex gap-2 text-sm leading-relaxed">
+                  <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-gold-500 text-[11px] font-extrabold text-gold-950">
+                    {i + 1}
+                  </span>
+                  <span>{p}</span>
+                </li>
+              ))}
+            </ol>
           </div>
         )}
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          {feedback.strengths?.length > 0 && (
-            <div className="rounded-2xl border-2 border-sage-300 bg-sage-50 p-3.5 dark:border-sage-500/30 dark:bg-sage-500/10">
-              <div className="mb-1.5 flex items-center gap-1.5 text-sm font-extrabold text-sage-700 dark:text-sage-300">
-                <CheckCircle2 className="h-4 w-4" /> Điểm mạnh
-              </div>
-              <ul className="space-y-1">
-                {feedback.strengths.map((s, i) => (
-                  <li key={i} className="flex gap-1.5 text-xs leading-relaxed">
-                    <span className="text-sage-600">•</span>
-                    <span>{s}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {feedback.priorities?.length > 0 && (
-            <div className="rounded-2xl border-2 border-gold-300 bg-gold-50 p-3.5 dark:border-gold-500/30 dark:bg-gold-500/10">
-              <div className="mb-1.5 flex items-center gap-1.5 text-sm font-extrabold text-gold-700 dark:text-gold-300">
-                <Lightbulb className="h-4 w-4" /> Ưu tiên luyện tiếp
-              </div>
-              <ol className="space-y-1.5">
-                {feedback.priorities.map((p, i) => (
-                  <li key={i} className="flex gap-2 text-xs leading-relaxed">
-                    <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-gold-500 text-[10px] font-extrabold text-gold-950">
-                      {i + 1}
-                    </span>
-                    <span>{p}</span>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          )}
-        </div>
 
         {feedback.encouragement && (
           <p className="flex items-start gap-1.5 rounded-xl bg-primary/5 p-3 text-sm italic text-foreground">

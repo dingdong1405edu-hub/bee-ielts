@@ -72,6 +72,80 @@ function roundOverall(avg: number): number {
   return Math.round(avg * 2) / 2;
 }
 
+/** Friendly Vietnamese names for the IELTS question types (for the report). */
+const QTYPE_LABEL: Record<string, string> = {
+  MCQ: "Trắc nghiệm (MCQ)",
+  FILL_BLANK: "Điền từ (Completion)",
+  TRUE_FALSE: "True / False",
+  TRUE_FALSE_NOT_GIVEN: "True / False / Not Given",
+  MATCHING: "Nối (Matching)",
+  MATCHING_HEADINGS: "Nối tiêu đề (Matching Headings)",
+  MATCHING_INFO: "Nối thông tin (Matching Information)",
+  MATCHING_FEATURES: "Nối đặc điểm / Bản đồ",
+  MATCHING_SENTENCE_ENDINGS: "Nối kết câu (Sentence Endings)",
+  SHORT_ANSWER: "Trả lời ngắn (Short Answer)",
+};
+
+/** Group wrong answers by question type, worst first — the weak-spot signal. */
+function weakTypeBreakdown(
+  qs: { id: string; correctAnswer: string; type?: string }[],
+  ans: Record<string, string>,
+): { label: string; wrong: number; total: number }[] {
+  const m = new Map<string, { wrong: number; total: number }>();
+  for (const q of qs) {
+    const t = q.type || "OTHER";
+    const cur = m.get(t) ?? { wrong: 0, total: 0 };
+    cur.total++;
+    if (!isAnswerCorrect(ans[q.id], q.correctAnswer, q.type)) cur.wrong++;
+    m.set(t, cur);
+  }
+  return [...m.entries()]
+    .map(([type, v]) => ({ label: QTYPE_LABEL[type] ?? type, wrong: v.wrong, total: v.total }))
+    .filter((x) => x.wrong > 0)
+    .sort((a, b) => b.wrong - a.wrong);
+}
+
+const W_CRIT_LABEL: Record<string, string> = {
+  taskAchievement: "Task Achievement",
+  coherenceCohesion: "Coherence & Cohesion",
+  lexicalResource: "Lexical Resource",
+  grammaticalRange: "Grammatical Range",
+};
+const S_CRIT_LABEL: Record<string, string> = {
+  fluencyCoherence: "Fluency & Coherence",
+  lexicalResource: "Lexical Resource",
+  grammaticalRange: "Grammatical Range",
+  pronunciation: "Pronunciation",
+};
+
+type WritingAiShape = {
+  criteria?: Record<string, { band?: number; feedback?: string }>;
+  annotations?: { category?: string; excerpt?: string; issue?: string; correction?: string; suggestion?: string }[];
+} | null;
+type SpeakingAiShape = {
+  criteria?: Record<string, { band?: number; feedback?: string }>;
+  corrections?: { original?: string; corrected?: string; explanation?: string }[];
+  observations?: string[];
+} | null;
+
+function writingCriteria(ai: WritingAiShape, taskNo: number) {
+  return Object.entries(ai?.criteria ?? {}).map(([k, v]) => ({
+    name: `T${taskNo} ${W_CRIT_LABEL[k] ?? k}`,
+    band: Number(v?.band ?? 0),
+    feedback: String(v?.feedback ?? ""),
+  }));
+}
+function writingAnnos(ai: WritingAiShape) {
+  return (ai?.annotations ?? [])
+    .map((a) => ({
+      category: a.category,
+      excerpt: a.excerpt,
+      issue: String(a.issue ?? a.suggestion ?? ""),
+      correction: a.correction,
+    }))
+    .filter((a) => a.issue);
+}
+
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -197,13 +271,64 @@ export async function POST(req: Request) {
     where: { id: userId },
     select: { targetBand: true },
   });
+  const w1Ai = task1Result.full as WritingAiShape;
+  const w2Ai = task2Result.full as WritingAiShape;
+  const sAi = speakingFull as SpeakingAiShape;
+
+  const writingCrits = [...writingCriteria(w1Ai, 1), ...writingCriteria(w2Ai, 2)];
+  const writingAnnotations = [...writingAnnos(w1Ai), ...writingAnnos(w2Ai)].slice(0, 10);
+  const speakingCrits = Object.entries(sAi?.criteria ?? {}).map(([k, v]) => ({
+    name: S_CRIT_LABEL[k] ?? k,
+    band: Number(v?.band ?? 0),
+    feedback: String(v?.feedback ?? ""),
+  }));
+  const speakingCorrections = (sAi?.corrections ?? [])
+    .map((c) => ({
+      original: String(c.original ?? ""),
+      corrected: String(c.corrected ?? ""),
+      explanation: String(c.explanation ?? ""),
+    }))
+    .filter((c) => c.original)
+    .slice(0, 8);
+  const speakingObservations = (sAi?.observations ?? []).map(String).slice(0, 5);
+
+  // When grading produced NO usable evidence (essay too short / mic failed /
+  // AI error), tell the report generator the reason so it explains instead of
+  // inventing errors. wFeedback / sFeedback already carry the human reason.
+  const writingNoEvidence = writingCrits.length === 0 && writingAnnotations.length === 0;
+  const speakingNoEvidence =
+    speakingCrits.length === 0 && speakingCorrections.length === 0 && speakingObservations.length === 0;
+
   const feedbackDoc = await generateMockFeedback({
     overallBand,
     targetBand: meForBand?.targetBand ?? 6.0,
-    listening: { band: lBand, correct: lCorrect, total: listening.questions.length },
-    reading: { band: rBand, correct: rCorrect, total: reading.questions.length },
-    writing: { band: wBand, summary: wFeedback },
-    speaking: { band: sBand, summary: sFeedback },
+    listening: {
+      band: lBand,
+      correct: lCorrect,
+      total: listening.questions.length,
+      weakTypes: weakTypeBreakdown(listening.questions, listening.answers),
+    },
+    reading: {
+      band: rBand,
+      correct: rCorrect,
+      total: reading.questions.length,
+      weakTypes: weakTypeBreakdown(reading.questions, reading.answers),
+    },
+    writing: {
+      band: wBand,
+      criteria: writingCrits,
+      annotations: writingAnnotations,
+      summary: wFeedback,
+      noGradeReason: writingNoEvidence ? wFeedback : undefined,
+    },
+    speaking: {
+      band: sBand,
+      criteria: speakingCrits,
+      corrections: speakingCorrections,
+      observations: speakingObservations,
+      summary: sFeedback,
+      noGradeReason: speakingNoEvidence ? sFeedback : undefined,
+    },
   });
 
   // Fetch full test detail so the review page can show prompts + correct
