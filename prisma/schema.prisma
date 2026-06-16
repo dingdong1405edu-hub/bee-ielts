@@ -108,25 +108,25 @@ model User {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  vocabProgress     VocabProgress[]
-  grammarProgress   GrammarProgress[]
-  attempts          Attempt[]
-  posts             Post[]
-  postLikes         PostLike[]
-  postComments      PostComment[]
-  readingComments   ReadingComment[]
-  wordDecks         WordDeck[]
-  studyPlan         StudyPlanEntry[]
-  payments          Payment[]
-  mockAttempts      MockAttempt[]
-  bandStageProgress BandStageProgress[]
-  premiumRequests   PremiumRequest[]
-  couponRedemptions CouponRedemption[]
-  shadowingLessons  ShadowingLesson[]
-  shadowingAttempts ShadowingAttempt[]
-  shadowingNotes    ShadowingNote[]
-  hostedRouletteRooms SpeakingRouletteRoom[] @relation("RouletteHost")
-  roulettePlayers   SpeakingRoulettePlayer[]
+  vocabProgress       VocabProgress[]
+  grammarProgress     GrammarProgress[]
+  attempts            Attempt[]
+  posts               Post[]
+  postLikes           PostLike[]
+  postComments        PostComment[]
+  readingComments     ReadingComment[]
+  wordDecks           WordDeck[]
+  studyPlan           StudyPlanEntry[]
+  payments            Payment[]
+  mockAttempts        MockAttempt[]
+  bandStageProgress   BandStageProgress[]
+  premiumRequests     PremiumRequest[]
+  couponRedemptions   CouponRedemption[]
+  shadowingLessons    ShadowingLesson[]
+  shadowingAttempts   ShadowingAttempt[]
+  shadowingNotes      ShadowingNote[]
+  hostedRouletteRooms SpeakingRouletteRoom[]   @relation("RouletteHost")
+  roulettePlayers     SpeakingRoulettePlayer[]
 }
 
 /// A learner asks the owner to upgrade their account to premium. One
@@ -207,8 +207,8 @@ model MockAttempt {
   readingTotal   Int
   readingPayload Json
 
-  writingBand     Float
-  writingPayload  Json
+  writingBand    Float
+  writingPayload Json
 
   speakingBand    Float
   speakingPayload Json
@@ -229,17 +229,17 @@ enum PaymentStatus {
 /// per-skill tips. Listening stays empty for now per the product spec —
 /// admin can fill it in later without a migration.
 model BandStage {
-  id          String   @id @default(cuid())
-  fromBand    Float
-  toBand      Float
-  title       String
-  subtitle    String?
-  description String?  @db.Text
-  order       Int      @default(0)
-  reading     String   @default("") @db.Text
-  listening   String   @default("") @db.Text
-  writing     String   @default("") @db.Text
-  speaking    String   @default("") @db.Text
+  id                 String   @id @default(cuid())
+  fromBand           Float
+  toBand             Float
+  title              String
+  subtitle           String?
+  description        String?  @db.Text
+  order              Int      @default(0)
+  reading            String   @default("") @db.Text
+  listening          String   @default("") @db.Text
+  writing            String   @default("") @db.Text
+  speaking           String   @default("") @db.Text
   // Whether the HƯỚNG DẪN drawer (admin-authored markdown tips) is shown
   // to learners when they open: a long test (path-view hero button), and
   // a mini-quiz (player top-bar button). Admin can toggle either, both,
@@ -247,8 +247,8 @@ model BandStage {
   // current behavior.
   tipsShowOnTest     Boolean  @default(true)
   tipsShowOnMiniQuiz Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   readingTests   ReadingTest[]
   listeningTests ListeningTest[]
@@ -265,12 +265,12 @@ model BandStage {
 // at band 2.0 has to walk through the 4→5 stage and tap "Đánh dấu hoàn
 // thành" before the 5→6 stage unlocks. One row = one finished stage.
 model BandStageProgress {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   bandStageId String
   bandStage   BandStage @relation(fields: [bandStageId], references: [id], onDelete: Cascade)
-  completedAt DateTime @default(now())
+  completedAt DateTime  @default(now())
 
   @@unique([userId, bandStageId])
   @@index([userId])
@@ -281,12 +281,12 @@ model BandStageProgress {
 // one with a progress bar and a green/red feedback bar (luyennoi/duolingo
 // pattern). Skill: which of the 4 IELTS skills this mini-quiz belongs to.
 model BandClimbMiniQuiz {
-  id          String   @id @default(cuid())
-  bandStageId String
-  bandStage   BandStage @relation(fields: [bandStageId], references: [id], onDelete: Cascade)
-  skill       Skill    // READING | LISTENING | WRITING | SPEAKING
-  title       String
-  order       Int      @default(0)
+  id            String         @id @default(cuid())
+  bandStageId   String
+  bandStage     BandStage      @relation(fields: [bandStageId], references: [id], onDelete: Cascade)
+  skill         Skill // READING | LISTENING | WRITING | SPEAKING
+  title         String
+  order         Int            @default(0)
   // Admin-authored Bee 🐝 tour steps shown before the quiz starts — same
   // JSON shape as ReadingTest.bandClimbTips (TourStep[]). Null/empty =
   // no bee overlay, quiz starts immediately.
@@ -295,10 +295,10 @@ model BandClimbMiniQuiz {
   // (one tap) import as a brand-new flashcard deck. JSON array shape:
   //   [{ term, definition, example? }]
   // Null / empty = no pre-quiz vocab screen is shown.
-  vocabPack   Json?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  questions   MiniQuestion[]
+  vocabPack     Json?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  questions     MiniQuestion[]
 
   @@index([bandStageId, skill])
 }
@@ -309,24 +309,24 @@ model BandClimbMiniQuiz {
 // `options` is JSON: [{ label: string, imageUrl?: string }, ...]
 // `correctIndex` is the 0-based index of the right option.
 model MiniQuestion {
-  id           String   @id @default(cuid())
+  id           String            @id @default(cuid())
   miniQuizId   String
   miniQuiz     BandClimbMiniQuiz @relation(fields: [miniQuizId], references: [id], onDelete: Cascade)
-  type         String   // "IMAGE_CHOICE" | "TEXT_CHOICE"
-  prompt       String   @db.Text
+  type         String // "IMAGE_CHOICE" | "TEXT_CHOICE"
+  prompt       String            @db.Text
   // Optional audio URL the player surfaces with a play button above the
   // prompt — useful for Listening-style mini-quizzes where admin wants the
   // learner to hear a sentence before answering.
-  audioUrl     String?  @db.Text
-  options      Json     // [{ label, imageUrl? }, ...]
+  audioUrl     String?           @db.Text
+  options      Json // [{ label, imageUrl? }, ...]
   correctIndex Int
-  order        Int      @default(0)
+  order        Int               @default(0)
   // Admin-authored explanation shown to the learner after they check the
   // question — surfaces WHY the correct option is right (and why the
   // distractors are wrong). Rendered in the verdict bar of the mini-quiz
   // player for both correct and wrong outcomes. Empty / null = no
   // explanation rendered.
-  explanation  String?  @db.Text
+  explanation  String?           @db.Text
 
   // IELTS Speaking Part-2 cue card bullets. JSON array of strings:
   //   ["What it is", "Where it happened", "How you felt"]
@@ -447,6 +447,8 @@ model VocabLesson {
   order     Int
   exercises Json
   progress  VocabProgress[]
+
+  @@index([unitId])
 }
 
 model VocabProgress {
@@ -479,6 +481,8 @@ model GrammarLesson {
   content   String            @db.Text
   exercises Json
   progress  GrammarProgress[]
+
+  @@index([unitId])
 }
 
 model GrammarProgress {
@@ -495,27 +499,27 @@ model GrammarProgress {
 }
 
 model ReadingTest {
-  id        String           @id @default(cuid())
-  title     String
-  level     CEFRLevel        @default(B1)
-  passage   String           @db.Text
-  imageUrl  String?          @db.Text
-  timeLimit Int              @default(1200)
-  slot      String?
-  bank      TestBank         @default(PRACTICE)
+  id            String           @id @default(cuid())
+  title         String
+  level         CEFRLevel        @default(B1)
+  passage       String           @db.Text
+  imageUrl      String?          @db.Text
+  timeLimit     Int              @default(1200)
+  slot          String?
+  bank          TestBank         @default(PRACTICE)
   // Optional link to a Vượt band stage — when set, the test is hidden from
   // the regular /reading list and appears as practice attached to a stage
   // (with the BeeGuide tour + tip-aware Groq explanations).
-  bandStageId String?
-  bandStage   BandStage?     @relation(fields: [bandStageId], references: [id], onDelete: SetNull)
+  bandStageId   String?
+  bandStage     BandStage?       @relation(fields: [bandStageId], references: [id], onDelete: SetNull)
   // Admin-authored Bee 🐝 tour steps shown before the test starts when
   // accessed through the Vượt band flow. JSON array of TourStep —
   // see src/components/learn/bee-guide.tsx for the shape. Null = use the
   // skill default tour from src/lib/band-climb-tours.ts.
   bandClimbTips Json?
-  questions Question[]
-  comments  ReadingComment[]
-  createdAt DateTime         @default(now())
+  questions     Question[]
+  comments      ReadingComment[]
+  createdAt     DateTime         @default(now())
 
   @@index([bank])
   @@index([bandStageId])
@@ -574,6 +578,11 @@ model Question {
   reading       ReadingTest?   @relation(fields: [readingId], references: [id], onDelete: Cascade)
   listeningId   String?
   listening     ListeningTest? @relation(fields: [listeningId], references: [id], onDelete: Cascade)
+
+  // Every test load does `include: { questions }` → WHERE readingId/listeningId.
+  // Index the FK columns so that's an index seek, not a full-table scan.
+  @@index([readingId])
+  @@index([listeningId])
 }
 
 model WritingTask {
@@ -637,6 +646,9 @@ model Attempt {
   createdAt   DateTime @default(now())
 
   @@index([userId, skill])
+  // Profile history + study-plan generator read recent attempts per user
+  // ordered by time — index the (user, time) path so it's not a scan+sort.
+  @@index([userId, createdAt])
 }
 
 // Background music admin can attach to one or more learner sections
@@ -669,8 +681,8 @@ model AdminActivity {
   userId      String?
   userEmail   String
   userName    String?
-  action      String   // "CREATE" | "UPDATE" | "DELETE"
-  entityType  String   // "READING_TEST" | "LISTENING_TEST" | "WRITING_TASK" | "SPEAKING_SET" | "BAND_STAGE" | "MINI_QUIZ" | "VOCAB_UNIT" | "VOCAB_LESSON" | "GRAMMAR_UNIT" | "GRAMMAR_LESSON" | "BACKGROUND_MUSIC" | "SPEAKING_VOICE"
+  action      String // "CREATE" | "UPDATE" | "DELETE"
+  entityType  String // "READING_TEST" | "LISTENING_TEST" | "WRITING_TASK" | "SPEAKING_SET" | "BAND_STAGE" | "MINI_QUIZ" | "VOCAB_UNIT" | "VOCAB_LESSON" | "GRAMMAR_UNIT" | "GRAMMAR_LESSON" | "BACKGROUND_MUSIC" | "SPEAKING_VOICE"
   entityId    String
   entityTitle String   @db.Text
   entityHref  String?  @db.Text
@@ -705,27 +717,27 @@ model SpeakingVoice {
 /// "BBC"). `youtubeId` is the 11-char video id (preferred so we can
 /// embed via the IFrame Player API + thumbnail URL).
 model ShadowingLesson {
-  id          String   @id @default(cuid())
-  title       String
-  source      String
+  id           String     @id @default(cuid())
+  title        String
+  source       String
   /// CEFR difficulty so learners can pick by level. Null = chưa phân loại.
-  level       CEFRLevel?
-  youtubeId   String
-  thumbnailUrl String? @db.Text
+  level        CEFRLevel?
+  youtubeId    String
+  thumbnailUrl String?    @db.Text
   /// Null = community/admin lesson. Set = user-uploaded private lesson.
-  createdBy   String?
-  user        User?    @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+  createdBy    String?
+  user         User?      @relation(fields: [createdBy], references: [id], onDelete: SetNull)
   /// Hidden lessons stay private to creator until admin promotes.
-  published   Boolean  @default(true)
+  published    Boolean    @default(true)
   /// Premium-gated: when true, only Premium (or admin/owner) accounts can open
   /// the lesson. Free users see it locked in the list.
-  premium     Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  premium      Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
-  segments    ShadowingSegment[]
-  attempts    ShadowingAttempt[]
-  notes       ShadowingNote[]
+  segments ShadowingSegment[]
+  attempts ShadowingAttempt[]
+  notes    ShadowingNote[]
 
   @@index([published, createdAt])
   @@index([createdBy])
@@ -735,17 +747,17 @@ model ShadowingLesson {
 /// (float). Order is 1-based for display. `textVi` + `ipa` are optional
 /// admin-authored helpers shown on the right column of the player.
 model ShadowingSegment {
-  id        String   @id @default(cuid())
-  lessonId  String
-  lesson    ShadowingLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-  order     Int
-  startSec  Float
-  endSec    Float
-  textEn    String   @db.Text
-  textVi    String?  @db.Text
-  ipa       String?  @db.Text
+  id       String          @id @default(cuid())
+  lessonId String
+  lesson   ShadowingLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  order    Int
+  startSec Float
+  endSec   Float
+  textEn   String          @db.Text
+  textVi   String?         @db.Text
+  ipa      String?         @db.Text
 
-  attempts  ShadowingAttempt[]
+  attempts ShadowingAttempt[]
 
   @@unique([lessonId, order])
   @@index([lessonId])
@@ -754,14 +766,14 @@ model ShadowingSegment {
 /// Per-user free-text notes for a lesson. Surfaced in the "Ghi chú"
 /// tab in the player. One row per (user, lesson) — upsert on autosave.
 model ShadowingNote {
-  id        String   @id @default(cuid())
+  id        String          @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   lessonId  String
   lesson    ShadowingLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-  text      String   @db.Text
-  updatedAt DateTime @updatedAt
-  createdAt DateTime @default(now())
+  text      String          @db.Text
+  updatedAt DateTime        @updatedAt
+  createdAt DateTime        @default(now())
 
   @@unique([userId, lessonId])
 }
@@ -770,16 +782,16 @@ model ShadowingNote {
 /// and a 0-100 word-match score against textEn so the UI can show
 /// progress without rerunning the model.
 model ShadowingAttempt {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  lessonId    String
-  lesson      ShadowingLesson  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-  segmentId   String
-  segment     ShadowingSegment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
-  transcript  String?  @db.Text
-  score       Float?
-  createdAt   DateTime @default(now())
+  id         String           @id @default(cuid())
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId   String
+  lesson     ShadowingLesson  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  segmentId  String
+  segment    ShadowingSegment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+  transcript String?          @db.Text
+  score      Float?
+  createdAt  DateTime         @default(now())
 
   @@index([userId, createdAt])
   @@index([segmentId])
@@ -825,18 +837,18 @@ model Announcement {
 }
 
 model PodcastEpisode {
-  id           String   @id @default(cuid())
-  title        String
-  channel      String   // YouTube channel name, used as the badge
+  id             String     @id @default(cuid())
+  title          String
+  channel        String // YouTube channel name, used as the badge
   /// CEFR difficulty so learners can pick by level. Null = chưa phân loại.
-  level        CEFRLevel?
-  youtubeId    String   @unique
-  thumbnailUrl String   @db.Text
-  durationSec  Int      // for the "12 min" badge on cards
+  level          CEFRLevel?
+  youtubeId      String     @unique
+  thumbnailUrl   String     @db.Text
+  durationSec    Int // for the "12 min" badge on cards
   /// [{ startSec: number, endSec: number, textEn: string }]
   transcriptJson Json
-  published    Boolean  @default(true)
-  createdAt    DateTime @default(now())
+  published      Boolean    @default(true)
+  createdAt      DateTime   @default(now())
 
   @@index([published, createdAt])
 }
@@ -847,18 +859,18 @@ model PodcastEpisode {
 /// {sentence, keyWord} where keyWord is the bold/clickable word in the
 /// sentence. Static seed data — admin doesn't need a CRUD UI yet.
 model SpeakingTopicCard {
-  id          String   @id @default(cuid())
-  part        Int      /// 1, 2, or 3
-  topic       String   /// short label like "Art", "Family", "Travel"
-  question    String   @db.Text
-  talkPoints  Json     /// string[] (3 bullets)
-  vocab       Json     /// { sentence: string; keyWord: string }[]
+  id         String   @id @default(cuid())
+  part       Int /// 1, 2, or 3
+  topic      String /// short label like "Art", "Family", "Travel"
+  question   String   @db.Text
+  talkPoints Json /// string[] (3 bullets)
+  vocab      Json /// { sentence: string; keyWord: string }[]
   /// Tailwind hue token for the card background (e.g. "rose", "amber").
   /// 6-8 colours cycle through the deck to give visual variety.
-  hue         String   @default("amber")
+  hue        String   @default("amber")
   /// Display order within its part. Lower = drawn earlier in the spread.
-  order       Int      @default(0)
-  createdAt   DateTime @default(now())
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
 
   @@index([part, order])
 }
@@ -868,28 +880,28 @@ model SpeakingTopicCard {
 /// endpoints. polling-driven (no websockets) so the room state must be
 /// fully serialisable per GET.
 model SpeakingRouletteRoom {
-  id              String   @id @default(cuid())
+  id               String   @id @default(cuid())
   /// 6-char invite code (uppercase letters + digits, no I/O/0/1 to avoid
   /// confusion). Lookup is by-code, so it's unique.
-  code            String   @unique
-  hostId          String
-  host            User     @relation("RouletteHost", fields: [hostId], references: [id], onDelete: Cascade)
+  code             String   @unique
+  hostId           String
+  host             User     @relation("RouletteHost", fields: [hostId], references: [id], onDelete: Cascade)
   /// Which IELTS Part the room plays (locked at create time).
-  part            Int
+  part             Int
   /// WAITING (lobby), PLAYING (turns in progress), FINISHED (leaderboard).
-  status          String   @default("WAITING")
+  status           String   @default("WAITING")
   /// Total turns the game plays before finishing. Default 5.
-  totalTurns      Int      @default(5)
+  totalTurns       Int      @default(5)
   /// Turn number currently in play (0 while WAITING).
-  currentTurn     Int      @default(0)
+  currentTurn      Int      @default(0)
   /// The card the active player is answering this turn. Null between turns.
-  currentCardId   String?
+  currentCardId    String?
   /// Index into `players` (sorted by joinedAt) whose turn it is.
-  currentPlayerIdx Int     @default(0)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  currentPlayerIdx Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  players         SpeakingRoulettePlayer[]
+  players SpeakingRoulettePlayer[]
 
   @@index([status, createdAt])
 }
@@ -897,17 +909,17 @@ model SpeakingRouletteRoom {
 /// Membership row — one per (room, user). Score accumulates as the player
 /// submits transcripts each turn.
 model SpeakingRoulettePlayer {
-  id        String   @id @default(cuid())
-  roomId    String
-  room      SpeakingRouletteRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String               @id @default(cuid())
+  roomId            String
+  room              SpeakingRouletteRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// Cumulative score across all turns this player completed.
-  score     Int      @default(0)
+  score             Int                  @default(0)
   /// Last turn number this player has finished. Server uses this to know
   /// whose turn is next + whether the round is complete.
-  lastSubmittedTurn Int @default(0)
-  joinedAt  DateTime @default(now())
+  lastSubmittedTurn Int                  @default(0)
+  joinedAt          DateTime             @default(now())
 
   @@unique([roomId, userId])
   @@index([roomId, joinedAt])
