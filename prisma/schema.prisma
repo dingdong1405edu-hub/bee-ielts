@@ -200,6 +200,10 @@ model MockAttempt {
   completedAt DateTime @default(now())
   overallBand Float
   summary     String   @db.Text
+  /// AI examiner's report (nhận xét) generated right after the mock:
+  /// { overall, skills[], strengths[], priorities[], encouragement }.
+  /// Null for older attempts / when the AI call failed.
+  feedbackDoc Json?
 
   listeningBand    Float
   listeningCorrect Int

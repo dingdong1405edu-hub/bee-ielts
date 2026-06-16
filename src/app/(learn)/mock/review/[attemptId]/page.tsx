@@ -36,6 +36,7 @@ export default async function MockReviewPage({
           completedAt: attempt.completedAt.toISOString(),
           overallBand: attempt.overallBand,
           summary: attempt.summary,
+          feedbackDoc: attempt.feedbackDoc,
           listeningBand: attempt.listeningBand,
           listeningCorrect: attempt.listeningCorrect,
           listeningTotal: attempt.listeningTotal,

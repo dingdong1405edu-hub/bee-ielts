@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Headphones, BookOpen, PenLine, Mic, GraduationCap, Trophy, Loader2, Maximize2, Minimize2, Volume2, Printer, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { MockFeedbackReport, asMockFeedback } from "@/components/learn/mock-feedback-report";
 import { BreakTimer } from "./break-timer";
 import { MockListening } from "./section-listening";
 import { MockReading } from "./section-reading";
@@ -386,6 +387,7 @@ type MockResult = {
     speaking?: AiSpeakingResult | null;
   };
   summary: string;
+  feedbackDoc?: unknown;
 };
 
 function MockResultView({
@@ -524,6 +526,12 @@ function MockResultView({
           <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">{result.summary}</p>
         </CardContent>
       </Card>
+
+      {/* Examiner's report (nhận xét) generated right after the mock */}
+      {(() => {
+        const fb = asMockFeedback(result.feedbackDoc);
+        return fb ? <MockFeedbackReport feedback={fb} /> : null;
+      })()}
 
       {/* Per-skill summary cards */}
       <div className="grid sm:grid-cols-4 gap-3 print:gap-2">

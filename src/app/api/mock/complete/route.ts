@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { gradeWritingGroq, gradeSpeakingGroq } from "@/lib/groq";
+import { generateMockFeedback } from "@/lib/claude";
 import { isAnswerCorrect } from "@/lib/utils";
 
 const gradableQuestion = z.object({
@@ -190,6 +191,21 @@ export async function POST(req: Request) {
           ? "Mức trung bình. Cần luyện thêm về vocabulary và độ tự tin trong Speaking/Writing."
           : "Cần luyện đều cả 4 kỹ năng. Làm thêm các bài practice trước khi mock lại.";
 
+  // Personalised examiner's report (nhận xét). Best-effort — null on failure,
+  // the canned `summary` above still covers the headline.
+  const meForBand = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { targetBand: true },
+  });
+  const feedbackDoc = await generateMockFeedback({
+    overallBand,
+    targetBand: meForBand?.targetBand ?? 6.0,
+    listening: { band: lBand, correct: lCorrect, total: listening.questions.length },
+    reading: { band: rBand, correct: rCorrect, total: reading.questions.length },
+    writing: { band: wBand, summary: wFeedback },
+    speaking: { band: sBand, summary: sFeedback },
+  });
+
   // Fetch full test detail so the review page can show prompts + correct
   // answers + explanations without depending on the underlying tests
   // still existing later.
@@ -216,6 +232,7 @@ export async function POST(req: Request) {
         userId,
         overallBand,
         summary,
+        feedbackDoc: feedbackDoc ? (feedbackDoc as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
         listeningBand: lBand,
         listeningCorrect: lCorrect,
         listeningTotal: listening.questions.length,
@@ -392,6 +409,7 @@ export async function POST(req: Request) {
       speaking: speakingFull,
     },
     summary,
+    feedbackDoc,
   });
 }
 

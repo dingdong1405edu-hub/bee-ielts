@@ -554,6 +554,74 @@ export async function enrichShadowingSegments(
   return (parsed.items ?? []).filter((x) => x && typeof x.index === "number");
 }
 
+/** Per-mock examiner report shown to the learner after a full mock test. */
+export interface MockFeedback {
+  overall: string;
+  skills: { skill: "LISTENING" | "READING" | "WRITING" | "SPEAKING"; comment: string }[];
+  strengths: string[];
+  priorities: string[];
+  encouragement: string;
+}
+
+const MOCK_FEEDBACK_SYSTEM = `Bạn là giám khảo IELTS giàu kinh nghiệm, viết một BẢN NHẬN XÉT cá nhân hoá (tiếng Việt) cho học viên ngay sau khi họ làm xong một bài thi thử ĐỦ 4 kỹ năng.
+
+Bạn nhận: overall band, band mục tiêu, điểm + số câu đúng của Listening/Reading, band + nhận xét ngắn của Writing/Speaking.
+
+Hãy viết chân thành, cụ thể, mang tính xây dựng — KHÔNG sáo rỗng. So sánh trình độ hiện tại với mục tiêu, chỉ rõ kỹ năng mạnh/yếu, và việc cần làm để kéo overall band lên. Mọi text bằng tiếng Việt (ví dụ tiếng Anh giữ nguyên).
+
+Trả về DUY NHẤT JSON đúng schema:
+{
+  "overall": "<3-5 câu tổng quan: band hiện tại so với mục tiêu, ấn tượng chung, kỹ năng kéo điểm nhiều nhất>",
+  "skills": [
+    { "skill": "LISTENING" | "READING" | "WRITING" | "SPEAKING", "comment": "<1-2 câu nhận xét cụ thể cho kỹ năng này dựa trên band + dữ liệu>" }
+  ],            // PHẢI đủ 4 kỹ năng, đúng thứ tự Listening, Reading, Writing, Speaking
+  "strengths": ["<2-3 điểm mạnh cụ thể>"],
+  "priorities": ["<3-4 việc cần ưu tiên làm tiếp để lên band, xếp theo thứ tự, đo lường được>"],
+  "encouragement": "<1 câu động viên ấm áp>"
+}`;
+
+/**
+ * Generate a personalised examiner's report after a full mock test. Best-effort:
+ * returns null on any error so the mock-complete flow never fails because of it.
+ */
+export async function generateMockFeedback(input: {
+  overallBand: number;
+  targetBand: number;
+  listening: { band: number; correct: number; total: number };
+  reading: { band: number; correct: number; total: number };
+  writing: { band: number; summary: string };
+  speaking: { band: number; summary: string };
+}): Promise<MockFeedback | null> {
+  try {
+    const userMessage = `Kết quả thi thử:
+- Overall band: ${input.overallBand.toFixed(1)} · Mục tiêu: band ${input.targetBand.toFixed(1)}
+- Listening: band ${input.listening.band.toFixed(1)} (${input.listening.correct}/${input.listening.total} câu đúng)
+- Reading: band ${input.reading.band.toFixed(1)} (${input.reading.correct}/${input.reading.total} câu đúng)
+- Writing: band ${input.writing.band.toFixed(1)} — nhận xét chấm: ${input.writing.summary.slice(0, 600)}
+- Speaking: band ${input.speaking.band.toFixed(1)} — nhận xét chấm: ${input.speaking.summary.slice(0, 600)}
+
+Viết bản nhận xét theo schema JSON.`;
+
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: 1600,
+      temperature: 0.5,
+      system: MOCK_FEEDBACK_SYSTEM,
+      messages: [{ role: "user", content: userMessage }],
+    });
+    const text = response.content
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join("");
+    const parsed = extractJSON(text) as MockFeedback;
+    if (!parsed || typeof parsed.overall !== "string" || !Array.isArray(parsed.skills)) return null;
+    return parsed;
+  } catch (e) {
+    console.error("[generateMockFeedback] failed:", e instanceof Error ? e.message : e);
+    return null;
+  }
+}
+
 export type EstimatedCefr = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
 
 /**

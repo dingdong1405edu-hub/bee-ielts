@@ -21,6 +21,7 @@ import {
   type QuestionTip,
   type Correction,
 } from "@/components/learn/speaking-review-card";
+import { MockFeedbackReport, asMockFeedback } from "@/components/learn/mock-feedback-report";
 import type {
   ListeningPayload,
   ReadingPayload,
@@ -38,6 +39,7 @@ interface Attempt {
   completedAt: string;
   overallBand: number;
   summary: string;
+  feedbackDoc?: unknown;
   listeningBand: number;
   listeningCorrect: number;
   listeningTotal: number;
@@ -94,6 +96,18 @@ export function MockReviewClient({ attempt }: { attempt: Attempt }) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Examiner's report (nhận xét) — falls back to the one-line summary. */}
+      {(() => {
+        const fb = asMockFeedback(attempt.feedbackDoc);
+        return fb ? (
+          <MockFeedbackReport feedback={fb} />
+        ) : attempt.summary ? (
+          <Card>
+            <CardContent className="p-4 text-sm text-muted-foreground">{attempt.summary}</CardContent>
+          </Card>
+        ) : null;
+      })()}
 
       {/* Skill tab bar */}
       <div className="grid grid-cols-4 gap-2">
