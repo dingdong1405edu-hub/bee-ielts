@@ -92,6 +92,27 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
   const [tsText, setTsText] = useState("");
   const [tsBusy, setTsBusy] = useState(false);
   const tsInFlightRef = useRef(false);
+  // When the auto path is blocked by YouTube, we pivot the admin straight to
+  // this always-working transcript card (pre-filled URL + scroll + highlight).
+  const transcriptCardRef = useRef<HTMLDivElement>(null);
+  const [tsHighlight, setTsHighlight] = useState(false);
+
+  /** Carry the auto-path inputs into the transcript card and jump to it. Called
+   *  when /from-youtube fails (YouTube blocks the server IP) — the admin's own
+   *  browser CAN fetch the transcript, so this path always succeeds. */
+  const pivotToTranscript = () => {
+    setTsUrl(aiUrl.trim());
+    if (aiTitle.trim()) setTsTitle(aiTitle.trim());
+    if (aiSource.trim()) setTsSource(aiSource.trim());
+    setTsHighlight(true);
+    setTimeout(() => setTsHighlight(false), 4000);
+    requestAnimationFrame(() => {
+      transcriptCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    toast("→ Đã điền sẵn URL ở ô “Dán transcript”. Mở video trên YouTube → “Hiện bản chép lời” → copy → dán vào đó là xong.", {
+      duration: 9000,
+    });
+  };
 
   const createFromTranscript = async () => {
     if (tsInFlightRef.current) return;
@@ -186,7 +207,10 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         toast.error(data.error || "Tạo bài thất bại");
-        if (res.status === 422) setAdvancedOpen(true);
+        // 422 = YouTube blocked the server / no EN captions. Auto-pivot to the
+        // transcript card (works from the admin's own browser) instead of
+        // leaving them at a dead-end error.
+        if (res.status === 422) pivotToTranscript();
         return;
       }
       const methodLabel =
@@ -596,8 +620,19 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
       {/* Paste-transcript path — reliable when YouTube blocks the server IP.
           Always visible (not collapsed) because it's the go-to fix when the
           auto path errors with "bot detection / video không khả dụng". */}
+      <div
+        ref={transcriptCardRef}
+        className={`scroll-mt-24 rounded-2xl transition-shadow ${
+          tsHighlight ? "ring-2 ring-sage-500 ring-offset-2 ring-offset-background" : ""
+        }`}
+      >
       <Card className="border-2 border-sage-400/60 bg-gradient-to-br from-sage-50 to-emerald-50 dark:from-sage-950/30 dark:to-emerald-950/20">
         <CardContent className="p-5 space-y-4">
+          {tsHighlight && (
+            <div className="rounded-lg bg-sage-600 px-3 py-2 text-sm font-bold text-white">
+              ⬇ YouTube chặn server — dùng cách này (URL đã điền sẵn). Chỉ cần dán transcript là tạo được bài.
+            </div>
+          )}
           <div className="flex items-start gap-3">
             <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-sage-500 to-emerald-500 text-white shadow-md shrink-0">
               <Sparkles className="h-5 w-5" />
@@ -695,6 +730,7 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
           )}
         </CardContent>
       </Card>
+      </div>
 
       {/* Manual fallback — collapsible */}
       <button
