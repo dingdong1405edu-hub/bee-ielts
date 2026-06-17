@@ -1,10 +1,11 @@
 "use client";
 import Link from "next/link";
 import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Loader2, ArrowLeft, KeyRound } from "lucide-react";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { BeeLogo, BeeMascot, LeafField, Leaf } from "@/components/brand";
@@ -43,7 +44,16 @@ function GoogleIcon({ className }: { className?: string }) {
 
 function LoginForm() {
   const params = useSearchParams();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const destination = params.get("from") ?? params.get("callbackUrl") ?? "/dashboard";
+
+  // ID + password sign-in (opt-in; the account is first created via Google).
+  const [showPw, setShowPw] = useState(false);
+  const [id, setId] = useState("");
+  const [pw, setPw] = useState("");
+  const [pwLoading, setPwLoading] = useState(false);
+  const [pwError, setPwError] = useState<string | null>(null);
 
   const signInGoogle = () => {
     setLoading(true);
@@ -53,9 +63,31 @@ function LoginForm() {
     // `from` is set by the edge middleware; `callbackUrl` is what Auth.js's own
     // pages.signIn redirect appends — accept either so server-gated deep links
     // survive the Google round-trip.
-    signIn("google", {
-      callbackUrl: params.get("from") ?? params.get("callbackUrl") ?? "/dashboard",
+    signIn("google", { callbackUrl: destination });
+  };
+
+  const signInPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwError(null);
+    if (!id.trim() || !pw) {
+      setPwError("Nhập ID và mật khẩu");
+      return;
+    }
+    setPwLoading(true);
+    // redirect:false so we can show an inline error instead of bouncing to the
+    // Auth.js error page. On success the session cookie is set; navigate + refresh.
+    const res = await signIn("credentials", {
+      username: id.trim().toLowerCase(),
+      password: pw,
+      redirect: false,
     });
+    if (res?.error) {
+      setPwError("ID hoặc mật khẩu không đúng");
+      setPwLoading(false);
+      return;
+    }
+    router.push(destination);
+    router.refresh();
   };
 
   return (
@@ -162,6 +194,56 @@ function LoginForm() {
                 <p className="text-[11px] leading-relaxed text-muted-foreground">
                   Khi tiếp tục, bạn đồng ý với Điều khoản &amp; Chính sách bảo mật của Bee IELTS.
                 </p>
+
+                {/* Divider */}
+                <div className="flex items-center gap-3 pt-1">
+                  <div className="h-px flex-1 bg-border" />
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    hoặc
+                  </span>
+                  <div className="h-px flex-1 bg-border" />
+                </div>
+
+                {!showPw ? (
+                  <Button
+                    type="button"
+                    onClick={() => setShowPw(true)}
+                    variant="ghost"
+                    size="lg"
+                    className="w-full gap-2 font-semibold text-muted-foreground hover:text-foreground"
+                  >
+                    <KeyRound className="h-4 w-4" />
+                    Đăng nhập bằng ID &amp; mật khẩu
+                  </Button>
+                ) : (
+                  <form onSubmit={signInPassword} className="space-y-3 text-left">
+                    <Input
+                      value={id}
+                      onChange={(e) => setId(e.target.value.toLowerCase())}
+                      placeholder="ID đăng nhập"
+                      autoComplete="username"
+                      autoCapitalize="none"
+                      spellCheck={false}
+                      aria-label="ID đăng nhập"
+                    />
+                    <Input
+                      type="password"
+                      value={pw}
+                      onChange={(e) => setPw(e.target.value)}
+                      placeholder="Mật khẩu"
+                      autoComplete="current-password"
+                      aria-label="Mật khẩu"
+                    />
+                    {pwError && <p className="text-xs font-semibold text-destructive">{pwError}</p>}
+                    <Button type="submit" variant="brand" size="lg" disabled={pwLoading} className="w-full gap-2 font-semibold">
+                      {pwLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <KeyRound className="h-5 w-5" />}
+                      {pwLoading ? "Đang đăng nhập…" : "Đăng nhập"}
+                    </Button>
+                    <p className="text-[11px] leading-relaxed text-muted-foreground">
+                      Chưa có ID? Đăng nhập bằng Google trước, rồi tạo ID &amp; mật khẩu trong trang Hồ sơ.
+                    </p>
+                  </form>
+                )}
               </div>
             </div>
           </ScrollReveal>

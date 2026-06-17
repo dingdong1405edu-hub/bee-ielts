@@ -71,6 +71,10 @@ model User {
   id                 String    @id @default(cuid())
   email              String    @unique
   name               String?
+  /// Optional self-chosen login ID. A learner who first signed in with Google
+  /// can set a username + password (see passwordHash) to log in again without
+  /// Google. Stored lowercased; unique across users. Null = Google-only account.
+  username           String?   @unique
   passwordHash       String?
   role               Role      @default(LEARNER)
   xp                 Int       @default(0)

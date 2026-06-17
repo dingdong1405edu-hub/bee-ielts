@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
 import { BookOpen, Headphones, PenLine, Mic, Sparkles, BookOpenText, Zap, Flame, Target, ChevronRight, GraduationCap, Trophy } from "lucide-react";
 import { ProfileHeader } from "./profile-header";
+import { CredentialsCard } from "./credentials-card";
 import { DeleteAttemptButton } from "@/components/learn/delete-attempt-button";
 import { EmptyState, Leaf } from "@/components/brand";
 
@@ -37,6 +38,7 @@ export default async function ProfilePage() {
       select: {
         name: true,
         email: true,
+        username: true,
         bio: true,
         avatarUrl: true,
         coverUrl: true,
@@ -78,6 +80,9 @@ export default async function ProfilePage() {
         avatarUrl={user.avatarUrl}
         coverUrl={user.coverUrl}
       />
+
+      {/* Login ID + password (sign in without Google next time) */}
+      <CredentialsCard initialUsername={user.username} />
 
       {/* Quick stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
