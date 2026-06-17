@@ -231,11 +231,12 @@ export function StudySchedule({
     focusNotes: string,
     startTime: string,
     sessionMinutes: number,
+    autoTime: boolean,
   ) => {
     const res = await fetch("/api/study-plan/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ availableWeekdays, focusNotes, startTime, sessionMinutes }),
+      body: JSON.stringify({ availableWeekdays, focusNotes, startTime, sessionMinutes, autoTime }),
     });
     if (!res.ok) {
       toast.error((await res.json().catch(() => ({}))).error || "Tạo lộ trình thất bại");
@@ -401,7 +402,7 @@ function RoadmapGenerator({
 }: {
   targetBand: number;
   examDate: string | null;
-  onGenerate: (weekdays: number[], focusNotes: string, startTime: string, sessionMinutes: number) => Promise<void>;
+  onGenerate: (weekdays: number[], focusNotes: string, startTime: string, sessionMinutes: number, autoTime: boolean) => Promise<void>;
   onClose: () => void;
 }) {
   const recommended = recommendedDays(targetBand);
@@ -414,6 +415,9 @@ function RoadmapGenerator({
   // detailed time-blocked agenda (giờ nào làm gì) from these.
   const [startTime, setStartTime] = useState("19:00");
   const [sessionMinutes, setSessionMinutes] = useState(60);
+  // When on, the learner has no fixed time → the AI picks a sensible start time
+  // for each session itself.
+  const [autoTime, setAutoTime] = useState(false);
   const [generating, setGenerating] = useState(false);
 
   const toggle = (idx: number) =>
@@ -425,7 +429,7 @@ function RoadmapGenerator({
       return;
     }
     setGenerating(true);
-    await onGenerate(picked, focusNotes.trim(), startTime, sessionMinutes);
+    await onGenerate(picked, focusNotes.trim(), startTime, sessionMinutes, autoTime);
     setGenerating(false);
   };
 
@@ -476,8 +480,11 @@ function RoadmapGenerator({
             type="time"
             value={startTime}
             onChange={(e) => setStartTime(e.target.value || "19:00")}
-            disabled={generating}
-            className="h-9 rounded-xl border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            disabled={generating || autoTime}
+            className={cn(
+              "h-9 rounded-xl border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30",
+              autoTime && "opacity-40",
+            )}
           />
         </div>
         <div className="space-y-1">
@@ -496,9 +503,21 @@ function RoadmapGenerator({
         </div>
         <p className="text-[11px] text-muted-foreground flex-1 min-w-[180px]">
           AI sẽ chia mỗi buổi thành các mốc giờ cụ thể (khởi động từ vựng → kỹ năng chính → ôn),
-          và gợi ý Shadowing/Dictation nếu bạn yếu Speaking/Writing.
+          có thể làm nhiều bài 1 kỹ năng hoặc ghép 2 kỹ năng, và gợi ý Shadowing/Dictation nếu bạn yếu Speaking/Writing.
         </p>
       </div>
+
+      {/* No fixed time → let Bee schedule the hours. */}
+      <label className="flex w-fit cursor-pointer items-center gap-2 rounded-xl border bg-background px-3 py-2 text-sm">
+        <input
+          type="checkbox"
+          checked={autoTime}
+          onChange={(e) => setAutoTime(e.target.checked)}
+          disabled={generating}
+          className="h-4 w-4 accent-primary"
+        />
+        <span className="font-semibold">Mình không cố định giờ — để Bee tự sắp xếp giờ học</span>
+      </label>
 
       {/* Free-form focus notes — the AI weights these heavily when picking
           which skills appear in the weekly template. Optional: leaving it

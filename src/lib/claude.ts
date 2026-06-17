@@ -64,7 +64,9 @@ Priority order when picking which skills appear in the weekly template:
 
 If they ask for a specific QUESTION TYPE within a skill (e.g. "Listening Part 3 MCQ", "Writing Task 2 Opinion essays"), bake that into the relevant session's "title" and "note" instead of staying generic.
 
-Design exactly one session per available day. Each session focuses on ONE main skill. Write everything in Vietnamese.
+Design exactly one session per available day. Mỗi buổi có MỘT kỹ năng trọng tâm (điền vào "skill" để gắn nhãn), NHƯNG bạn ĐƯỢC PHÉP linh hoạt: trong cùng một buổi có thể (a) cho học viên làm NHIỀU bài của cùng một kỹ năng (vd 2 passage Reading liên tiếp), hoặc (b) GHÉP 2 kỹ năng trong cùng buổi (vd nửa đầu Listening, nửa sau Writing) khi điều đó hợp lý với điểm yếu/mục tiêu của họ. Hãy quyết định dựa trên dữ liệu + "Yêu cầu" của học viên. Write everything in Vietnamese.
+
+LỊCH GIỜ: Nếu thông tin người học ghi "GIỜ CỐ ĐỊNH" → mọi buổi bắt đầu đúng giờ đó (KHÔNG cần điền "startTime"). Nếu ghi "HỌC VIÊN KHÔNG CỐ ĐỊNH GIỜ — tự sắp xếp" → BẠN hãy TỰ chọn một GIỜ BẮT ĐẦU hợp lý cho TỪNG buổi và điền vào "startTime" ("HH:MM", khung 06:00–22:00). Có thể cho các buổi giờ khác nhau (vd buổi cuối tuần học sáng, buổi trong tuần học tối) cho thực tế.
 
 Mỗi buổi có TỔNG THỜI LƯỢNG (số phút) và GIỜ BẮT ĐẦU cho trong thông tin người học. THIẾT KẾ MỖI BUỔI THÀNH MỘT THỜI KHOÁ BIỂU CHI TIẾT — một mảng "blocks" gồm 2–4 phần nối tiếp nhau, tổng thời lượng các block XẤP XỈ số phút mỗi buổi. Mỗi block ghi rõ:
 - durationMin: số phút (số nguyên),
@@ -105,10 +107,11 @@ type StudyPlan = {
     priorities: string[];    // 3-4 việc ưu tiên làm ngay, xếp theo thứ tự (Vietnamese)
   };
   weeklyTemplate: {
-    skill: "READING" | "LISTENING" | "WRITING" | "SPEAKING" | "VOCAB" | "GRAMMAR"; // kỹ năng TRỌNG TÂM của buổi
+    skill: "READING" | "LISTENING" | "WRITING" | "SPEAKING" | "VOCAB" | "GRAMMAR"; // kỹ năng TRỌNG TÂM của buổi (nhãn buổi)
     title: string;           // tiêu đề ngắn (Vietnamese) nêu trọng tâm buổi
+    startTime?: string;      // CHỈ điền khi học viên KHÔNG cố định giờ — giờ bắt đầu buổi này "HH:MM" do bạn tự sắp xếp
     vocabFocus: string;      // chủ đề từ vựng + 5–8 từ/collocation mẫu nên học buổi này (Vietnamese)
-    blocks: {                // thời khoá biểu chi tiết — 2–4 block nối tiếp, tổng ≈ số phút mỗi buổi
+    blocks: {                // thời khoá biểu chi tiết — 2–5 block nối tiếp, tổng ≈ số phút mỗi buổi
       durationMin: number;   // số phút (số nguyên)
       skill: "READING" | "LISTENING" | "WRITING" | "SPEAKING" | "VOCAB" | "GRAMMAR";
       activity: string;      // LÀM GÌ, cụ thể (Vietnamese)
@@ -138,8 +141,12 @@ export interface StudyPlanInput {
   focusNotes?: string;
   /** Total minutes per study session (default 60). Drives how many time blocks fit. */
   sessionMinutes?: number;
-  /** Preferred clock start time "HH:MM" (default 19:00) — the agenda starts here. */
+  /** Preferred clock start time "HH:MM" (default 19:00) — the agenda starts here.
+   *  Ignored when autoTime is true (the AI picks a start time per session). */
   startTime?: string;
+  /** Learner did NOT fix a study time — let the AI assign a sensible clock start
+   *  for each session itself (returned as weeklyTemplate[].startTime). */
+  autoTime?: boolean;
   /** Compact catalogue of in-app vocab units/lessons so the AI can point the
    *  learner at REAL content for the vocab warm-up block. May be empty. */
   availableVocab?: string;
@@ -173,6 +180,9 @@ export interface StudyPlanResult {
     skill: string;
     title: string;
     note?: string;
+    /** AI-chosen clock start "HH:MM" for this session — only when the learner
+     *  did not fix a study time (autoTime). */
+    startTime?: string;
     vocabFocus?: string;
     blocks?: StudyBlock[];
   }[];
@@ -210,17 +220,20 @@ export async function generateStudyPlan(input: StudyPlanInput): Promise<StudyPla
 
   const sessionMinutes = input.sessionMinutes ?? 60;
   const startTime = input.startTime ?? "19:00";
+  const timeLine = input.autoTime
+    ? `- HỌC VIÊN KHÔNG CỐ ĐỊNH GIỜ — tự sắp xếp: hãy CHỌN giờ bắt đầu hợp lý cho TỪNG buổi và điền "startTime" ("HH:MM"). Mỗi buổi dài khoảng ${sessionMinutes} phút.`
+    : `- GIỜ CỐ ĐỊNH: mỗi buổi dài khoảng ${sessionMinutes} phút, bắt đầu lúc ${startTime} (KHÔNG cần điền "startTime"; thiết kế các block khớp tổng thời lượng này)`;
 
   const userMessage = `Thông tin người học:
 - Mục tiêu: band ${input.targetBand.toFixed(1)}
 - ${input.hasExamDate ? `Còn ${input.weeksUntilExam} tuần đến ngày thi` : `Chưa đặt ngày thi — lập kế hoạch ${input.weeksUntilExam} tuần`}
 - Học ${input.daysPerWeek} buổi/tuần
-- Mỗi buổi dài khoảng ${sessionMinutes} phút, bắt đầu lúc ${startTime} (thiết kế các block khớp tổng thời lượng này)
+${timeLine}
 
 Kết quả luyện tập từng kỹ năng (trung bình):
 ${perf}${mockBlock}${focusBlock}${vocabBlock}
 
-Hãy: (1) viết "assessment" đánh giá chi tiết đủ 6 kỹ năng + priorities, (2) thiết kế weeklyTemplate gồm đúng ${input.daysPerWeek} buổi — MỖI buổi có "blocks" (thời khoá biểu chi tiết theo phút, tổng ≈ ${sessionMinutes} phút) + "vocabFocus", và chèn block Shadowing/Dictation cho kỹ năng Speaking/Writing nếu yếu. Trả về JSON.`;
+Hãy: (1) viết "assessment" đánh giá chi tiết đủ 6 kỹ năng + priorities, (2) thiết kế weeklyTemplate gồm đúng ${input.daysPerWeek} buổi — MỖI buổi có "blocks" (thời khoá biểu chi tiết theo phút, tổng ≈ ${sessionMinutes} phút) + "vocabFocus"${input.autoTime ? ` + "startTime" tự sắp xếp` : ""}. Được phép làm nhiều bài trong 1 kỹ năng hoặc ghép 2 kỹ năng trong cùng buổi nếu hợp lý. Chèn block Shadowing/Dictation cho kỹ năng Speaking/Writing nếu yếu. Trả về JSON.`;
 
   const response = await client.messages.create({
     model: MODEL,

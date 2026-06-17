@@ -15,6 +15,8 @@ const schema = z.object({
   // used to lay out a detailed time-blocked agenda for every study day.
   startTime: z.string().regex(/^([01]?\d|2[0-3]):[0-5]\d$/).optional().default("19:00"),
   sessionMinutes: z.number().int().min(20).max(240).optional().default(60),
+  // Learner didn't fix a study time → let the AI assign a clock start per session.
+  autoTime: z.boolean().optional().default(false),
 });
 
 /** "HH:MM" → minutes from midnight (defaults to 19:00 on a bad value). */
@@ -96,6 +98,9 @@ export async function POST(req: Request) {
   const available = new Set(parsed.data.availableWeekdays);
   const daysPerWeek = available.size;
   const focusNotes = parsed.data.focusNotes ?? "";
+  const autoTime = parsed.data.autoTime;
+  // Fallback anchor when the AI doesn't return a per-session start (auto mode):
+  // a sensible evening default; otherwise the learner's fixed time.
   const startMin = startMinutes(parsed.data.startTime);
   const sessionMinutes = parsed.data.sessionMinutes;
 
@@ -179,6 +184,8 @@ export async function POST(req: Request) {
     note: string;
     vocabFocus: string;
     blocks: AgendaBlock[];
+    /** AI-chosen start "HH:MM" when the learner didn't fix a time (auto mode). */
+    startTime?: string;
   };
   let weeklyTemplate: Session[] = [];
   let overview = "";
@@ -196,7 +203,10 @@ export async function POST(req: Request) {
         recentMocks,
         focusNotes,
         sessionMinutes,
-        startTime: parsed.data.startTime,
+        // In auto mode the AI assigns each session's start time; otherwise use
+        // the learner's fixed clock time.
+        startTime: autoTime ? undefined : parsed.data.startTime,
+        autoTime,
         availableVocab,
       });
       const tmpl: Session[] = (plan.weeklyTemplate ?? [])
@@ -206,6 +216,10 @@ export async function POST(req: Request) {
           title: String(s.title),
           note: String(s.note ?? ""),
           vocabFocus: typeof s.vocabFocus === "string" ? s.vocabFocus : "",
+          startTime:
+            typeof s.startTime === "string" && /^([01]?\d|2[0-3]):[0-5]\d$/.test(s.startTime.trim())
+              ? s.startTime.trim()
+              : undefined,
           blocks: Array.isArray(s.blocks)
             ? s.blocks
                 .filter((b) => b && typeof b.activity === "string" && b.activity.trim().length > 0)
@@ -258,7 +272,10 @@ export async function POST(req: Request) {
       });
     } else {
       const s = weeklyTemplate[idx % weeklyTemplate.length];
-      const note = buildAgenda(startMin, s.blocks, s.vocabFocus, s.note);
+      // Auto mode: lay the agenda from the AI's per-session start time; fixed
+      // mode (or missing): from the learner's chosen clock time.
+      const sessionStartMin = s.startTime ? startMinutes(s.startTime) : startMin;
+      const note = buildAgenda(sessionStartMin, s.blocks, s.vocabFocus, s.note);
       toCreate.push({ date: d, skill: s.skill, title: s.title, note });
     }
   });
