@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, Megaphone, Tag, Info, X, Copy, Users } from "lucide-react";
+import { Bell, Megaphone, Tag, Info, X, Copy, Users, LifeBuoy } from "lucide-react";
 import { toast } from "sonner";
 
 type Ann = {
@@ -20,6 +20,8 @@ type Ann = {
 const SEEN_KEY = "bee_ann_seen";
 
 function meta(k: string) {
+  if (k === "support")
+    return { label: "Hỗ trợ", Icon: LifeBuoy, cls: "bg-leaf/15 text-leaf-deep dark:bg-leaf/20 dark:text-leaf" };
   if (k === "post")
     return { label: "Cộng đồng", Icon: Users, cls: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300" };
   if (k === "update")
@@ -37,16 +39,19 @@ export function NotificationBell() {
 
   useEffect(() => {
     let alive = true;
-    // Merge admin announcements + official "Bee" community posts into one feed.
+    // Merge admin announcements + official "Bee" community posts + support
+    // replies from the Bee team into one feed.
     Promise.all([
       fetch("/api/announcements").then((r) => r.json()).catch(() => ({ items: [] })),
       fetch("/api/community/official-posts").then((r) => r.json()).catch(() => ({ items: [] })),
+      fetch("/api/support/notifications").then((r) => r.json()).catch(() => ({ items: [] })),
     ])
-      .then(([ann, posts]) => {
+      .then(([ann, posts, support]) => {
         if (!alive) return;
         const merged: Ann[] = [
           ...(Array.isArray(ann.items) ? ann.items : []),
           ...(Array.isArray(posts.items) ? posts.items : []),
+          ...(Array.isArray(support.items) ? support.items : []),
         ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setItems(merged);
         const seen = Number(localStorage.getItem(SEEN_KEY) || 0);

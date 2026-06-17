@@ -83,12 +83,15 @@ export function FireflySwarm() {
         const b = pts[si + 1];
         const x = a.x + (b.x - a.x) * lt + Math.sin((e / 1000) * freq + phase) * amp;
         const y = a.y + (b.y - a.y) * lt + Math.cos((e / 1000) * freq * 0.8 + phase) * amp * 0.7;
-        // fade in (1.2s) · flicker · fade out (last 1.8s)
-        const fin = Math.min(1, e / 1200);
+        // Gentle arrival: ease a long fade-in (~3s) so they materialise softly
+        // instead of popping in, and grow from tiny → full over the same window.
+        // Flicker · fade out over the last 1.8s.
+        const fin = smooth(Math.min(1, e / 3000));
         const fout = Math.min(1, (total - e) / 1800);
         const flick = 0.62 + 0.38 * Math.sin((e / 1000) * 4 + phase);
         el.style.opacity = String(Math.max(0, fin * fout * flick));
-        el.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px) scale(${sc.toFixed(2)})`;
+        const grow = 0.32 + 0.68 * fin; // swell from 32% → 100% of its own scale
+        el.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px) scale(${(sc * grow).toFixed(2)})`;
         requestAnimationFrame(step);
       };
       requestAnimationFrame(step);
@@ -97,7 +100,8 @@ export function FireflySwarm() {
     const spawnWave = () => {
       if (!alive) return;
       for (let i = 0; i < FLOCK_SIZE; i++) {
-        timers.push(window.setTimeout(spawnFirefly, i * (350 + Math.random() * 450)));
+        // Trickle them in ~1–1.8s apart so the flock assembles gradually.
+        timers.push(window.setTimeout(spawnFirefly, i * (1000 + Math.random() * 800)));
       }
       timers.push(window.setTimeout(spawnWave, WAVE_GAP_MS));
     };

@@ -3,11 +3,12 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { isOwner } from "@/lib/admin";
 import { prisma } from "@/lib/db";
-import { Shield, BookOpen, PenLine, Mic, Sparkles, BookOpenText, Headphones, Users, KeyRound, ExternalLink, GraduationCap, TrendingUp, Music, Activity, Ticket, Video, Radio, Inbox, Bell } from "lucide-react";
+import { Shield, BookOpen, PenLine, Mic, Sparkles, BookOpenText, Headphones, Users, KeyRound, ExternalLink, GraduationCap, TrendingUp, Music, Activity, Ticket, Video, Radio, Inbox, Bell, MessageCircle } from "lucide-react";
 
 const nav = [
   { href: "/admin", label: "Tổng quan", icon: Shield },
   { href: "/admin/announcements", label: "Thông báo", icon: Bell },
+  { href: "/admin/support", label: "Tin nhắn hỗ trợ", icon: MessageCircle },
   { href: "/admin/feedback", label: "Góp ý / Hỗ trợ", icon: Inbox },
   { href: "/admin/reading", label: "Reading", icon: BookOpen },
   { href: "/admin/reading/mock", label: "Reading — Thi thử", icon: GraduationCap },

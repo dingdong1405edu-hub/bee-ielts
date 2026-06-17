@@ -135,6 +135,28 @@ model User {
   shadowingNotes      ShadowingNote[]
   hostedRouletteRooms SpeakingRouletteRoom[]   @relation("RouletteHost")
   roulettePlayers     SpeakingRoulettePlayer[]
+  supportMessages     SupportMessage[]         @relation("SupportThread")
+}
+
+/// A two-way support conversation between one learner and the Bee admin team.
+/// One thread per learner (keyed by userId); `fromAdmin` tells the direction.
+/// The admin side is collective — any admin can read/reply to any thread, and
+/// replies show as "Đội ngũ Bee" to the learner. Read flags drive unread badges
+/// on both ends (readByUser for admin→learner, readByAdmin for learner→admin).
+model SupportMessage {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation("SupportThread", fields: [userId], references: [id], onDelete: Cascade)
+  fromAdmin   Boolean  @default(false)
+  senderId    String
+  senderName  String?
+  body        String   @db.Text
+  readByUser  Boolean  @default(false)
+  readByAdmin Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([readByAdmin])
 }
 
 /// A learner asks the owner to upgrade their account to premium. One

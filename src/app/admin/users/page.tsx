@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { MessageCircle } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
@@ -47,6 +49,12 @@ export default async function AdminUsersPage() {
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-2">
+                <Link
+                  href={`/admin/support?user=${u.id}`}
+                  className="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <MessageCircle className="h-3.5 w-3.5" /> Nhắn tin
+                </Link>
                 {viewerIsOwner && u.role === "ADMIN" && (
                   <PostAsOwnerToggle userId={u.id} initial={u.canPostAsOwner} />
                 )}

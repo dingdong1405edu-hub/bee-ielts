@@ -1,6 +1,6 @@
 import {
   Home, Target, Sparkles, BookOpenText, BookOpen, Headphones, PenLine, Mic,
-  GraduationCap, User, Users, Layers, TrendingUp, Video, Radio,
+  GraduationCap, User, Users, Layers, TrendingUp, Video, Radio, LifeBuoy,
 } from "lucide-react";
 
 export type NavItem = {
@@ -49,6 +49,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Khác",
     items: [
       { href: "/community", label: "Cộng đồng", icon: Users },
+      { href: "/support", label: "Hỗ trợ", icon: LifeBuoy },
       { href: "/profile", label: "Hồ sơ", icon: User },
     ],
   },
