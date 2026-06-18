@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Mic, Loader2, Volume2, ArrowRight, Trophy, Play, Timer,
-  Sparkles, MessageSquareQuote, ArrowRightToLine, Wand2, Check, ClipboardList,
+  Sparkles, MessageSquareQuote, ArrowRightToLine, Wand2, Check, ClipboardList, AlertTriangle,
 } from "lucide-react";
 import { formatDuration, cn, personalize } from "@/lib/utils";
 import { TipsCard } from "@/components/learn/tips-card";
@@ -26,6 +26,8 @@ interface QResult {
 interface Phrase {
   phrase: string;
   use: string;
+  /** Vietnamese meaning + when to use — so VN learners understand the idiom. */
+  meaningVi?: string;
 }
 interface QTip {
   question: string;
@@ -36,6 +38,10 @@ interface Correction {
   original: string;
   corrected: string;
   explanation: string;
+  /** The exact wrong word/phrase to bold, and its fix shown right beside it. */
+  word?: string;
+  fix?: string;
+  type?: "grammar" | "vocab";
 }
 interface PronFix {
   word: string;
@@ -999,17 +1005,36 @@ export function SpeakingPlayer({
           </Card>
         )}
 
-        {/* Corrections — the fixed version of the candidate's mistakes */}
+        {/* Corrections — warning + bold the wrong word with its fix beside it */}
         {result.corrections && result.corrections.length > 0 && (
           <Card>
             <CardContent className="p-5 space-y-3">
               <h3 className="font-extrabold flex items-center gap-2">
-                <Wand2 className="h-5 w-5 text-sage-500" /> Lỗi & cách sửa
+                <AlertTriangle className="h-5 w-5 text-amber-500" /> Cảnh báo ngữ pháp &amp; từ vựng
               </h3>
               <div className="space-y-2">
                 {result.corrections.map((c, i) => (
-                  <div key={i} className="rounded-lg border p-3 space-y-1">
-                    <p className="text-sm text-destructive line-through">{c.original}</p>
+                  <div
+                    key={i}
+                    className="rounded-lg border border-amber-300 bg-amber-50/60 p-3 space-y-1.5 dark:border-amber-500/30 dark:bg-amber-500/10"
+                  >
+                    <div className="inline-flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      {c.type === "vocab" ? "Lỗi từ vựng" : c.type === "grammar" ? "Lỗi ngữ pháp" : "Cần sửa"}
+                    </div>
+                    {c.word && c.fix && (
+                      <div className="flex flex-wrap items-center gap-2 text-sm">
+                        <span className="font-extrabold text-destructive line-through decoration-2">{c.word}</span>
+                        <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <button
+                          onClick={() => playTTS(c.fix!)}
+                          className="font-extrabold text-success hover:underline inline-flex items-center gap-1"
+                        >
+                          <Volume2 className="h-3.5 w-3.5" /> {c.fix}
+                        </button>
+                      </div>
+                    )}
+                    <p className="text-sm text-destructive/90 line-through">{c.original}</p>
                     <p className="text-sm font-semibold text-success flex items-start gap-1.5">
                       <span className="shrink-0">✅</span>
                       <button onClick={() => playTTS(c.corrected)} className="text-left hover:underline">
@@ -1084,7 +1109,12 @@ export function SpeakingPlayer({
                     >
                       <Volume2 className="h-3.5 w-3.5" /> {p.phrase}
                     </button>
-                    <div className="text-xs text-muted-foreground mt-0.5">{p.use}</div>
+                    {p.meaningVi && (
+                      <div className="text-xs text-foreground/90 mt-0.5">
+                        🇻🇳 <span className="font-medium">{p.meaningVi}</span>
+                      </div>
+                    )}
+                    {p.use && <div className="text-[11px] italic text-muted-foreground mt-0.5">{p.use}</div>}
                   </div>
                 ))}
               </div>

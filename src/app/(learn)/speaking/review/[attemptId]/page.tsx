@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 import { personalize } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowLeft, ClipboardList } from "lucide-react";
+import { ArrowLeft, ClipboardList, AlertTriangle, ArrowRight } from "lucide-react";
 import { VocabSuggestions, type VocabItem } from "@/components/learn/writing-feedback";
 import {
   QuestionScoreCard,
@@ -191,10 +191,26 @@ export default async function SpeakingReviewPage({ params }: { params: { attempt
       {fb.corrections && fb.corrections.length > 0 && (
         <Card>
           <CardContent className="p-5 space-y-2">
-            <h3 className="font-extrabold mb-1">Lỗi & cách sửa</h3>
+            <h3 className="font-extrabold mb-1 flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" /> Cảnh báo ngữ pháp &amp; từ vựng
+            </h3>
             {fb.corrections.map((c, i) => (
-              <div key={i} className="rounded-lg border p-3 space-y-1">
-                <p className="text-sm text-destructive line-through">{c.original}</p>
+              <div
+                key={i}
+                className="rounded-lg border border-amber-300 bg-amber-50/60 p-3 space-y-1.5 dark:border-amber-500/30 dark:bg-amber-500/10"
+              >
+                <div className="inline-flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  {c.type === "vocab" ? "Lỗi từ vựng" : c.type === "grammar" ? "Lỗi ngữ pháp" : "Cần sửa"}
+                </div>
+                {c.word && c.fix && (
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="font-extrabold text-destructive line-through decoration-2">{c.word}</span>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="font-extrabold text-success">{c.fix}</span>
+                  </div>
+                )}
+                <p className="text-sm text-destructive/90 line-through">{c.original}</p>
                 <p className="text-sm font-semibold text-success">✅ {c.corrected}</p>
                 <p className="text-xs text-muted-foreground">{c.explanation}</p>
               </div>

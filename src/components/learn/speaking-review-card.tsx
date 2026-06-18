@@ -30,6 +30,10 @@ export interface Correction {
   original: string;
   corrected: string;
   explanation: string;
+  /** Exact wrong word/phrase to bold + its fix shown right beside it. */
+  word?: string;
+  fix?: string;
+  type?: "grammar" | "vocab";
 }
 
 export function bandTone(band: number | undefined | null) {
