@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Mic, Loader2, Volume2, ArrowRight, Trophy, Play, Timer,
-  Sparkles, MessageSquareQuote, ArrowRightToLine, Wand2, Check, ClipboardList, AlertTriangle,
+  Sparkles, MessageSquareQuote, ArrowRightToLine, Wand2, Check, ClipboardList, AlertTriangle, X,
 } from "lucide-react";
 import { formatDuration, cn, personalize } from "@/lib/utils";
 import { TipsCard } from "@/components/learn/tips-card";
@@ -722,11 +722,14 @@ export function SpeakingPlayer({
                 </li>
               </ul>
 
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Phần luyện
+                  Phần luyện{" "}
+                  <span className="font-normal normal-case text-muted-foreground/80">
+                    — bỏ chọn phần nào sẽ bỏ qua phần đó
+                  </span>
                 </div>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="grid grid-cols-3 gap-2">
                   {([1, 2, 3] as PartNum[]).map((p) => {
                     const active = selectedParts[p];
                     return (
@@ -736,17 +739,37 @@ export function SpeakingPlayer({
                         onClick={() => togglePart(p)}
                         aria-pressed={active}
                         className={cn(
-                          "rounded-full border-2 px-3 py-1 text-xs font-bold transition-all",
+                          "flex items-center justify-center gap-1.5 rounded-xl border-2 px-2 py-2.5 text-sm font-extrabold transition-all",
                           active
                             ? "border-primary bg-primary/10 text-primary"
-                            : "border-input text-muted-foreground hover:border-primary/40",
+                            : "border-input bg-muted/40 text-muted-foreground opacity-80 hover:border-primary/40",
                         )}
                       >
-                        Part {p}
+                        {active ? (
+                          <Check className="h-4 w-4 shrink-0" />
+                        ) : (
+                          <X className="h-4 w-4 shrink-0" />
+                        )}
+                        <span className={cn(!active && "line-through")}>Part {p}</span>
                       </button>
                     );
                   })}
                 </div>
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  {orderedParts.length === 0 ? (
+                    <span className="font-semibold text-destructive">
+                      Chưa chọn phần nào — chọn ít nhất 1 phần để bắt đầu.
+                    </span>
+                  ) : (
+                    <>
+                      Bài sẽ gồm:{" "}
+                      <span className="font-bold text-foreground">
+                        {orderedParts.map((p) => `Part ${p}`).join(" · ")}
+                      </span>
+                      . Các phần bỏ chọn sẽ <span className="font-semibold">không xuất hiện</span>.
+                    </>
+                  )}
+                </p>
               </div>
             </div>
 
@@ -876,7 +899,9 @@ export function SpeakingPlayer({
               disabled={noneSelected}
               onClick={startSession}
             >
-              Bắt đầu
+              {noneSelected
+                ? "Bắt đầu"
+                : `Bắt đầu — ${orderedParts.map((p) => `Part ${p}`).join(" · ")}`}
             </Button>
           </div>
         </div>
