@@ -138,13 +138,14 @@ export function mergeCuesIntoSegments(
   cues: RawCue[],
   opts: { targetSec?: number; maxSec?: number; gapSec?: number } = {},
 ): MergedSegment[] {
-  // Tightened from 6/12 → 4/7. User feedback: "cho users nói ít thôi đừng
-  // dài quá... nhưng vẫn phải giữ được đúng nhịp nói". Shorter chunks =
-  // easier to mimic the speaker's rhythm. 4s ≈ 8-10 words at conversational
-  // pace which lines up with the comfortable shadowing range.
-  const targetSec = opts.targetSec ?? 4;
-  const maxSec = opts.maxSec ?? 7;
-  const gapSec = opts.gapSec ?? 1.2;
+  // Segment on COMPLETE THOUGHTS. User: "khi nhân vật nói hết câu hoặc ngừng
+  // câu, câu đủ dài & hết ý thì mới ngắt." So the boundaries we trust are, in
+  // order: (1) sentence-ending punctuation, (2) a real pause in the audio, and
+  // only then (3) a hard length cap / a clause-comma landing for un-punctuated
+  // run-ons. We DON'T chop a short complete sentence at its internal commas.
+  const targetSec = opts.targetSec ?? 5;
+  const maxSec = opts.maxSec ?? 8;
+  const gapSec = opts.gapSec ?? 1.0;
   // Clean each cue, then split it into per-speaker turns. A cue that holds
   // two characters ("- Hi. - Hello.") becomes two work-cues, the second one
   // flagged `speakerBreak` so the merge loop starts a fresh segment there.
@@ -211,12 +212,18 @@ export function mergeCuesIntoSegments(
     const windowEnd = cur.offsetSec + cur.durationSec;
     const span = windowEnd - windowStart;
     const endsSentence = /[.!?]["'’”]?\s*$/.test(cur.text);
-    // Flush at every sentence end so a speaker finishes their thought before
-    // the next line begins — keeps each drill one coherent sentence. maxSec /
-    // comma flushes remain the safety net for un-punctuated auto-captions.
+    const endsClause = /[,;:]\s*$/.test(cur.text);
+    // 1) Sentence end = the speaker finished a thought → always cut here, so
+    //    each drill is one coherent, complete sentence.
     if (endsSentence) flush();
+    // 2) Hard length cap — only for un-punctuated auto-captions that never hit
+    //    a "." and have no pauses; stops a drill from running on forever.
     else if (span >= maxSec) flush();
-    else if (span >= targetSec && /[,;:]\s*$/.test(cur.text)) flush();
+    // 3) For an ALREADY-long run (near the cap), land the cut on a clause comma
+    //    — a natural pause — rather than mid-phrase. We deliberately do NOT cut
+    //    a short/medium thought at its commas: `targetSec` alone no longer
+    //    triggers a comma flush, so complete thoughts stay whole.
+    else if (endsClause && span >= maxSec * 0.8 && span >= targetSec) flush();
   }
   flush();
   return segments;
@@ -291,16 +298,18 @@ function splitAtConjunction(seg: MergedSegment): MergedSegment[] {
 export function refineSegmentsForShadowing(
   segments: MergedSegment[],
 ): MergedSegment[] {
-  // --- 1) Split on internal commas / semicolons. Thresholds dropped from
-  //        9 words / 6s → 6 words / 4s so even modest-length segments with
-  //        natural pauses get broken into bite-size drills.
+  // --- 1) Split on internal commas / semicolons — but ONLY for a genuinely
+  //        long segment (>= 12 words OR >= 7s). A short/medium COMPLETE thought
+  //        keeps its internal commas intact ("I went to the store, then left.")
+  //        so we don't fragment a sentence the speaker said in one breath.
+  //        (Raised from 6 words / 4s, which over-split complete sentences.)
   const splitOpen: MergedSegment[] = [];
   for (const seg of segments) {
     const text = seg.textEn.trim();
     const words = text.split(/\s+/).length;
     const span = seg.endSec - seg.startSec;
     const hasInternalComma = /[,;]\s+\S/.test(text);
-    if (!hasInternalComma || (words < 6 && span < 4)) {
+    if (!hasInternalComma || (words < 12 && span < 7)) {
       splitOpen.push(seg);
       continue;
     }
@@ -335,16 +344,19 @@ export function refineSegmentsForShadowing(
   const conjunctionSplit: MergedSegment[] = [];
   for (const seg of splitOpen) {
     const words = seg.textEn.split(/\s+/).length;
-    if (words < 9) {
+    if (words < 14) {
       conjunctionSplit.push(seg);
       continue;
     }
-    // Iteratively split until each piece is <9 words OR no conjunction left.
+    // Iteratively split until each piece is <14 words OR no conjunction left.
+    // Conjunction cuts ("and / but / so") are a LAST resort for true run-ons —
+    // raised from 9 → 14 words so a normal complete sentence with one "and"
+    // ("I cooked dinner and we watched a film") is no longer torn in half.
     const queue: MergedSegment[] = [seg];
     while (queue.length > 0) {
       const cur = queue.shift()!;
       const curWords = cur.textEn.split(/\s+/).length;
-      if (curWords < 9) {
+      if (curWords < 14) {
         conjunctionSplit.push(cur);
         continue;
       }
