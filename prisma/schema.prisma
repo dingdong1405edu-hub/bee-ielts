@@ -940,9 +940,27 @@ model SpeakingRouletteRoom {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  players SpeakingRoulettePlayer[]
+  players  SpeakingRoulettePlayer[]
+  messages SpeakingRouletteMessage[]
 
   @@index([status, createdAt])
+}
+
+/// Chat + emoji reactions inside a roulette room. kind="chat" → `text` is a
+/// message; kind="emoji" → `text` is a single emoji rendered as a floating
+/// reaction on every player's screen. Polled alongside the room state.
+model SpeakingRouletteMessage {
+  id        String               @id @default(cuid())
+  roomId    String
+  room      SpeakingRouletteRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId    String
+  /// Snapshot of the sender's display name at send time.
+  name      String
+  kind      String               @default("chat") // "chat" | "emoji"
+  text      String               @db.Text
+  createdAt DateTime             @default(now())
+
+  @@index([roomId, createdAt])
 }
 
 /// Membership row — one per (room, user). Score accumulates as the player

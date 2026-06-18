@@ -643,6 +643,20 @@ body.mock-exam [data-mock-pane] {
   .night-star { animation: none !important; }
 }
 
+/* Speaking Roulette — emoji reactions float up + fade. */
+@keyframes roulette-emoji-float {
+  0%   { transform: translateY(0) scale(0.6); opacity: 0; }
+  12%  { transform: translateY(-14px) scale(1.15); opacity: 1; }
+  100% { transform: translateY(-240px) scale(1); opacity: 0; }
+}
+.roulette-emoji-float {
+  animation: roulette-emoji-float 2.4s ease-out forwards;
+  will-change: transform, opacity;
+}
+@media (prefers-reduced-motion: reduce) {
+  .roulette-emoji-float { animation-duration: 1s; }
+}
+
 /* ===== Story page ("Bài viết của Bee") — lively backdrop flourishes =====
    Soft honey glows, twinkling sparkles, floating honeycomb + a drifting bee.
    All decorative (aria-hidden, pointer-events-none) and motion-safe. */

@@ -35,8 +35,11 @@ export async function POST(
   if (!room) {
     return NextResponse.json({ error: "Phòng không tồn tại" }, { status: 404 });
   }
-  if (room.hostId !== session.user.id) {
-    return NextResponse.json({ error: "Chỉ host mới được spin" }, { status: 403 });
+  // Any member can spin (not just the host) — casual multiplayer: whoever is
+  // ready can shuffle the deck to the next card/turn.
+  const isMember = room.players.some((p) => p.userId === session.user!.id);
+  if (!isMember) {
+    return NextResponse.json({ error: "Bạn chưa join phòng này" }, { status: 403 });
   }
   if (room.status === "FINISHED") {
     return NextResponse.json({ error: "Game đã kết thúc" }, { status: 400 });

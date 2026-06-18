@@ -74,6 +74,17 @@ export async function GET(
   const currentPlayer = room.players[room.currentPlayerIdx] ?? null;
   const me = room.players.find((p) => p.userId === session.user!.id) ?? null;
 
+  // Last 40 chat + emoji messages (oldest→newest) for the room.
+  const rawMessages = await prisma.speakingRouletteMessage.findMany({
+    where: { roomId: room.id },
+    orderBy: { createdAt: "desc" },
+    take: 40,
+    select: { id: true, userId: true, name: true, kind: true, text: true, createdAt: true },
+  });
+  const messages = rawMessages
+    .reverse()
+    .map((m) => ({ ...m, createdAt: m.createdAt.toISOString() }));
+
   return NextResponse.json({
     code: room.code,
     hostId: room.hostId,
@@ -96,5 +107,6 @@ export async function GET(
       lastSubmittedTurn: p.lastSubmittedTurn,
       isHost: p.userId === room.hostId,
     })),
+    messages,
   });
 }

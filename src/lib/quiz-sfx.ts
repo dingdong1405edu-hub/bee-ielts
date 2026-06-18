@@ -107,3 +107,9 @@ export function playSwooshSfx() {
   tone(440, 0, 80, 0.08, "sine");
   tone(660, 0.04, 100, 0.08, "sine");
 }
+
+/** Quick bubbly "pop" — used for emoji reactions in Speaking Roulette. */
+export function playPopSfx() {
+  tone(880, 0, 50, 0.1, "sine");
+  tone(1320, 0.05, 90, 0.12, "sine");
+}
