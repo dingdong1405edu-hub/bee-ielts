@@ -222,6 +222,11 @@ export async function POST(req: Request) {
   // Speaking — band-0.0 when we genuinely cannot grade (empty transcript, AI
   // failure). The user explicitly asked for 0.0 in those cases so silence is
   // not rewarded with a courtesy band.
+  // Learner's target band — drives the Speaking model answers AND the
+  // examiner's report below (fetched once, reused).
+  const mockTargetBand =
+    (await prisma.user.findUnique({ where: { id: userId }, select: { targetBand: true } }))?.targetBand ?? 6.0;
+
   let sBand = 0.0;
   let sFeedback = "Không chấm được Speaking — band 0.0.";
   let speakingFull: unknown = null;
@@ -243,6 +248,7 @@ export async function POST(req: Request) {
         ],
         transcript: combinedTranscript,
         lowConfidenceWords: speaking.lowConfidenceWords,
+        targetBand: mockTargetBand,
       })) as { overallBand: number; summary: string };
       sBand = Number.isFinite(sResult.overallBand) && sResult.overallBand >= 0 ? sResult.overallBand : 0.0;
       sFeedback = sResult.summary || "—";
@@ -267,10 +273,6 @@ export async function POST(req: Request) {
 
   // Personalised examiner's report (nhận xét). Best-effort — null on failure,
   // the canned `summary` above still covers the headline.
-  const meForBand = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { targetBand: true },
-  });
   const w1Ai = task1Result.full as WritingAiShape;
   const w2Ai = task2Result.full as WritingAiShape;
   const sAi = speakingFull as SpeakingAiShape;
@@ -301,7 +303,7 @@ export async function POST(req: Request) {
 
   const feedbackDoc = await generateMockFeedback({
     overallBand,
-    targetBand: meForBand?.targetBand ?? 6.0,
+    targetBand: mockTargetBand,
     listening: {
       band: lBand,
       correct: lCorrect,

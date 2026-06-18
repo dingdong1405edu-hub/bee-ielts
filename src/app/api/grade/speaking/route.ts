@@ -50,6 +50,14 @@ export async function POST(req: Request) {
   const effectiveQuestions =
     part === 2 && cueCard ? [`Cue card: ${cueCard.topic}`, ...cueCard.points] : questions;
 
+  // Model answers are written to the learner's target band so they study an
+  // attainable, high-scoring example (not a fixed 7.5).
+  const me = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { targetBand: true },
+  });
+  const targetBand = me?.targetBand ?? 6.5;
+
   // Short-circuit when there's nothing to grade — don't waste AI tokens.
   if (transcript.trim().length < 20) {
     const result = ungradeableResult("Không nghe được bài nói (transcript trống hoặc quá ngắn) — band 0.0.");
@@ -74,6 +82,7 @@ export async function POST(req: Request) {
       questions: effectiveQuestions,
       transcript,
       lowConfidenceWords,
+      targetBand,
     })) as { overallBand: number };
 
     const score = Number.isFinite(result.overallBand) && result.overallBand >= 0 ? result.overallBand : 0;

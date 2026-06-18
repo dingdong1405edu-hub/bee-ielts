@@ -209,19 +209,23 @@ Return ONLY valid JSON:
       },
       "transcript": "<the part of the candidate's transcript that ANSWERS this specific question — copy verbatim from the input transcript; if you cannot identify which words answer this question (mixed-in / unclear) return an empty string>",
       "opener": "<a strong, natural English sentence the candidate could use to OPEN the answer to THIS question>",
-      "advice": "<2-3 sentences IN ENGLISH of concrete advice for THIS specific question: ideas worth mentioning, vocabulary or grammar structures to use, and how to extend the answer>"
+      "advice": "<2-3 sentences IN ENGLISH of concrete advice for THIS specific question: ideas worth mentioning, vocabulary or grammar structures to use, and how to extend the answer>",
+      "modelAnswer": "<a COMPLETE, polished model answer to THIS exact question AT THE TARGET BAND given in the input — IN ENGLISH, written like a real high-scoring candidate (natural spoken English, NOT an essay). It MUST genuinely deserve the target band: appropriate length (Part 1: 2-4 sentences; Part 2: a full long-turn; Part 3: 3-5 developed sentences), with the band-appropriate features — collocations, an idiom or less-common item where natural, a complex structure or two, discourse markers, and at least one concrete reason/example. Make it imitable so the learner can study and reuse it.>"
     }
   ],
   "usefulPhrases": [{ "phrase": "<useful English phrase or idiom for this topic>", "use": "<when/how to use it — IN ENGLISH>", "meaningVi": "<nghĩa cụm này + khi nào dùng — TIẾNG VIỆT, để học viên Việt hiểu ngay>" }],
   "collocations": [{ "phrase": "<collocation tiếng Anh band 7+ hợp chủ đề này>", "meaning": "<nghĩa tiếng Việt>", "example": "<câu ví dụ tiếng Anh dùng được ngay>" }],
   "phrasalVerbs": [{ "phrase": "<cụm động từ — phrasal verb — tiếng Anh hợp chủ đề này>", "meaning": "<nghĩa tiếng Việt>", "example": "<câu ví dụ tiếng Anh dùng được ngay>" }],
-  "improvedSample": "<một câu trả lời mẫu band 7.5 cho chủ đề này>",
+  "modelBand": "<ĐÚNG con số TARGET BAND cho trong input, vd 6.5>",
+  "improvedSample": "<một bài nói mẫu HOÀN CHỈNH cho chủ đề này, viết ĐÚNG ở TARGET BAND — tiếng Anh, tự nhiên như thí sinh điểm cao, đủ đặc trưng để CHẮC CHẮN ăn được band đó để học viên học theo>",
   "summary": "<nhận xét tổng quan ngắn — tiếng Việt>"
 }
 
 Provide 4-6 observations. For "paraphrasing.examples": include 1-3 examples — for "strong"/"partial" levels show the WINNING paraphrases the candidate produced; for "minimal"/"verbatim" show the verbatim/near-verbatim moments so the candidate sees what to avoid; if there is genuinely no paraphrasing evidence (Part 2 cue card or candidate spoke too little), return []. For "corrections": KIỂM TRA KỸ CẢ NGỮ PHÁP VÀ TỪ VỰNG (word choice / collocation) trong transcript. Find the real mistakes and SHOW THE FIXED VERSION (do not merely point them out) — give 3-6 items, or [] if the transcript is genuinely error-free. For EACH item you MUST also fill: "word" = đúng từ/cụm SAI cụ thể (ngắn, để in đậm cảnh báo), "fix" = từ/cụm đúng thay thế, and "type" = "grammar" hoặc "vocab". "word" PHẢI là một chuỗi con xuất hiện nguyên văn trong "original". For "pronunciationFixes": give an item with correct IPA for EACH word in the low-confidence list (and any other clearly mispronounced word) — these are words the candidate said unclearly.
 "questionTips": provide EXACTLY ONE entry for EVERY question listed in the prompt — each Part 1 question, the Part 2 cue card, and each Part 3 question — in the SAME ORDER they appear. The "question", "opener" and "advice" fields MUST all be written in ENGLISH. For "band" and "criteria" give an HONEST per-question score based on the portion of the transcript that answers that question; if you cannot identify ANY answer to that specific question (no slice of transcript clearly answers it, or only silence/gibberish for it), set band=0.0 and all four criteria=0 — DO NOT assign a courtesy band. The "transcript" field is the verbatim slice of the candidate's transcript that answers THIS question (used by the UI to show inline annotations); leave it as "" if no answer was given. Provide 4-6 usefulPhrases tailored to THIS topic, not generic.
-Provide 5-7 collocations and 4-6 phrasalVerbs — both MUST be tailored to THIS topic and pitched at band 7+ so the candidate can upgrade their vocabulary.`;
+Provide 5-7 collocations and 4-6 phrasalVerbs — both MUST be tailored to THIS topic and pitched at band 7+ so the candidate can upgrade their vocabulary.
+
+MODEL ANSWERS (questionTips[].modelAnswer + improvedSample): the input gives a TARGET BAND. Every model answer MUST be written to land EXACTLY at that target band — strong enough to securely earn it (never below), genuinely standard and polished so the learner can imitate it. Do NOT wildly overshoot the band (a band-6.5 learner should see an attainable band-6.5 model, not a band-9 one). Set "modelBand" to that exact number. Model answers are in ENGLISH; everything else stays Vietnamese.`;
 
 const TIPS_SYS = `You are a friendly IELTS coach giving practical actionable tips. Tone: warm, Gen-Z friendly. Write in Vietnamese.
 Return ONLY valid JSON:
@@ -248,6 +252,8 @@ export interface SpeakingGradeInput {
   transcript: string;
   /** Words the speech recogniser heard with low confidence (likely mispronounced). */
   lowConfidenceWords?: string[];
+  /** Band the learner is aiming for — model answers are written to THIS band. */
+  targetBand?: number;
 }
 
 export async function gradeWritingGroq(input: WritingGradeInput): Promise<unknown> {
@@ -345,7 +351,9 @@ export async function gradeSpeakingGroq(input: SpeakingGradeInput): Promise<unkn
   const lowConf = input.lowConfidenceWords?.length
     ? input.lowConfidenceWords.join(", ")
     : "(none detected)";
+  const target = input.targetBand && input.targetBand > 0 ? input.targetBand : 6.5;
   const userMessage = `IELTS Speaking — Part ${input.part}
+TARGET BAND (band học viên CẦN ĐẠT — viết MỌI bài mẫu "modelAnswer" + "improvedSample" ĐÚNG ở band này, và đặt "modelBand" = ${target.toFixed(1)}): ${target.toFixed(1)}
 TOPIC: ${input.topic}
 
 QUESTIONS:
@@ -364,7 +372,7 @@ Score and return JSON only.`;
       { role: "system", content: SPEAKING_SYS },
       { role: "user", content: userMessage },
     ],
-    { jsonMode: true, temperature: 0.3, maxTokens: 2500 },
+    { jsonMode: true, temperature: 0.3, maxTokens: 3200 },
   );
   return extractJSON(text);
 }

@@ -76,6 +76,13 @@ export async function POST(req: Request) {
   );
   const totalChars = answers.reduce((sum, a) => sum + a.transcript.trim().length, 0);
 
+  // Model answers target the learner's band.
+  const meQ = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { targetBand: true },
+  });
+  const targetBand = meQ?.targetBand ?? 6.5;
+
   if (totalChars < 20) {
     const result = ungradeable("Tổng câu trả lời quá ngắn — không đủ dữ liệu để chấm.");
     await prisma.attempt.create({
@@ -99,6 +106,7 @@ export async function POST(req: Request) {
       questions,
       transcript,
       lowConfidenceWords,
+      targetBand,
     })) as { overallBand: number };
 
     const score =

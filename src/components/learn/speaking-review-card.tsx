@@ -24,6 +24,8 @@ export interface QuestionTip {
   transcript?: string;
   opener?: string;
   advice?: string;
+  /** Full model answer to this question at the learner's target band. */
+  modelAnswer?: string;
 }
 
 export interface Correction {
@@ -248,7 +250,7 @@ export function QuestionScoreCard({
             </div>
           </div>
           <CriteriaPills criteria={tip.criteria} weakest={isWeakest} />
-          {open && (tip.opener || tip.advice) && (
+          {open && (tip.opener || tip.advice || tip.modelAnswer) && (
             <div className="rounded-lg border border-sage-200 bg-sage-50 dark:bg-sage-950/20 p-3 space-y-1.5">
               <div className="text-[11px] font-extrabold uppercase tracking-wider text-sage-700 dark:text-sage-400 inline-flex items-center gap-1">
                 <Lightbulb className="h-3.5 w-3.5" /> Gợi ý cải thiện
@@ -260,6 +262,14 @@ export function QuestionScoreCard({
               )}
               {tip.advice && (
                 <p className="text-xs text-foreground/80 leading-relaxed">{tip.advice}</p>
+              )}
+              {tip.modelAnswer && (
+                <div className="rounded-md border border-leaf/40 bg-leaf-tint/60 dark:bg-leaf-deep/20 p-2.5 mt-1">
+                  <div className="mb-1 inline-flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-leaf-deep dark:text-leaf">
+                    <Star className="h-3.5 w-3.5" /> Bài mẫu chuẩn (band mục tiêu)
+                  </div>
+                  <p className="text-sm leading-relaxed text-foreground/90">{tip.modelAnswer}</p>
+                </div>
               )}
             </div>
           )}

@@ -33,6 +33,8 @@ interface QTip {
   question: string;
   opener: string;
   advice: string;
+  /** Full model answer to this question, written at the learner's target band. */
+  modelAnswer?: string;
 }
 interface Correction {
   original: string;
@@ -75,6 +77,8 @@ interface SpeakingResult {
   collocations?: VocabItem[];
   phrasalVerbs?: VocabItem[];
   improvedSample?: string;
+  /** Band the model answers were written at (= learner's target band). */
+  modelBand?: number | string;
   summary: string;
 }
 
@@ -895,6 +899,10 @@ export function SpeakingPlayer({
 
   // ============================== DONE ==============================
   if (phase === "done" && result) {
+    // Band the AI wrote the model answers at (learner's target band). Tolerate
+    // the grader returning it as a number or a string.
+    const mb = result.modelBand != null ? Number(result.modelBand) : NaN;
+    const modelBandLabel = Number.isFinite(mb) ? ` — band ${mb.toFixed(1)}` : "";
     return (
       <div className="max-w-2xl mx-auto space-y-4">
         <div className="text-center space-y-2">
@@ -1085,6 +1093,24 @@ export function SpeakingPlayer({
                         <Volume2 className="h-3.5 w-3.5 mt-0.5 shrink-0" /> &ldquo;{t.opener}&rdquo;
                       </button>
                     </div>
+                    {t.modelAnswer && (
+                      <div className="rounded-md border border-leaf/40 bg-leaf-tint/60 p-2.5 dark:bg-leaf-deep/20">
+                        <div className="mb-1 flex items-center justify-between gap-2">
+                          <div className="inline-flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-leaf-deep dark:text-leaf">
+                            <Sparkles className="h-3.5 w-3.5" /> Bài mẫu{modelBandLabel}
+                          </div>
+                          <button
+                            onClick={() => playTTS(t.modelAnswer!)}
+                            disabled={ttsBusy}
+                            className="text-leaf-deep dark:text-leaf shrink-0"
+                            aria-label="Nghe bài mẫu"
+                          >
+                            <Volume2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <p className="text-sm leading-relaxed text-foreground/90">{t.modelAnswer}</p>
+                      </div>
+                    )}
                     <p className="text-xs text-muted-foreground leading-relaxed">{t.advice}</p>
                   </div>
                 ))}
@@ -1154,7 +1180,7 @@ export function SpeakingPlayer({
           <Card>
             <CardContent className="p-5">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="font-bold">Câu trả lời mẫu (band 7.5)</h3>
+                <h3 className="font-bold">Câu trả lời mẫu chuẩn{modelBandLabel}</h3>
                 <Button size="sm" variant="outline" className="rounded-full" onClick={() => playTTS(result.improvedSample!)} disabled={ttsBusy}>
                   <Volume2 className="h-4 w-4" /> Nghe
                 </Button>
