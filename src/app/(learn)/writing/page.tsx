@@ -4,7 +4,7 @@ import { PenLine, Clock, BarChart3, FileText, Trophy, History, ChevronRight } fr
 import { SkillIntro } from "@/components/learn/skill-intro";
 import { TestPicker } from "@/components/learn/test-picker";
 import { TestPickerSkeleton } from "@/components/learn/test-picker-skeleton";
-import { attemptCounts } from "@/lib/attempt-counts";
+import { attemptCounts, displayAttemptCount } from "@/lib/attempt-counts";
 import { Card, CardContent } from "@/components/ui/card";
 import { DeleteAttemptButton } from "@/components/learn/delete-attempt-button";
 import {} from "@/components/brand";
@@ -96,7 +96,7 @@ async function WritingTaskList() {
           href: `/writing/${t.id}`,
           title: t.prompt.split("\n")[0].slice(0, 110),
           imageUrl: t.imageUrl,
-          attemptCount: counts.get(t.id) ?? 0,
+          attemptCount: displayAttemptCount(t.id, counts.get(t.id) ?? 0),
           pill: { label: `Task ${t.taskType}`, color: t.taskType === 1 ? "amber" : "indigo" },
           details: [
             t.taskType === 1 ? "Mô tả biểu đồ / số liệu" : "Essay nghị luận",

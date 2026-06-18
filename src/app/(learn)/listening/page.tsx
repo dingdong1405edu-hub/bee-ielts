@@ -3,7 +3,7 @@ import { Headphones, Clock, Volume2, Brain, Trophy } from "lucide-react";
 import { SkillIntro } from "@/components/learn/skill-intro";
 import { TestPicker, questionTypeLabel } from "@/components/learn/test-picker";
 import { TestPickerSkeleton } from "@/components/learn/test-picker-skeleton";
-import { attemptCounts } from "@/lib/attempt-counts";
+import { attemptCounts, displayAttemptCount } from "@/lib/attempt-counts";
 import {} from "@/components/brand";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
@@ -66,7 +66,7 @@ async function ListeningTestList() {
         href: `/listening/${t.id}`,
         title: t.title,
         imageUrl: t.imageUrl,
-        attemptCount: counts.get(t.id) ?? 0,
+        attemptCount: displayAttemptCount(t.id, counts.get(t.id) ?? 0),
         details: [...new Set(t.questions.map((q) => q.type))].map(questionTypeLabel),
         done: doneIds.has(t.id),
       }))}

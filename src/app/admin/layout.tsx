@@ -54,7 +54,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="flex min-h-screen bg-muted/30">
-      <aside className="hidden md:flex md:w-60 md:flex-col md:border-r md:bg-card md:p-4 md:h-screen md:sticky md:top-0">
+      <aside className="hidden md:flex md:w-60 md:flex-col md:border-r md:bg-card md:p-4 md:h-screen md:sticky md:top-0 md:overflow-y-auto">
         <Link href="/admin" className="flex items-center gap-2 px-2 py-2 mb-2">
           <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground font-bold">A</div>
           <span className="font-bold">Admin</span>

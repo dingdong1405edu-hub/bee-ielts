@@ -4,7 +4,7 @@ import { Mic, Clock, Volume2, Brain, Trophy, MessageCircle, ClipboardList, Messa
 import { SkillIntro } from "@/components/learn/skill-intro";
 import { TestPicker } from "@/components/learn/test-picker";
 import { TestPickerSkeleton } from "@/components/learn/test-picker-skeleton";
-import { attemptCounts } from "@/lib/attempt-counts";
+import { attemptCounts, displayAttemptCount } from "@/lib/attempt-counts";
 import {} from "@/components/brand";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
@@ -156,7 +156,7 @@ async function SpeakingSetList() {
         href: `/speaking/${s.id}`,
         title: s.topic,
         imageUrl: s.imageUrl,
-        attemptCount: counts.get(s.id) ?? 0,
+        attemptCount: displayAttemptCount(s.id, counts.get(s.id) ?? 0),
         pill: { label: "IELTS Speaking", color: "amber" },
         details: ["Part 1 — câu hỏi cá nhân", "Part 2 — cue card", "Part 3 — thảo luận"],
         done: doneIds.has(s.id),

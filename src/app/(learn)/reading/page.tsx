@@ -4,7 +4,7 @@ import { CEFRLevel } from "@prisma/client";
 import { SkillIntro } from "@/components/learn/skill-intro";
 import { TestPicker, questionTypeLabel, type PillColor } from "@/components/learn/test-picker";
 import { TestPickerSkeleton } from "@/components/learn/test-picker-skeleton";
-import { attemptCounts } from "@/lib/attempt-counts";
+import { attemptCounts, displayAttemptCount } from "@/lib/attempt-counts";
 import {} from "@/components/brand";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
@@ -76,7 +76,7 @@ async function ReadingTestList() {
         href: `/reading/session?ids=${t.id}`,
         title: t.title,
         imageUrl: t.imageUrl,
-        attemptCount: counts.get(t.id) ?? 0,
+        attemptCount: displayAttemptCount(t.id, counts.get(t.id) ?? 0),
         pill: { label: t.level, color: LEVEL_COLOR[t.level] },
         details: [...new Set(t.questions.map((q) => q.type))].map(questionTypeLabel),
         done: doneIds.has(t.id),
