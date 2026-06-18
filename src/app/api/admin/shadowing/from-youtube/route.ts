@@ -42,6 +42,12 @@ import {
   youtubeThumbnail,
   type MergedSegment,
 } from "@/lib/youtube";
+import {
+  fetchPublicVideo,
+  fetchPublicCaptions,
+  fetchPublicAudio,
+  type PublicVideo,
+} from "@/lib/youtube-public";
 import { enrichShadowingSegments, estimateCefrLevel } from "@/lib/claude";
 import { deepgramTranscribeWithTimings } from "@/lib/deepgram";
 import { toCefrLevel } from "@/lib/cefr";
@@ -174,17 +180,27 @@ function translateYoutubeError(raw: string): string {
   return raw;
 }
 
-async function tryAudioTranscription(ytId: string): Promise<AudioOk | AudioFail> {
+async function tryAudioTranscription(
+  ytId: string,
+  publicVideo: PublicVideo | null,
+): Promise<AudioOk | AudioFail> {
   let audio: Awaited<ReturnType<typeof getYouTubeAudioBuffer>>;
   try {
     audio = await getYouTubeAudioBuffer(ytId);
   } catch (e) {
     const raw = e instanceof Error ? e.message : String(e);
-    console.error(`[from-youtube] audio download failed ytId=${ytId}:`, raw);
-    return {
-      kind: "fail",
-      message: `Tải audio thất bại: ${translateYoutubeError(raw)}`,
-    };
+    console.warn(`[from-youtube] audio download blocked ytId=${ytId}, trying public proxy:`, raw);
+    // Cookie-free rescue: pull an audio-only stream from a public Invidious /
+    // Piped instance (they do the YouTube round-trip, not us).
+    const pub = await fetchPublicAudio(ytId, publicVideo);
+    if (pub) {
+      audio = pub;
+    } else {
+      return {
+        kind: "fail",
+        message: `Tải audio thất bại: ${translateYoutubeError(raw)}`,
+      };
+    }
   }
   // ~50KB threshold: 1 sec of Opus @ ~96kbps is 12KB, so anything under
   // 50KB is shorter than 5s — almost certainly a download truncation
@@ -288,6 +304,9 @@ export async function POST(req: Request) {
   //    surface a clean error before burning Claude/Deepgram credits.
   let ytTitle = "";
   let ytChannel = "";
+  // Cached public-proxy lookup, reused across the metadata / captions / audio
+  // stages so we only hit Invidious/Piped once.
+  let publicVideo: PublicVideo | null = null;
   try {
     const info = await getYouTubeBasicInfo(ytId);
     ytTitle = info.title;
@@ -300,19 +319,30 @@ export async function POST(req: Request) {
     }
   } catch (e) {
     const raw = e instanceof Error ? e.message : String(e);
-    console.error(`[from-youtube] getBasicInfo failed ytId=${ytId}:`, raw);
-    return NextResponse.json(
-      {
-        error:
-          "Không lấy được thông tin video. " +
-          (raw.toLowerCase().includes("private")
-            ? "Video private."
-            : raw.toLowerCase().includes("login")
-              ? "Video bị age-gate hoặc yêu cầu đăng nhập."
-              : "URL có hợp lệ không? Thử lại."),
-      },
-      { status: 422 },
-    );
+    // YouTube blocked the server IP — fall back to a cookie-free public proxy
+    // for the metadata so the lesson can still be built.
+    console.warn(`[from-youtube] getBasicInfo blocked ytId=${ytId}, trying public proxy:`, raw);
+    publicVideo = await fetchPublicVideo(ytId);
+    if (publicVideo) {
+      ytTitle = publicVideo.title;
+      ytChannel = publicVideo.author;
+      if (publicVideo.isLive) {
+        return NextResponse.json(
+          { error: "Video đang livestream — chọn video đã phát xong." },
+          { status: 422 },
+        );
+      }
+    } else if (raw.toLowerCase().includes("private")) {
+      return NextResponse.json({ error: "Video private — không tải được." }, { status: 422 });
+    } else {
+      return NextResponse.json(
+        {
+          error:
+            "Không lấy được thông tin video (YouTube chặn server, các proxy công khai cũng không phản hồi). Thử lại sau ít phút, hoặc dùng 'Dán transcript thủ công'.",
+        },
+        { status: 422 },
+      );
+    }
   }
   const finalTitle = (parsed.data.title?.trim() || ytTitle || `Video ${ytId}`).slice(0, 200);
   const finalSource = (parsed.data.source?.trim() || ytChannel || "YouTube").slice(0, 80);
@@ -371,6 +401,35 @@ export async function POST(req: Request) {
     }
   }
 
+  // 1c. PUBLIC PROXY captions (Invidious / Piped) — cookie-free rescue when
+  //     YouTube blocks the server. Covers most videos that have ANY captions,
+  //     including auto-generated. The proxies do the YouTube round-trip for us.
+  let publicLangs: string[] | null = null;
+  if (merged.length === 0) {
+    try {
+      const pub = await fetchPublicCaptions(ytId, publicVideo);
+      if (pub) {
+        publicVideo = pub.video;
+        publicLangs = pub.langs;
+        if (pub.cues.length > 0) {
+          console.log(`[from-youtube] public-proxy captions rescued ytId=${ytId} cues=${pub.cues.length}`);
+          merged = refineSegmentsForShadowing(mergeCuesIntoSegments(pub.cues));
+        } else if (pub.langs.length > 0 && !pub.langs.some((l) => l.toLowerCase().startsWith("en"))) {
+          return NextResponse.json(
+            {
+              error:
+                `Video chỉ có phụ đề: ${pub.langs.join(", ")} — module Shadowing cần nội dung tiếng Anh. ` +
+                "Chọn video khác hoặc dán transcript thủ công.",
+            },
+            { status: 422 },
+          );
+        }
+      }
+    } catch (e) {
+      console.warn(`[from-youtube] public captions fail ytId=${ytId}:`, e instanceof Error ? e.message : e);
+    }
+  }
+
   // 2. Audio fallback — only if captions failed AND admin allowed it.
   if (merged.length === 0) {
     if (!parsed.data.allowAudioFallback) {
@@ -389,14 +448,16 @@ export async function POST(req: Request) {
       );
     }
     method = "audio";
-    const audioAttempt = await tryAudioTranscription(ytId);
+    const audioAttempt = await tryAudioTranscription(ytId, publicVideo);
     if (audioAttempt.kind === "fail") {
       const captionLangs =
         watchAvailableLangs?.length
           ? watchAvailableLangs
-          : captionAttempt.kind === "fail"
-            ? captionAttempt.availableLangs
-            : [];
+          : publicLangs?.length
+            ? publicLangs
+            : captionAttempt.kind === "fail"
+              ? captionAttempt.availableLangs
+              : [];
       const langsMsg = captionLangs.length > 0
         ? ` Captions có: ${captionLangs.join(", ")}.`
         : "";
