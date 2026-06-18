@@ -30,7 +30,6 @@ export default async function DashboardPage() {
     where: { id: session.user.id },
     select: {
       name: true,
-      avatarUrl: true,
       streakDays: true,
       lastActiveAt: true,
       targetBand: true,
@@ -77,23 +76,16 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
-      {/* Hero: static bee mascot (or user's uploaded avatar) on the left
+      {/* Hero: always the Bee IELTS mascot on the left (user feedback:
+          "cái phần chữ t này để ảnh con ong cơ mà" — the Google default
+          letter-avatar must NOT show here; the brand bee always does).
           + heading with ONLY the 👋 emoji animating. User feedback:
           "logo bên cạnh thì giữ nguyên ko cho di chuyển" — so the
           mascot does NOT get animate-float anymore. Honeycomb background
           wrapper was removed for the same reason ("xóa cái tổ ong"). */}
       <div className="flex items-center gap-4">
         <div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl ring-2 ring-border bg-card">
-          {user.avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={user.avatarUrl}
-              alt=""
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <BeeMascot src="/bee-mascot.jpg" className="w-full" priority />
-          )}
+          <BeeMascot src="/bee-mascot.jpg" className="w-full" priority />
         </div>
         <div className="min-w-0">
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
