@@ -14,6 +14,9 @@ const INTRO_TEXT =
 
 const PART2_PREP_SEC = 60;
 const PART2_SPEAK_SEC = 120;
+// Mock = exam pressure: each Part 1 question gets a hard 60-second answer
+// window, then the examiner moves on automatically.
+const PART1_ANSWER_SEC = 60;
 
 type Phase =
   | "intro"
@@ -87,6 +90,11 @@ export function MockSpeaking({
 
   const [part2Remaining, setPart2Remaining] = useState(PART2_PREP_SEC);
   const part2TimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [part1Remaining, setPart1Remaining] = useState(PART1_ANSWER_SEC);
+  const part1TimerRef = useRef<NodeJS.Timeout | null>(null);
+  // Latest questionIdx for the auto-advance timer (avoids stale closures).
+  const questionIdxRef = useRef(questionIdx);
+  questionIdxRef.current = questionIdx;
   const [voice, setVoice] = useTtsVoice();
   const voiceRef = useRef(voice);
   voiceRef.current = voice;
@@ -217,6 +225,47 @@ export function MockSpeaking({
     }
   };
 
+  const clearPart1Timer = () => {
+    if (part1TimerRef.current) {
+      clearInterval(part1TimerRef.current);
+      part1TimerRef.current = null;
+    }
+  };
+
+  // Move on from a Part 1 question: stop the mic + timer, then either ask the
+  // next question or transition into Part 2. Called both by the "Câu tiếp →"
+  // button and by the 60-second auto-advance.
+  const advancePart1 = () => {
+    clearPart1Timer();
+    stopRecording();
+    const idx = questionIdxRef.current;
+    if (idx + 1 < part1Questions.length) {
+      setQuestionIdx(idx + 1);
+    } else {
+      (async () => {
+        await speak(
+          "Thank you. Now let's move to part 2. I will give you a topic, and you have one minute to prepare. Then you will speak for one to two minutes.",
+        );
+        await speak(`The topic is: ${part2CueCard.topic}`);
+        setPhase("part2-prep");
+      })();
+    }
+  };
+
+  const startPart1Timer = () => {
+    clearPart1Timer();
+    setPart1Remaining(PART1_ANSWER_SEC);
+    part1TimerRef.current = setInterval(() => {
+      setPart1Remaining((r) => {
+        if (r <= 1) {
+          advancePart1();
+          return 0;
+        }
+        return r - 1;
+      });
+    }, 1000);
+  };
+
   // ============================ AUTO-READ FLOWS ============================
   // Intro: hand off to part1 the instant the welcome line ends — no padding.
   useEffect(() => {
@@ -235,13 +284,24 @@ export function MockSpeaking({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
-  // Auto-read part 1 questions when phase or idx changes
+  // Auto-read part 1 questions when phase or idx changes, then start the
+  // 60-second answer countdown once the examiner finishes reading.
   useEffect(() => {
     if (phase !== "part1") return;
     const q = part1Questions[questionIdx];
     if (!q) return;
-    void speak(`Question ${questionIdx + 1}. ${q}`);
-    return () => stopSpeak();
+    let cancelled = false;
+    setPart1Remaining(PART1_ANSWER_SEC);
+    (async () => {
+      await speak(`Question ${questionIdx + 1}. ${q}`);
+      if (cancelled) return;
+      startPart1Timer();
+    })();
+    return () => {
+      cancelled = true;
+      stopSpeak();
+      clearPart1Timer();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, questionIdx]);
 
@@ -308,6 +368,8 @@ export function MockSpeaking({
       speakAbortRef.current?.abort();
       stopExaminerLine(audioRef);
       stopRecording();
+      clearPart1Timer();
+      if (part2TimerRef.current) clearInterval(part2TimerRef.current);
       // Don't revoke blob URLs here — MockResultView mounts AFTER and needs
       // them. The runner-level "exit" path revokes them.
     };
@@ -315,18 +377,7 @@ export function MockSpeaking({
   }, []);
 
   const nextPart1 = () => {
-    stopRecording();
-    if (questionIdx + 1 < part1Questions.length) {
-      setQuestionIdx(questionIdx + 1);
-    } else {
-      (async () => {
-        await speak(
-          "Thank you. Now let's move to part 2. I will give you a topic, and you have one minute to prepare. Then you will speak for one to two minutes.",
-        );
-        await speak(`The topic is: ${part2CueCard.topic}`);
-        setPhase("part2-prep");
-      })();
-    }
+    advancePart1();
   };
 
   const nextPart3 = () => {
@@ -376,8 +427,18 @@ export function MockSpeaking({
       {phase === "part1" && (
         <Card>
           <CardContent className="p-6 space-y-4">
-            <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">
-              Part 1 — Câu {questionIdx + 1}/{part1Questions.length}
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">
+                Part 1 — Câu {questionIdx + 1}/{part1Questions.length}
+              </div>
+              <div
+                className={`tabular-nums text-lg font-extrabold ${
+                  part1Remaining <= 10 ? "text-red-600 animate-pulse" : "text-primary"
+                }`}
+                title="Thời gian trả lời câu này"
+              >
+                ⏱ {formatDuration(part1Remaining)}
+              </div>
             </div>
             <div className="flex items-start gap-3">
               <div className={`grid h-10 w-10 place-items-center rounded-xl bg-honey-tint text-honey-deep ${speaking ? "animate-pulse" : ""}`}>

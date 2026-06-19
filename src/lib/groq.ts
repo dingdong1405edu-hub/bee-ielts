@@ -178,6 +178,9 @@ The transcript KEEPS hesitation markers (the recogniser was set to preserve them
   - rare / none → no penalty.
 - You MUST report this in the "fluency" object below AND reference it in criteria.fluencyCoherence.feedback (state the filler habit and how it lowered the band). Only report fillers that ACTUALLY appear in the transcript — never invent them; if the speech is clean, set fillerCount 0, severity "none", warning "".
 
+PROPER NOUNS — DO NOT PENALISE STT ERRORS:
+The transcript is from an English speech-recogniser that frequently MANGLES proper nouns — names of people, places, dishes and foreign words (e.g. a Vietnamese candidate saying "xôi" may appear as "soul", "phở" as "far", a friend's name turned into a random English word). When a token looks like a garbled name/place/dish rather than a real lexical/grammar mistake, give the candidate the benefit of the doubt: do NOT list it in "corrections", do NOT lower Lexical Resource or Grammatical Range for it, and do NOT treat it as off-topic. Only flag genuine word-choice/grammar errors in the candidate's actual English.
+
 The transcript comes from a speech-recognition system; words it heard with LOW confidence are listed separately as likely mispronunciations — use them for the Pronunciation score. Mispronunciation evidence is REAL evidence — penalise Pronunciation accordingly, do not give a default 6.
 
 All feedback text MUST be in Vietnamese (English only for example phrases).

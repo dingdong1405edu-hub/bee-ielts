@@ -63,6 +63,37 @@ function extractPrimingKeywords(text: string): string[] {
   ).slice(0, 40);
 }
 
+/**
+ * Proper-noun priming for IELTS Speaking: dish names, place names and a few
+ * distinctive personal names that an English-only recogniser otherwise mangles
+ * (the user's "xôi → soul" complaint). Passed to Deepgram as low-intensity
+ * `keywords` + to Whisper as a vocabulary prompt — a soft bias only, so it
+ * surfaces these words when the audio is close WITHOUT forcing them onto
+ * unrelated English speech. Curated to avoid tokens that collide with common
+ * English words. Diacritics dropped because the English model emits ASCII.
+ */
+export const SPEAKING_PROPER_NOUN_KEYWORDS: string[] = [
+  // Vietnamese dishes / drinks
+  "pho", "banh", "bun", "xoi", "goi", "cuon", "nem", "chao", "xeo", "rieu",
+  "tieu", "bunbo", "comtam", "chagio", "banhmi", "banhxeo", "banhcuon",
+  "miquang", "caolau", "buncha", "bunbohue", "hutieu", "caphe", "nuocmam",
+  // World dishes
+  "sushi", "sashimi", "ramen", "udon", "kimchi", "bibimbap", "tteokbokki",
+  "dimsum", "wonton", "biryani", "samosa", "falafel", "hummus", "shawarma",
+  "kebab", "paella", "burrito", "quesadilla", "guacamole", "croissant",
+  "baguette", "lasagna", "risotto", "gnocchi", "padthai", "tomyum", "satay",
+  "rendang", "ceviche", "empanada", "baklava", "tiramisu", "macaron",
+  // Vietnamese places
+  "hanoi", "saigon", "hue", "hoian", "danang", "nhatrang", "dalat", "sapa",
+  "halong", "mekong", "phuquoc", "cantho", "haiphong", "ninhbinh", "vietnam",
+  // World places
+  "tokyo", "kyoto", "osaka", "seoul", "beijing", "shanghai", "bangkok",
+  "singapore", "jakarta", "manila", "mumbai", "istanbul", "dubai", "cairo",
+  "barcelona", "amsterdam", "copenhagen", "helsinki", "reykjavik",
+  // Distinctive Vietnamese family names
+  "nguyen", "pham", "hoang", "huynh", "vuong",
+];
+
 /** Fallback transcription via Groq Whisper-large-v3-turbo. Groq doesn't return
  *  per-word confidence, so we synthesise a flat 0.9 score for every token —
  *  enough for the player's downstream "low-confidence underlined word"
@@ -150,15 +181,22 @@ export async function deepgramTranscribe(
    *  the examiner can warn about fillers + score Fluency; shadowing leaves it
    *  OFF (fillers are just noise for sentence-drilling). */
   keepFillers: boolean = false,
+  /** Extra proper-noun keywords (dishes/places/names) to prime recognition of
+   *  foreign words. Passed at LOW intensity so they never override clear
+   *  English. See SPEAKING_PROPER_NOUN_KEYWORDS. */
+  extraKeywords: string[] = [],
 ): Promise<DGTranscript> {
   const primingKeywords = expectedText ? extractPrimingKeywords(expectedText) : [];
+  // Whisper-prompt list = both sources (raw words). Deepgram gets them with
+  // per-source intensity below.
+  const allPrimingWords = [...primingKeywords, ...extraKeywords];
 
   // FAST PATH — Groq Whisper turbo first. On any failure, fall through to
   // Deepgram so a Groq outage doesn't take scoring down.
   if (preferFast) {
     try {
       console.log("[stt] fast-path: Groq Whisper first");
-      return await groqWhisperTranscribe(audio, contentType, primingKeywords);
+      return await groqWhisperTranscribe(audio, contentType, allPrimingWords);
     } catch (e) {
       console.warn(
         `[stt] Groq fast-path failed, falling back to Deepgram: ${e instanceof Error ? e.message : e}`,
@@ -183,13 +221,19 @@ export async function deepgramTranscribe(
     // these tokens. Intensifier 2 = mild (range is 1-10). Higher than 3-4
     // starts causing false positives where the model "hears" the keyword
     // even when the user said something else — bad for accurate scoring.
+    // Context-specific shadowing keywords get :2; the always-on proper-noun
+    // list gets :1 (even milder) since it's broad and must not override clear
+    // English.
     for (const w of primingKeywords) {
       params.append("keywords", `${w}:2`);
+    }
+    for (const w of extraKeywords) {
+      params.append("keywords", `${w}:1`);
     }
     const url = `${DG_LISTEN}?${params.toString()}`;
     const ct = contentType || "audio/webm";
     console.log(
-      `[deepgram-stt] POST nova-2 content-type=${ct} bytes=${audio.byteLength} keywords=${primingKeywords.length}`,
+      `[deepgram-stt] POST nova-2 content-type=${ct} bytes=${audio.byteLength} keywords=${allPrimingWords.length}`,
     );
     try {
       const res = await fetch(url, {
@@ -228,7 +272,7 @@ export async function deepgramTranscribe(
   }
 
   // Groq Whisper fallback — same audio bytes, no extra fetch from the client.
-  return groqWhisperTranscribe(audio, contentType, primingKeywords);
+  return groqWhisperTranscribe(audio, contentType, allPrimingWords);
 }
 
 /** One sentence-shaped chunk with audio timestamps, used by the Shadowing
