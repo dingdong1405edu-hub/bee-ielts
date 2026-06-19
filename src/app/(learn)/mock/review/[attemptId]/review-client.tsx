@@ -492,6 +492,46 @@ function SpeakingReview({ payload, band }: { payload: SpeakingPayload; band: num
         </div>
       )}
 
+      {payload.ai?.fluency &&
+        payload.ai.fluency.severity &&
+        payload.ai.fluency.severity !== "none" &&
+        (payload.ai.fluency.warning || (payload.ai.fluency.fillerCount ?? 0) > 0) && (
+          <Card className="border-amber-300 bg-amber-50/60 dark:border-amber-500/30 dark:bg-amber-500/10">
+            <CardContent className="p-5 space-y-3">
+              <h3 className="font-extrabold text-amber-700 dark:text-amber-400">
+                ⚠️ Cảnh báo ngập ngừng (ậm ừ) — ảnh hưởng Fluency
+              </h3>
+              {typeof payload.ai.fluency.fillerCount === "number" && payload.ai.fluency.fillerCount > 0 && (
+                <p className="text-sm">
+                  Phát hiện{" "}
+                  <span className="font-extrabold text-amber-700 dark:text-amber-400">
+                    {payload.ai.fluency.fillerCount}
+                  </span>{" "}
+                  lần ngập ngừng/ậm ừ trong bài nói.
+                </p>
+              )}
+              {payload.ai.fluency.fillers && payload.ai.fluency.fillers.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {payload.ai.fluency.fillers.map((f, i) => (
+                    <span
+                      key={i}
+                      className="rounded-full bg-amber-200/70 px-2.5 py-1 text-xs font-extrabold text-amber-800 dark:bg-amber-500/20 dark:text-amber-300"
+                    >
+                      {f}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {payload.ai.fluency.warning && (
+                <p className="text-sm font-semibold">{payload.ai.fluency.warning}</p>
+              )}
+              {payload.ai.fluency.advice && (
+                <p className="text-xs text-muted-foreground">💡 {payload.ai.fluency.advice}</p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
       {payload.ai?.criteria && (
         <Card>
           <CardContent className="p-5 space-y-2">

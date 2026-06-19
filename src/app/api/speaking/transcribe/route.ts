@@ -27,7 +27,9 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await deepgramTranscribe(audio, rawCt);
+    // keepFillers=true: preserve "um"/"uh"/"mm" so the examiner can flag
+    // hesitation and score Fluency & Coherence on real disfluency evidence.
+    const result = await deepgramTranscribe(audio, rawCt, undefined, false, true);
     return NextResponse.json(result);
   } catch (e) {
     // Keep the raw detail in server logs for debugging but don't surface

@@ -72,6 +72,13 @@ export interface SpeakingReviewData {
       grammaticalRange: { band: number; feedback: string };
       pronunciation: { band: number; feedback: string; note?: string };
     };
+    fluency?: {
+      fillerCount?: number;
+      fillers?: string[];
+      severity?: "none" | "low" | "medium" | "high";
+      warning?: string;
+      advice?: string;
+    };
     observations: string[];
     improvedSample: string;
     summary: string;
@@ -332,6 +339,44 @@ function SpeakingBody({ data }: { data: SpeakingReviewData }) {
           </div>
         ))}
       </div>
+
+      {data.result.fluency &&
+        data.result.fluency.severity &&
+        data.result.fluency.severity !== "none" &&
+        (data.result.fluency.warning || (data.result.fluency.fillerCount ?? 0) > 0) && (
+          <div className="space-y-2 avoid-break rounded-xl border border-amber-300 bg-amber-50/60 p-3 dark:border-amber-500/30 dark:bg-amber-500/10">
+            <h3 className="text-base font-extrabold text-amber-700 dark:text-amber-400">
+              ⚠️ Cảnh báo ngập ngừng (ậm ừ) — ảnh hưởng Fluency
+            </h3>
+            {typeof data.result.fluency.fillerCount === "number" && data.result.fluency.fillerCount > 0 && (
+              <p className="text-sm">
+                Phát hiện{" "}
+                <span className="font-extrabold text-amber-700 dark:text-amber-400">
+                  {data.result.fluency.fillerCount}
+                </span>{" "}
+                lần ngập ngừng/ậm ừ trong bài nói.
+              </p>
+            )}
+            {data.result.fluency.fillers && data.result.fluency.fillers.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {data.result.fluency.fillers.map((f, i) => (
+                  <span
+                    key={i}
+                    className="rounded-full bg-amber-200/70 px-2 py-0.5 text-xs font-extrabold text-amber-800 dark:bg-amber-500/20 dark:text-amber-300"
+                  >
+                    {f}
+                  </span>
+                ))}
+              </div>
+            )}
+            {data.result.fluency.warning && (
+              <p className="text-sm font-semibold">{data.result.fluency.warning}</p>
+            )}
+            {data.result.fluency.advice && (
+              <p className="text-xs text-muted-foreground">💡 {data.result.fluency.advice}</p>
+            )}
+          </div>
+        )}
 
       {data.result.observations.length > 0 && (
         <div className="space-y-2 avoid-break">

@@ -124,6 +124,13 @@ export interface SpeakingPayload {
 export interface SpeakingAi {
   overallBand?: number;
   criteria?: Record<string, { band: number; feedback: string }>;
+  fluency?: {
+    fillerCount?: number;
+    fillers?: string[];
+    severity?: "none" | "low" | "medium" | "high";
+    warning?: string;
+    advice?: string;
+  };
   observations?: string[];
   corrections?: { original: string; corrected: string; explanation: string }[];
   pronunciationFixes?: { word: string; ipa: string; tip: string }[];

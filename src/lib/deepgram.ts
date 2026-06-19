@@ -145,6 +145,11 @@ export async function deepgramTranscribe(
   contentType: string,
   expectedText?: string,
   preferFast: boolean = false,
+  /** Keep hesitation markers ("um", "uh", "mm") in the transcript instead of
+   *  Deepgram's default of stripping them. Speaking grading turns this ON so
+   *  the examiner can warn about fillers + score Fluency; shadowing leaves it
+   *  OFF (fillers are just noise for sentence-drilling). */
+  keepFillers: boolean = false,
 ): Promise<DGTranscript> {
   const primingKeywords = expectedText ? extractPrimingKeywords(expectedText) : [];
 
@@ -171,6 +176,9 @@ export async function deepgramTranscribe(
       punctuate: "true",
       smart_format: "true",
     });
+    // filler_words=true makes Deepgram emit "uh"/"um"/"mm" as real tokens
+    // (default drops them). Used by Speaking grading to detect hesitation.
+    if (keepFillers) params.set("filler_words", "true");
     // Deepgram `keywords=word:intensifier` boosts the model's prior on
     // these tokens. Intensifier 2 = mild (range is 1-10). Higher than 3-4
     // starts causing false positives where the model "hears" the keyword

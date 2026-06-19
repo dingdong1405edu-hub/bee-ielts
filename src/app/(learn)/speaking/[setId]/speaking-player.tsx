@@ -60,6 +60,13 @@ interface Paraphrasing {
   examples: ParaphraseExample[];
   impact: string;
 }
+interface FluencyFlag {
+  fillerCount?: number;
+  fillers?: string[];
+  severity?: "none" | "low" | "medium" | "high";
+  warning?: string;
+  advice?: string;
+}
 interface SpeakingResult {
   overallBand: number;
   criteria: {
@@ -68,6 +75,7 @@ interface SpeakingResult {
     grammaticalRange: { band: number; feedback: string };
     pronunciation: { band: number; feedback: string; note?: string };
   };
+  fluency?: FluencyFlag;
   paraphrasing?: Paraphrasing;
   observations: string[];
   corrections?: Correction[];
@@ -87,6 +95,10 @@ type PartNum = 1 | 2 | 3;
 
 // Words below this recogniser confidence are treated as mispronounced / unclear.
 const LOW_CONF = 0.7;
+// Filler/hesitation tokens kept in the transcript (filler_words=true). They are
+// the examiner's Fluency evidence, NOT mispronunciations — exclude them from the
+// low-confidence list so they're never shown as "phát âm sai".
+const FILLER_TOKENS = new Set(["um", "uh", "uhh", "umm", "er", "err", "erm", "mm", "mmm", "hmm", "ah", "huh"]);
 
 const empty = (): QResult => ({ transcript: "", words: [] });
 
@@ -623,7 +635,7 @@ export function SpeakingPlayer({
           .filter((w) => w.confidence < LOW_CONF)
           .map((w) => w.word.toLowerCase().replace(/[^a-z']/g, "")),
       ),
-    ).filter(Boolean);
+    ).filter((w) => w && !FILLER_TOKENS.has(w));
 
     try {
       const res = await fetch("/api/grade/speaking", {
@@ -1037,6 +1049,47 @@ export function SpeakingPlayer({
             </CardContent>
           </Card>
         )}
+
+        {/* Hesitation / filler warning — drives the Fluency score */}
+        {result.fluency &&
+          result.fluency.severity &&
+          result.fluency.severity !== "none" &&
+          (result.fluency.warning || (result.fluency.fillerCount ?? 0) > 0) && (
+            <Card>
+              <CardContent className="p-5 space-y-3">
+                <h3 className="font-extrabold flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-amber-500" /> Cảnh báo ngập ngừng (ậm ừ) — ảnh hưởng Fluency
+                </h3>
+                {typeof result.fluency.fillerCount === "number" && result.fluency.fillerCount > 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    Phát hiện{" "}
+                    <span className="font-extrabold text-amber-600">{result.fluency.fillerCount}</span> lần ngập
+                    ngừng/ậm ừ trong bài nói.
+                  </p>
+                )}
+                {result.fluency.fillers && result.fluency.fillers.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {result.fluency.fillers.map((f, i) => (
+                      <span
+                        key={i}
+                        className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-extrabold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
+                      >
+                        {f}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {result.fluency.warning && (
+                  <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">
+                    {result.fluency.warning}
+                  </p>
+                )}
+                {result.fluency.advice && (
+                  <p className="text-xs text-muted-foreground leading-relaxed">💡 {result.fluency.advice}</p>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
         {/* Corrections — warning + bold the wrong word with its fix beside it */}
         {result.corrections && result.corrections.length > 0 && (

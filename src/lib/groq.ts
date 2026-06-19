@@ -169,6 +169,15 @@ Cambridge raters reward candidates who PARAPHRASE the question instead of parrot
 - "strong" — candidate restructured the entire question into their own words while keeping the meaning, often combining synonyms + grammar transformation (active↔passive, noun↔verb form, condition↔question form). +1.0 toward Lexical Resource AND +0.5 toward Grammatical Range.
 Cite the actual paraphrase examples (verbatim from transcript) in the paraphrasing.examples field — these are PROOF of the score you assigned.
 
+HESITATION & FILLERS — DIRECT FLUENCY SIGNAL:
+The transcript KEEPS hesitation markers (the recogniser was set to preserve them). Scan it for filler/hesitation evidence and let it drive the Fluency & Coherence band — this is exactly the "hesitation, repetition" the band descriptors punish:
+- filler sounds/words: "um", "uh", "er", "erm", "mm", "hmm", "ah", and overused crutch words used as fillers ("like", "you know", "I mean", "basically", "actually", "sort of", "kind of", "so yeah"). Also catch repeats / false starts / self-corrections ("I— I think", "the the", "it was, it was").
+- COUNT them and judge density relative to how much the candidate said:
+  - many fillers / a filler almost every sentence, or frequent false starts → hesitation is a DOMINANT feature → CAP Fluency & Coherence at band 5 (lower if also disjointed).
+  - noticeable but not constant → keep Fluency & Coherence at most band 6 and say so.
+  - rare / none → no penalty.
+- You MUST report this in the "fluency" object below AND reference it in criteria.fluencyCoherence.feedback (state the filler habit and how it lowered the band). Only report fillers that ACTUALLY appear in the transcript — never invent them; if the speech is clean, set fillerCount 0, severity "none", warning "".
+
 The transcript comes from a speech-recognition system; words it heard with LOW confidence are listed separately as likely mispronunciations — use them for the Pronunciation score. Mispronunciation evidence is REAL evidence — penalise Pronunciation accordingly, do not give a default 6.
 
 All feedback text MUST be in Vietnamese (English only for example phrases).
@@ -182,6 +191,13 @@ Return ONLY valid JSON:
     "lexicalResource": { "band": 7, "feedback": "<tiếng Việt — nếu paraphrasing là strong/partial, NÓI RÕ nó đã cộng điểm cho LR>" },
     "grammaticalRange": { "band": 6, "feedback": "<tiếng Việt — nếu paraphrasing là strong, NÓI RÕ nó đã cộng điểm GR>" },
     "pronunciation": { "band": 6, "feedback": "<tiếng Việt — nhận xét phát âm, nhắc tới các từ phát âm chưa rõ>", "note": "Đánh giá từ transcript + độ tin cậy nhận dạng giọng nói." }
+  },
+  "fluency": {
+    "fillerCount": <số nguyên — số lần ngập ngừng/ậm ừ/lặp đếm được trong transcript; 0 nếu không có>,
+    "fillers": ["<liệt kê CHÍNH XÁC các từ/âm ngập ngừng XUẤT HIỆN nguyên văn trong transcript (um, uh, er, mm, hmm, like, you know...); [] nếu không có>"],
+    "severity": "<none | low | medium | high>",
+    "warning": "<tiếng Việt — cảnh báo ngắn cho học viên về thói quen ngập ngừng và nó đã kéo band Fluency xuống thế nào; \"\" nếu severity=none>",
+    "advice": "<tiếng Việt — cách bỏ tật ậm ừ: thay filler bằng khoảng lặng ngắn, dùng cụm nối tự nhiên (Well, …/ Let me think…), luyện nói chậm-chắc; \"\" nếu none>"
   },
   "paraphrasing": {
     "level": "<one of: verbatim | minimal | partial | strong>",

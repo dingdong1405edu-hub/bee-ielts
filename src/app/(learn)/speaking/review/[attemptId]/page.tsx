@@ -26,6 +26,13 @@ type SpeakingFeedback = {
     grammaticalRange?: Crit;
     pronunciation?: Crit;
   };
+  fluency?: {
+    fillerCount?: number;
+    fillers?: string[];
+    severity?: "none" | "low" | "medium" | "high";
+    warning?: string;
+    advice?: string;
+  };
   observations?: string[];
   corrections?: Correction[];
   pronunciationFixes?: { word: string; ipa: string; tip: string }[];
@@ -147,6 +154,44 @@ export default async function SpeakingReviewPage({ params }: { params: { attempt
           </CardContent>
         </Card>
       )}
+
+      {fb.fluency &&
+        fb.fluency.severity &&
+        fb.fluency.severity !== "none" &&
+        (fb.fluency.warning || (fb.fluency.fillerCount ?? 0) > 0) && (
+          <Card>
+            <CardContent className="p-5 space-y-3">
+              <h3 className="font-extrabold flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-amber-500" /> Cảnh báo ngập ngừng (ậm ừ) — ảnh hưởng Fluency
+              </h3>
+              {typeof fb.fluency.fillerCount === "number" && fb.fluency.fillerCount > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  Phát hiện{" "}
+                  <span className="font-extrabold text-amber-600">{fb.fluency.fillerCount}</span> lần ngập ngừng/ậm
+                  ừ trong bài nói.
+                </p>
+              )}
+              {fb.fluency.fillers && fb.fluency.fillers.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {fb.fluency.fillers.map((f, i) => (
+                    <span
+                      key={i}
+                      className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-extrabold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
+                    >
+                      {f}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {fb.fluency.warning && (
+                <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">{fb.fluency.warning}</p>
+              )}
+              {fb.fluency.advice && (
+                <p className="text-xs text-muted-foreground leading-relaxed">💡 {fb.fluency.advice}</p>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
       {fb.observations && fb.observations.length > 0 && (
         <Card className="border-2 border-primary/30 bg-primary/[0.03]">
