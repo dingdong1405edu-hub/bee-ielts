@@ -418,22 +418,29 @@ export function SpeakingPlayer({
         }
         recordingKeyRef.current = null;
 
-        // Grab whatever Web Speech captured first — instant, in-browser.
+        // Web Speech was only a LIVE PREVIEW (browser en-US, weak on accents
+        // and proper nouns). Keep its text as a fallback, then stop it. The
+        // GRADED transcript comes from Deepgram — far more accurate, primed for
+        // dish/place/name proper nouns, and it gives per-word confidence for
+        // the Pronunciation score. (Was the "nói 1 kiểu, live ra 1 kiểu" bug:
+        // the wrong browser caption was being graded.)
         const browserTranscript = webSpeechRef.current?.getTranscript() ?? "";
         webSpeechRef.current?.stop();
         webSpeechRef.current = null;
 
+        // Deepgram FIRST when we have usable audio.
+        if (blob.size >= 1200) {
+          const ok = await transcribe(blob);
+          if (ok) return;
+        }
+        // Deepgram failed/empty or audio too small — fall back to the browser's
+        // live transcript so the answer isn't lost.
         if (browserTranscript.trim().length > 0) {
-          console.log("[transcribe] using Web Speech transcript:", browserTranscript);
+          console.log("[transcribe] Deepgram unavailable — using Web Speech fallback");
           applyTranscript(browserTranscript, []);
           return;
         }
-        // Web Speech gave nothing — fall back to Deepgram STT with the blob.
-        if (blob.size < 1200) {
-          toast.error("Không thu được tiếng — kiểm tra micro và thử lại.");
-          return;
-        }
-        await transcribe(blob);
+        toast.error("Không nghe được gì — thử nói to và rõ hơn, rồi ghi âm lại.");
       };
       recordingKeyRef.current = keyForCurrent();
       // Start Web Speech alongside MediaRecorder. Live transcript shows up in
@@ -524,7 +531,10 @@ export function SpeakingPlayer({
     });
   };
 
-  const transcribe = async (blob: Blob) => {
+  /** Deepgram STT (accurate, primed for proper nouns, per-word confidence for
+   *  pronunciation). Returns true when it produced a usable transcript so the
+   *  caller knows whether it still needs the Web Speech fallback. */
+  const transcribe = async (blob: Blob): Promise<boolean> => {
     setTranscribing(true);
     try {
       console.log(`[transcribe] sending ${blob.size} bytes, type=${blob.type}`);
@@ -536,15 +546,16 @@ export function SpeakingPlayer({
       const data = await res.json();
       if (!res.ok) {
         console.error("[transcribe] server error:", res.status, data);
-        throw new Error(data.error || `Lỗi ${res.status}`);
+        return false;
       }
-      console.log(`[transcribe] got transcript: "${data.transcript ?? ""}"`);
-      if (!data.transcript || !data.transcript.trim()) {
-        toast.error("Không nghe được gì — thử nói to và rõ hơn.");
-      }
-      applyTranscript(data.transcript || "", data.words || []);
+      const text = (data.transcript || "").trim();
+      console.log(`[transcribe] got transcript: "${text}"`);
+      if (!text) return false; // let the caller fall back to Web Speech
+      applyTranscript(text, data.words || []);
+      return true;
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Nhận dạng giọng nói thất bại");
+      console.warn("[transcribe] failed, will fall back:", e instanceof Error ? e.message : e);
+      return false;
     } finally {
       setTranscribing(false);
     }
@@ -1453,10 +1464,12 @@ export function SpeakingPlayer({
             </div>
           ) : recording && liveTranscript ? (
             // Live caption while the candidate speaks — Web Speech updates
-            // this in real-time so they SEE their words being captured.
+            // this in real-time so they SEE words being captured. It's only a
+            // ROUGH preview (browser en-US, weak on accents/proper nouns); the
+            // graded transcript is re-done by the more accurate engine on stop.
             <div className="w-full max-w-2xl rounded-2xl border-2 border-primary/30 bg-primary/10 dark:bg-primary/10 dark:border-primary/30 p-4 text-left">
               <div className="text-[11px] font-extrabold uppercase tracking-wider text-primary mb-1">
-                Bạn đang nói (live)
+                Phụ đề tạm (bản nháp) — bản chấm chính xác hơn sẽ hiện sau khi bạn dừng
               </div>
               <p className="text-sm leading-relaxed whitespace-pre-wrap">{liveTranscript}</p>
             </div>

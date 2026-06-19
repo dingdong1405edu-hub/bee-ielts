@@ -3,10 +3,11 @@
 /**
  * Thin wrapper over the browser's Web Speech API SpeechRecognition. Works in
  * Chrome / Edge / Safari without any server roundtrip — the OS does STT
- * directly. We use it as the PRIMARY transcription path for Speaking so the
- * candidate's words land in the UI even when Deepgram STT can't be reached
- * (network blip, rate limit, API key issue). Deepgram is still used as a
- * fallback by the server route for browsers that don't support this API.
+ * directly. We use it ONLY for the live preview caption (instant, in-browser)
+ * and as a FALLBACK when Deepgram can't be reached. The GRADED transcript is
+ * always re-done by Deepgram on stop: the browser engine runs en-US and is
+ * weak on accents + proper nouns, so grading on it produced the "I said one
+ * thing, the caption shows another" complaint. Deepgram is the source of truth.
  */
 
 type SRConstructor = new () => SpeechRecognition;

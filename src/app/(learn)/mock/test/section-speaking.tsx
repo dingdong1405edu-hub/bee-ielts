@@ -625,8 +625,11 @@ function RecordingIndicator({
         )}
       </div>
       {recording && liveTranscript && (
-        <div className="rounded-lg border-2 border-primary/30 bg-primary/10 dark:bg-primary/10 dark:border-primary/30 p-3 text-sm italic text-primary dark:text-primary">
-          {liveTranscript}
+        <div className="rounded-lg border-2 border-primary/30 bg-primary/10 dark:bg-primary/10 dark:border-primary/30 p-3 text-sm text-primary dark:text-primary">
+          <div className="text-[10px] font-extrabold uppercase tracking-wider opacity-70 mb-1 not-italic">
+            Phụ đề tạm (bản nháp) — bản chấm chính xác hơn
+          </div>
+          <span className="italic">{liveTranscript}</span>
         </div>
       )}
     </div>
