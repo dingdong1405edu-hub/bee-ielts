@@ -24,6 +24,7 @@ import { prisma } from "@/lib/db";
 import { isAdminOrOwner } from "@/lib/premium";
 import { mergeCuesIntoSegments, refineSegmentsForShadowing } from "@/lib/youtube";
 import { enrichShadowingSegments } from "@/lib/claude";
+import { logAdminActivity } from "@/lib/admin-activity";
 
 // Re-enrichment (Claude) for the split pieces can take a little while on a
 // long lesson, but there is no audio/network download — 300s is plenty.
@@ -53,7 +54,7 @@ export async function POST(
   const { id } = await params;
   const lesson = await prisma.shadowingLesson.findUnique({
     where: { id },
-    select: { id: true },
+    select: { id: true, title: true },
   });
   if (!lesson) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -154,6 +155,13 @@ export async function POST(
       { status: 500 },
     );
   }
+
+  await logAdminActivity({
+    action: "UPDATE",
+    entityType: "SHADOWING_LESSON",
+    entityId: id,
+    entityTitle: lesson.title,
+  });
 
   return NextResponse.json({
     ok: true,

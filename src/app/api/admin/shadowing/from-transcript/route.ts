@@ -29,6 +29,7 @@ import {
 import { parseTranscript } from "@/lib/transcript-parse";
 import { enrichShadowingSegments, estimateCefrLevel } from "@/lib/claude";
 import { toCefrLevel } from "@/lib/cefr";
+import { logAdminActivity } from "@/lib/admin-activity";
 
 const bodySchema = z.object({
   youtubeUrl: z.string().min(1),
@@ -171,6 +172,13 @@ export async function POST(req: Request) {
       { status: 500 },
     );
   }
+
+  await logAdminActivity({
+    action: "CREATE",
+    entityType: "SHADOWING_LESSON",
+    entityId: lesson.id,
+    entityTitle: finalTitle,
+  });
 
   return NextResponse.json({
     id: lesson.id,

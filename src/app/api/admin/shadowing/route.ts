@@ -6,6 +6,7 @@ import { isAdminOrOwner } from "@/lib/premium";
 import { extractYoutubeId, youtubeThumbnail } from "@/lib/youtube";
 import { estimateCefrLevel } from "@/lib/claude";
 import { toCefrLevel } from "@/lib/cefr";
+import { logAdminActivity } from "@/lib/admin-activity";
 
 const segmentSchema = z.object({
   startSec: z.number().min(0),
@@ -96,6 +97,12 @@ export async function POST(req: Request) {
         })),
       },
     },
+  });
+  await logAdminActivity({
+    action: "CREATE",
+    entityType: "SHADOWING_LESSON",
+    entityId: lesson.id,
+    entityTitle: parsed.data.title.trim(),
   });
   return NextResponse.json({ id: lesson.id });
 }

@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { isAdminOrOwner } from "@/lib/premium";
 import { extractYoutubeId, youtubeThumbnail } from "@/lib/youtube";
+import { logAdminActivity } from "@/lib/admin-activity";
 
 async function requireAdmin() {
   const session = await auth();
@@ -24,7 +25,18 @@ export async function DELETE(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const { id } = await params;
+  const existing = await prisma.shadowingLesson.findUnique({
+    where: { id },
+    select: { title: true },
+  });
   await prisma.shadowingLesson.delete({ where: { id } });
+  await logAdminActivity({
+    action: "DELETE",
+    entityType: "SHADOWING_LESSON",
+    entityId: id,
+    entityTitle: existing?.title ?? id,
+    entityHref: null,
+  });
   return NextResponse.json({ ok: true });
 }
 
@@ -81,7 +93,7 @@ export async function PATCH(
 
   const lesson = await prisma.shadowingLesson.findUnique({
     where: { id },
-    select: { id: true, youtubeId: true },
+    select: { id: true, youtubeId: true, title: true },
   });
   if (!lesson) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -173,6 +185,13 @@ export async function PATCH(
         });
       }
     }
+  });
+
+  await logAdminActivity({
+    action: "UPDATE",
+    entityType: "SHADOWING_LESSON",
+    entityId: id,
+    entityTitle: lessonPatch.title ?? lesson.title,
   });
 
   return NextResponse.json({ ok: true });

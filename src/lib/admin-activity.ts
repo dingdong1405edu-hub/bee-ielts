@@ -13,7 +13,10 @@ export type AdminEntityType =
   | "GRAMMAR_UNIT"
   | "GRAMMAR_LESSON"
   | "BACKGROUND_MUSIC"
-  | "SPEAKING_VOICE";
+  | "SPEAKING_VOICE"
+  | "SHADOWING_LESSON"
+  | "PODCAST_EPISODE"
+  | "ANNOUNCEMENT";
 
 export type AdminAction = "CREATE" | "UPDATE" | "DELETE";
 
@@ -29,6 +32,9 @@ const HREF_BUILDERS: Partial<Record<AdminEntityType, (id: string) => string>> = 
   GRAMMAR_LESSON: () => `/admin/grammar`,
   BACKGROUND_MUSIC: () => `/admin/music`,
   SPEAKING_VOICE: () => `/admin/voices`,
+  SHADOWING_LESSON: (id) => `/admin/shadowing/${id}`,
+  PODCAST_EPISODE: () => `/admin/podcasts`,
+  ANNOUNCEMENT: () => `/admin/announcements`,
 };
 
 interface LogParams {

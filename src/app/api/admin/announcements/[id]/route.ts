@@ -7,6 +7,7 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { isAdminOrOwner } from "@/lib/premium";
+import { logAdminActivity } from "@/lib/admin-activity";
 
 async function requireAdmin() {
   const session = await auth();
@@ -35,7 +36,17 @@ export async function PATCH(
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
-  await prisma.announcement.update({ where: { id }, data: parsed.data });
+  const updated = await prisma.announcement.update({
+    where: { id },
+    data: parsed.data,
+    select: { title: true },
+  });
+  await logAdminActivity({
+    action: "UPDATE",
+    entityType: "ANNOUNCEMENT",
+    entityId: id,
+    entityTitle: updated.title,
+  });
   return NextResponse.json({ ok: true });
 }
 
@@ -47,6 +58,17 @@ export async function DELETE(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const { id } = await params;
+  const existing = await prisma.announcement.findUnique({
+    where: { id },
+    select: { title: true },
+  });
   await prisma.announcement.delete({ where: { id } });
+  await logAdminActivity({
+    action: "DELETE",
+    entityType: "ANNOUNCEMENT",
+    entityId: id,
+    entityTitle: existing?.title ?? id,
+    entityHref: null,
+  });
   return NextResponse.json({ ok: true });
 }

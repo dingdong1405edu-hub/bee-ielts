@@ -57,6 +57,9 @@ const ENTITY_META: Record<
   GRAMMAR_LESSON: { label: "Grammar lesson", icon: BookOpenText, tone: "bg-honey-tint text-honey-deep" },
   BACKGROUND_MUSIC: { label: "Nhạc nền", icon: Music, tone: "bg-honey-tint text-honey-deep" },
   SPEAKING_VOICE: { label: "Giọng đọc", icon: Volume2, tone: "bg-honey-tint text-honey-deep" },
+  SHADOWING_LESSON: { label: "Shadowing", icon: Mic, tone: "bg-sage-100 text-sage-700" },
+  PODCAST_EPISODE: { label: "Podcast", icon: Headphones, tone: "bg-gold-100 text-gold-700" },
+  ANNOUNCEMENT: { label: "Thông báo", icon: Sparkles, tone: "bg-rose-100 text-rose-700" },
 };
 
 const ACTION_META: Record<string, { label: string; tone: string }> = {

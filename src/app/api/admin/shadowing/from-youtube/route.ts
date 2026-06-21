@@ -51,6 +51,7 @@ import {
 import { enrichShadowingSegments, estimateCefrLevel } from "@/lib/claude";
 import { deepgramTranscribeWithTimings } from "@/lib/deepgram";
 import { toCefrLevel } from "@/lib/cefr";
+import { logAdminActivity } from "@/lib/admin-activity";
 
 /** Ratio of A-Z/a-z characters out of all non-space chars. Used to detect
  *  when YouTube returned a non-English track (e.g. Chinese) by mistake. */
@@ -564,6 +565,13 @@ export async function POST(req: Request) {
       { status: 500 },
     );
   }
+
+  await logAdminActivity({
+    action: "CREATE",
+    entityType: "SHADOWING_LESSON",
+    entityId: lesson.id,
+    entityTitle: finalTitle,
+  });
 
   return NextResponse.json({
     id: lesson.id,

@@ -25,6 +25,7 @@ import {
 } from "@/lib/youtube";
 import { estimateCefrLevel } from "@/lib/claude";
 import { toCefrLevel } from "@/lib/cefr";
+import { logAdminActivity } from "@/lib/admin-activity";
 
 const bodySchema = z.object({
   youtubeUrl: z.string().min(1),
@@ -158,6 +159,13 @@ export async function POST(req: Request) {
       })),
       published: true,
     },
+  });
+
+  await logAdminActivity({
+    action: "CREATE",
+    entityType: "PODCAST_EPISODE",
+    entityId: episode.id,
+    entityTitle: finalTitle,
   });
 
   return NextResponse.json({

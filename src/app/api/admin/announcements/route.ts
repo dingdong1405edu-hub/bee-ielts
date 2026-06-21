@@ -6,6 +6,7 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { isAdminOrOwner } from "@/lib/premium";
+import { logAdminActivity } from "@/lib/admin-activity";
 
 async function requireAdmin() {
   const session = await auth();
@@ -40,6 +41,12 @@ export async function POST(req: Request) {
   const created = await prisma.announcement.create({
     data: { kind, title: title.trim(), body: body.trim(), code: code?.trim() || null, pinned },
     select: { id: true },
+  });
+  await logAdminActivity({
+    action: "CREATE",
+    entityType: "ANNOUNCEMENT",
+    entityId: created.id,
+    entityTitle: title.trim(),
   });
   return NextResponse.json({ ok: true, id: created.id });
 }
