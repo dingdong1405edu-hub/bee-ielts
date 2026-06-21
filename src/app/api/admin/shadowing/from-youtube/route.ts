@@ -348,137 +348,131 @@ export async function POST(req: Request) {
   const finalTitle = (parsed.data.title?.trim() || ytTitle || `Video ${ytId}`).slice(0, 200);
   const finalSource = (parsed.data.source?.trim() || ytChannel || "YouTube").slice(0, 80);
 
-  // 1. Captions path first — free + fast.
+  // SHADOWING transcribes the REAL AUDIO with Deepgram first. YouTube captions
+  // (especially auto-generated) are frequently wrong vs. what the speaker
+  // actually says, so speech-to-text on the audio is the accurate source of
+  // truth. Captions are only a fallback for when the audio can't be downloaded
+  // (YouTube block / too long). Admin can force captions-only by unchecking
+  // "AI nghe" (allowAudioFallback=false).
   let merged: MergedSegment[] = [];
-  let method: "captions" | "audio" = "captions";
+  let method: "captions" | "audio" = "audio";
   let sttSource: "deepgram" | "groq-whisper" | null = null;
+  let audioFailMsg: string | null = null;
 
-  const captionAttempt = await tryCaptions(ytId);
-  if (captionAttempt.kind === "ok") {
-    // Same refine pass as the audio path: comma-splits + interjection
-    // merge make caption-based lessons drillable, not just transcribed.
-    merged = refineSegmentsForShadowing(mergeCuesIntoSegments(captionAttempt.cues));
+  // 1. AUDIO → Deepgram (primary, accurate).
+  if (parsed.data.allowAudioFallback) {
+    const audioAttempt = await tryAudioTranscription(ytId, publicVideo);
+    if (audioAttempt.kind === "ok") {
+      merged = audioAttempt.segments;
+      sttSource = audioAttempt.sttSource;
+      method = "audio";
+    } else {
+      audioFailMsg = audioAttempt.message;
+      console.warn(
+        `[from-youtube] audio→STT (primary) failed ytId=${ytId}: ${audioAttempt.message} — trying captions`,
+      );
+    }
   }
 
-  // 1b. InnerTube /player direct call. Bypasses the youtube-transcript
-  //     library entirely — calls YouTube's API as ANDROID youtubei client
-  //     and gets back the same playerResponse the official app sees. This
-  //     succeeds even when the watch page returns a stripped consent stub
-  //     to server IPs. Also reads availableLangs so we can early-reject
-  //     videos that have only non-EN captions (Vietnamese vlogs etc).
+  // 2. CAPTIONS fallback — only when the audio couldn't be transcribed.
+  //    youtube-transcript lib → InnerTube /player → public Invidious/Piped.
   let watchAvailableLangs: string[] | null = null;
   let watchErr: string | null = null;
-  if (merged.length === 0) {
-    try {
-      const result = await fetchYouTubeCaptionsViaInnertube(ytId);
-      watchAvailableLangs = result.availableLangs;
-      if (result.cues.length > 0) {
-        console.log(
-          `[from-youtube] innertube-player captions rescued ytId=${ytId} cues=${result.cues.length}`,
-        );
-        merged = refineSegmentsForShadowing(mergeCuesIntoSegments(result.cues));
-      } else if (result.availableLangs.length > 0) {
-        // Captions exist but none are English. If admin disabled audio
-        // fallback, surface a precise message before the generic flow does.
-        const langsLower = result.availableLangs.map((l) => l.toLowerCase());
-        const hasEN = langsLower.some((l) => l.startsWith("en"));
-        if (!hasEN) {
-          return NextResponse.json(
-            {
-              error:
-                `Video chỉ có phụ đề: ${result.availableLangs.join(", ")} — ` +
-                "module Shadowing yêu cầu video có nội dung tiếng Anh. " +
-                "Chọn video khác hoặc dùng \"Chế độ nâng cao\" để dán transcript thủ công.",
-            },
-            { status: 422 },
-          );
-        }
-      }
-    } catch (e) {
-      watchErr = e instanceof Error ? e.message : String(e);
-      console.warn(
-        `[from-youtube] innertube-player captions fail ytId=${ytId}: ${watchErr}`,
-      );
-    }
-  }
-
-  // 1c. PUBLIC PROXY captions (Invidious / Piped) — cookie-free rescue when
-  //     YouTube blocks the server. Covers most videos that have ANY captions,
-  //     including auto-generated. The proxies do the YouTube round-trip for us.
   let publicLangs: string[] | null = null;
+  let captionAttempt: CaptionsResult | CaptionsFail | null = null;
   if (merged.length === 0) {
-    try {
-      const pub = await fetchPublicCaptions(ytId, publicVideo);
-      if (pub) {
-        publicVideo = pub.video;
-        publicLangs = pub.langs;
-        if (pub.cues.length > 0) {
-          console.log(`[from-youtube] public-proxy captions rescued ytId=${ytId} cues=${pub.cues.length}`);
-          merged = refineSegmentsForShadowing(mergeCuesIntoSegments(pub.cues));
-        } else if (pub.langs.length > 0 && !pub.langs.some((l) => l.toLowerCase().startsWith("en"))) {
-          return NextResponse.json(
-            {
-              error:
-                `Video chỉ có phụ đề: ${pub.langs.join(", ")} — module Shadowing cần nội dung tiếng Anh. ` +
-                "Chọn video khác hoặc dán transcript thủ công.",
-            },
-            { status: 422 },
+    method = "captions";
+    captionAttempt = await tryCaptions(ytId);
+    if (captionAttempt.kind === "ok") {
+      merged = refineSegmentsForShadowing(mergeCuesIntoSegments(captionAttempt.cues));
+    }
+
+    // 2b. InnerTube /player direct call — calls YouTube's API as the ANDROID
+    //     youtubei client; succeeds even when the watch page returns a stripped
+    //     consent stub to server IPs. availableLangs lets us early-reject
+    //     non-EN-only videos.
+    if (merged.length === 0) {
+      try {
+        const result = await fetchYouTubeCaptionsViaInnertube(ytId);
+        watchAvailableLangs = result.availableLangs;
+        if (result.cues.length > 0) {
+          console.log(
+            `[from-youtube] innertube-player captions rescued ytId=${ytId} cues=${result.cues.length}`,
           );
+          merged = refineSegmentsForShadowing(mergeCuesIntoSegments(result.cues));
+        } else if (result.availableLangs.length > 0) {
+          const langsLower = result.availableLangs.map((l) => l.toLowerCase());
+          const hasEN = langsLower.some((l) => l.startsWith("en"));
+          if (!hasEN) {
+            return NextResponse.json(
+              {
+                error:
+                  `Video chỉ có phụ đề: ${result.availableLangs.join(", ")} — ` +
+                  "module Shadowing yêu cầu video có nội dung tiếng Anh. " +
+                  "Chọn video khác hoặc dùng \"Chế độ nâng cao\" để dán transcript thủ công.",
+              },
+              { status: 422 },
+            );
+          }
         }
+      } catch (e) {
+        watchErr = e instanceof Error ? e.message : String(e);
+        console.warn(
+          `[from-youtube] innertube-player captions fail ytId=${ytId}: ${watchErr}`,
+        );
       }
-    } catch (e) {
-      console.warn(`[from-youtube] public captions fail ytId=${ytId}:`, e instanceof Error ? e.message : e);
+    }
+
+    // 2c. PUBLIC PROXY captions (Invidious / Piped) — cookie-free rescue.
+    if (merged.length === 0) {
+      try {
+        const pub = await fetchPublicCaptions(ytId, publicVideo);
+        if (pub) {
+          publicVideo = pub.video;
+          publicLangs = pub.langs;
+          if (pub.cues.length > 0) {
+            console.log(`[from-youtube] public-proxy captions rescued ytId=${ytId} cues=${pub.cues.length}`);
+            merged = refineSegmentsForShadowing(mergeCuesIntoSegments(pub.cues));
+          } else if (pub.langs.length > 0 && !pub.langs.some((l) => l.toLowerCase().startsWith("en"))) {
+            return NextResponse.json(
+              {
+                error:
+                  `Video chỉ có phụ đề: ${pub.langs.join(", ")} — module Shadowing cần nội dung tiếng Anh. ` +
+                  "Chọn video khác hoặc dán transcript thủ công.",
+              },
+              { status: 422 },
+            );
+          }
+        }
+      } catch (e) {
+        console.warn(`[from-youtube] public captions fail ytId=${ytId}:`, e instanceof Error ? e.message : e);
+      }
     }
   }
 
-  // 2. Audio fallback — only if captions failed AND admin allowed it.
+  // 3. Nothing produced segments — surface the best diagnostic we have.
   if (merged.length === 0) {
-    if (!parsed.data.allowAudioFallback) {
-      const langsMsg =
-        captionAttempt.kind === "fail" && captionAttempt.availableLangs.length > 0
-          ? ` Track có sẵn: ${captionAttempt.availableLangs.join(", ")}.`
-          : "";
-      return NextResponse.json(
-        {
-          error:
-            "Video không có phụ đề EN" +
-            langsMsg +
-            " và bạn đã tắt AI nghe fallback. Bật lại hoặc dán transcript thủ công.",
-        },
-        { status: 422 },
-      );
-    }
-    method = "audio";
-    const audioAttempt = await tryAudioTranscription(ytId, publicVideo);
-    if (audioAttempt.kind === "fail") {
-      const captionLangs =
-        watchAvailableLangs?.length
-          ? watchAvailableLangs
-          : publicLangs?.length
-            ? publicLangs
-            : captionAttempt.kind === "fail"
-              ? captionAttempt.availableLangs
-              : [];
-      const langsMsg = captionLangs.length > 0
-        ? ` Captions có: ${captionLangs.join(", ")}.`
-        : "";
-      const watchMsg = watchErr ? ` (watch-page: ${watchErr})` : "";
-      return NextResponse.json(
-        {
-          error:
-            `Cả captions và AI nghe đều fail. ${audioAttempt.message}${langsMsg}${watchMsg} ` +
-            `Phương án: 1) chọn video EN có phụ đề YouTube, 2) mở "Chế độ nâng cao — dán transcript thủ công" và paste VTT/SRT.`,
-        },
-        { status: 422 },
-      );
-    }
-    merged = audioAttempt.segments;
-    sttSource = audioAttempt.sttSource;
-  }
-
-  if (merged.length === 0) {
+    const captionLangs =
+      watchAvailableLangs?.length
+        ? watchAvailableLangs
+        : publicLangs?.length
+          ? publicLangs
+          : captionAttempt && captionAttempt.kind === "fail"
+            ? captionAttempt.availableLangs
+            : [];
+    const langsMsg = captionLangs.length > 0 ? ` Phụ đề có: ${captionLangs.join(", ")}.` : "";
+    const audioMsg = audioFailMsg
+      ? ` AI nghe (Deepgram): ${audioFailMsg}`
+      : parsed.data.allowAudioFallback
+        ? ""
+        : " (AI nghe đang tắt — bật lại để dùng Deepgram).";
+    const watchMsg = watchErr ? ` (watch-page: ${watchErr})` : "";
     return NextResponse.json(
-      { error: "Không tạo ra được đoạn nào — kiểm tra lại video." },
+      {
+        error:
+          `Không tạo được bài: cả AI nghe (Deepgram) lẫn phụ đề đều không dùng được.${audioMsg}${langsMsg}${watchMsg} ` +
+          `Phương án: 1) thử video khác, 2) mở "Chế độ nâng cao — dán transcript thủ công" và paste VTT/SRT.`,
+      },
       { status: 422 },
     );
   }

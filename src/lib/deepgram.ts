@@ -411,65 +411,74 @@ export async function deepgramTranscribeWithTimings(
 ): Promise<DGTranscriptWithTimings> {
   const dgKey = process.env.DEEPGRAM_API_KEY;
   if (dgKey) {
-    // utterances=true gives sentence-shaped chunks; utt_split=1.2 means
-    // "split on pauses >=1.2s" — empirically yields 5-15s clips, close
-    // to our shadowing target before our merger trims further.
-    const params = new URLSearchParams({
-      model: "nova-2",
-      language: "en",
-      smart_format: "true",
-      utterances: "true",
-      utt_split: "1.2",
-    });
-    const url = `${DG_LISTEN}?${params.toString()}`;
     const ct = contentType || "audio/webm";
-    console.log(
-      `[deepgram-timings] POST nova-2 utterances=true content-type=${ct} bytes=${audio.byteLength}`,
-    );
-    try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { Authorization: `Token ${dgKey}`, "Content-Type": ct },
-        body: audio,
+    // Accuracy-first model order: nova-3 (Deepgram's most accurate English
+    // model) → nova-2. utterances=true gives sentence-shaped chunks;
+    // utt_split=1.2 = "split on pauses >=1.2s" → 5-15s clips, close to our
+    // shadowing target before the merger trims further. punctuate + smart_format
+    // clean up casing/punctuation so segments read naturally.
+    for (const model of ["nova-3", "nova-2"] as const) {
+      const params = new URLSearchParams({
+        model,
+        language: "en",
+        smart_format: "true",
+        punctuate: "true",
+        utterances: "true",
+        utt_split: "1.2",
       });
-      if (res.ok) {
-        const data = (await res.json()) as {
-          results?: {
-            utterances?: { start: number; end: number; transcript: string }[];
+      const url = `${DG_LISTEN}?${params.toString()}`;
+      console.log(
+        `[deepgram-timings] POST ${model} utterances=true content-type=${ct} bytes=${audio.byteLength}`,
+      );
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { Authorization: `Token ${dgKey}`, "Content-Type": ct },
+          body: audio,
+        });
+        if (res.ok) {
+          const data = (await res.json()) as {
+            results?: {
+              utterances?: { start: number; end: number; transcript: string }[];
+            };
           };
-        };
-        const utterances: DGUtterance[] = (data.results?.utterances ?? [])
-          .filter((u) => u && typeof u.start === "number" && typeof u.end === "number")
-          .map((u) => ({
-            start: u.start,
-            end: u.end,
-            text: (u.transcript ?? "").trim(),
-          }))
-          .filter((u) => u.text.length > 0);
-        console.log(`[deepgram-timings] success utterances=${utterances.length}`);
-        if (utterances.length > 0) {
-          return { utterances, source: "deepgram" };
+          const utterances: DGUtterance[] = (data.results?.utterances ?? [])
+            .filter((u) => u && typeof u.start === "number" && typeof u.end === "number")
+            .map((u) => ({
+              start: u.start,
+              end: u.end,
+              text: (u.transcript ?? "").trim(),
+            }))
+            .filter((u) => u.text.length > 0);
+          console.log(`[deepgram-timings] ${model} success utterances=${utterances.length}`);
+          if (utterances.length > 0) {
+            return { utterances, source: "deepgram" };
+          }
+          // Empty result won't improve on nova-2 (usually silence/non-speech) —
+          // stop trying Deepgram and let Groq Whisper have a go.
+          console.warn(`[deepgram-timings] ${model} no utterances — falling back`);
+          break;
         }
-        console.warn("[deepgram-timings] no utterances — falling back to Groq Whisper");
-      } else {
-        // Loud log for auth / rate-limit problems so an admin staring at a
-        // "AI nghe (groq-whisper)" lesson knows WHY Deepgram was skipped.
+        // 401 is an auth problem — switching model won't help, bail to Groq.
         if (res.status === 401) {
           console.error(
             "[deepgram-timings] 401 — DEEPGRAM_API_KEY rejected. Check the key in Railway env.",
           );
-        } else if (res.status === 429) {
-          console.error(
-            "[deepgram-timings] 429 — Deepgram rate-limited. Falling back to Groq.",
-          );
+          break;
+        }
+        if (res.status === 429) {
+          console.error("[deepgram-timings] 429 — Deepgram rate-limited.");
         }
         const txt = await res.text();
         console.error(
-          `[deepgram-timings] ${res.status}: ${txt.slice(0, 300)} — falling back to Groq Whisper`,
+          `[deepgram-timings] ${model} ${res.status}: ${txt.slice(0, 300)} — trying next model/fallback`,
         );
+        // 400 (model unavailable for this account) / 5xx → try the next model.
+        continue;
+      } catch (e) {
+        console.error(`[deepgram-timings] ${model} threw:`, e instanceof Error ? e.message : e);
+        continue;
       }
-    } catch (e) {
-      console.error(`[deepgram-timings] threw:`, e instanceof Error ? e.message : e);
     }
   } else {
     console.warn("[deepgram-timings] DEEPGRAM_API_KEY not set — using Groq Whisper directly");

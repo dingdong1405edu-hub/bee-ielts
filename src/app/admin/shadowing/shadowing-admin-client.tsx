@@ -169,7 +169,11 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
     if (!aiUrl.trim()) return toast.error("Dán URL YouTube");
     aiInFlightRef.current = true;
     setAiBusy(true);
-    setAiStep("Đang lấy phụ đề từ YouTube...");
+    setAiStep(
+      allowAudioFallback
+        ? "Đang tải audio & cho AI nghe (Deepgram)..."
+        : "Đang lấy phụ đề từ YouTube...",
+    );
     // 10-minute browser-side abort. Matches the server route's
     // maxDuration=600 so the user gets a clear error instead of a
     // browser-default "no response" hang on very long videos.
@@ -182,7 +186,7 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
         setTimeout(() => {
           if (allowAudioFallback)
             setAiStep(
-              "Phụ đề không có → AI nghe video... (chỉ chạy nếu cần, ~30-60s)",
+              "AI đang nghe & gỡ băng (Deepgram)... (~30-90s tùy độ dài)",
             );
           else
             setAiStep("Đang dịch + tạo IPA bằng AI... (có thể mất 1-2 phút)");
@@ -507,8 +511,9 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
               className="text-base"
             />
             <p className="text-xs text-muted-foreground mt-1">
-              Dán URL là đủ — tiêu đề + nguồn tự lấy từ YouTube. Ưu tiên phụ đề
-              EN có sẵn (miễn phí); nếu không có, AI tự nghe (xem checkbox dưới).
+              Dán URL là đủ — tiêu đề + nguồn tự lấy từ YouTube. AI nghe trực
+              tiếp audio bằng Deepgram (chính xác hơn phụ đề YouTube). Phụ đề chỉ
+              dùng dự phòng khi không tải được audio (xem checkbox dưới).
             </p>
           </div>
 
@@ -575,9 +580,10 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
             </div>
           </details>
 
-          {/* Audio fallback toggle — when ON the route downloads the audio
-              via youtubei.js and Deepgram transcribes it. Costs ~$0.05 per
-              video so we surface it explicitly. */}
+          {/* AI-listen toggle — when ON (default) the route downloads the audio
+              via youtubei.js and Deepgram transcribes it as the PRIMARY source
+              (more accurate than YouTube captions). When OFF, it uses YouTube
+              captions only. */}
           <label
             className="flex items-start gap-3 rounded-xl border-2 border-gold-300 bg-white/60 dark:bg-card/40 p-3 cursor-pointer select-none"
           >
@@ -590,12 +596,13 @@ export function ShadowingAdminClient({ initial }: { initial: LessonRow[] }) {
             />
             <div className="flex-1">
               <p className="text-sm font-bold">
-                Nếu không có phụ đề EN → AI tự nghe video & tạo transcript
+                AI nghe audio bằng Deepgram (chính xác hơn phụ đề) — nên BẬT
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Tải audio bằng youtubei.js → Deepgram nova-2 transcribe →
-                gộp thành câu shadowing. Tốn thêm ~$0.05/video, video tối đa{" "}
-                {Math.round(MAX_AUDIO_FALLBACK_SEC / 60)} phút. Chỉ kích hoạt nếu phụ đề YT không có.
+                Tải audio → Deepgram nova-3 gỡ băng → gộp thành câu shadowing.
+                Chính xác hơn hẳn phụ đề YouTube (vốn hay sai). Tốn ~$0.05/video,
+                tối đa {Math.round(MAX_AUDIO_FALLBACK_SEC / 60)} phút. Tắt = chỉ
+                dùng phụ đề YouTube (nhanh, miễn phí, kém chính xác).
               </p>
             </div>
           </label>
