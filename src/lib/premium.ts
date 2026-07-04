@@ -10,15 +10,18 @@
  * inline. Centralises the rule so a single edit covers every gate.
  */
 
+import type { Role } from "@prisma/client";
 import { prisma } from "@/lib/db";
 // Re-export the canonical owner-email constant from admin.ts so callers can
 // import everything premium-related from one module.
 import { OWNER_EMAIL } from "@/lib/admin";
 export { OWNER_EMAIL };
 
-/** Minimal shape: anything with role + isPremium qualifies. */
+/** Minimal shape: anything with role + isPremium qualifies. Role is the full
+ *  Prisma enum (LMS roles TEACHER/STUDENT/PARENT included) — they're treated
+ *  as non-privileged for premium, same as LEARNER. */
 export interface PremiumCheckUser {
-  role: "LEARNER" | "ADMIN" | "OWNER";
+  role: Role;
   isPremium: boolean;
   /**
    * Expiry of a *timed* (PayOS-paid) plan. Optional so existing call sites

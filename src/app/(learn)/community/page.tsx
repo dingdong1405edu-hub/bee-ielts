@@ -1,3 +1,4 @@
+import type { Role } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
@@ -63,7 +64,7 @@ export default async function CommunityPage() {
     name: string | null;
     email: string;
     avatarUrl: string | null;
-    role: "LEARNER" | "ADMIN" | "OWNER";
+    role: Role;
     isPremium: boolean;
     premiumUntil: Date | null;
   };

@@ -11,6 +11,11 @@ enum Role {
   LEARNER
   ADMIN
   OWNER
+  // Classroom LMS roles (added alongside the originals so existing auth —
+  // default LEARNER, isAdminOrOwner, middleware — keeps working untouched).
+  TEACHER
+  STUDENT
+  PARENT
 }
 
 /// Status of a learner's request to be upgraded to premium. PENDING is
@@ -136,6 +141,12 @@ model User {
   hostedRouletteRooms SpeakingRouletteRoom[]   @relation("RouletteHost")
   roulettePlayers     SpeakingRoulettePlayer[]
   supportMessages     SupportMessage[]         @relation("SupportThread")
+  // Classroom LMS relations
+  taughtClasses       Class[]                  @relation("ClassTeacher")
+  classMemberships    ClassMember[]            @relation("ClassMembership")
+  submissions         Submission[]             @relation("StudentSubmissions")
+  parentLinks         ParentStudent[]          @relation("ParentLinks") // as parent → children
+  studentParents      ParentStudent[]          @relation("StudentParents") // as student → parents
 }
 
 /// A two-way support conversation between one learner and the Bee admin team.
@@ -980,4 +991,105 @@ model SpeakingRoulettePlayer {
 
   @@unique([roomId, userId])
   @@index([roomId, joinedAt])
+}
+
+// ===========================================================================
+// Classroom LMS — Classes, membership, assignments, submissions, parent links.
+// Field names follow Prisma/repo convention (camelCase + cuid ids); the spec's
+// snake_case (teacher_id, cheat_logs…) maps to these. JSONB → `Json`.
+// ===========================================================================
+
+/// A class taught by one TEACHER (a User). Students join via ClassMember and
+/// receive Assignments.
+model Class {
+  id        String   @id @default(cuid())
+  name      String
+  /// FK → User (the teacher who owns/teaches this class).
+  teacherId String
+  teacher   User     @relation("ClassTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  members     ClassMember[]
+  assignments Assignment[]
+
+  @@index([teacherId])
+}
+
+/// Enrolment row — one per (class, student). Unique so a student can't be
+/// added to the same class twice.
+model ClassMember {
+  id        String   @id @default(cuid())
+  classId   String
+  class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  /// FK → User (a STUDENT).
+  studentId String
+  student   User     @relation("ClassMembership", fields: [studentId], references: [id], onDelete: Cascade)
+  joinedAt  DateTime @default(now())
+
+  @@unique([classId, studentId])
+  @@index([studentId])
+}
+
+/// A piece of work set for a class. `config` (JSONB) holds per-assignment
+/// settings — e.g. { durationMin, showAnswersAfter, shuffle, attemptsAllowed }.
+model Assignment {
+  id          String    @id @default(cuid())
+  classId     String
+  class       Class     @relation(fields: [classId], references: [id], onDelete: Cascade)
+  title       String
+  description String?   @db.Text
+  /// Hạn nộp. Nullable để giáo viên có thể lưu nháp trước khi đặt hạn.
+  deadline    DateTime?
+  /// Cấu hình bài: thời gian làm bài, cho xem đáp án hay không, xáo trộn câu…
+  config      Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  submissions Submission[]
+
+  @@index([classId])
+}
+
+enum SubmissionStatus {
+  PENDING
+  SUBMITTED
+  GRADED
+}
+
+/// A student's attempt at an assignment. One row per (assignment, student).
+/// `cheatLogs` (JSONB) stores an array of proctoring events (tab-blur, paste,
+/// focus-loss…) captured while the student worked.
+model Submission {
+  id           String           @id @default(cuid())
+  assignmentId String
+  assignment   Assignment       @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  /// FK → User (a STUDENT).
+  studentId    String
+  student      User             @relation("StudentSubmissions", fields: [studentId], references: [id], onDelete: Cascade)
+  status       SubmissionStatus @default(PENDING)
+  /// Điểm tổng. Null khi chưa chấm.
+  totalScore   Float?
+  /// Thời điểm nộp. Null khi chưa nộp (status=PENDING).
+  submittedAt  DateTime?
+  /// Nhật ký gian lận — mảng sự kiện JSON.
+  cheatLogs    Json?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@unique([assignmentId, studentId])
+  @@index([studentId])
+  @@index([assignmentId, status])
+}
+
+/// Links a PARENT (User) to their child STUDENT (User). Many-to-many so one
+/// parent can follow several children and a child can have two parents.
+model ParentStudent {
+  parentId  String
+  parent    User     @relation("ParentLinks", fields: [parentId], references: [id], onDelete: Cascade)
+  studentId String
+  student   User     @relation("StudentParents", fields: [studentId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([parentId, studentId])
+  @@index([studentId])
 }
