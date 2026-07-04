@@ -336,12 +336,12 @@ export async function POST(req: Request) {
     } else if (raw.toLowerCase().includes("private")) {
       return NextResponse.json({ error: "Video private — không tải được." }, { status: 422 });
     } else {
-      return NextResponse.json(
-        {
-          error:
-            "Không lấy được thông tin video (YouTube chặn server, các proxy công khai cũng không phản hồi). Thử lại sau ít phút, hoặc dùng 'Dán transcript thủ công'.",
-        },
-        { status: 422 },
+      // Metadata couldn't be fetched (YouTube 403'd the server AND public
+      // proxies are down). DON'T hard-fail here — the audio download (IOS
+      // client) and caption stages below often still succeed. Continue with a
+      // default title; we only truly fail if NO transcription works.
+      console.warn(
+        `[from-youtube] metadata unavailable ytId=${ytId} — continuing to transcription anyway`,
       );
     }
   }

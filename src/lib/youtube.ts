@@ -852,11 +852,27 @@ export async function getYouTubeAudioBuffer(videoId: string): Promise<YouTubeAud
   // multi-client retry + ensurePlayable layers I added in 48d4ffb / 1249be7
   // / a73a464 introduced regressions on otherwise-fine videos.
   const yt = await getInnertube();
-  const info = await yt.getBasicInfo(videoId);
-  if (info.basic_info.is_live) {
-    throw new Error("Video đang livestream — không tải audio được.");
+  // getBasicInfo uses the WEB client, which YouTube increasingly 403s from
+  // datacenter IPs. Don't let that abort the download — the IOS / TV_EMBEDDED
+  // download clients below use a different innertube surface that usually
+  // bypasses the block. When metadata IS available we still use it for the
+  // live + duration guards; when it isn't, we fall back to the byte-size cap.
+  let dur = 0;
+  let title = "";
+  try {
+    const info = await yt.getBasicInfo(videoId);
+    if (info.basic_info.is_live) {
+      throw new Error("Video đang livestream — không tải audio được.");
+    }
+    dur = resolveDuration(info);
+    title = info.basic_info.title ?? "";
+  } catch (e) {
+    const msg = (e instanceof Error ? e.message : String(e)).toLowerCase();
+    if (msg.includes("livestream")) throw e; // keep the live guard
+    console.warn(
+      `[yt-audio] getBasicInfo failed for ${videoId} (${msg}) — trying IOS/TV download anyway`,
+    );
   }
-  const dur = resolveDuration(info);
   if (dur > 0 && dur > MAX_AUDIO_FALLBACK_SEC) {
     throw new Error(
       `Video dài ${Math.round(dur / 60)} phút, vượt giới hạn ${MAX_AUDIO_FALLBACK_SEC / 60} phút cho AI nghe.`,
@@ -930,6 +946,6 @@ export async function getYouTubeAudioBuffer(videoId: string): Promise<YouTubeAud
     buffer,
     contentType: "audio/webm",
     durationSec: finalDur,
-    title: info.basic_info.title ?? "",
+    title,
   };
 }
