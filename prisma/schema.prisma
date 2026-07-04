@@ -1040,6 +1040,9 @@ model Assignment {
   description String?   @db.Text
   /// Hạn nộp. Nullable để giáo viên có thể lưu nháp trước khi đặt hạn.
   deadline    DateTime?
+  /// bank_question_ids — id các câu hỏi lấy từ ngân hàng đề sẵn có (model
+  /// Question). Lưu dạng mảng scalar (snapshot lựa chọn của giáo viên).
+  questionIds String[]  @default([])
   /// Cấu hình bài: thời gian làm bài, cho xem đáp án hay không, xáo trộn câu…
   config      Json?
   createdAt   DateTime  @default(now())
