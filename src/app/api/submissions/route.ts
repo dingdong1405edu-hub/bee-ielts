@@ -3,17 +3,15 @@
  *
  * Body: { assignmentId, answers: [{questionId, answer}], cheatLogs?: {count, events} }
  *
- * Auto-grades against the question bank (isAnswerCorrect), stores the answers +
- * proctoring log (cheat_logs — kept so the teacher AND the student's parents can
- * review tab-switch/blur events), sets status=GRADED, totalScore=percent, and
- * blocks a second submission.
+ * Auth + membership + one-attempt guard live here; the actual grading (query
+ * answer key → compare → IELTS band → update Submission) is delegated to
+ * GradingService. Only Reading/Listening questions are auto-graded.
  */
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { Prisma } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { isAnswerCorrect } from "@/lib/utils";
+import { GradingService } from "@/lib/grading-service";
 
 const bodySchema = z.object({
   assignmentId: z.string().min(1),
@@ -50,7 +48,7 @@ export async function POST(req: Request) {
 
   const assignment = await prisma.assignment.findUnique({
     where: { id: assignmentId },
-    select: { id: true, classId: true, questionIds: true },
+    select: { id: true, classId: true },
   });
   if (!assignment) {
     return NextResponse.json({ error: "Không tìm thấy bài tập" }, { status: 404 });
@@ -74,45 +72,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Bài đã được nộp trước đó." }, { status: 409 });
   }
 
-  // Auto-grade against the answer key.
-  const questions = await prisma.question.findMany({
-    where: { id: { in: assignment.questionIds } },
-    select: { id: true, type: true, correctAnswer: true },
-  });
-  const answerMap = new Map(answers.map((a) => [a.questionId, a.answer]));
-  const total = questions.length;
-  let correctCount = 0;
-  for (const q of questions) {
-    const key = typeof q.correctAnswer === "string" ? q.correctAnswer : String(q.correctAnswer ?? "");
-    if (isAnswerCorrect(answerMap.get(q.id), key, q.type)) correctCount += 1;
-  }
-  const scorePercent = total > 0 ? Math.round((correctCount / total) * 1000) / 10 : 0;
-
-  await prisma.submission.upsert({
-    where: { assignmentId_studentId: { assignmentId, studentId } },
-    create: {
-      assignmentId,
-      studentId,
-      status: "GRADED",
-      totalScore: scorePercent,
-      answers: answers as unknown as Prisma.InputJsonValue,
-      submittedAt: new Date(),
-      cheatLogs: (cheatLogs ?? { count: 0, events: [] }) as unknown as Prisma.InputJsonValue,
-    },
-    update: {
-      status: "GRADED",
-      totalScore: scorePercent,
-      answers: answers as unknown as Prisma.InputJsonValue,
-      submittedAt: new Date(),
-      cheatLogs: (cheatLogs ?? { count: 0, events: [] }) as unknown as Prisma.InputJsonValue,
-    },
+  // Auto-grade + persist (status=GRADED, totalScore=band, answers, cheat_logs).
+  const result = await GradingService.gradeSubmission({
+    assignmentId,
+    studentId,
+    answers,
+    cheatLogs,
   });
 
   return NextResponse.json({
     ok: true,
-    correctCount,
-    total,
-    scorePercent,
+    band: result.band,
+    correctCount: result.correctCount,
+    total: result.autoGradedCount,
+    totalQuestions: result.totalQuestions,
+    skippedCount: result.skippedCount,
+    scorePercent: result.scorePercent,
+    breakdown: result.breakdown,
     cheatCount: cheatLogs?.count ?? 0,
   });
 }

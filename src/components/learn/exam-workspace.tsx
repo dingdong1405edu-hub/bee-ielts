@@ -41,7 +41,8 @@ interface CheatEvent {
   at: string;
 }
 interface DoneState {
-  scorePercent: number;
+  band: number;
+  scorePercent: number | null;
   correctCount: number | null;
   total: number | null;
   cheatCount: number;
@@ -102,9 +103,10 @@ export function ExamWorkspace({ assignmentId }: { assignmentId: string }) {
         if (data.alreadySubmitted) {
           setAlreadySubmitted(true);
           setDone({
-            scorePercent: data.submission?.totalScore ?? 0,
+            band: data.submission?.totalScore ?? 0,
+            scorePercent: null,
             correctCount: null,
-            total: data.assignment.questionCount,
+            total: null,
             cheatCount: 0,
           });
           return;
@@ -162,6 +164,7 @@ export function ExamWorkspace({ assignmentId }: { assignmentId: string }) {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Nộp bài thất bại");
         setDone({
+          band: data.band,
           scorePercent: data.scorePercent,
           correctCount: data.correctCount,
           total: data.total,
@@ -262,10 +265,12 @@ export function ExamWorkspace({ assignmentId }: { assignmentId: string }) {
           <h3 className="text-xl font-extrabold">
             {alreadySubmitted ? "Bạn đã nộp bài này" : "Đã nộp bài!"}
           </h3>
-          <div className="text-4xl font-extrabold text-primary">{done.scorePercent}%</div>
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">Band IELTS ước tính</div>
+          <div className="text-5xl font-extrabold text-primary">{done.band.toFixed(1)}</div>
           {done.correctCount !== null && done.total !== null && (
             <p className="text-muted-foreground">
               Đúng {done.correctCount}/{done.total} câu
+              {done.scorePercent !== null ? ` (${done.scorePercent}%)` : ""}
             </p>
           )}
           {done.cheatCount > 0 && (
