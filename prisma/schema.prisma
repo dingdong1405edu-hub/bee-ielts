@@ -1070,11 +1070,14 @@ model Submission {
   studentId    String
   student      User             @relation("StudentSubmissions", fields: [studentId], references: [id], onDelete: Cascade)
   status       SubmissionStatus @default(PENDING)
-  /// Điểm tổng. Null khi chưa chấm.
+  /// Điểm tổng (phần trăm 0–100). Null khi chưa chấm.
   totalScore   Float?
+  /// Câu trả lời của học sinh — mảng { questionId, answer } (JSON).
+  answers      Json?
   /// Thời điểm nộp. Null khi chưa nộp (status=PENDING).
   submittedAt  DateTime?
-  /// Nhật ký gian lận — mảng sự kiện JSON.
+  /// Nhật ký gian lận — { count, events:[{type, at}] } (JSON). Ghi lại mỗi
+  /// lần học sinh thoát tab/mất focus để giáo viên & phụ huynh xem lại.
   cheatLogs    Json?
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
