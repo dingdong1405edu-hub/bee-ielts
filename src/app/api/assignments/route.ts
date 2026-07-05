@@ -62,6 +62,10 @@ const bodySchema = z
     classId: z.string().min(1),
     title: z.string().trim().min(1, "Cần tiêu đề").max(200),
     deadline: z.coerce.date().optional(),
+    /** Hẹn giờ mở bài cho học sinh (null = mở ngay). */
+    openAt: z.coerce.date().optional(),
+    /** Kỹ năng: quyết định luồng làm bài + cách chấm. */
+    skill: z.enum(["READING", "LISTENING", "WRITING", "SPEAKING"]).optional(),
     // Accept camelCase (existing) or snake_case (as spec'd) → normalise below.
     bankQuestionIds: z.array(z.string().min(1)).max(500).optional(),
     bank_question_ids: z.array(z.string().min(1)).max(500).optional(),
@@ -75,10 +79,15 @@ const bodySchema = z
     bankQuestionIds: b.bankQuestionIds ?? b.bank_question_ids ?? [],
     customQuestions: b.customQuestions ?? b.custom_questions ?? [],
   }))
-  .refine((b) => b.bankQuestionIds.length + b.customQuestions.length > 0, {
-    message: "Cần ít nhất 1 câu hỏi (từ ngân hàng đề hoặc tự tạo)",
-    path: ["bankQuestionIds"],
-  });
+  // Writing/Speaking are AI-graded from config content, so they need no
+  // question list; Reading/Listening still require ≥1 question.
+  .refine(
+    (b) =>
+      b.skill === "WRITING" ||
+      b.skill === "SPEAKING" ||
+      b.bankQuestionIds.length + b.customQuestions.length > 0,
+    { message: "Cần ít nhất 1 câu hỏi (từ ngân hàng đề hoặc tự tạo)", path: ["bankQuestionIds"] },
+  );
 
 /** JSON pass-throughs from an untyped body → Prisma's JSON input type. */
 const asJson = (v: unknown): Prisma.InputJsonValue => v as Prisma.InputJsonValue;
@@ -94,7 +103,7 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   }
-  const { classId, title, deadline, bankQuestionIds, customQuestions, description, config } =
+  const { classId, title, deadline, openAt, skill, bankQuestionIds, customQuestions, description, config } =
     parsed.data;
 
   // Class must exist and be managed by the caller.
@@ -161,6 +170,8 @@ export async function POST(req: Request) {
           title,
           description: description ?? null,
           deadline: deadline ?? null,
+          openAt: openAt ?? null,
+          skill: skill ?? null,
           questionIds: [...bankIds, ...customIds],
           config: config === undefined ? undefined : asJson(config),
         },

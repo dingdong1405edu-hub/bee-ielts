@@ -44,6 +44,8 @@ export async function GET(
       title: true,
       description: true,
       deadline: true,
+      openAt: true,
+      skill: true,
       questionIds: true,
       config: true,
       class: { select: { teacherId: true, name: true } },
@@ -63,6 +65,11 @@ export async function GET(
     return NextResponse.json({ error: "Bạn không thuộc lớp của bài tập này" }, { status: 403 });
   }
 
+  // Scheduled open: before openAt a student sees a locked screen (a teacher/
+  // admin previewing is never locked). We DON'T create the PENDING submission
+  // while locked, so the timer only starts once the bài is open.
+  const locked = !isManager && !!assignment.openAt && assignment.openAt.getTime() > Date.now();
+
   // Questions WITHOUT the answer key, re-ordered to match the teacher's list.
   const rows = await prisma.question.findMany({
     where: { id: { in: assignment.questionIds } },
@@ -81,15 +88,20 @@ export async function GET(
     status: string;
     totalScore: number | null;
     answers: unknown;
+    feedback: unknown;
+    transcript: string | null;
     submittedAt: Date | null;
   } | null = null;
 
-  if (isMember && !isManager) {
+  if (isMember && !isManager && !locked) {
     const sub = await prisma.submission.upsert({
       where: { assignmentId_studentId: { assignmentId: id, studentId: me.id } },
       create: { assignmentId: id, studentId: me.id, status: "PENDING" },
       update: {},
-      select: { status: true, totalScore: true, answers: true, submittedAt: true, createdAt: true },
+      select: {
+        status: true, totalScore: true, answers: true, feedback: true,
+        transcript: true, submittedAt: true, createdAt: true,
+      },
     });
     startedAt = sub.createdAt;
     alreadySubmitted = sub.status === "SUBMITTED" || sub.status === "GRADED";
@@ -97,6 +109,8 @@ export async function GET(
       status: sub.status,
       totalScore: sub.totalScore,
       answers: sub.answers,
+      feedback: sub.feedback,
+      transcript: sub.transcript,
       submittedAt: sub.submittedAt,
     };
   }
@@ -107,10 +121,13 @@ export async function GET(
       title: assignment.title,
       description: assignment.description,
       deadline: assignment.deadline,
+      openAt: assignment.openAt,
+      skill: assignment.skill,
       className: assignment.class.name,
       config: assignment.config ?? {},
       questionCount: questions.length,
     },
+    locked,
     questions,
     startedAt,
     serverNow: new Date().toISOString(),

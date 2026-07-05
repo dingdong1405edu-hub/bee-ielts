@@ -1122,7 +1122,19 @@ model Assignment {
   /// bank_question_ids — id các câu hỏi lấy từ ngân hàng đề sẵn có (model
   /// Question). Lưu dạng mảng scalar (snapshot lựa chọn của giáo viên).
   questionIds String[]  @default([])
-  /// Cấu hình bài: thời gian làm bài, cho xem đáp án hay không, xáo trộn câu…
+  /// Kỹ năng của bài: READING/LISTENING (đề PDF + đáp án, tự chấm) hoặc
+  /// WRITING/SPEAKING (AI chấm). Null = bài cũ (mặc định coi như Reading/
+  /// Listening theo config.paper.skill). Quyết định form tạo bài + luồng làm
+  /// bài + cách chấm + cách xem lại.
+  skill       Skill?
+  /// Hẹn giờ mở bài cho học sinh. Null = mở ngay. Trước openAt học sinh thấy
+  /// bài bị khoá (đếm ngược tới giờ mở).
+  openAt      DateTime?
+  /// Cấu hình bài. Tuỳ kỹ năng:
+  ///  - paper (Reading/Listening): { skill, pdfUrl, audioUrl }
+  ///  - writing: { taskType, prompt, imageUrl?, minWords, timeLimit }
+  ///  - speaking: { part?, topic?, questions:[...] }
+  ///  - chung: { durationMin?, antiCheat? }
   config      Json?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -1158,6 +1170,12 @@ model Submission {
   /// Nhật ký gian lận — { count, events:[{type, at}] } (JSON). Ghi lại mỗi
   /// lần học sinh thoát tab/mất focus để giáo viên & phụ huynh xem lại.
   cheatLogs    Json?
+  /// AI feedback cho bài Writing (WritingResult) / Speaking (SpeakingFeedback).
+  /// Giáo viên xem lại y hệt trang review trong Hồ sơ.
+  feedback     Json?
+  /// Speaking: URL audio bài nói (data URL) + transcript để nghe/đọc lại.
+  audioUrl     String?          @db.Text
+  transcript   String?          @db.Text
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 
