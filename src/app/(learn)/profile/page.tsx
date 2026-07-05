@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { BookOpen, Headphones, PenLine, Mic, Sparkles, BookOpenText, Zap, Flame, Target, ChevronRight, GraduationCap, Trophy } from "lucide-react";
 import { ProfileHeader } from "./profile-header";
 import { CredentialsCard } from "./credentials-card";
+import { RoleSwitcher } from "./role-switcher";
 import { DeleteAttemptButton } from "@/components/learn/delete-attempt-button";
 import { EmptyState, Leaf } from "@/components/brand";
 
@@ -45,6 +46,7 @@ export default async function ProfilePage() {
         xp: true,
         streakDays: true,
         targetBand: true,
+        role: true,
         createdAt: true,
       },
     }),
@@ -80,6 +82,10 @@ export default async function ProfilePage() {
         avatarUrl={user.avatarUrl}
         coverUrl={user.coverUrl}
       />
+
+      {/* Persona — switch between Học sinh / Giáo viên / Phụ huynh. Hidden for
+          admins/owner (their role isn't a self-serve persona). */}
+      {user.role !== "ADMIN" && user.role !== "OWNER" && <RoleSwitcher current={user.role} />}
 
       {/* Login ID + password (sign in without Google next time) */}
       <CredentialsCard initialUsername={user.username} />
