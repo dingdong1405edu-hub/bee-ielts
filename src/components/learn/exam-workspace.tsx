@@ -16,7 +16,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { AlertTriangle, CheckCircle2, Clock, Loader2, ShieldAlert } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, FileText, Headphones, Loader2, ShieldAlert } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +35,9 @@ interface ExamConfig {
   durationMin?: number;
   antiCheat?: boolean;
   showAnswersAfter?: boolean;
+  // Paper-mode (teacher upload): shared PDF đề bài + optional MP3 for the
+  // whole assignment. Questions become a plain answer sheet below.
+  paper?: { skill?: string; pdfUrl?: string; audioUrl?: string | null };
 }
 interface CheatEvent {
   type: string;
@@ -337,6 +340,50 @@ export function ExamWorkspace({ assignmentId }: { assignmentId: string }) {
             Bài thi có <strong>giám sát chống gian lận</strong>: mỗi lần bạn chuyển tab hoặc thu nhỏ
             trình duyệt sẽ bị ghi lại và báo cho giáo viên &amp; phụ huynh.
           </span>
+        </div>
+      )}
+
+      {/* Paper-mode resources: shared audio + PDF đề bài for the whole test. */}
+      {config.paper && (config.paper.pdfUrl || config.paper.audioUrl) && (
+        <div className="space-y-3">
+          {config.paper.audioUrl && (
+            <Card>
+              <CardContent className="p-4 space-y-2">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <Headphones className="h-4 w-4 text-primary" /> Bài nghe
+                </div>
+                {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                <audio controls src={config.paper.audioUrl} className="w-full" />
+              </CardContent>
+            </Card>
+          )}
+          {config.paper.pdfUrl && (
+            <Card>
+              <CardContent className="p-4 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    <FileText className="h-4 w-4 text-primary" /> Đề bài
+                  </div>
+                  <a
+                    href={config.paper.pdfUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-medium text-primary hover:underline"
+                  >
+                    Mở trong tab mới
+                  </a>
+                </div>
+                <iframe
+                  src={config.paper.pdfUrl}
+                  title="Đề bài"
+                  className="h-[480px] w-full rounded-md border bg-white"
+                />
+              </CardContent>
+            </Card>
+          )}
+          <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm text-muted-foreground">
+            Đọc đề ở trên rồi chọn/điền đáp án cho từng câu bên dưới.
+          </div>
         </div>
       )}
 

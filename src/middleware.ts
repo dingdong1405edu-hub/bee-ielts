@@ -4,7 +4,7 @@ import { authConfig } from "@/auth.config";
 
 const { auth } = NextAuth(authConfig);
 
-const PROTECTED = ["/dashboard", "/vocab", "/grammar", "/reading", "/listening", "/writing", "/speaking", "/admin"];
+const PROTECTED = ["/dashboard", "/vocab", "/grammar", "/reading", "/listening", "/writing", "/speaking", "/admin", "/teacher"];
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;

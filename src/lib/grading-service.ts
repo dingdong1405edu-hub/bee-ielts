@@ -78,6 +78,23 @@ function coerceKey(correctAnswer: Prisma.JsonValue | null): string {
   return typeof correctAnswer === "string" ? correctAnswer : String(correctAnswer ?? "");
 }
 
+/**
+ * Paper-mode assignments (teacher-uploaded PDF/MP3 + answer key) hold custom
+ * questions that belong to no ReadingTest/ListeningTest — so they have neither
+ * readingId nor listeningId. The assignment declares which skill they are via
+ * `config.paper.skill`; read it so those questions can still be auto-graded.
+ */
+function paperSkill(config: Prisma.JsonValue | null | undefined): "READING" | "LISTENING" | null {
+  if (config && typeof config === "object" && !Array.isArray(config)) {
+    const paper = (config as Record<string, unknown>).paper;
+    if (paper && typeof paper === "object" && !Array.isArray(paper)) {
+      const s = (paper as Record<string, unknown>).skill;
+      if (s === "READING" || s === "LISTENING") return s;
+    }
+  }
+  return null;
+}
+
 export const GradingService = {
   /**
    * Pure grading — no DB writes. Fetches the assignment's questions + answer
@@ -87,9 +104,11 @@ export const GradingService = {
   async grade(assignmentId: string, answers: StudentAnswer[]): Promise<GradeResult> {
     const assignment = await prisma.assignment.findUnique({
       where: { id: assignmentId },
-      select: { questionIds: true },
+      select: { questionIds: true, config: true },
     });
     const questionIds = assignment?.questionIds ?? [];
+    // Fallback skill for teacher paper-mode questions (no readingId/listeningId).
+    const fallbackSkill = paperSkill(assignment?.config);
 
     const questions = await prisma.question.findMany({
       where: { id: { in: questionIds } },
@@ -101,7 +120,10 @@ export const GradingService = {
     const listening = { correct: 0, total: 0 };
 
     for (const q of questions) {
-      const skill: Skill = q.readingId ? "READING" : q.listeningId ? "LISTENING" : "OTHER";
+      let skill: Skill = q.readingId ? "READING" : q.listeningId ? "LISTENING" : "OTHER";
+      // Paper-mode custom questions carry no test id → grade under the
+      // assignment's declared paper skill instead of skipping them.
+      if (skill === "OTHER" && fallbackSkill) skill = fallbackSkill;
       // Only Reading & Listening are auto-graded.
       if (skill === "OTHER") continue;
       const bucket = skill === "READING" ? reading : listening;
