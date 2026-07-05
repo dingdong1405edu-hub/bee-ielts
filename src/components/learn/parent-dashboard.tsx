@@ -9,10 +9,11 @@
  * - Bảng lịch sử làm bài gần nhất — có Warning Badge khi cheatCount > 0
  *   (con thoát tab khi làm bài, đọc từ Submission.cheatLogs).
  *
- * Dữ liệu lấy từ mock API GET /api/parent/student-progress. Responsive,
+ * Dữ liệu lấy từ GET /api/parent/student-progress (dữ liệu thật của con đã liên
+ * kết). Nếu chưa liên kết con → hiện form nhập email con. Responsive,
  * mobile-first: bảng chuyển sang dạng thẻ (card) trên màn hình nhỏ.
  */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   AlertTriangle,
   BookOpen,
@@ -24,10 +25,14 @@ import {
   PenLine,
   ShieldAlert,
   TrendingUp,
+  UserPlus,
   Headphones,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type {
   ParentStudentProgress,
@@ -89,24 +94,24 @@ export function ParentDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const res = await fetch("/api/parent/student-progress");
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = (await res.json()) as ParentStudentProgress;
-        if (alive) setData(json);
-      } catch {
-        if (alive) setError("Không tải được dữ liệu tiến độ. Vui lòng thử lại.");
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
+  const load = useCallback(async (studentId?: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const qs = studentId ? `?studentId=${encodeURIComponent(studentId)}` : "";
+      const res = await fetch(`/api/parent/student-progress${qs}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setData((await res.json()) as ParentStudentProgress);
+    } catch {
+      setError("Không tải được dữ liệu tiến độ. Vui lòng thử lại.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   if (loading) {
     return (
@@ -126,7 +131,12 @@ export function ParentDashboard() {
     );
   }
 
-  const { student, summary, overdue, recent } = data;
+  // Not linked to any child yet → show the link-by-email form.
+  if (!data.linked || !data.student || !data.summary) {
+    return <LinkChild onLinked={() => load()} />;
+  }
+
+  const { student, summary, overdue, recent, children } = data;
   const completionPct =
     summary.totalAssigned > 0
       ? Math.round((summary.completedCount / summary.totalAssigned) * 100)
@@ -134,14 +144,33 @@ export function ParentDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <header className="space-y-1">
+      {/* Header + child switcher (if the parent follows more than one child) */}
+      <header className="space-y-2">
         <h1 className="text-2xl font-bold text-foreground">Theo dõi học tập</h1>
         <p className="text-sm text-muted-foreground">
           Tiến độ của{" "}
           <span className="font-semibold text-foreground">{student.name}</span> — cập
           nhật theo thời gian thực.
         </p>
+        {children.length > 1 && (
+          <div className="flex flex-wrap gap-2 pt-1">
+            {children.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => load(c.id)}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-sm font-medium transition-colors",
+                  c.id === student.id
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "hover:bg-accent",
+                )}
+              >
+                {c.name}
+              </button>
+            ))}
+          </div>
+        )}
       </header>
 
       {/* Summary stat cards */}
@@ -264,6 +293,66 @@ export function ParentDashboard() {
 }
 
 /* ------------------------------------------------------------- subcomponents */
+
+/** Empty state — parent links to their child by the child's login email. */
+function LinkChild({ onLinked }: { onLinked: () => void }) {
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    const e = email.trim();
+    if (!e) return toast.error("Nhập email của con");
+    setBusy(true);
+    try {
+      const res = await fetch("/api/parent/link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ childEmail: e }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Không liên kết được");
+      toast.success(`Đã liên kết với ${data.child.name}`);
+      setEmail("");
+      onLinked();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Có lỗi xảy ra");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mx-auto max-w-md py-10">
+      <Card>
+        <div className="space-y-4 p-6 text-center">
+          <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-primary/10 text-primary">
+            <UserPlus className="h-7 w-7" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold">Liên kết với con</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Nhập email con dùng để đăng nhập Bee IELTS. Con cần đăng nhập ít nhất một
+              lần trước đó.
+            </p>
+          </div>
+          <div className="space-y-2 text-left">
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && submit()}
+              placeholder="email-cua-con@gmail.com"
+            />
+            <Button onClick={submit} disabled={busy} variant="brand" className="w-full rounded-lg">
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+              Liên kết
+            </Button>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
 
 function StatCard({
   Icon,
