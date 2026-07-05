@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { Check, Loader2, Lock, LockOpen, UserMinus, UserPlus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { playSuccessSfx, playDeclineSfx } from "@/lib/quiz-sfx";
 
 export interface Person {
   id: string;
@@ -67,8 +68,10 @@ export function ClassManage({
       setRequests((rs) => rs.filter((r) => r.id !== student.id));
       if (action === "approve") {
         setMembers((ms) => [...ms, student]);
+        playSuccessSfx();
         toast.success(`Đã duyệt ${student.name}`);
       } else {
+        playDeclineSfx();
         toast.success(`Đã từ chối ${student.name}`);
       }
     } catch (e) {
@@ -89,6 +92,7 @@ export function ClassManage({
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Lỗi");
       setMembers((ms) => ms.filter((m) => m.id !== student.id));
+      playDeclineSfx();
       toast.success(`Đã xoá ${student.name} khỏi lớp`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Không xoá được");

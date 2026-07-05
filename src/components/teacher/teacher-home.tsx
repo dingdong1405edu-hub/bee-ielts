@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ClassManage, PendingBadge, type Person } from "@/components/teacher/class-manage";
+import { playPopSfx } from "@/lib/quiz-sfx";
 
 export interface TeacherClass {
   id: string;
@@ -90,6 +91,7 @@ export function TeacherHome({ initialClasses }: { initialClasses: TeacherClass[]
         ...cs,
       ]);
       setName("");
+      playPopSfx();
       toast.success("Đã tạo lớp!");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Lỗi khi tạo lớp");

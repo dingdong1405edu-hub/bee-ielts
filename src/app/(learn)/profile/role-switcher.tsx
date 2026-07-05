@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { BookOpen, GraduationCap, Loader2, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { playPopSfx } from "@/lib/quiz-sfx";
 
 type Role = "LEARNER" | "TEACHER" | "PARENT";
 
@@ -37,6 +38,7 @@ export function RoleSwitcher({ current }: { current: string }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Không đổi được vai trò");
       setRole(r);
+      playPopSfx();
       toast.success("Đã đổi vai trò!");
       router.push(home);
       router.refresh();
