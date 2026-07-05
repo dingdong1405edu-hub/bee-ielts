@@ -1,27 +1,86 @@
 /**
  * POST /api/assignments — create an assignment for a class (TEACHER/ADMIN).
  *
- * Body: { classId, title, deadline?, bankQuestionIds[], description?, config? }
+ * Body (accepts both camelCase and snake_case for the id/question arrays):
+ *   { classId, title, deadline?, description?, config?,
+ *     bankQuestionIds[] | bank_question_ids[],       // ids from the shared bank
+ *     customQuestions[] | custom_questions[] }        // GV tự gõ câu hỏi mới
+ *
  *   - bankQuestionIds: ids from the existing BeeIELTS question bank (Question).
  *     Every id is validated to exist; unknown ids reject the whole request.
+ *   - customQuestions: full question payloads the teacher just authored. These
+ *     are INSERTED first (createdById = the teacher, isPublic = false → đề riêng),
+ *     then their new ids are appended after the bank ids.
+ *   - At least one question (bank or custom) is required.
  *   - deadline: ISO datetime string (optional — draft assignments may omit it).
  *   - config: JSON settings (thời gian làm bài, xem đáp án, xáo trộn…).
+ *
  * A plain TEACHER may only target their OWN class; ADMIN/OWNER any class.
+ *
+ * The insert(s) + assignment.create run inside a single prisma.$transaction, so
+ * a failure anywhere (bad question, DB error) rolls back everything — no orphan
+ * questions are left behind and no half-built assignment is created.
+ *
+ * Question ORDER is authoritative via Assignment.questionIds (the GET route
+ * renders strictly in that array order), so we build it as
+ * [...bank ids in given order, ...custom ids in given order].
  */
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { Prisma } from "@prisma/client";
+import { Prisma, QuestionType } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireTeacher, canManageAllClasses } from "@/lib/teacher-auth";
 
-const bodySchema = z.object({
-  classId: z.string().min(1),
-  title: z.string().trim().min(1, "Cần tiêu đề").max(200),
-  deadline: z.coerce.date().optional(),
-  bankQuestionIds: z.array(z.string().min(1)).min(1, "Cần ít nhất 1 câu hỏi").max(500),
-  description: z.string().max(5000).optional(),
-  config: z.record(z.string(), z.unknown()).optional(),
+/** One uploaded file attached to a custom question (audio MP3 / image / pdf). */
+const attachmentSchema = z.object({
+  kind: z.enum(["audio", "image", "pdf", "other"]).default("other"),
+  url: z.string().url("URL file không hợp lệ"),
+  name: z.string().max(300).optional(),
+  mime: z.string().max(150).optional(),
+  sizeBytes: z.number().int().nonnegative().optional(),
 });
+
+/** A teacher-authored question. `correctAnswer` is required (any JSON shape);
+ *  `options` holds MCQ/matching choices. Kept permissive on the JSON payloads —
+ *  the shape mirrors whatever the bank questions use. */
+const customQuestionSchema = z.object({
+  type: z.nativeEnum(QuestionType),
+  prompt: z.string().trim().min(1, "Câu hỏi cần nội dung").max(10000),
+  options: z.any().optional(),
+  correctAnswer: z
+    .any()
+    .refine((v) => v !== undefined && v !== null, "Câu hỏi tự tạo cần có đáp án đúng"),
+  explanation: z.string().max(5000).optional(),
+  attachments: z.array(attachmentSchema).max(20).optional(),
+  displayNumber: z.number().int().optional(),
+  formGroup: z.string().max(200).optional(),
+});
+
+const bodySchema = z
+  .object({
+    classId: z.string().min(1),
+    title: z.string().trim().min(1, "Cần tiêu đề").max(200),
+    deadline: z.coerce.date().optional(),
+    // Accept camelCase (existing) or snake_case (as spec'd) → normalise below.
+    bankQuestionIds: z.array(z.string().min(1)).max(500).optional(),
+    bank_question_ids: z.array(z.string().min(1)).max(500).optional(),
+    customQuestions: z.array(customQuestionSchema).max(200).optional(),
+    custom_questions: z.array(customQuestionSchema).max(200).optional(),
+    description: z.string().max(5000).optional(),
+    config: z.record(z.string(), z.unknown()).optional(),
+  })
+  .transform((b) => ({
+    ...b,
+    bankQuestionIds: b.bankQuestionIds ?? b.bank_question_ids ?? [],
+    customQuestions: b.customQuestions ?? b.custom_questions ?? [],
+  }))
+  .refine((b) => b.bankQuestionIds.length + b.customQuestions.length > 0, {
+    message: "Cần ít nhất 1 câu hỏi (từ ngân hàng đề hoặc tự tạo)",
+    path: ["bankQuestionIds"],
+  });
+
+/** JSON pass-throughs from an untyped body → Prisma's JSON input type. */
+const asJson = (v: unknown): Prisma.InputJsonValue => v as Prisma.InputJsonValue;
 
 export async function POST(req: Request) {
   const gate = await requireTeacher();
@@ -34,7 +93,8 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   }
-  const { classId, title, deadline, bankQuestionIds, description, config } = parsed.data;
+  const { classId, title, deadline, bankQuestionIds, customQuestions, description, config } =
+    parsed.data;
 
   // Class must exist and be managed by the caller.
   const cls = await prisma.class.findUnique({
@@ -48,39 +108,81 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Bạn không phụ trách lớp này" }, { status: 403 });
   }
 
-  // Validate every bank question id against the real question bank.
-  const questionIds = Array.from(new Set(bankQuestionIds));
-  const found = await prisma.question.findMany({
-    where: { id: { in: questionIds } },
-    select: { id: true },
-  });
-  const foundIds = new Set(found.map((q) => q.id));
-  const missing = questionIds.filter((id) => !foundIds.has(id));
-  if (missing.length > 0) {
-    return NextResponse.json(
-      { error: "Một số câu hỏi không tồn tại trong ngân hàng đề", missing },
-      { status: 400 },
-    );
+  // Validate every bank question id against the real question bank (order-preserving dedupe).
+  const bankIds = Array.from(new Set(bankQuestionIds));
+  if (bankIds.length > 0) {
+    const found = await prisma.question.findMany({
+      where: { id: { in: bankIds } },
+      select: { id: true },
+    });
+    const foundIds = new Set(found.map((q) => q.id));
+    const missing = bankIds.filter((id) => !foundIds.has(id));
+    if (missing.length > 0) {
+      return NextResponse.json(
+        { error: "Một số câu hỏi không tồn tại trong ngân hàng đề", missing },
+        { status: 400 },
+      );
+    }
   }
 
-  const assignment = await prisma.assignment.create({
-    data: {
-      classId,
-      title,
-      description: description ?? null,
-      deadline: deadline ?? null,
-      questionIds,
-      config: config === undefined ? undefined : (config as Prisma.InputJsonValue),
-    },
-    select: {
-      id: true,
-      classId: true,
-      title: true,
-      deadline: true,
-      questionIds: true,
-      createdAt: true,
-    },
-  });
+  try {
+    const assignment = await prisma.$transaction(async (tx) => {
+      // 1) Insert the teacher's custom questions FIRST, stamping createdById so
+      //    they're owned by this teacher (đề riêng, isPublic defaults to false).
+      //    Created one-by-one so the returned id order EXACTLY matches the input
+      //    order — that order feeds Assignment.questionIds (display order).
+      const customIds: string[] = [];
+      for (const [i, q] of customQuestions.entries()) {
+        const created = await tx.question.create({
+          data: {
+            type: q.type,
+            prompt: q.prompt,
+            options: q.options === undefined ? undefined : asJson(q.options),
+            correctAnswer: asJson(q.correctAnswer),
+            explanation: q.explanation ?? null,
+            attachments: q.attachments === undefined ? undefined : asJson(q.attachments),
+            displayNumber: q.displayNumber ?? null,
+            formGroup: q.formGroup ?? null,
+            // Position custom questions after the bank block for any order-based sort.
+            order: bankIds.length + i,
+            createdById: gate.id,
+            isPublic: false,
+          },
+          select: { id: true },
+        });
+        customIds.push(created.id);
+      }
 
-  return NextResponse.json({ assignment }, { status: 201 });
+      // 2) Link bank + freshly-created custom ids into the new assignment.
+      return tx.assignment.create({
+        data: {
+          classId,
+          title,
+          description: description ?? null,
+          deadline: deadline ?? null,
+          questionIds: [...bankIds, ...customIds],
+          config: config === undefined ? undefined : asJson(config),
+        },
+        select: {
+          id: true,
+          classId: true,
+          title: true,
+          deadline: true,
+          questionIds: true,
+          createdAt: true,
+        },
+      });
+    });
+
+    return NextResponse.json(
+      { assignment, customCreated: assignment.questionIds.length - bankIds.length },
+      { status: 201 },
+    );
+  } catch (err) {
+    console.error("[POST /api/assignments] transaction failed:", err);
+    return NextResponse.json(
+      { error: "Không tạo được bài tập. Mọi thay đổi đã được hoàn tác." },
+      { status: 500 },
+    );
+  }
 }
