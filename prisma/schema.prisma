@@ -154,6 +154,27 @@ model User {
   studentParents      ParentStudent[]          @relation("StudentParents") // as student → parents
   questionsCreated    Question[]               @relation("QuestionsCreated") // đề riêng GV tự tạo
   joinRequests        ClassJoinRequest[]       @relation("StudentJoinRequests") // xin vào lớp riêng tư
+  notifications       Notification[]           @relation("UserNotifications")
+}
+
+/// Per-user notification surfaced in the bell (alongside admin announcements &
+/// support replies). Created for classroom events: được duyệt/từ chối vào lớp,
+/// có bài tập mới… The bell's unread badge uses a localStorage "seen" timestamp
+/// (same as the other feeds), so `readAt` is kept for future per-item state.
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  /// Feed category the bell renders (icon/label) — e.g. "class".
+  kind      String
+  title     String
+  body      String    @db.Text
+  /// Optional deep link the whole notification navigates to.
+  href      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, createdAt])
 }
 
 /// A two-way support conversation between one learner and the Bee admin team.
