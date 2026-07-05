@@ -32,6 +32,7 @@ type Row = {
   band: number | null;
   cheatCount: number;
   submittedAt: Date | null;
+  attemptCount: number;
 };
 
 /** Teacher "kiểm tra học sinh" — the roster for one assignment: who did it,
@@ -67,7 +68,7 @@ export default async function AssignmentReviewPage({
         },
       },
       submissions: {
-        select: { studentId: true, status: true, totalScore: true, submittedAt: true, cheatLogs: true },
+        select: { studentId: true, status: true, totalScore: true, submittedAt: true, cheatLogs: true, attemptCount: true },
       },
     },
   });
@@ -87,6 +88,7 @@ export default async function AssignmentReviewPage({
       band: s?.totalScore ?? null,
       cheatCount: cheatCountOf(s?.cheatLogs),
       submittedAt: s?.submittedAt ?? null,
+      attemptCount: s?.attemptCount ?? 0,
     };
   });
 
@@ -94,6 +96,7 @@ export default async function AssignmentReviewPage({
   const bands = done.map((r) => r.band).filter((b): b is number => b !== null);
   const avgBand = bands.length ? Math.round((bands.reduce((a, b) => a + b, 0) / bands.length) * 10) / 10 : null;
   const flagged = roster.filter((r) => r.cheatCount > 0).length;
+  const totalAttempts = roster.reduce((s, r) => s + r.attemptCount, 0);
 
   return (
     <div className="space-y-5">
@@ -118,10 +121,14 @@ export default async function AssignmentReviewPage({
       </header>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Card><CardContent className="p-4">
           <p className="text-xs text-muted-foreground">Đã nộp</p>
           <p className="mt-1 text-2xl font-bold">{done.length}/{roster.length}</p>
+        </CardContent></Card>
+        <Card><CardContent className="p-4">
+          <p className="text-xs text-muted-foreground">Tổng lượt làm</p>
+          <p className="mt-1 text-2xl font-bold text-honey-deep">{totalAttempts}</p>
         </CardContent></Card>
         <Card><CardContent className="p-4">
           <p className="text-xs text-muted-foreground">Band trung bình</p>
@@ -148,6 +155,7 @@ export default async function AssignmentReviewPage({
                   <th className="px-4 py-3 font-semibold">Học sinh</th>
                   <th className="px-4 py-3 font-semibold">Trạng thái</th>
                   <th className="px-4 py-3 font-semibold">Band</th>
+                  <th className="px-4 py-3 font-semibold">Lượt</th>
                   <th className="px-4 py-3 font-semibold">Nộp lúc</th>
                   <th className="px-4 py-3 font-semibold">Cảnh báo</th>
                 </tr>
@@ -166,6 +174,7 @@ export default async function AssignmentReviewPage({
                     </td>
                     <td className="px-4 py-3"><StatusBadge status={r.status} /></td>
                     <td className="px-4 py-3 font-bold">{r.band === null ? "—" : r.band.toFixed(1)}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{r.attemptCount || "—"}</td>
                     <td className="px-4 py-3 text-muted-foreground">{fmtDateTime(r.submittedAt)}</td>
                     <td className="px-4 py-3"><CheatCell count={r.cheatCount} /></td>
                   </tr>
@@ -188,6 +197,7 @@ export default async function AssignmentReviewPage({
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <StatusBadge status={r.status} />
+                    {r.attemptCount > 1 && <span className="text-xs text-muted-foreground">{r.attemptCount} lượt</span>}
                     <CheatCell count={r.cheatCount} />
                     <span className="ml-auto text-[11px] text-muted-foreground">{fmtDateTime(r.submittedAt)}</span>
                   </div>

@@ -37,6 +37,7 @@ export function HomeworkSpeaking({ assignmentId }: { assignmentId: string }) {
   const [busyIndex, setBusyIndex] = useState(-1);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState<{ band: number; result: SpeakingFeedback; transcripts: { label: string; text: string }[] } | null>(null);
+  const [attempts, setAttempts] = useState({ allowed: 1, count: 0 });
 
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -54,6 +55,7 @@ export function HomeworkSpeaking({ assignmentId }: { assignmentId: string }) {
         setMeta({ title: data.assignment.title, className: data.assignment.className });
         setCfg((data.assignment.config?.speaking as SpeakingConfig) ?? {});
         setIsManager(Boolean(data.isManager));
+        setAttempts({ allowed: data.assignment.attemptsAllowed ?? 1, count: data.submission?.attemptCount ?? 0 });
         if (data.locked) setLocked({ openAt: data.assignment.openAt });
         else if (data.alreadySubmitted && data.submission) {
           const q = ((data.assignment.config?.speaking as SpeakingConfig)?.questions ?? []) as string[];
@@ -143,8 +145,8 @@ export function HomeworkSpeaking({ assignmentId }: { assignmentId: string }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Nộp bài thất bại");
-      streamRef.current?.getTracks().forEach((t) => t.stop());
       setDone({ band: data.band, result: data.result, transcripts: [{ label: `Part ${cfg.part ?? ""}`.trim(), text: transcript }] });
+      setAttempts((a) => ({ allowed: data.attemptsAllowed ?? a.allowed, count: data.attemptCount ?? a.count + 1 }));
       toast.success("Đã nộp — AI đã chấm xong!");
     } catch (e) {
       submittedRef.current = false;
@@ -174,7 +176,15 @@ export function HomeworkSpeaking({ assignmentId }: { assignmentId: string }) {
           </CardContent>
         </Card>
         <SpeakingReviewBody score={done.band} feedback={done.result} transcripts={done.transcripts} />
-        <div className="flex justify-center">
+        <div className="flex flex-wrap justify-center gap-2">
+          {(attempts.allowed === 0 || attempts.count < attempts.allowed) && (
+            <Button
+              variant="brand"
+              onClick={() => { setDone(null); setAnswers({}); submittedRef.current = false; }}
+            >
+              Làm lại ({attempts.allowed === 0 ? "không giới hạn" : `còn ${Math.max(0, attempts.allowed - attempts.count)} lượt`})
+            </Button>
+          )}
           <Button onClick={() => router.push("/classes")} variant="outline">Về lớp học</Button>
         </div>
       </div>

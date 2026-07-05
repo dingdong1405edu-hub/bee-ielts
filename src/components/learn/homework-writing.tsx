@@ -35,6 +35,7 @@ export function HomeworkWriting({ assignmentId }: { assignmentId: string }) {
   const [essay, setEssay] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState<{ band: number; result: WritingResult; essay: string } | null>(null);
+  const [attempts, setAttempts] = useState({ allowed: 1, count: 0 });
   const startedRef = useRef(false);
 
   useEffect(() => {
@@ -48,6 +49,7 @@ export function HomeworkWriting({ assignmentId }: { assignmentId: string }) {
         setMeta({ title: data.assignment.title, className: data.assignment.className });
         setCfg((data.assignment.config?.writing as WritingConfig) ?? {});
         setIsManager(Boolean(data.isManager));
+        setAttempts({ allowed: data.assignment.attemptsAllowed ?? 1, count: data.submission?.attemptCount ?? 0 });
         if (data.locked) setLocked({ openAt: data.assignment.openAt });
         else if (data.alreadySubmitted && data.submission) {
           const raw = (data.submission.answers ?? {}) as { essay?: string };
@@ -85,6 +87,7 @@ export function HomeworkWriting({ assignmentId }: { assignmentId: string }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Nộp bài thất bại");
       setDone({ band: data.band, result: data.result, essay });
+      setAttempts((a) => ({ allowed: data.attemptsAllowed ?? a.allowed, count: data.attemptCount ?? a.count + 1 }));
       toast.success("Đã nộp — AI đã chấm xong!");
     } catch (e) {
       startedRef.current = false;
@@ -120,7 +123,15 @@ export function HomeworkWriting({ assignmentId }: { assignmentId: string }) {
         {done.result && Object.keys(done.result).length > 0 && (
           <WritingFeedback result={done.result} taskLabel={`Task ${cfg.taskType ?? ""}`} />
         )}
-        <div className="flex justify-center">
+        <div className="flex flex-wrap justify-center gap-2">
+          {(attempts.allowed === 0 || attempts.count < attempts.allowed) && (
+            <Button
+              variant="brand"
+              onClick={() => { setDone(null); setEssay(""); startedRef.current = false; }}
+            >
+              Làm lại ({attempts.allowed === 0 ? "không giới hạn" : `còn ${Math.max(0, attempts.allowed - attempts.count)} lượt`})
+            </Button>
+          )}
           <Button onClick={() => router.push("/classes")} variant="outline">Về lớp học</Button>
         </div>
       </div>

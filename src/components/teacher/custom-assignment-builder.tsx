@@ -47,6 +47,7 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
   const [openAt, setOpenAt] = useState("");
   const [durationMin, setDurationMin] = useState("");
   const [antiCheat, setAntiCheat] = useState(false);
+  const [attemptsAllowed, setAttemptsAllowed] = useState("1"); // "0" = không giới hạn
 
   // Reading / Listening
   const [pdfUrl, setPdfUrl] = useState("");
@@ -146,6 +147,8 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
     const config: Record<string, unknown> = {};
     if (Number.isFinite(dur) && dur > 0) config.durationMin = dur;
     if (antiCheat) config.antiCheat = true;
+    const att = parseInt(attemptsAllowed, 10);
+    config.attemptsAllowed = Number.isFinite(att) && att >= 0 ? att : 1;
 
     const body: Record<string, unknown> = {
       classId,
@@ -242,11 +245,22 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
               <Label htmlFor="dur">Thời gian làm bài — phút (tuỳ chọn)</Label>
               <Input id="dur" type="number" min={1} value={durationMin} onChange={(e) => setDurationMin(e.target.value)} placeholder="VD: 60" />
             </div>
-            <label className="flex items-end gap-2 pb-2 text-sm">
-              <input type="checkbox" checked={antiCheat} onChange={(e) => setAntiCheat(e.target.checked)} className="h-4 w-4" />
-              Giám sát chống gian lận (ghi lại khi chuyển tab)
-            </label>
+            <div className="space-y-1.5">
+              <Label htmlFor="att">Số lần làm bài</Label>
+              <select id="att" value={attemptsAllowed} onChange={(e) => setAttemptsAllowed(e.target.value)} className="h-10 w-full rounded-md border bg-background px-3 text-sm">
+                <option value="1">1 lần (không cho làm lại)</option>
+                <option value="2">2 lần</option>
+                <option value="3">3 lần</option>
+                <option value="5">5 lần</option>
+                <option value="0">Không giới hạn</option>
+              </select>
+            </div>
           </div>
+
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={antiCheat} onChange={(e) => setAntiCheat(e.target.checked)} className="h-4 w-4" />
+            Giám sát chống gian lận (ghi lại khi chuyển tab)
+          </label>
         </CardContent>
       </Card>
 

@@ -79,6 +79,8 @@ export function ExamWorkspace({ assignmentId }: { assignmentId: string }) {
   const [isManager, setIsManager] = useState(false);
   const [cheatCount, setCheatCount] = useState(0);
   const [locked, setLocked] = useState<{ openAt: string | null } | null>(null);
+  const [attemptsAllowed, setAttemptsAllowed] = useState(1); // 0 = unlimited
+  const [attemptCount, setAttemptCount] = useState(0);
 
   // Refs so timer/anti-cheat callbacks read fresh values without re-subscribing.
   const answersRef = useRef(answers);
@@ -106,6 +108,8 @@ export function ExamWorkspace({ assignmentId }: { assignmentId: string }) {
         setConfig((data.assignment.config as ExamConfig) || {});
         setQuestions(data.questions || []);
         setIsManager(Boolean(data.isManager));
+        setAttemptsAllowed(data.assignment.attemptsAllowed ?? 1);
+        setAttemptCount(data.submission?.attemptCount ?? 0);
 
         if (data.locked) {
           setLocked({ openAt: data.assignment.openAt ?? null });
@@ -182,6 +186,8 @@ export function ExamWorkspace({ assignmentId }: { assignmentId: string }) {
           total: data.total,
           cheatCount: data.cheatCount ?? cheatCountRef.current,
         });
+        if (typeof data.attemptCount === "number") setAttemptCount(data.attemptCount);
+        if (typeof data.attemptsAllowed === "number") setAttemptsAllowed(data.attemptsAllowed);
         playSegmentDoneSfx();
         toast.success(auto ? "Hết giờ — đã tự động nộp bài." : "Đã nộp bài!");
       } catch (e) {
@@ -197,6 +203,30 @@ export function ExamWorkspace({ assignmentId }: { assignmentId: string }) {
   const autoSubmit = useCallback(() => {
     void doSubmit(true);
   }, [doSubmit]);
+
+  // Retake — reset to the doing state with a fresh timer (allowed while attempts
+  // remain; the submit overwrites the previous graded submission).
+  const retake = useCallback(() => {
+    setDone(null);
+    setAlreadySubmitted(false);
+    setAnswers({});
+    submittedRef.current = false;
+    cheatCountRef.current = 0;
+    cheatEventsRef.current = [];
+    setCheatCount(0);
+    const durMin = config.durationMin;
+    if (durMin && durMin > 0) {
+      endAtRef.current = Date.now() + durMin * 60_000;
+      setRemaining(durMin * 60);
+    } else {
+      endAtRef.current = null;
+      setRemaining(null);
+    }
+    if (typeof window !== "undefined") window.scrollTo({ top: 0 });
+  }, [config.durationMin]);
+
+  const canRetake = attemptsAllowed === 0 || attemptCount < attemptsAllowed;
+  const retakeLabel = attemptsAllowed === 0 ? "không giới hạn" : `còn ${Math.max(0, attemptsAllowed - attemptCount)} lượt`;
 
   // ---------------------------------------------------------------- timer
   useEffect(() => {
@@ -294,9 +324,19 @@ export function ExamWorkspace({ assignmentId }: { assignmentId: string }) {
               <ShieldAlert className="h-4 w-4" /> Số lần rời bài thi: {done.cheatCount}
             </p>
           )}
-          <Button className="mt-2" onClick={() => router.push("/dashboard")}>
-            Về trang chính
-          </Button>
+          {attemptCount > 0 && (
+            <p className="text-xs text-muted-foreground">Lượt làm: {attemptCount}{attemptsAllowed > 0 ? `/${attemptsAllowed}` : ""}</p>
+          )}
+          <div className="mt-2 flex flex-wrap justify-center gap-2">
+            {canRetake && !isManager && (
+              <Button variant="brand" className="rounded-full" onClick={retake}>
+                Làm lại ({retakeLabel})
+              </Button>
+            )}
+            <Button variant="outline" className="rounded-full" onClick={() => router.push("/classes")}>
+              Về lớp học
+            </Button>
+          </div>
         </CardContent>
       </Card>
     );
