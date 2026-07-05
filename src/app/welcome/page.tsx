@@ -9,12 +9,13 @@ const homeFor = (role?: string | null) =>
   role === "TEACHER" ? "/teacher" : role === "PARENT" ? "/parent" : "/dashboard";
 
 /**
- * First-run onboarding. Two ways in:
- *   1. With ?role=… from the login dropdown → apply it and go straight to that
- *      persona's home (no card picker shown).
- *   2. Without it (e.g. the learner-layout gate) → show the 3-card picker.
- * Either way, anyone already onboarded is sent to their home. A role is only
- * applied to a not-yet-onboarded user, so re-visiting can't change a role.
+ * Onboarding / role router. Order matters:
+ *   1. An explicit ?role=… from the login dropdown WINS — apply it (even for a
+ *      returning user) and go to that persona's home. This is what makes
+ *      "chọn Giáo viên → vào trang giáo viên" work for existing accounts too.
+ *      ADMIN/OWNER are never demoted; they just get routed.
+ *   2. No explicit choice + already onboarded → their current role's home.
+ *   3. No explicit choice + brand-new → the 3-card picker.
  */
 export default async function WelcomePage({
   searchParams,
@@ -30,10 +31,10 @@ export default async function WelcomePage({
     select: { role: true, onboardedAt: true },
   });
 
-  if (me?.onboardedAt) redirect(homeFor(me.role));
+  const isValidRole = roleParam === "LEARNER" || roleParam === "TEACHER" || roleParam === "PARENT";
 
-  // Apply the login-dropdown choice for a brand-new user, then send them on.
-  if (roleParam === "LEARNER" || roleParam === "TEACHER" || roleParam === "PARENT") {
+  // 1) Explicit login-dropdown choice — authoritative.
+  if (isValidRole) {
     const keepRole = me?.role === "ADMIN" || me?.role === "OWNER";
     await prisma.user.update({
       where: { id: session.user.id },
@@ -43,5 +44,9 @@ export default async function WelcomePage({
     redirect(safeNext ?? homeFor(keepRole ? me?.role : roleParam));
   }
 
+  // 2) Already picked before → straight to their home.
+  if (me?.onboardedAt) redirect(homeFor(me.role));
+
+  // 3) Brand-new, no hint → show the picker.
   return <WelcomePicker name={session.user.name ?? null} />;
 }

@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,24 @@ function LoginForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [role, setRole] = useState<AccountRole>("LEARNER");
+  // Remember the last chosen persona on this device so a returning teacher's
+  // dropdown defaults to "Giáo viên" (not "Học sinh") next time.
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("bee_login_role");
+      if (saved === "LEARNER" || saved === "TEACHER" || saved === "PARENT") setRole(saved);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+  const chooseRole = (r: AccountRole) => {
+    setRole(r);
+    try {
+      localStorage.setItem("bee_login_role", r);
+    } catch {
+      /* ignore */
+    }
+  };
   const destination = params.get("from") ?? params.get("callbackUrl") ?? "/dashboard";
   // New users pick their persona here; it rides through the OAuth round-trip on
   // the callbackUrl and /welcome applies it (only for a not-yet-onboarded user —
@@ -97,11 +115,9 @@ function LoginForm() {
       setPwLoading(false);
       return;
     }
-    // Route by role via /welcome (it server-redirects an onboarded teacher →
-    // /teacher, parent → /parent, learner → /dashboard) unless a real deep link
-    // was requested. Otherwise a teacher logging in by ID lands on the student
-    // dashboard.
-    router.push(isDeepLink ? destination : "/welcome");
+    // Same role-carrying route as the Google path: /welcome applies the chosen
+    // persona and lands on its home, so an ID login also respects the dropdown.
+    router.push(onboardUrl);
     router.refresh();
   };
 
@@ -197,7 +213,7 @@ function LoginForm() {
                   <select
                     id="acctype"
                     value={role}
-                    onChange={(e) => setRole(e.target.value as AccountRole)}
+                    onChange={(e) => chooseRole(e.target.value as AccountRole)}
                     className="mt-1.5 h-11 w-full rounded-xl border bg-background px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-primary/40"
                   >
                     <option value="LEARNER">Học sinh</option>
