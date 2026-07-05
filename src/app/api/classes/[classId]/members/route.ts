@@ -1,15 +1,30 @@
 /**
- * POST /api/classes/:classId/members — add students to a class (TEACHER/ADMIN).
+ * /api/classes/:classId/members — manage a class roster (TEACHER/ADMIN).
  *
- * Body: { studentIds: string[] }
- * A plain TEACHER may only add to their OWN class; ADMIN/OWNER to any class.
- * Non-existent user ids are skipped and reported back in `missing`; duplicate
- * enrolments are ignored (skipDuplicates).
+ *   POST   { studentIds: string[] }  — add students (skipDuplicates).
+ *   DELETE { studentId: string }     — kick one student out of the class.
+ * A plain TEACHER may only manage their OWN class; ADMIN/OWNER any class.
  */
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireTeacher, canManageAllClasses } from "@/lib/teacher-auth";
+
+/** Shared ownership check: the class exists and the caller may manage it. */
+async function assertManages(
+  classId: string,
+  actor: { id: string; role: string },
+): Promise<NextResponse | null> {
+  const cls = await prisma.class.findUnique({
+    where: { id: classId },
+    select: { teacherId: true },
+  });
+  if (!cls) return NextResponse.json({ error: "Không tìm thấy lớp" }, { status: 404 });
+  if (cls.teacherId !== actor.id && !canManageAllClasses(actor.role)) {
+    return NextResponse.json({ error: "Bạn không phụ trách lớp này" }, { status: 403 });
+  }
+  return null;
+}
 
 const bodySchema = z.object({
   studentIds: z.array(z.string().min(1)).min(1, "Cần ít nhất 1 học sinh").max(500),
@@ -31,17 +46,8 @@ export async function POST(
     );
   }
 
-  const cls = await prisma.class.findUnique({
-    where: { id: classId },
-    select: { id: true, teacherId: true },
-  });
-  if (!cls) {
-    return NextResponse.json({ error: "Không tìm thấy lớp" }, { status: 404 });
-  }
-  // Ownership: teachers manage only their class; admins/owner any class.
-  if (cls.teacherId !== gate.id && !canManageAllClasses(gate.role)) {
-    return NextResponse.json({ error: "Bạn không phụ trách lớp này" }, { status: 403 });
-  }
+  const denied = await assertManages(classId, gate);
+  if (denied) return denied;
 
   // Dedupe input, then keep only ids that map to a real user.
   const requestedIds = Array.from(new Set(parsed.data.studentIds));
@@ -66,4 +72,34 @@ export async function POST(
     skippedExisting: validIds.length - result.count,
     missing, // ids that don't match any user
   });
+}
+
+const deleteSchema = z.object({ studentId: z.string().min(1) });
+
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ classId: string }> },
+) {
+  const gate = await requireTeacher();
+  if (gate instanceof NextResponse) return gate;
+  const { classId } = await params;
+
+  const parsed = deleteSchema.safeParse(await req.json().catch(() => ({})));
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Thiếu học sinh cần xoá" }, { status: 400 });
+  }
+
+  const denied = await assertManages(classId, gate);
+  if (denied) return denied;
+
+  // Remove the enrolment. Also clear any join request so they can re-request
+  // later from a clean slate. deleteMany → no throw if the row isn't there.
+  await prisma.classMember.deleteMany({
+    where: { classId, studentId: parsed.data.studentId },
+  });
+  await prisma.classJoinRequest.deleteMany({
+    where: { classId, studentId: parsed.data.studentId },
+  });
+
+  return NextResponse.json({ removed: true });
 }
