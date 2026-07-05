@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { PaperExamShell } from "@/components/learn/paper-exam-shell";
+import { AssignmentLocked } from "@/components/learn/assignment-locked";
 import { playSegmentDoneSfx } from "@/lib/quiz-sfx";
 
 interface ExamQuestion {
@@ -77,6 +78,7 @@ export function ExamWorkspace({ assignmentId }: { assignmentId: string }) {
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
   const [isManager, setIsManager] = useState(false);
   const [cheatCount, setCheatCount] = useState(0);
+  const [locked, setLocked] = useState<{ openAt: string | null } | null>(null);
 
   // Refs so timer/anti-cheat callbacks read fresh values without re-subscribing.
   const answersRef = useRef(answers);
@@ -104,6 +106,11 @@ export function ExamWorkspace({ assignmentId }: { assignmentId: string }) {
         setConfig((data.assignment.config as ExamConfig) || {});
         setQuestions(data.questions || []);
         setIsManager(Boolean(data.isManager));
+
+        if (data.locked) {
+          setLocked({ openAt: data.assignment.openAt ?? null });
+          return;
+        }
 
         if (data.alreadySubmitted) {
           setAlreadySubmitted(true);
@@ -249,6 +256,9 @@ export function ExamWorkspace({ assignmentId }: { assignmentId: string }) {
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
+  }
+  if (locked) {
+    return <AssignmentLocked title={meta?.title ?? ""} className={meta?.className ?? ""} openAt={locked.openAt} />;
   }
   if (error) {
     return (
