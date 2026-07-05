@@ -153,6 +153,7 @@ model User {
   parentLinks         ParentStudent[]          @relation("ParentLinks") // as parent → children
   studentParents      ParentStudent[]          @relation("StudentParents") // as student → parents
   questionsCreated    Question[]               @relation("QuestionsCreated") // đề riêng GV tự tạo
+  joinRequests        ClassJoinRequest[]       @relation("StudentJoinRequests") // xin vào lớp riêng tư
 }
 
 /// A two-way support conversation between one learner and the Bee admin team.
@@ -1035,12 +1036,41 @@ model Class {
   /// Classroom). Unique, uppercase. Nullable for legacy classes created before
   /// codes existed — those get one lazily.
   joinCode  String?  @unique
+  /// Private lớp: entering the code creates a PENDING ClassJoinRequest instead
+  /// of enrolling directly — the teacher must approve. Public (false) = the
+  /// code enrols immediately.
+  isPrivate Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  members     ClassMember[]
-  assignments Assignment[]
+  members      ClassMember[]
+  assignments  Assignment[]
+  joinRequests ClassJoinRequest[]
 
   @@index([teacherId])
+}
+
+enum JoinRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// A student's request to join a PRIVATE class (they entered the code but need
+/// the teacher's approval). One row per (class, student) — re-requesting after
+/// a rejection flips the same row back to PENDING.
+model ClassJoinRequest {
+  id        String            @id @default(cuid())
+  classId   String
+  class     Class             @relation(fields: [classId], references: [id], onDelete: Cascade)
+  studentId String
+  student   User              @relation("StudentJoinRequests", fields: [studentId], references: [id], onDelete: Cascade)
+  status    JoinRequestStatus @default(PENDING)
+  createdAt DateTime          @default(now())
+  decidedAt DateTime?
+
+  @@unique([classId, studentId])
+  @@index([classId, status])
+  @@index([studentId])
 }
 
 /// Enrolment row — one per (class, student). Unique so a student can't be
