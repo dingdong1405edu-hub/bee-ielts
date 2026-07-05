@@ -53,7 +53,19 @@ export default async function ClassesPage() {
     };
   });
 
+  // Pending requests to private classes (waiting for teacher approval).
+  const pending = await prisma.classJoinRequest.findMany({
+    where: { studentId, status: "PENDING" },
+    orderBy: { createdAt: "desc" },
+    select: { class: { select: { name: true } } },
+  });
+  const pendingClasses = pending.map((p) => p.class.name);
+
   return (
-    <StudentClasses assignments={assignments} classCount={memberships.length} />
+    <StudentClasses
+      assignments={assignments}
+      classCount={memberships.length}
+      pendingClasses={pendingClasses}
+    />
   );
 }

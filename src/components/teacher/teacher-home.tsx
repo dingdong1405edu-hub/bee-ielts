@@ -9,19 +9,24 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { BookOpen, Check, Copy, GraduationCap, Loader2, Plus, Send, Users } from "lucide-react";
+import { BookOpen, Check, ChevronDown, Copy, GraduationCap, Loader2, Lock, Plus, Send, Settings2, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { ClassManage, PendingBadge, type Person } from "@/components/teacher/class-manage";
 
 export interface TeacherClass {
   id: string;
   name: string;
   joinCode: string | null;
+  isPrivate: boolean;
   memberCount: number;
   assignmentCount: number;
   assignments: { id: string; title: string; deadline: string | null; submissionCount: number }[];
+  members: Person[];
+  pendingRequests: Person[];
 }
 
 function fmtDate(iso: string | null): string {
@@ -56,6 +61,7 @@ export function TeacherHome({ initialClasses }: { initialClasses: TeacherClass[]
   const [classes, setClasses] = useState(initialClasses);
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   const createClass = async () => {
     const n = name.trim();
@@ -74,9 +80,12 @@ export function TeacherHome({ initialClasses }: { initialClasses: TeacherClass[]
           id: data.class.id,
           name: data.class.name,
           joinCode: data.class.joinCode,
+          isPrivate: false,
           memberCount: 0,
           assignmentCount: 0,
           assignments: [],
+          members: [],
+          pendingRequests: [],
         },
         ...cs,
       ]);
@@ -140,7 +149,15 @@ export function TeacherHome({ initialClasses }: { initialClasses: TeacherClass[]
               <CardContent className="p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <h2 className="text-lg font-bold">{c.name}</h2>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-lg font-bold">{c.name}</h2>
+                      {c.isPrivate && (
+                        <Badge variant="outline" className="gap-1">
+                          <Lock className="h-3 w-3" /> Riêng tư
+                        </Badge>
+                      )}
+                      <PendingBadge count={c.pendingRequests.length} />
+                    </div>
                     <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                       <span className="inline-flex items-center gap-1">
                         <Users className="h-4 w-4" /> {c.memberCount} học sinh
@@ -155,6 +172,25 @@ export function TeacherHome({ initialClasses }: { initialClasses: TeacherClass[]
                     {c.joinCode ? <CopyCode code={c.joinCode} /> : <span className="text-sm">—</span>}
                   </div>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => setExpanded((e) => (e === c.id ? null : c.id))}
+                  className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+                >
+                  <Settings2 className="h-4 w-4" />
+                  Quản lý lớp
+                  <ChevronDown className={cn("h-4 w-4 transition-transform", expanded === c.id && "rotate-180")} />
+                </button>
+
+                {expanded === c.id && (
+                  <ClassManage
+                    classId={c.id}
+                    initialPrivate={c.isPrivate}
+                    initialMembers={c.members}
+                    initialRequests={c.pendingRequests}
+                  />
+                )}
 
                 {c.assignments.length > 0 && (
                   <ul className="mt-4 divide-y divide-border rounded-lg border">

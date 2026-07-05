@@ -9,7 +9,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowRight, BookOpen, CheckCircle2, Clock, Loader2, LogIn } from "lucide-react";
+import { ArrowRight, BookOpen, CheckCircle2, Clock, Hourglass, Loader2, LogIn } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,9 +35,11 @@ const isDone = (s: StudentAssignment["status"]) => s === "SUBMITTED" || s === "G
 export function StudentClasses({
   assignments,
   classCount,
+  pendingClasses,
 }: {
   assignments: StudentAssignment[];
   classCount: number;
+  pendingClasses: string[];
 }) {
   const router = useRouter();
   const [code, setCode] = useState("");
@@ -55,7 +57,11 @@ export function StudentClasses({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Không vào được lớp");
-      toast.success(`Đã vào lớp "${data.class.name}"`);
+      if (data.pending) {
+        toast.success(`Đã gửi yêu cầu vào lớp "${data.class.name}" — chờ giáo viên duyệt.`);
+      } else {
+        toast.success(`Đã vào lớp "${data.class.name}"`);
+      }
       setCode("");
       router.refresh();
     } catch (e) {
@@ -107,6 +113,23 @@ export function StudentClasses({
           </Button>
         </CardContent>
       </Card>
+
+      {/* Pending join requests (private classes) */}
+      {pendingClasses.length > 0 && (
+        <div className="space-y-2">
+          {pendingClasses.map((name, i) => (
+            <Card key={i} className="border-honey/40 bg-honey-tint/30">
+              <CardContent className="flex items-center gap-3 p-3.5">
+                <Hourglass className="h-5 w-5 shrink-0 text-honey-deep" />
+                <p className="text-sm">
+                  Đang chờ giáo viên duyệt vào lớp{" "}
+                  <span className="font-semibold">{name}</span>.
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Assignments */}
       {sorted.length === 0 ? (

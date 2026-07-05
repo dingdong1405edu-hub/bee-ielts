@@ -25,6 +25,7 @@ export default async function TeacherPage() {
       id: true,
       name: true,
       joinCode: true,
+      isPrivate: true,
       _count: { select: { members: true, assignments: true } },
       assignments: {
         orderBy: { createdAt: "desc" },
@@ -36,13 +37,26 @@ export default async function TeacherPage() {
           _count: { select: { submissions: true } },
         },
       },
+      members: {
+        orderBy: { joinedAt: "asc" },
+        take: 300,
+        select: { student: { select: { id: true, name: true, email: true } } },
+      },
+      joinRequests: {
+        where: { status: "PENDING" },
+        orderBy: { createdAt: "asc" },
+        select: { student: { select: { id: true, name: true, email: true } } },
+      },
     },
   });
+
+  const nameOf = (u: { name: string | null; email: string }) => u.name ?? u.email.split("@")[0];
 
   const shaped: TeacherClass[] = classes.map((c) => ({
     id: c.id,
     name: c.name,
     joinCode: c.joinCode,
+    isPrivate: c.isPrivate,
     memberCount: c._count.members,
     assignmentCount: c._count.assignments,
     assignments: c.assignments.map((a) => ({
@@ -50,6 +64,16 @@ export default async function TeacherPage() {
       title: a.title,
       deadline: a.deadline ? a.deadline.toISOString() : null,
       submissionCount: a._count.submissions,
+    })),
+    members: c.members.map((m) => ({
+      id: m.student.id,
+      name: nameOf(m.student),
+      email: m.student.email,
+    })),
+    pendingRequests: c.joinRequests.map((r) => ({
+      id: r.student.id,
+      name: nameOf(r.student),
+      email: r.student.email,
     })),
   }));
 
