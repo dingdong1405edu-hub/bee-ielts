@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
-import { Crown, Shield, User, Lock } from "lucide-react";
+import { Crown, Shield, User, Lock, GraduationCap, Users, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_GROUPS, isNavActive, type NavItem } from "./nav-config";
 
@@ -13,7 +13,17 @@ import { NAV_GROUPS, isNavActive, type NavItem } from "./nav-config";
  * 68px left margin (see `(learn)/layout.tsx`). Pairs with <TopNav/> above and
  * <BottomNav/> on mobile.
  */
-export function Sidebar({ isAdmin, isPremium }: { isAdmin?: boolean; isPremium?: boolean }) {
+export function Sidebar({
+  isAdmin,
+  isPremium,
+  isTeacher,
+  isParent,
+}: {
+  isAdmin?: boolean;
+  isPremium?: boolean;
+  isTeacher?: boolean;
+  isParent?: boolean;
+}) {
   const pathname = usePathname();
   const asideRef = useRef<HTMLElement>(null);
 
@@ -88,6 +98,22 @@ export function Sidebar({ isAdmin, isPremium }: { isAdmin?: boolean; isPremium?:
 
       {/* Account block */}
       <div className="space-y-0.5 border-t border-border p-3">
+        <Link href="/classes" title="Lớp học của tôi" aria-current={isNavActive(pathname, "/classes") ? "page" : undefined} className={itemClass(isNavActive(pathname, "/classes"))}>
+          <BookOpen size={18} className="shrink-0" />
+          <span className={labelCls}>Lớp học</span>
+        </Link>
+        {isTeacher && (
+          <Link href="/teacher" title="Trang giáo viên" aria-current={isNavActive(pathname, "/teacher") ? "page" : undefined} className={itemClass(isNavActive(pathname, "/teacher"))}>
+            <GraduationCap size={18} className="shrink-0" />
+            <span className={labelCls}>Giáo viên</span>
+          </Link>
+        )}
+        {isParent && (
+          <Link href="/parent" title="Theo dõi con" aria-current={isNavActive(pathname, "/parent") ? "page" : undefined} className={itemClass(isNavActive(pathname, "/parent"))}>
+            <Users size={18} className="shrink-0" />
+            <span className={labelCls}>Phụ huynh</span>
+          </Link>
+        )}
         <Link href="/premium" title="Premium" aria-current={isNavActive(pathname, "/premium") ? "page" : undefined} className={itemClass(isNavActive(pathname, "/premium"))}>
           <Crown size={18} className="shrink-0 text-gold-500" />
           {isPremium ? (

@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Target, GraduationCap, Users, User, LayoutGrid, X, Crown, Shield, Lock, LogOut } from "lucide-react";
+import { Target, GraduationCap, Users, User, LayoutGrid, X, Crown, Shield, Lock, LogOut, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LogoutButton } from "./logout-button";
 import { SHEET_GROUPS, isNavActive, type NavItem } from "./nav-config";
@@ -22,7 +22,17 @@ const TABS: NavItem[] = [
  * touch targets, modal sheet with Escape + focus handling. Replaces the old
  * hamburger drawer.
  */
-export function BottomNav({ isAdmin, isPremium }: { isAdmin?: boolean; isPremium?: boolean }) {
+export function BottomNav({
+  isAdmin,
+  isPremium,
+  isTeacher,
+  isParent,
+}: {
+  isAdmin?: boolean;
+  isPremium?: boolean;
+  isTeacher?: boolean;
+  isParent?: boolean;
+}) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -164,6 +174,9 @@ export function BottomNav({ isAdmin, isPremium }: { isAdmin?: boolean; isPremium
             <div className="mb-2">
               <p className="mb-2 px-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">Tài khoản</p>
               <div className="grid grid-cols-3 gap-2.5">
+                <SheetTile item={{ href: "/classes", label: "Lớp học", icon: BookOpen }} />
+                {isTeacher && <SheetTile item={{ href: "/teacher", label: "Giáo viên", icon: GraduationCap }} />}
+                {isParent && <SheetTile item={{ href: "/parent", label: "Phụ huynh", icon: Users }} />}
                 <SheetTile item={{ href: "/premium", label: "Premium", icon: Crown }} />
                 {isAdmin && <SheetTile item={{ href: "/admin", label: "Admin", icon: Shield }} />}
                 <LogoutButton

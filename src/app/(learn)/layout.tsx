@@ -27,8 +27,14 @@ export default async function LearnLayout({ children }: { children: React.ReactN
   // "Premium ON" badge. Cheap single-column lookup.
   const dbUser = await prisma.user.findUnique({
     where: { id: userId },
-    select: { role: true, isPremium: true, premiumUntil: true },
+    select: { role: true, isPremium: true, premiumUntil: true, onboardedAt: true },
   });
+  // First-run gate: a brand-new LEARNER (hasn't picked a persona) is sent to
+  // /welcome once. ADMIN/OWNER/TEACHER/PARENT already have a definite role.
+  if (dbUser && dbUser.role === "LEARNER" && !dbUser.onboardedAt) redirect("/welcome");
+  const dbRole = dbUser?.role;
+  const isTeacher = dbRole === "TEACHER";
+  const isParent = dbRole === "PARENT";
   const isPremium = effectivePremium(
     (dbUser ?? { role: "LEARNER", isPremium: false, premiumUntil: null }) as {
       role: "LEARNER" | "ADMIN" | "OWNER";
@@ -49,7 +55,7 @@ export default async function LearnLayout({ children }: { children: React.ReactN
             </Suspense>
           }
         />
-        <Sidebar isAdmin={isAdmin} isPremium={isPremium} />
+        <Sidebar isAdmin={isAdmin} isPremium={isPremium} isTeacher={isTeacher} isParent={isParent} />
       </div>
       <main className="min-h-screen pt-16 md:ml-[68px]">
         <div className="mx-auto max-w-6xl p-4 pb-[calc(env(safe-area-inset-bottom)_+_7rem)] md:p-6 md:pb-8">
@@ -57,7 +63,7 @@ export default async function LearnLayout({ children }: { children: React.ReactN
         </div>
       </main>
       <div data-chrome>
-        <BottomNav isAdmin={isAdmin} isPremium={isPremium} />
+        <BottomNav isAdmin={isAdmin} isPremium={isPremium} isTeacher={isTeacher} isParent={isParent} />
         <Suspense fallback={null}>
           <FloatingHelpersGate userId={userId} />
         </Suspense>
