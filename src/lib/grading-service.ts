@@ -174,6 +174,8 @@ export const GradingService = {
     studentId: string;
     answers: StudentAnswer[];
     cheatLogs?: CheatLogs;
+    /** Which attempt this is (1-based). Stored on Submission.attemptCount. */
+    attemptCount?: number;
   }): Promise<GradeResult> {
     const result = await this.grade(input.assignmentId, input.answers);
     const cheat = input.cheatLogs ?? { count: 0, events: [] };
@@ -184,6 +186,7 @@ export const GradingService = {
       answers: input.answers as unknown as Prisma.InputJsonValue,
       submittedAt: new Date(),
       cheatLogs: cheat as unknown as Prisma.InputJsonValue,
+      attemptCount: input.attemptCount ?? 1,
     };
     await prisma.submission.upsert({
       where: {

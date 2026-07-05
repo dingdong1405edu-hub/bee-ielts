@@ -18,6 +18,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { canManageAllClasses } from "@/lib/teacher-auth";
+import { attemptsAllowedOf } from "@/lib/attempts";
 
 export const dynamic = "force-dynamic";
 
@@ -91,6 +92,7 @@ export async function GET(
     feedback: unknown;
     transcript: string | null;
     submittedAt: Date | null;
+    attemptCount: number;
   } | null = null;
 
   if (isMember && !isManager && !locked) {
@@ -100,7 +102,7 @@ export async function GET(
       update: {},
       select: {
         status: true, totalScore: true, answers: true, feedback: true,
-        transcript: true, submittedAt: true, createdAt: true,
+        transcript: true, submittedAt: true, createdAt: true, attemptCount: true,
       },
     });
     startedAt = sub.createdAt;
@@ -112,6 +114,7 @@ export async function GET(
       feedback: sub.feedback,
       transcript: sub.transcript,
       submittedAt: sub.submittedAt,
+      attemptCount: sub.attemptCount,
     };
   }
 
@@ -126,6 +129,7 @@ export async function GET(
       className: assignment.class.name,
       config: assignment.config ?? {},
       questionCount: questions.length,
+      attemptsAllowed: attemptsAllowedOf(assignment.config),
     },
     locked,
     questions,

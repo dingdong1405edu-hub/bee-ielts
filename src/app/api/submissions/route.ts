@@ -12,6 +12,7 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { GradingService } from "@/lib/grading-service";
+import { attemptsAllowedOf, canAttempt } from "@/lib/attempts";
 
 const bodySchema = z.object({
   assignmentId: z.string().min(1),
@@ -48,7 +49,7 @@ export async function POST(req: Request) {
 
   const assignment = await prisma.assignment.findUnique({
     where: { id: assignmentId },
-    select: { id: true, classId: true },
+    select: { id: true, classId: true, config: true },
   });
   if (!assignment) {
     return NextResponse.json({ error: "Không tìm thấy bài tập" }, { status: 404 });
@@ -63,14 +64,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Bạn không thuộc lớp của bài tập này" }, { status: 403 });
   }
 
-  // One attempt only — block resubmission of an already-finished attempt.
+  // Retake gate: allow resubmission only while attempts remain (teacher sets
+  // config.attemptsAllowed; 1 = no retake, 0 = unlimited).
   const existing = await prisma.submission.findUnique({
     where: { assignmentId_studentId: { assignmentId, studentId } },
-    select: { status: true },
+    select: { status: true, attemptCount: true },
   });
-  if (existing && (existing.status === "SUBMITTED" || existing.status === "GRADED")) {
-    return NextResponse.json({ error: "Bài đã được nộp trước đó." }, { status: 409 });
+  const allowed = attemptsAllowedOf(assignment.config);
+  const done = !!existing && (existing.status === "SUBMITTED" || existing.status === "GRADED");
+  if (done && !canAttempt(allowed, existing!.attemptCount)) {
+    return NextResponse.json({ error: "Bạn đã hết lượt làm bài này." }, { status: 409 });
   }
+  const attemptCount = (existing?.attemptCount ?? 0) + 1;
 
   // Auto-grade + persist (status=GRADED, totalScore=band, answers, cheat_logs).
   const result = await GradingService.gradeSubmission({
@@ -78,6 +83,7 @@ export async function POST(req: Request) {
     studentId,
     answers,
     cheatLogs,
+    attemptCount,
   });
 
   return NextResponse.json({
@@ -90,5 +96,7 @@ export async function POST(req: Request) {
     scorePercent: result.scorePercent,
     breakdown: result.breakdown,
     cheatCount: cheatLogs?.count ?? 0,
+    attemptCount,
+    attemptsAllowed: allowed,
   });
 }

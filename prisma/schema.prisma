@@ -1176,6 +1176,9 @@ model Submission {
   /// Speaking: URL audio bài nói (data URL) + transcript để nghe/đọc lại.
   audioUrl     String?          @db.Text
   transcript   String?          @db.Text
+  /// Số lượt học sinh đã LÀM (nộp) bài này. 0 = mới mở chưa nộp. Tăng mỗi lần
+  /// nộp; giáo viên cho phép làm lại qua config.attemptsAllowed của Assignment.
+  attemptCount Int              @default(0)
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 

@@ -12,6 +12,7 @@ import type { Prisma } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { gradeSpeakingGroq } from "@/lib/groq";
+import { attemptsAllowedOf, canAttempt } from "@/lib/attempts";
 
 const schema = z.object({
   assignmentId: z.string().min(1),
@@ -72,11 +73,14 @@ export async function POST(req: Request) {
 
   const existing = await prisma.submission.findUnique({
     where: { assignmentId_studentId: { assignmentId, studentId } },
-    select: { status: true },
+    select: { status: true, attemptCount: true },
   });
-  if (existing && (existing.status === "SUBMITTED" || existing.status === "GRADED")) {
-    return NextResponse.json({ error: "Bài đã được nộp trước đó." }, { status: 409 });
+  const allowed = attemptsAllowedOf(assignment.config);
+  const isDone = !!existing && (existing.status === "SUBMITTED" || existing.status === "GRADED");
+  if (isDone && !canAttempt(allowed, existing!.attemptCount)) {
+    return NextResponse.json({ error: "Bạn đã hết lượt làm bài này." }, { status: 409 });
   }
+  const attemptCount = (existing?.attemptCount ?? 0) + 1;
 
   const { part, topic, questions } = readSpeaking(assignment.config);
   const me = await prisma.user.findUnique({ where: { id: studentId }, select: { targetBand: true } });
@@ -105,6 +109,7 @@ export async function POST(req: Request) {
     feedback: result as unknown as Prisma.InputJsonValue,
     submittedAt: new Date(),
     cheatLogs: (cheatLogs ?? { count: 0, events: [] }) as unknown as Prisma.InputJsonValue,
+    attemptCount,
   };
   await prisma.submission.upsert({
     where: { assignmentId_studentId: { assignmentId, studentId } },
@@ -115,7 +120,7 @@ export async function POST(req: Request) {
     data: { userId: studentId, skill: "SPEAKING", refId: `hw-${assignmentId}`, rawAnswer: { part, transcript }, score: band, feedback: result as object, durationSec: durationSec ?? null },
   }).catch(() => {});
 
-  return NextResponse.json({ band, result });
+  return NextResponse.json({ band, result, attemptCount, attemptsAllowed: allowed });
 }
 
 export const maxDuration = 60;
