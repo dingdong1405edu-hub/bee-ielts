@@ -30,6 +30,7 @@ import { z } from "zod";
 import { Prisma, QuestionType } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireTeacher, canManageAllClasses } from "@/lib/teacher-auth";
+import { notifyMany } from "@/lib/notify";
 
 /** One uploaded file attached to a custom question (audio MP3 / image / pdf). */
 const attachmentSchema = z.object({
@@ -173,6 +174,21 @@ export async function POST(req: Request) {
         },
       });
     });
+
+    // Notify every enrolled student that a new assignment is waiting.
+    const members = await prisma.classMember.findMany({
+      where: { classId },
+      select: { studentId: true },
+    });
+    await notifyMany(
+      members.map((m) => m.studentId),
+      {
+        kind: "class",
+        title: "Có bài tập mới 📚",
+        body: `Thầy cô vừa giao bài "${title}". Vào lớp để làm nhé!`,
+        href: "/classes",
+      },
+    );
 
     return NextResponse.json(
       { assignment, customCreated: assignment.questionIds.length - bankIds.length },

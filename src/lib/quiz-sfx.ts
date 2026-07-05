@@ -113,3 +113,26 @@ export function playPopSfx() {
   tone(880, 0, 50, 0.1, "sine");
   tone(1320, 0.05, 90, 0.12, "sine");
 }
+
+// ===== Classroom / general UI =====
+
+/** Two-note "notification" chime (G5 → C6) — softer than a correct answer,
+ *  used when a new notification arrives or a class action succeeds. */
+export function playNotifySfx() {
+  tone(783.99, 0, 110, 0.12, "sine"); // G5
+  tone(1046.5, 0.09, 200, 0.13, "sine"); // C6
+}
+
+/** Positive confirmation for a class/LMS action (join lớp, duyệt…). Slightly
+ *  fuller than playNotifySfx. */
+export function playSuccessSfx() {
+  tone(587.33, 0, 110, 0.14, "triangle"); // D5
+  tone(880, 0.09, 200, 0.15, "triangle"); // A5
+}
+
+/** Soft "hmm" for a declined/failed action (từ chối, kick) — low + brief so it
+ *  reads as "no" without feeling harsh. */
+export function playDeclineSfx() {
+  tone(392, 0, 150, 0.1, "sine"); // G4
+  tone(294, 0.11, 190, 0.09, "sine"); // D4
+}

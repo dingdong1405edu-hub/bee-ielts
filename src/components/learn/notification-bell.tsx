@@ -1,8 +1,9 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, Megaphone, Tag, Info, X, Copy, Users, LifeBuoy } from "lucide-react";
+import { Bell, Megaphone, Tag, Info, X, Copy, Users, LifeBuoy, GraduationCap } from "lucide-react";
 import { toast } from "sonner";
+import { playNotifySfx } from "@/lib/quiz-sfx";
 
 type Ann = {
   id: string;
@@ -20,6 +21,8 @@ type Ann = {
 const SEEN_KEY = "bee_ann_seen";
 
 function meta(k: string) {
+  if (k === "class")
+    return { label: "Lớp học", Icon: GraduationCap, cls: "bg-honey-tint text-honey-deep dark:bg-honey/20 dark:text-honey" };
   if (k === "support")
     return { label: "Hỗ trợ", Icon: LifeBuoy, cls: "bg-leaf/15 text-leaf-deep dark:bg-leaf/20 dark:text-leaf" };
   if (k === "post")
@@ -45,17 +48,23 @@ export function NotificationBell() {
       fetch("/api/announcements").then((r) => r.json()).catch(() => ({ items: [] })),
       fetch("/api/community/official-posts").then((r) => r.json()).catch(() => ({ items: [] })),
       fetch("/api/support/notifications").then((r) => r.json()).catch(() => ({ items: [] })),
+      fetch("/api/notifications").then((r) => r.json()).catch(() => ({ items: [] })),
     ])
-      .then(([ann, posts, support]) => {
+      .then(([ann, posts, support, personal]) => {
         if (!alive) return;
         const merged: Ann[] = [
           ...(Array.isArray(ann.items) ? ann.items : []),
           ...(Array.isArray(posts.items) ? posts.items : []),
           ...(Array.isArray(support.items) ? support.items : []),
+          ...(Array.isArray(personal.items) ? personal.items : []),
         ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setItems(merged);
         const seen = Number(localStorage.getItem(SEEN_KEY) || 0);
-        setNewCount(merged.filter((a) => new Date(a.createdAt).getTime() > seen).length);
+        const unread = merged.filter((a) => new Date(a.createdAt).getTime() > seen).length;
+        setNewCount(unread);
+        // Gentle chime when there are new notifications (best-effort — the
+        // browser may block audio until the first gesture on this page).
+        if (unread > 0) playNotifySfx();
       })
       .catch(() => {});
     return () => {

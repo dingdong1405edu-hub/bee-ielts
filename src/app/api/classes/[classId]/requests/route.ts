@@ -10,6 +10,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireTeacher, canManageAllClasses } from "@/lib/teacher-auth";
+import { notify } from "@/lib/notify";
 
 const bodySchema = z.object({
   studentId: z.string().min(1),
@@ -32,7 +33,7 @@ export async function POST(
 
   const cls = await prisma.class.findUnique({
     where: { id: classId },
-    select: { teacherId: true },
+    select: { teacherId: true, name: true },
   });
   if (!cls) return NextResponse.json({ error: "Không tìm thấy lớp" }, { status: 404 });
   if (cls.teacherId !== gate.id && !canManageAllClasses(gate.role)) {
@@ -51,12 +52,24 @@ export async function POST(
         data: { status: "APPROVED", decidedAt: new Date() },
       }),
     ]);
+    await notify(studentId, {
+      kind: "class",
+      title: "Được duyệt vào lớp 🎉",
+      body: `Bạn đã được duyệt vào lớp "${cls.name}". Vào lớp để nhận bài tập nhé!`,
+      href: "/classes",
+    });
     return NextResponse.json({ approved: true });
   }
 
   await prisma.classJoinRequest.updateMany({
     where: { classId, studentId },
     data: { status: "REJECTED", decidedAt: new Date() },
+  });
+  await notify(studentId, {
+    kind: "class",
+    title: "Yêu cầu vào lớp bị từ chối",
+    body: `Yêu cầu vào lớp "${cls.name}" của bạn chưa được duyệt.`,
+    href: "/classes",
   });
   return NextResponse.json({ rejected: true });
 }
