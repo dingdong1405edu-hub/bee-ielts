@@ -42,11 +42,22 @@ function GoogleIcon({ className }: { className?: string }) {
   );
 }
 
+type AccountRole = "LEARNER" | "TEACHER" | "PARENT";
+
 function LoginForm() {
   const params = useSearchParams();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [role, setRole] = useState<AccountRole>("LEARNER");
   const destination = params.get("from") ?? params.get("callbackUrl") ?? "/dashboard";
+  // New users pick their persona here; it rides through the OAuth round-trip on
+  // the callbackUrl and /welcome applies it (only for a not-yet-onboarded user —
+  // existing accounts keep their role, so re-picking here can't demote anyone).
+  // Only forward `next` for a real deep link — otherwise let /welcome route to
+  // the chosen role's home (a new teacher should land on /teacher, not /dashboard).
+  const isDeepLink = destination !== "/dashboard";
+  const onboardUrl =
+    `/welcome?role=${role}` + (isDeepLink ? `&next=${encodeURIComponent(destination)}` : "");
 
   // ID + password sign-in (opt-in; the account is first created via Google).
   const [showPw, setShowPw] = useState(false);
@@ -63,7 +74,7 @@ function LoginForm() {
     // `from` is set by the edge middleware; `callbackUrl` is what Auth.js's own
     // pages.signIn redirect appends — accept either so server-gated deep links
     // survive the Google round-trip.
-    signIn("google", { callbackUrl: destination });
+    signIn("google", { callbackUrl: onboardUrl });
   };
 
   const signInPassword = async (e: React.FormEvent) => {
@@ -173,6 +184,24 @@ function LoginForm() {
           <ScrollReveal delay={150}>
             <div className="relative overflow-hidden rounded-3xl border bg-card/80 p-6 shadow-xl shadow-sage/5 backdrop-blur md:p-8">
               <div className="relative space-y-4 text-center">
+                {/* Persona picker — like the reference login. Applied on first
+                    sign-in; existing accounts keep their role. */}
+                <div className="text-left">
+                  <label htmlFor="acctype" className="text-sm font-semibold">
+                    Chọn loại tài khoản
+                  </label>
+                  <select
+                    id="acctype"
+                    value={role}
+                    onChange={(e) => setRole(e.target.value as AccountRole)}
+                    className="mt-1.5 h-11 w-full rounded-xl border bg-background px-3 text-sm font-medium outline-none focus:ring-2 focus:ring-primary/40"
+                  >
+                    <option value="LEARNER">Học sinh</option>
+                    <option value="TEACHER">Giáo viên</option>
+                    <option value="PARENT">Phụ huynh</option>
+                  </select>
+                </div>
+
                 <p className="text-sm text-muted-foreground">
                   Đăng nhập hoặc tạo tài khoản chỉ với một chạm bằng Google.
                   Lần đầu đăng nhập sẽ tự tạo tài khoản cho bạn.
