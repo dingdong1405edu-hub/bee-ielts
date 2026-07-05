@@ -147,6 +147,7 @@ model User {
   submissions         Submission[]             @relation("StudentSubmissions")
   parentLinks         ParentStudent[]          @relation("ParentLinks") // as parent → children
   studentParents      ParentStudent[]          @relation("StudentParents") // as student → parents
+  questionsCreated    Question[]               @relation("QuestionsCreated") // đề riêng GV tự tạo
 }
 
 /// A two-way support conversation between one learner and the Bee admin team.
@@ -629,10 +630,28 @@ model Question {
   listeningId   String?
   listening     ListeningTest? @relation(fields: [listeningId], references: [id], onDelete: Cascade)
 
+  // --- Teacher-authored ("đề riêng") support --------------------------------
+  // Who created this question. NULL = câu hỏi hệ thống (ngân hàng đề chung,
+  // do admin seed). Set = câu hỏi riêng của một giáo viên. onDelete: SetNull
+  // giữ lại câu hỏi trong các bài đã giao ngay cả khi tài khoản GV bị xoá.
+  // (Cột khái niệm: created_by.)
+  createdById   String?
+  createdBy     User?          @relation("QuestionsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  // false = đề riêng của giáo viên (chỉ họ thấy/dùng); true = chia sẻ vào ngân
+  // hàng đề chung cho mọi giáo viên. Câu hỏi hệ thống cũng để true. (is_public.)
+  isPublic      Boolean        @default(false)
+  // Mảng file đính kèm do GV tải lên: [{ kind, url, name?, mime?, sizeBytes? }]
+  // — kind ví dụ "audio" (MP3 cho Listening), "image", "pdf" (Reading). JSONB.
+  attachments   Json?
+
   // Every test load does `include: { questions }` → WHERE readingId/listeningId.
   // Index the FK columns so that's an index seek, not a full-table scan.
   @@index([readingId])
   @@index([listeningId])
+  // Giáo viên liệt kê "đề của tôi" (createdById) & lọc ngân hàng đề chung
+  // (isPublic) — index để không phải quét toàn bảng.
+  @@index([createdById])
+  @@index([isPublic])
 }
 
 model WritingTask {
