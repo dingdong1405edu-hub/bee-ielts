@@ -9,6 +9,9 @@ import { isAnswerCorrect } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { WritingFeedback, type WritingResult } from "@/components/learn/writing-feedback";
+import { AnnotatedEssay } from "@/components/learn/annotated-essay";
+import { SpeakingReviewBody, type SpeakingFeedback } from "@/components/learn/speaking-review-body";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +60,7 @@ export default async function StudentAttemptPage({
     select: {
       id: true,
       title: true,
+      skill: true,
       questionIds: true,
       class: { select: { name: true, teacherId: true } },
     },
@@ -70,7 +74,7 @@ export default async function StudentAttemptPage({
     prisma.user.findUnique({ where: { id: studentId }, select: { name: true, email: true } }),
     prisma.submission.findUnique({
       where: { assignmentId_studentId: { assignmentId: id, studentId } },
-      select: { status: true, totalScore: true, answers: true, cheatLogs: true, submittedAt: true },
+      select: { status: true, totalScore: true, answers: true, feedback: true, transcript: true, cheatLogs: true, submittedAt: true },
     }),
     prisma.question.findMany({
       where: { id: { in: assignment.questionIds } },
@@ -86,6 +90,14 @@ export default async function StudentAttemptPage({
 
   const answers = answerMap(submission?.answers ?? null);
   const notSubmitted = !submission || submission.status === "PENDING";
+
+  // Writing/Speaking submissions carry the essay/transcript + AI feedback and
+  // are rendered with the same components as the student's profile review.
+  const isWriting = assignment.skill === "WRITING";
+  const isSpeaking = assignment.skill === "SPEAKING";
+  const answersObj = (submission?.answers ?? {}) as { essay?: string; transcript?: string };
+  const feedback = (submission?.feedback ?? null) as unknown;
+  const objective = !isWriting && !isSpeaking;
 
   let correct = 0;
   const rows = questions.map((q, i) => {
@@ -118,9 +130,11 @@ export default async function StudentAttemptPage({
           ) : (
             <>
               <Badge variant="success">Band {submission?.totalScore?.toFixed(1) ?? "—"}</Badge>
-              <Badge variant="secondary">
-                Đúng {correct}/{questions.length}
-              </Badge>
+              {objective && (
+                <Badge variant="secondary">
+                  Đúng {correct}/{questions.length}
+                </Badge>
+              )}
               {cheat > 0 && (
                 <Badge variant="destructive">
                   <ShieldAlert className="h-3.5 w-3.5" /> Rời tab {cheat} lần
@@ -137,6 +151,32 @@ export default async function StudentAttemptPage({
             Học sinh này chưa nộp bài.
           </CardContent>
         </Card>
+      ) : isWriting ? (
+        <div className="space-y-4">
+          <Card><CardContent className="space-y-2 p-5">
+            <h3 className="font-bold">Bài viết của học sinh</h3>
+            <AnnotatedEssay
+              essay={answersObj.essay ?? ""}
+              annotations={(feedback as WritingResult | null)?.annotations ?? []}
+              showCorrections
+            />
+          </CardContent></Card>
+          {feedback ? <WritingFeedback result={feedback as WritingResult} taskLabel="" /> : null}
+        </div>
+      ) : isSpeaking ? (
+        <SpeakingReviewBody
+          score={submission?.totalScore ?? 0}
+          feedback={(feedback ?? {}) as SpeakingFeedback}
+
+          transcripts={
+            submission?.transcript
+              ? [{ label: "", text: submission.transcript }]
+              : answersObj.transcript
+                ? [{ label: "", text: answersObj.transcript }]
+                : []
+          }
+          userName={student.name}
+        />
       ) : (
         <div className="space-y-2.5">
           {rows.map((r) => (

@@ -1,15 +1,38 @@
 import { redirect } from "next/navigation";
+import type { Prisma } from "@prisma/client";
 import { ArrowDownRight, ArrowUpRight, ClipboardList, GraduationCap, TrendingUp, Users } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { canManageAllClasses } from "@/lib/teacher-auth";
 import { Card, CardContent } from "@/components/ui/card";
 import { BarChart, type BarDatum } from "@/components/teacher/bar-chart";
+import { DonutChart, type DonutDatum } from "@/components/teacher/donut-chart";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
+
+/** Skill of a submission: the assignment's explicit skill, else the legacy
+ *  paper-mode skill in config. */
+function skillOf(skill: string | null, config: Prisma.JsonValue | null): string {
+  if (skill) return skill;
+  if (config && typeof config === "object" && !Array.isArray(config)) {
+    const paper = (config as Record<string, unknown>).paper;
+    if (paper && typeof paper === "object" && !Array.isArray(paper)) {
+      const s = (paper as Record<string, unknown>).skill;
+      if (typeof s === "string") return s;
+    }
+  }
+  return "READING";
+}
+
+const SKILL_SLICES: { key: string; label: string; colorClass: string }[] = [
+  { key: "READING", label: "Reading", colorClass: "text-leaf" },
+  { key: "LISTENING", label: "Listening", colorClass: "text-sky-600" },
+  { key: "WRITING", label: "Writing", colorClass: "text-honey-deep" },
+  { key: "SPEAKING", label: "Speaking", colorClass: "text-rose-500" },
+];
 
 /** Teacher analytics — activity this month + 6-month trends (submissions,
  *  average band). Server-computed; charts are inline SVG. */
@@ -48,9 +71,26 @@ export default async function TeacherAnalyticsPage() {
           status: { in: ["SUBMITTED", "GRADED"] },
           submittedAt: { gte: windowStart },
         },
-        select: { submittedAt: true, totalScore: true, studentId: true },
+        select: {
+          submittedAt: true,
+          totalScore: true,
+          studentId: true,
+          assignment: { select: { skill: true, config: true } },
+        },
       })
     : [];
+
+  // Distribution by skill (for the donut).
+  const skillCounts: Record<string, number> = { READING: 0, LISTENING: 0, WRITING: 0, SPEAKING: 0 };
+  for (const s of subs) {
+    const sk = skillOf(s.assignment.skill, s.assignment.config);
+    if (sk in skillCounts) skillCounts[sk] += 1;
+  }
+  const donutData: DonutDatum[] = SKILL_SLICES.map((s) => ({
+    label: s.label,
+    value: skillCounts[s.key],
+    colorClass: s.colorClass,
+  }));
 
   const counts = months.map(() => 0);
   const bandSum = months.map(() => 0);
@@ -124,6 +164,15 @@ export default async function TeacherAnalyticsPage() {
         <p className="mb-3 text-xs text-muted-foreground">Thang điểm IELTS 0–9</p>
         <Card><CardContent className="p-4">
           <BarChart data={bandData} colorClass="text-leaf" max={9} />
+        </CardContent></Card>
+      </section>
+
+      {/* Submissions by skill — pie/donut */}
+      <section>
+        <h2 className="mb-1 text-sm font-semibold">Bài nộp theo kỹ năng</h2>
+        <p className="mb-3 text-xs text-muted-foreground">6 tháng gần nhất</p>
+        <Card><CardContent className="p-5">
+          <DonutChart data={donutData} centerLabel="bài nộp" />
         </CardContent></Card>
       </section>
     </div>
