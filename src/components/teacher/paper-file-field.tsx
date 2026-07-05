@@ -8,10 +8,12 @@
  */
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { FileText, Headphones, Link2, Loader2, Upload, X } from "lucide-react";
+import { FileText, Headphones, ImageIcon, Link2, Loader2, Upload, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+
+type FileKind = "pdf" | "audio" | "image";
 
 function readAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -29,7 +31,7 @@ export function PaperFileField({
   onChange,
   maxBytes,
 }: {
-  kind: "pdf" | "audio";
+  kind: FileKind;
   label: string;
   value: string;
   onChange: (v: string) => void;
@@ -40,14 +42,17 @@ export function PaperFileField({
 
   const url = value.trim();
   const isData = url.startsWith("data:");
-  const accept = kind === "pdf" ? "application/pdf" : "audio/*";
-  const typeOk = (f: File) => (kind === "pdf" ? f.type === "application/pdf" : f.type.startsWith("audio/"));
+  const accept = kind === "pdf" ? "application/pdf" : kind === "image" ? "image/*" : "audio/*";
+  const typeOk = (f: File) =>
+    kind === "pdf" ? f.type === "application/pdf" : kind === "image" ? f.type.startsWith("image/") : f.type.startsWith("audio/");
   const maxMb = Math.round(maxBytes / 1024 / 1024);
 
   const onFile = async (file: File | undefined) => {
     if (!file) return;
     if (!typeOk(file)) {
-      toast.error(kind === "pdf" ? "Hãy chọn một file PDF" : "Hãy chọn một file âm thanh (mp3, m4a…)");
+      toast.error(
+        kind === "pdf" ? "Hãy chọn một file PDF" : kind === "image" ? "Hãy chọn một ảnh" : "Hãy chọn một file âm thanh (mp3, m4a…)",
+      );
       return;
     }
     if (file.size > maxBytes) {
@@ -68,7 +73,7 @@ export function PaperFileField({
     }
   };
 
-  const Icon = kind === "pdf" ? FileText : Headphones;
+  const Icon = kind === "pdf" ? FileText : kind === "image" ? ImageIcon : Headphones;
 
   return (
     <div className="space-y-2">
@@ -93,6 +98,9 @@ export function PaperFileField({
           {kind === "audio" ? (
             // eslint-disable-next-line jsx-a11y/media-has-caption
             <audio controls src={url} className="w-full" />
+          ) : kind === "image" ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={url} alt={label} className="max-h-64 w-full rounded-md border bg-white object-contain" />
           ) : (
             <iframe src={url} title={label} className="h-64 w-full rounded-md border bg-white" />
           )}
