@@ -9,7 +9,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { BookOpen, Check, ChevronDown, Copy, GraduationCap, Loader2, Lock, Plus, Send, Settings2, Users } from "lucide-react";
+import { BookOpen, Check, ChevronDown, Copy, GraduationCap, Loader2, Lock, Plus, Settings2, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -100,16 +100,9 @@ export function TeacherHome({ initialClasses }: { initialClasses: TeacherClass[]
 
   return (
     <div className="space-y-5">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Lớp học của tôi</h1>
-          <p className="text-sm text-muted-foreground">Tạo lớp, chia sẻ mã cho học sinh và giao bài.</p>
-        </div>
-        <Button asChild variant="brand" className="rounded-full">
-          <Link href="/teacher/assignments/new">
-            <Send className="h-4 w-4" /> Giao bài mới
-          </Link>
-        </Button>
+      <header>
+        <h1 className="text-2xl font-bold">Lớp học của tôi</h1>
+        <p className="text-sm text-muted-foreground">Tạo lớp, chia sẻ mã cho học sinh. Giao bài ở tab “Giao bài”.</p>
       </header>
 
       {/* Create class */}

@@ -4,6 +4,7 @@ import { GraduationCap } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { isTeacherOrAdmin } from "@/lib/teacher-auth";
+import { TeacherTabs } from "@/components/teacher/teacher-tabs";
 
 /**
  * Teacher Portal shell. Role is checked against the DB here (Node runtime), not
@@ -24,7 +25,7 @@ export default async function TeacherLayout({ children }: { children: React.Reac
     <div className="min-h-screen bg-muted/20">
       <header className="sticky top-0 z-20 border-b bg-card/95 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center gap-2 px-4 py-3">
-          <Link href="/teacher/assignments/new" className="flex items-center gap-2 font-bold">
+          <Link href="/teacher" className="flex items-center gap-2 font-bold">
             <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground">
               <GraduationCap className="h-4 w-4" />
             </span>
@@ -37,6 +38,7 @@ export default async function TeacherLayout({ children }: { children: React.Reac
             ← Về học tập
           </Link>
         </div>
+        <TeacherTabs />
       </header>
       <main className="mx-auto max-w-5xl px-4 py-6">{children}</main>
     </div>
