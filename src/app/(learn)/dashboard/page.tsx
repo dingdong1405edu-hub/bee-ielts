@@ -9,6 +9,7 @@ import { StatsRow } from "@/components/learn/stats-row";
 import { ExamCountdown } from "@/components/learn/exam-countdown";
 import { StudySchedule } from "@/components/learn/study-schedule";
 import { PremiumCouponCards } from "@/components/learn/premium-coupon-cards";
+import { DashboardClasses, type DashAssignment } from "@/components/learn/dashboard-classes";
 import { BeeMascot, Leaf } from "@/components/brand";
 
 // Per-skill accent gradients — vibrant, distinct hue per module (Duolingo
@@ -74,6 +75,61 @@ export default async function DashboardPage() {
   const displayStreak = computeDisplayStreak(user.streakDays, user.lastActiveAt);
   const restore = getStreakRestoreState(user);
 
+  // Classroom homework for the featured "Lớp học" block — the student's newest
+  // assignments across every class they're in, undone first, top 4.
+  const memberships = await prisma.classMember.findMany({
+    where: { studentId: session.user.id },
+    select: {
+      class: {
+        select: {
+          name: true,
+          assignments: {
+            orderBy: { createdAt: "desc" },
+            take: 20,
+            select: { id: true, title: true, deadline: true },
+          },
+        },
+      },
+    },
+  });
+  const flatAssignments = memberships.flatMap((m) =>
+    m.class.assignments.map((a) => ({ ...a, className: m.class.name })),
+  );
+  const subMap = new Map(
+    flatAssignments.length
+      ? (
+          await prisma.submission.findMany({
+            where: {
+              assignmentId: { in: flatAssignments.map((a) => a.id) },
+              studentId: session.user.id,
+            },
+            select: { assignmentId: true, status: true, totalScore: true },
+          })
+        ).map((s) => [s.assignmentId, s])
+      : [],
+  );
+  const classAssignments: DashAssignment[] = flatAssignments
+    .map((a) => {
+      const s = subMap.get(a.id);
+      return {
+        id: a.id,
+        title: a.title,
+        className: a.className,
+        deadline: a.deadline ? a.deadline.toISOString() : null,
+        status: (s?.status ?? "NOT_STARTED") as DashAssignment["status"],
+        band: s?.totalScore ?? null,
+      };
+    })
+    .sort((x, y) => {
+      const dx = x.status === "SUBMITTED" || x.status === "GRADED" ? 1 : 0;
+      const dy = y.status === "SUBMITTED" || y.status === "GRADED" ? 1 : 0;
+      if (dx !== dy) return dx - dy;
+      const tx = x.deadline ? new Date(x.deadline).getTime() : Infinity;
+      const ty = y.deadline ? new Date(y.deadline).getTime() : Infinity;
+      return tx - ty;
+    })
+    .slice(0, 4);
+
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
       {/* Hero: always the Bee IELTS mascot on the left (user feedback:
@@ -105,6 +161,10 @@ export default async function DashboardPage() {
         weekMinutes={weekMinutes}
         weekSessions={weekAttempts.length}
       />
+
+      {/* Featured classroom block — makes "Lớp học" stand out on the home
+          screen: join by code + assigned homework. */}
+      <DashboardClasses assignments={classAssignments} classCount={memberships.length} />
 
       <ExamCountdown examDate={user.examDate ? user.examDate.toISOString().slice(0, 10) : null} />
 
