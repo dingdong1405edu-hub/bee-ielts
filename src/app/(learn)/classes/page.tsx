@@ -12,6 +12,15 @@ export default async function ClassesPage() {
   if (!session?.user?.id) redirect("/login");
   const studentId = session.user.id;
 
+  // Managers/parents don't "join a class" — send them to their own portal so
+  // this student-only enrollment view can't put a teacher into the student flow.
+  const me = await prisma.user.findUnique({
+    where: { id: studentId },
+    select: { role: true },
+  });
+  if (me?.role === "TEACHER") redirect("/teacher");
+  if (me?.role === "PARENT") redirect("/parent");
+
   const memberships = await prisma.classMember.findMany({
     where: { studentId },
     orderBy: { joinedAt: "desc" },

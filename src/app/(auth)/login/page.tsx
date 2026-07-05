@@ -97,7 +97,11 @@ function LoginForm() {
       setPwLoading(false);
       return;
     }
-    router.push(destination);
+    // Route by role via /welcome (it server-redirects an onboarded teacher →
+    // /teacher, parent → /parent, learner → /dashboard) unless a real deep link
+    // was requested. Otherwise a teacher logging in by ID lands on the student
+    // dashboard.
+    router.push(isDeepLink ? destination : "/welcome");
     router.refresh();
   };
 

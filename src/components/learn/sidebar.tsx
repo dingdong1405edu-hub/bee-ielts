@@ -98,10 +98,14 @@ export function Sidebar({
 
       {/* Account block */}
       <div className="space-y-0.5 border-t border-border p-3">
-        <Link href="/classes" title="Lớp học của tôi" aria-current={isNavActive(pathname, "/classes") ? "page" : undefined} className={itemClass(isNavActive(pathname, "/classes"))}>
-          <BookOpen size={18} className="shrink-0" />
-          <span className={labelCls}>Lớp học</span>
-        </Link>
+        {/* Student join-a-class view — only for learners (teachers/parents have
+            their own portal links below and don't join classes by code). */}
+        {!isTeacher && !isParent && (
+          <Link href="/classes" title="Lớp học của tôi" aria-current={isNavActive(pathname, "/classes") ? "page" : undefined} className={itemClass(isNavActive(pathname, "/classes"))}>
+            <BookOpen size={18} className="shrink-0" />
+            <span className={labelCls}>Lớp học</span>
+          </Link>
+        )}
         {isTeacher && (
           <Link href="/teacher" title="Trang giáo viên" aria-current={isNavActive(pathname, "/teacher") ? "page" : undefined} className={itemClass(isNavActive(pathname, "/teacher"))}>
             <GraduationCap size={18} className="shrink-0" />

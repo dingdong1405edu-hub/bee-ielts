@@ -34,7 +34,13 @@ export default async function TeacherPage() {
           id: true,
           title: true,
           deadline: true,
-          _count: { select: { submissions: true } },
+          // Count only REAL submissions — a PENDING row is auto-created the
+          // moment a student opens the exam (to anchor the timer), so an
+          // unfiltered count would include students who never submitted.
+          submissions: {
+            where: { status: { in: ["SUBMITTED", "GRADED"] } },
+            select: { id: true },
+          },
         },
       },
       members: {
@@ -63,7 +69,7 @@ export default async function TeacherPage() {
       id: a.id,
       title: a.title,
       deadline: a.deadline ? a.deadline.toISOString() : null,
-      submissionCount: a._count.submissions,
+      submissionCount: a.submissions.length,
     })),
     members: c.members.map((m) => ({
       id: m.student.id,

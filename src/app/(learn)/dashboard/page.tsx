@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Sparkles, BookOpenText, BookOpen, Headphones, PenLine, Mic, ArrowRight, GraduationCap, Video, Play, Link2 } from "lucide-react";
+import { Sparkles, BookOpenText, BookOpen, Headphones, PenLine, Mic, ArrowRight, GraduationCap, Video, Play, Link2, Users } from "lucide-react";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
@@ -162,9 +162,26 @@ export default async function DashboardPage() {
         weekSessions={weekAttempts.length}
       />
 
-      {/* Featured classroom block — makes "Lớp học" stand out on the home
-          screen: join by code + assigned homework. */}
-      <DashboardClasses assignments={classAssignments} classCount={memberships.length} />
+      {/* Classroom block. Learners get the student "join + homework" card;
+          teachers/parents get a CTA into their own portal instead of the
+          student join-a-class block (which is meaningless for them). */}
+      {user.role === "TEACHER" ? (
+        <PortalCta
+          href="/teacher"
+          Icon={GraduationCap}
+          title="Trang giáo viên"
+          desc="Quản lý lớp, giao bài và kiểm tra kết quả học sinh."
+        />
+      ) : user.role === "PARENT" ? (
+        <PortalCta
+          href="/parent"
+          Icon={Users}
+          title="Theo dõi con"
+          desc="Xem tiến độ, điểm số và cảnh báo của con."
+        />
+      ) : (
+        <DashboardClasses assignments={classAssignments} classCount={memberships.length} />
+      )}
 
       <ExamCountdown examDate={user.examDate ? user.examDate.toISOString().slice(0, 10) : null} />
 
@@ -301,5 +318,37 @@ export default async function DashboardPage() {
         hasPendingRequest={pendingPremiumRequest}
       />
     </div>
+  );
+}
+
+/** Featured card sending a teacher/parent into their own portal (shown instead
+ *  of the student join-a-class block on the shared dashboard). */
+function PortalCta({
+  href,
+  Icon,
+  title,
+  desc,
+}: {
+  href: string;
+  Icon: typeof GraduationCap;
+  title: string;
+  desc: string;
+}) {
+  return (
+    <Link href={href} className="block group">
+      <div className="relative overflow-hidden rounded-3xl gradient-brand p-6 md:p-8 text-white shadow-xl shadow-primary/20 transition-all hover:shadow-2xl hover:-translate-y-0.5">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_15%,rgba(255,255,255,0.2),transparent_50%)]" />
+        <div className="relative flex items-center gap-4">
+          <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/15 backdrop-blur border border-white/20">
+            <Icon className="h-7 w-7" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">{title}</h2>
+            <p className="text-white/90 text-sm mt-0.5">{desc}</p>
+          </div>
+          <ArrowRight className="h-6 w-6 group-hover:translate-x-1 transition-transform" />
+        </div>
+      </div>
+    </Link>
   );
 }

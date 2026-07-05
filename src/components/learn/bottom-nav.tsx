@@ -174,7 +174,9 @@ export function BottomNav({
             <div className="mb-2">
               <p className="mb-2 px-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">Tài khoản</p>
               <div className="grid grid-cols-3 gap-2.5">
-                <SheetTile item={{ href: "/classes", label: "Lớp học", icon: BookOpen }} />
+                {!isTeacher && !isParent && (
+                  <SheetTile item={{ href: "/classes", label: "Lớp học", icon: BookOpen }} />
+                )}
                 {isTeacher && <SheetTile item={{ href: "/teacher", label: "Giáo viên", icon: GraduationCap }} />}
                 {isParent && <SheetTile item={{ href: "/parent", label: "Phụ huynh", icon: Users }} />}
                 <SheetTile item={{ href: "/premium", label: "Premium", icon: Crown }} />
