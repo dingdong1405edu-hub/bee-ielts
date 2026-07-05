@@ -188,16 +188,24 @@ export function TeacherHome({ initialClasses }: { initialClasses: TeacherClass[]
                 )}
 
                 {c.assignments.length > 0 && (
-                  <ul className="mt-4 divide-y divide-border rounded-lg border">
+                  <p className="mt-4 mb-1.5 text-xs font-semibold text-muted-foreground">
+                    Bài đã giao — bấm để kiểm tra kết quả học sinh
+                  </p>
+                )}
+                {c.assignments.length > 0 && (
+                  <ul className="divide-y divide-border rounded-lg border">
                     {c.assignments.map((a) => (
-                      <li key={a.id} className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm">
-                        <Link href={`/exam/${a.id}`} className="min-w-0 flex-1 truncate font-medium hover:underline">
-                          {a.title}
+                      <li key={a.id}>
+                        <Link
+                          href={`/teacher/assignments/${a.id}`}
+                          className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm transition-colors hover:bg-accent"
+                        >
+                          <span className="min-w-0 flex-1 truncate font-medium">{a.title}</span>
+                          <span className="shrink-0 text-xs text-muted-foreground">Hạn: {fmtDate(a.deadline)}</span>
+                          <Badge variant="secondary" className="shrink-0">
+                            {a.submissionCount} nộp
+                          </Badge>
                         </Link>
-                        <span className="shrink-0 text-xs text-muted-foreground">Hạn: {fmtDate(a.deadline)}</span>
-                        <Badge variant="secondary" className="shrink-0">
-                          {a.submissionCount} nộp
-                        </Badge>
                       </li>
                     ))}
                   </ul>
