@@ -118,6 +118,11 @@ model User {
   /// Null = the premium grant (if any) is permanent — owner/coupon grants
   /// leave this null so they never expire.
   premiumUntil       DateTime?
+  /// When the user picked their persona on /welcome (Học sinh/Phụ huynh/Giáo
+  /// viên). Null = hasn't chosen yet → they get the onboarding screen once.
+  /// A "Học sinh" stays role=LEARNER (the learner app assumes LEARNER), so this
+  /// flag is what distinguishes "chose student" from "brand-new".
+  onboardedAt        DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
@@ -1026,6 +1031,10 @@ model Class {
   /// FK → User (the teacher who owns/teaches this class).
   teacherId String
   teacher   User     @relation("ClassTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  /// Short human-typable code students enter to self-enrol (như Google
+  /// Classroom). Unique, uppercase. Nullable for legacy classes created before
+  /// codes existed — those get one lazily.
+  joinCode  String?  @unique
   createdAt DateTime @default(now())
 
   members     ClassMember[]
