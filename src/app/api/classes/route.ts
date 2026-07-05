@@ -8,6 +8,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireTeacher } from "@/lib/teacher-auth";
+import { generateUniqueJoinCode } from "@/lib/join-code";
 
 const bodySchema = z.object({
   name: z.string().trim().min(1, "Cần tên lớp").max(120),
@@ -25,9 +26,10 @@ export async function POST(req: Request) {
     );
   }
 
+  const joinCode = await generateUniqueJoinCode();
   const created = await prisma.class.create({
-    data: { name: parsed.data.name, teacherId: gate.id },
-    select: { id: true, name: true, teacherId: true, createdAt: true },
+    data: { name: parsed.data.name, teacherId: gate.id, joinCode },
+    select: { id: true, name: true, teacherId: true, joinCode: true, createdAt: true },
   });
 
   return NextResponse.json({ class: created }, { status: 201 });

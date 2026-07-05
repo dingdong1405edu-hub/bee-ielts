@@ -1,15 +1,19 @@
 /**
- * GET /api/parent/student-progress — MOCK endpoint.
+ * GET /api/parent/student-progress — real progress for a parent's linked child.
  *
- * Trả về tiến độ học của con (dành cho màn hình ParentDashboard). Hiện đang trả
- * DỮ LIỆU GIẢ để dựng/kiểm thử UI trước khi nối thật vào Prisma
- * (ParentStudent → ClassMember → Submission). Shape đã khớp với model thật để
- * sau này chỉ cần thay phần thân hàm bằng truy vấn DB, UI không phải sửa.
+ * Resolves the parent's children (ParentStudent), picks one (?studentId= or the
+ * first), then aggregates across the child's classes:
+ *   - summary: completed vs assigned, average band, per-skill averages
+ *   - overdue: assignments past deadline the child hasn't submitted
+ *   - recent: latest submissions, with cheatCount from Submission.cheatLogs
  *
- * `cheatCount` = số sự kiện trong Submission.cheatLogs (con thoát tab khi làm
- * bài). > 0 → frontend hiển thị Warning Badge.
+ * `cheatCount > 0` → the ParentDashboard shows a Warning Badge. Returns
+ * { linked: false } when the parent hasn't linked any child yet (→ link form).
  */
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
+import { auth } from "@/auth";
+import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -19,15 +23,13 @@ export interface ParentSkillAverages {
   writing: number | null;
   speaking: number | null;
 }
-
 export interface ParentOverdueItem {
   id: string;
   title: string;
   className: string;
   skill: string;
-  deadline: string; // ISO
+  deadline: string;
 }
-
 export interface ParentRecentSubmission {
   id: string;
   assignmentTitle: string;
@@ -36,112 +38,173 @@ export interface ParentRecentSubmission {
   band: number | null;
   scorePercent: number | null;
   status: "PENDING" | "SUBMITTED" | "GRADED";
-  submittedAt: string | null; // ISO
+  submittedAt: string | null;
   cheatCount: number;
 }
-
 export interface ParentStudentProgress {
-  student: { id: string; name: string; avatarUrl: string | null };
+  linked: boolean;
+  children: { id: string; name: string }[];
+  student: { id: string; name: string; avatarUrl: string | null } | null;
   summary: {
     completedCount: number;
     totalAssigned: number;
     avgBand: number | null;
     skillAverages: ParentSkillAverages;
-  };
+  } | null;
   overdue: ParentOverdueItem[];
   recent: ParentRecentSubmission[];
 }
 
-const MOCK: ParentStudentProgress = {
-  student: { id: "stu_mock_1", name: "Minh Anh", avatarUrl: null },
-  summary: {
-    completedCount: 18,
-    totalAssigned: 23,
-    avgBand: 6.5,
-    skillAverages: { reading: 7.0, listening: 6.5, writing: 5.5, speaking: 6.0 },
-  },
-  overdue: [
-    {
-      id: "asg_ov_1",
-      title: "Reading — The History of Tea",
-      className: "IELTS Foundation A",
-      skill: "READING",
-      deadline: "2026-07-02T15:00:00.000Z",
-    },
-    {
-      id: "asg_ov_2",
-      title: "Writing Task 2 — Technology & Society",
-      className: "IELTS Foundation A",
-      skill: "WRITING",
-      deadline: "2026-07-03T09:00:00.000Z",
-    },
-    {
-      id: "asg_ov_3",
-      title: "Listening — Section 3 Practice",
-      className: "IELTS Intensive B",
-      skill: "LISTENING",
-      deadline: "2026-07-04T12:00:00.000Z",
-    },
-  ],
-  recent: [
-    {
-      id: "sub_1",
-      assignmentTitle: "Reading — Renewable Energy",
-      className: "IELTS Foundation A",
-      skill: "READING",
-      band: 7.0,
-      scorePercent: 85,
-      status: "GRADED",
-      submittedAt: "2026-07-04T14:20:00.000Z",
-      cheatCount: 0,
-    },
-    {
-      id: "sub_2",
-      assignmentTitle: "Listening — Section 2",
-      className: "IELTS Foundation A",
-      skill: "LISTENING",
-      band: 6.0,
-      scorePercent: 70,
-      status: "GRADED",
-      submittedAt: "2026-07-03T16:45:00.000Z",
-      cheatCount: 3,
-    },
-    {
-      id: "sub_3",
-      assignmentTitle: "Writing Task 1 — Bar Chart",
-      className: "IELTS Foundation A",
-      skill: "WRITING",
-      band: 5.5,
-      scorePercent: null,
-      status: "GRADED",
-      submittedAt: "2026-07-02T10:10:00.000Z",
-      cheatCount: 0,
-    },
-    {
-      id: "sub_4",
-      assignmentTitle: "Reading — Ocean Life",
-      className: "IELTS Intensive B",
-      skill: "READING",
-      band: 6.5,
-      scorePercent: 78,
-      status: "GRADED",
-      submittedAt: "2026-07-01T13:30:00.000Z",
-      cheatCount: 1,
-    },
-    {
-      id: "sub_5",
-      assignmentTitle: "Speaking — Part 2 Cue Card",
-      className: "IELTS Intensive B",
-      skill: "SPEAKING",
-      band: null,
-      scorePercent: null,
-      status: "SUBMITTED",
-      submittedAt: "2026-06-30T08:00:00.000Z",
-      cheatCount: 0,
-    },
-  ],
+/** Read the assignment's declared paper skill from its config JSON. */
+function paperSkill(config: Prisma.JsonValue | null | undefined): "READING" | "LISTENING" | null {
+  if (config && typeof config === "object" && !Array.isArray(config)) {
+    const paper = (config as Record<string, unknown>).paper;
+    if (paper && typeof paper === "object" && !Array.isArray(paper)) {
+      const s = (paper as Record<string, unknown>).skill;
+      if (s === "READING" || s === "LISTENING") return s;
+    }
+  }
+  return null;
+}
+
+function cheatCountOf(cheatLogs: Prisma.JsonValue | null | undefined): number {
+  if (cheatLogs && typeof cheatLogs === "object" && !Array.isArray(cheatLogs)) {
+    const c = (cheatLogs as Record<string, unknown>).count;
+    if (typeof c === "number") return c;
+  }
+  return 0;
+}
+
+const round1 = (n: number) => Math.round(n * 10) / 10;
+const avg = (xs: number[]): number | null => (xs.length ? round1(xs.reduce((s, x) => s + x, 0) / xs.length) : null);
+
+const EMPTY: ParentStudentProgress = {
+  linked: false,
+  children: [],
+  student: null,
+  summary: null,
+  overdue: [],
+  recent: [],
 };
 
-export async function GET() {
-  return NextResponse.json(MOCK);
+export async function GET(req: Request) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Chưa đăng nhập" }, { status: 401 });
+  }
+  const parentId = session.user.id;
+
+  const links = await prisma.parentStudent.findMany({
+    where: { parentId },
+    orderBy: { createdAt: "asc" },
+    select: { student: { select: { id: true, name: true, email: true } } },
+  });
+  const children = links.map((l) => ({
+    id: l.student.id,
+    name: l.student.name ?? l.student.email.split("@")[0],
+  }));
+  if (children.length === 0) return NextResponse.json(EMPTY);
+
+  const wanted = new URL(req.url).searchParams.get("studentId");
+  const childId = children.find((c) => c.id === wanted)?.id ?? children[0].id;
+  const child = await prisma.user.findUnique({
+    where: { id: childId },
+    select: { id: true, name: true, email: true, avatarUrl: true },
+  });
+  if (!child) return NextResponse.json(EMPTY);
+
+  const memberships = await prisma.classMember.findMany({
+    where: { studentId: childId },
+    select: { classId: true },
+  });
+  const classIds = memberships.map((m) => m.classId);
+
+  const assignments = classIds.length
+    ? await prisma.assignment.findMany({
+        where: { classId: { in: classIds } },
+        select: { id: true, title: true, deadline: true, config: true, class: { select: { name: true } } },
+      })
+    : [];
+  const assignmentById = new Map(assignments.map((a) => [a.id, a]));
+  const assignmentIds = assignments.map((a) => a.id);
+
+  const submissions = assignmentIds.length
+    ? await prisma.submission.findMany({
+        where: { assignmentId: { in: assignmentIds }, studentId: childId },
+        select: {
+          id: true,
+          assignmentId: true,
+          status: true,
+          totalScore: true,
+          submittedAt: true,
+          updatedAt: true,
+          cheatLogs: true,
+        },
+      })
+    : [];
+  const subByAssignment = new Map(submissions.map((s) => [s.assignmentId, s]));
+
+  const isDone = (status: string) => status === "SUBMITTED" || status === "GRADED";
+  const done = submissions.filter((s) => isDone(s.status));
+  const graded = submissions.filter((s) => s.status === "GRADED" && s.totalScore != null);
+
+  // Per-skill band averages (paper-mode assignments carry a skill in config).
+  const reading: number[] = [];
+  const listening: number[] = [];
+  for (const s of graded) {
+    const sk = paperSkill(assignmentById.get(s.assignmentId)?.config);
+    if (sk === "READING") reading.push(s.totalScore as number);
+    else if (sk === "LISTENING") listening.push(s.totalScore as number);
+  }
+
+  const now = Date.now();
+  const overdue: ParentOverdueItem[] = assignments
+    .filter((a) => {
+      const sub = subByAssignment.get(a.id);
+      return a.deadline && a.deadline.getTime() < now && !(sub && isDone(sub.status));
+    })
+    .map((a) => ({
+      id: a.id,
+      title: a.title,
+      className: a.class.name,
+      skill: paperSkill(a.config) ?? "READING",
+      deadline: (a.deadline as Date).toISOString(),
+    }));
+
+  const recent: ParentRecentSubmission[] = done
+    .slice()
+    .sort(
+      (x, y) =>
+        (y.submittedAt ?? y.updatedAt).getTime() - (x.submittedAt ?? x.updatedAt).getTime(),
+    )
+    .slice(0, 8)
+    .map((s) => {
+      const a = assignmentById.get(s.assignmentId);
+      return {
+        id: s.id,
+        assignmentTitle: a?.title ?? "—",
+        className: a?.class.name ?? "",
+        skill: paperSkill(a?.config) ?? "READING",
+        band: s.totalScore,
+        scorePercent: null,
+        status: s.status as ParentRecentSubmission["status"],
+        submittedAt: (s.submittedAt ?? s.updatedAt).toISOString(),
+        cheatCount: cheatCountOf(s.cheatLogs),
+      };
+    });
+
+  const body: ParentStudentProgress = {
+    linked: true,
+    children,
+    student: { id: child.id, name: child.name ?? child.email.split("@")[0], avatarUrl: child.avatarUrl },
+    summary: {
+      completedCount: done.length,
+      totalAssigned: assignments.length,
+      avgBand: avg(graded.map((s) => s.totalScore as number)),
+      skillAverages: { reading: avg(reading), listening: avg(listening), writing: null, speaking: null },
+    },
+    overdue,
+    recent,
+  };
+  return NextResponse.json(body);
 }
