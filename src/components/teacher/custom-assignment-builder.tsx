@@ -189,7 +189,8 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
         setAiNotes(typeof data.notes === "string" ? data.notes : "");
         setShowManual(false);
         playPopSfx();
-        toast.success(`AI đã tách ${parts.length} bài đọc · ${total} câu (giống Reading luyện tập)`);
+        const engine = data?.meta?.engine === "groq" ? " · Groq dự phòng" : "";
+        toast.success(`AI đã tách ${parts.length} bài đọc · ${total} câu${engine}`);
       } else {
         setAiQuestions(data.questions as AiItem[]);
         setAiReading(null);

@@ -6,6 +6,8 @@ import {
   parseReadingExamParts,
   type ReadingExamMulti,
   type ReadingExamPart,
+  type ReadingExamQuestion,
+  type ReadingFigure,
 } from "@/lib/groq";
 
 const client = new Anthropic({
@@ -502,18 +504,141 @@ function normalizeOutline(res: OutlineResult): PassageOutline[] {
   });
 }
 
+/** Normalise a passage title for comparison: drop "Reading Passage N" wrappers +
+ *  punctuation, lowercase. */
+function titleKey(s: string): string {
+  return String(s ?? "")
+    .toLowerCase()
+    .replace(/reading\s+passage\s*\d+/g, " ")
+    .replace(/passage\s*\d+/g, " ")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+/** English function words that carry no title identity — excluded so two titles
+ *  can't score a spurious match on shared "the/and/for…". */
+const TITLE_STOPWORDS = new Set([
+  "the", "a", "an", "and", "or", "of", "to", "in", "on", "at", "for", "from",
+  "with", "by", "as", "is", "are", "was", "were", "be", "been", "its", "it",
+  "this", "that", "these", "those", "into", "over", "under", "between", "their",
+  "our", "your", "more", "most", "some", "all", "not", "but", "than", "then",
+  "new", "one", "two", "about", "can", "will", "how", "why", "who", "what",
+  "when", "where",
+]);
+/** Content words of a title (stopwords + 1-char tokens removed). */
+function titleWords(s: string): Set<string> {
+  return new Set(titleKey(s).split(" ").filter((w) => w.length >= 2 && !TITLE_STOPWORDS.has(w)));
+}
+/** Overlap coefficient of the two titles' content words (0..1). Robust to short
+ *  titles and to one title being a substring of the other. */
+function titleSim(a: string, b: string): number {
+  const wa = titleWords(a);
+  const wb = titleWords(b);
+  if (wa.size === 0 || wb.size === 0) return 0;
+  let inter = 0;
+  for (const w of wa) if (wb.has(w)) inter++;
+  return inter / Math.min(wa.size, wb.size);
+}
+/** Which outline passage does `title` belong to? Returns that index, or -1 when
+ *  there's no clear single winner (weak match or an ambiguous tie) — so callers
+ *  fall back to number-collision reasoning instead of a coin-flip. */
+function bestTitleMatch(title: string, outline: PassageOutline[]): number {
+  let best = -1;
+  let bestScore = 0;
+  let tie = false;
+  outline.forEach((o, i) => {
+    const s = titleSim(title, o.title);
+    if (s > bestScore) {
+      bestScore = s;
+      best = i;
+      tie = false;
+    } else if (s === bestScore && s > 0) {
+      tie = true;
+    }
+  });
+  return bestScore >= 0.5 && !tie ? best : -1;
+}
+
+/** Assign a raw extracted passage `r` to outline[idx]'s question range, returning
+ *  the questions + figures that belong to THIS part. This is the delicate bit — a
+ *  call/whole-paper part can (a) return exactly this passage's questions, (b) leak
+ *  a neighbour's, or (c) return the RIGHT passage but with restarted numbering
+ *  (e.g. 1–14 for a passage that owns 27–40). We must NEVER silently put another
+ *  passage's content here (that mis-grades students with no warning):
+ *   - keep questions whose number is already in THIS range (trims leaks);
+ *   - if the numbers don't line up, use the passage TITLE to tell a genuine
+ *     restart of THIS passage (→ renumber onto the range) from a leaked wrong
+ *     passage (→ reject). Title beats number-collision: a restarted Part 3 numbered
+ *     1–14 "collides" with Part 1's range yet is clearly Part 3 by its title.
+ *   - with no title signal, fall back to the old rule (renumber only if the
+ *     numbers don't fall in any OTHER passage's range).
+ *   - otherwise keep just the in-range set (possibly empty) → surfaced to the
+ *     teacher / filled by the whole-paper pass, never mis-assigned. */
+function assignToRange(
+  r: ReadingExamPart,
+  outline: PassageOutline[],
+  idx: number,
+): { questions: ReadingExamQuestion[]; figures: ReadingFigure[] } {
+  const o = outline[idx];
+  const expected = Math.max(1, o.lastQuestion - o.firstQuestion + 1);
+  const titleIdx = bestTitleMatch(r.title, outline); // -1 | matching outline index
+
+  // (1) LEAK BY TITLE — the content clearly names a DIFFERENT passage. Trust
+  // NOTHING from it, not even numbers that happen to fall in our range (a wrong
+  // passage restarted to 1 fully covers Part 1's 1-based range). Surface this
+  // part empty (teacher is warned / whole-paper fill retries) rather than
+  // silently mis-assign another passage's questions here.
+  if (titleIdx !== -1 && titleIdx !== idx) return { questions: [], figures: [] };
+
+  const inRange = r.questions.filter((q) => q.number >= o.firstQuestion && q.number <= o.lastQuestion);
+  const inRangeFigs = r.figures.filter((f) => f.atNumber >= o.firstQuestion && f.atNumber <= o.lastQuestion);
+
+  // (2) GENUINE RESTART of THIS passage. A restart re-bases the paper's numbering
+  // back to 1, so a genuine one satisfies ALL of:
+  //   - inRange empty            → it holds NONE of this passage's own numbers;
+  //   - titleIdx === idx         → its TITLE anchors to THIS passage (the decisive
+  //                                guard: a spurious/absent title match can never
+  //                                on its own trigger a renumber);
+  //   - min === paper's first #  → it is numbered from the very start of the paper;
+  //   - max <  this range start  → the whole block sits BELOW this passage's range,
+  //                                i.e. a low re-based block — NOT a later or foreign
+  //                                passage that kept its own numbers (14–26), and NOT
+  //                                an outline-missed passage numbered beyond the paper.
+  // Only then do we renumber by position. Anything else (foreign passage that kept
+  // its numbers, out-of-universe numbers from an under-counted outline, a partial
+  // leak that already holds in-range questions) fails a guard and falls through to
+  // the safe in-range-only default, so a neighbour's questions can never be
+  // relabelled into this part. (A genuine restart that also retained a stray
+  // in-range number keeps only that stray here and is topped up by the whole-paper
+  // safety net — a short part is surfaced, never a silent mis-grade.)
+  const nums = r.questions.map((q) => q.number);
+  const isRestart =
+    inRange.length === 0 &&
+    r.questions.length >= 2 &&
+    titleIdx === idx &&
+    Math.min(...nums) === outline[0].firstQuestion &&
+    Math.max(...nums) < o.firstQuestion;
+  if (isRestart) {
+    const slice = r.questions.slice(0, expected);
+    const remap = new Map<number, number>();
+    const questions = slice.map((q, i) => {
+      remap.set(q.number, o.firstQuestion + i);
+      return { ...q, number: o.firstQuestion + i };
+    });
+    const figures = r.figures
+      .filter((f) => remap.has(f.atNumber))
+      .map((f) => ({ ...f, atNumber: remap.get(f.atNumber)! }));
+    return { questions, figures };
+  }
+
+  // (3) DEFAULT — keep only questions whose ORIGINAL number is in this range
+  // (drops strays/leaks). Never relabels a neighbour's question into this part.
+  return { questions: inRange, figures: inRangeFigs };
+}
+
 /** ONE extraction attempt for a passage. The call gets the whole paper's outline
- *  so it knows the boundaries. Assigning the result to this part is the delicate
- *  bit — a call can (a) return exactly this passage's questions, (b) leak a
- *  neighbour's, or (c) return the right passage with restarted numbering, and we
- *  must NEVER silently put another passage's content into this part (that
- *  mis-grades students with no warning). So:
- *   - keep questions whose number is in THIS passage's range (trims leaks);
- *   - only when the returned numbers do NOT belong to ANY other passage (so it's
- *     a genuine restart of THIS passage, not a leak) do we trust position and
- *     renumber them onto the range;
- *   - otherwise keep just the in-range set (possibly empty) → the retry pass +
- *     empty-part guard surface it to the teacher instead of mis-assigning. */
+ *  so it knows the boundaries; `assignToRange` handles putting the result into
+ *  this part safely (restart vs leak). */
 async function extractOnePassage(
   docBlock: unknown,
   outline: PassageOutline[],
@@ -545,32 +670,7 @@ Extract ONLY passage ${idx + 1} — "${o.title}" — and ONLY its questions ${o.
     betas: ["pdfs-2024-09-25"],
   });
   const r = parseReadingExam(extractJSON(betaText(response)) as Record<string, unknown>);
-  const inRange = r.questions.filter((q) => q.number >= o.firstQuestion && q.number <= o.lastQuestion);
-
-  let questions = inRange;
-  let figures = r.figures.filter((f) => f.atNumber >= o.firstQuestion && f.atNumber <= o.lastQuestion);
-
-  if (inRange.length < r.questions.length && inRange.length < expected) {
-    // Some/all returned questions are OUT of this passage's range. Decide: a
-    // restart of THIS passage (safe to renumber) vs a leaked wrong passage
-    // (must reject). It's a restart only if NONE of the returned numbers fall in
-    // another passage's declared range.
-    const collidesOther = r.questions.some((q) =>
-      outline.some((oo, j) => j !== idx && q.number >= oo.firstQuestion && q.number <= oo.lastQuestion),
-    );
-    if (!collidesOther && r.questions.length >= 2) {
-      const slice = r.questions.slice(0, expected);
-      const remap = new Map<number, number>();
-      questions = slice.map((q, i) => {
-        remap.set(q.number, o.firstQuestion + i);
-        return { ...q, number: o.firstQuestion + i };
-      });
-      figures = r.figures
-        .filter((f) => remap.has(f.atNumber))
-        .map((f) => ({ ...f, atNumber: remap.get(f.atNumber)! }));
-    }
-    // else: keep `inRange` — leaks dropped; nothing mis-assigned.
-  }
+  const { questions, figures } = assignToRange(r, outline, idx);
   return { title: r.title || o.title, passage: r.passage, questions, figures };
 }
 
@@ -639,6 +739,8 @@ export async function generateReadingExamFromPdf(pdfBase64: string): Promise<Rea
   }
   const outline = normalizeOutline(outlineRes);
   if (outline.length === 0) return singleCallReadingExam(docBlock);
+  const expectedOf = (o: PassageOutline) => Math.max(1, o.lastQuestion - o.firstQuestion + 1);
+  const expectedTotal = outline.reduce((n, o) => n + expectedOf(o), 0);
 
   // A shared map of the whole paper so every extraction knows the exact
   // boundaries and never bleeds a neighbouring passage's questions into itself.
@@ -656,12 +758,48 @@ export async function generateReadingExamFromPdf(pdfBase64: string): Promise<Rea
   if (parts.every((p) => p.passage.length === 0 && p.questions.length === 0)) {
     return singleCallReadingExam(docBlock);
   }
+
+  // SAFETY NET: if any passage is still empty or short after the per-passage
+  // retries, read the WHOLE paper in ONE call (it sees every passage at once, so
+  // it numbers them consistently) and use it to FILL only the gaps. We try EVERY
+  // whole-paper passage as a candidate for the gap and keep the one that yields
+  // the most in-range questions — running each through the SAME `assignToRange`,
+  // which rejects any candidate that isn't genuinely this passage, so trying them
+  // all is safe (a wrong passage can never be injected). A per-passage call that
+  // keeps failing (a title it can't anchor, one page it won't read) often
+  // succeeds in the holistic pass, so Part 3 stops shipping empty.
+  const isShort = (i: number) => parts[i].questions.length < expectedOf(outline[i]);
+  if (outline.some((_o, i) => isShort(i))) {
+    try {
+      const whole = await singleCallReadingExam(docBlock);
+      outline.forEach((o, i) => {
+        if (!isShort(i)) return;
+        let best = { questions: parts[i].questions, figures: parts[i].figures, passage: parts[i].passage, title: parts[i].title };
+        for (const wp of whole.parts) {
+          const { questions, figures } = assignToRange(wp, outline, i);
+          if (questions.length > best.questions.length) {
+            best = {
+              questions,
+              figures,
+              passage: parts[i].passage || wp.passage,
+              title: parts[i].title || wp.title || o.title,
+            };
+          }
+        }
+        if (best.questions.length > parts[i].questions.length) {
+          parts[i] = { title: best.title, passage: best.passage, questions: best.questions, figures: best.figures };
+        }
+      });
+    } catch (e) {
+      console.error("[generateReadingExamFromPdf] whole-paper fill failed:", e);
+    }
+  }
+
   // KEEP every outline passage as a part (even one that produced nothing) so the
   // Part count/structure is preserved and an empty part is SURFACED to the
   // teacher (builder shows "⚠ chưa có câu hỏi" + blocks the save) rather than a
   // whole passage silently vanishing and shifting the Part numbers.
   const produced = parts.reduce((n, p) => n + p.questions.length, 0);
-  const expectedTotal = outline.reduce((n, o) => n + Math.max(0, o.lastQuestion - o.firstQuestion + 1), 0);
   const missing = Math.max(0, expectedTotal - produced);
   const emptyParts = parts.filter((p) => p.questions.length === 0).length;
   let notes = "";
