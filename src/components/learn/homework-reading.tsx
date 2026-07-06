@@ -329,6 +329,8 @@ export function HomeworkReading({ assignmentId }: { assignmentId: string }) {
             prompt: q.prompt,
             options: q.options,
             correctAnswer: reviewMap.get(q.id)?.correctAnswer ?? "",
+            displayNumber: q.displayNumber ?? null,
+            formGroup: q.formGroup ?? null,
           })),
         }))
       : [];

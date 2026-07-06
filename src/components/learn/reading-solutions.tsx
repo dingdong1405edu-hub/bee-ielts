@@ -4,6 +4,7 @@ import { CheckCircle2, XCircle, Loader2, Sparkles, BookOpen, Languages, Lightbul
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn, isAnswerCorrect } from "@/lib/utils";
+import { groupQuestions, TableBlanks, FlowBlanks, FormBlanks } from "@/components/learn/form-blanks";
 
 export interface SolutionPassage {
   id: string;
@@ -15,6 +16,12 @@ export interface SolutionPassage {
     prompt: string;
     options: string[] | null;
     correctAnswer: string;
+    /** The exam's continuous number (e.g. Part 2 = 14…26); falls back to
+     *  position when absent so a single-passage practice still reads 1,2,3…. */
+    displayNumber?: number | null;
+    /** tbl…/fc… form-completion group so the review can rebuild the table/flow
+     *  read-only instead of printing the raw stitched grid markup. */
+    formGroup?: string | null;
   }[];
 }
 
@@ -140,20 +147,58 @@ export function ReadingSolutions({
         </CardContent>
       </Card>
 
-      {/* Questions with on-demand / auto explanations */}
+      {/* Questions with on-demand / auto explanations. Table/flow-completion
+          runs are rebuilt read-only (with the student's answers filled in) so
+          the review shows the actual table instead of raw stitched markup. */}
       <div className="space-y-3">
-        {current.questions.map((q, i) => {
+        {groupQuestions(current.questions).map((unit) => {
+          if (unit.kind === "form") {
+            const FormBlock =
+              unit.layout === "table" ? TableBlanks : unit.layout === "flow" ? FlowBlanks : FormBlanks;
+            const start = unit.items[0]?.displayNumber ?? unit.startNum;
+            return (
+              <div key={`fg-${unit.items[0]?.id}`} className="space-y-2">
+                <FormBlock
+                  items={unit.items}
+                  startNum={start}
+                  answers={answers}
+                  onChange={() => {}}
+                  disabled
+                  submitted
+                />
+                {unit.items.map((q, j) => {
+                  const ua = answers[q.id] || "";
+                  const ok = isAnswerCorrect(ua, q.correctAnswer, q.type);
+                  const num = q.displayNumber ?? start + j;
+                  return (
+                    <QuestionRow
+                      key={q.id}
+                      num={num}
+                      // The raw prompt is the whole stitched grid; show a clean
+                      // per-blank label here (the table above shows the layout).
+                      q={{ ...q, prompt: `Ô trống số ${num}` }}
+                      ua={ua}
+                      ok={ok}
+                      explanation={cache[q.id]}
+                      active={activeQId === q.id}
+                      onSelect={() => selectQuestion(q.id)}
+                    />
+                  );
+                })}
+              </div>
+            );
+          }
+          const q = unit.q;
           const ua = answers[q.id] || "";
           const ok = isAnswerCorrect(ua, q.correctAnswer, q.type);
-          const ex = cache[q.id];
           return (
             <QuestionRow
               key={q.id}
-              num={i + 1}
+              num={q.displayNumber ?? unit.num}
               q={q}
               ua={ua}
               ok={ok}
-              explanation={ex}
+              explanation={cache[q.id]}
               active={activeQId === q.id}
               onSelect={() => selectQuestion(q.id)}
             />

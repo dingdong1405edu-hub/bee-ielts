@@ -33,7 +33,9 @@ export function groupQuestions<T extends { formGroup?: string | null }>(
     if (fg && fg.startsWith("ms")) {
       units.push({ kind: "multi", q: questions[i], num: i + 1 });
       i++;
-    } else if (fg) {
+    } else if (fg && !fg.startsWith("map")) {
+      // "map…" groups are MATCHING_FEATURES dropdowns, NOT fill-in completion —
+      // render them as individual questions, not a form block.
       const items: T[] = [];
       const startNum = i + 1;
       while (i < questions.length && questions[i].formGroup === fg) {

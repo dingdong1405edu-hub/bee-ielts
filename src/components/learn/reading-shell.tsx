@@ -421,8 +421,11 @@ function PartQuestions({
         // Pasted form-completion: every question shares one formGroup key —
         // render the whole block as one flowing passage with inline blanks.
         const fg = groupQuestions[0]?.formGroup;
+        // "map…" groups only exist to keep two maps apart — they are NOT
+        // form-completion (they render as MATCHING_FEATURES dropdowns), so they
+        // must be excluded here or they'd wrongly render as fill-in blanks.
         const isFormGroup =
-          !!fg && !fg.startsWith("ms") && groupQuestions.every((q) => q.formGroup === fg);
+          !!fg && !fg.startsWith("ms") && !fg.startsWith("map") && groupQuestions.every((q) => q.formGroup === fg);
         // Table (tbl…) / flow-chart (fc…) completion get their own layout;
         // everything else flows as a completion passage.
         const FormBlock = fg?.startsWith("tbl") ? TableBlanks : fg?.startsWith("fc") ? FlowBlanks : FormBlanks;
@@ -792,7 +795,8 @@ function BottomNav({
                 <div className="flex items-center gap-0.5 md:gap-1 flex-wrap">
                   {p.questions.map((q, qi) => {
                     const filled = !!(answers[q.id] || "").trim();
-                    const num = start + qi;
+                    // Match the question pane, which numbers by displayNumber.
+                    const num = q.displayNumber ?? start + qi;
                     return (
                       <span
                         key={q.id}
