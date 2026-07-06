@@ -13,6 +13,7 @@ import {
   type Highlight,
   type HighlightTool,
 } from "@/components/learn/highlightable-passage";
+import { usePassageTranslate } from "@/components/learn/use-passage-translate";
 import { formatDuration, cn } from "@/lib/utils";
 
 export type QType =
@@ -174,6 +175,12 @@ export function ReadingShell({
     setHighlights((h) => ({ ...h, [partId]: next }));
 
   const currentPart = parts[activePart];
+  // Word-translate (dịch từ) for the passage — same behaviour as practice.
+  const { onWordClick, popupNode, batchLoading } = usePassageTranslate({
+    tool,
+    passageId: currentPart.id,
+    passage: currentPart.passage,
+  });
   const totalAnswered = (p: ShellPart) =>
     p.questions.filter((q) => (answers[q.id] || "").trim()).length;
 
@@ -284,7 +291,11 @@ export function ReadingShell({
               highlights={highlights[currentPart.id] ?? []}
               tool={tool}
               onChangeHighlights={(next) => setPartHighlights(currentPart.id, next)}
+              onWordClick={onWordClick}
             />
+            {tool === "translate" && batchLoading && (
+              <p className="mt-2 text-xs italic text-honey-deep dark:text-honey">Đang AI dịch toàn bộ bài… (1 lần, click sau là tức thì)</p>
+            )}
           </div>
         </div>
 
@@ -297,6 +308,7 @@ export function ReadingShell({
           tool={tool}
           highlights={highlights[currentPart.id] ?? []}
           setHighlights={(next) => setPartHighlights(currentPart.id, next)}
+          onWordClick={onWordClick}
         />
 
         {/* SPLITTER */}
@@ -335,6 +347,7 @@ export function ReadingShell({
         answers={answers}
         locked={!!sequential}
       />
+      {popupNode}
     </div>
     </HighlightProvider>
   );
@@ -809,6 +822,7 @@ function MobileToggle({
   tool,
   highlights,
   setHighlights,
+  onWordClick,
 }: {
   currentPart: ShellPart;
   answers: Record<string, string>;
@@ -817,6 +831,7 @@ function MobileToggle({
   tool: HighlightTool;
   highlights: Highlight[];
   setHighlights: (next: Highlight[]) => void;
+  onWordClick: (info: { word: string; sentence: string; x: number; y: number }) => void;
 }) {
   const [view, setView] = useState<"passage" | "questions">("passage");
   return (
@@ -848,6 +863,7 @@ function MobileToggle({
               highlights={highlights}
               tool={tool}
               onChangeHighlights={setHighlights}
+              onWordClick={onWordClick}
             />
           </>
         ) : (

@@ -28,20 +28,29 @@ export async function groqChat(messages: GroqMessage[], opts: GroqOptions = {}):
   };
   if (opts.jsonMode) body.response_format = { type: "json_object" };
 
-  const res = await fetch(GROQ_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
+  // Retry transient rate-limits (429) + server errors with backoff. A 413
+  // ("request too large") is deterministic — never retried; the caller must
+  // send a smaller request instead.
+  const maxRetries = 2;
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(GROQ_URL, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) {
+      const data = (await res.json()) as { choices: { message: { content: string } }[] };
+      return data.choices[0]?.message?.content ?? "";
+    }
     const txt = await res.text();
+    if ((res.status === 429 || res.status >= 500) && attempt < maxRetries) {
+      const ra = parseInt(res.headers.get("retry-after") ?? "", 10);
+      const waitMs = Number.isFinite(ra) ? Math.min(ra * 1000, 20000) : (attempt + 1) * 4000;
+      await new Promise((r) => setTimeout(r, waitMs));
+      continue;
+    }
     throw new Error(`Groq ${res.status}: ${txt.slice(0, 200)}`);
   }
-  const data = (await res.json()) as { choices: { message: { content: string } }[] };
-  return data.choices[0]?.message?.content ?? "";
 }
 
 /**
@@ -527,8 +536,10 @@ export async function generatePaperKeyGroq(input: {
   documentText: string;
   audioTranscript?: string;
 }): Promise<PaperKeyResult> {
-  const doc = input.documentText.slice(0, 24000);
-  const transcript = (input.audioTranscript ?? "").slice(0, 16000);
+  // Kept small so input + max_tokens stays under Groq's free 12k-tokens/minute
+  // limit (a full transcript + long paper otherwise 413s "request too large").
+  const doc = input.documentText.slice(0, 12000);
+  const transcript = (input.audioTranscript ?? "").slice(0, 12000);
   const userMessage = `SKILL: ${input.skill}
 ${input.skill === "LISTENING" ? `AUDIO TRANSCRIPT (đáp án lấy từ đây):\n${transcript || "(không có transcript)"}\n\n` : ""}TEST PAPER TEXT (đề bài — chứa câu hỏi${input.skill === "READING" ? " và bài đọc" : ""}):
 ${doc}
@@ -540,7 +551,7 @@ Tìm mọi câu hỏi có đánh số, chấm đáp án đúng, và viết lời
       { role: "system", content: PAPER_KEY_SYS },
       { role: "user", content: userMessage },
     ],
-    { jsonMode: true, temperature: 0.2, maxTokens: 6000 },
+    { jsonMode: true, temperature: 0.2, maxTokens: 3500 },
   );
 
   const parsed = extractJSON(text) as { questions?: unknown; notes?: unknown };
@@ -570,7 +581,7 @@ Tìm mọi câu hỏi có đánh số, chấm đáp án đúng, và viết lời
 // reading grader (isAnswerCorrect) expects — so grading is identical to a
 // hand-authored reading test.
 // ---------------------------------------------------------------------------
-const READING_EXAM_SYS = `You are a certified IELTS examiner turning a teacher-uploaded READING test paper (extracted text) into a structured, auto-gradable reading test.
+export const READING_EXAM_SYS = `You are a certified IELTS examiner turning a teacher-uploaded READING test paper (extracted text or PDF) into a structured, auto-gradable reading test.
 
 The paper text contains BOTH the reading passage(s) AND the numbered questions. Return the passage verbatim plus every question, in order.
 
@@ -699,32 +710,15 @@ function normalizeTfAnswer(a: string): string {
 }
 
 /**
- * Read an extracted READING paper and produce a native-shaped test:
- * { title, passage, questions[] }, where each question already holds full-text
- * options + a correctAnswer in the representation ReadingShell + isAnswerCorrect
- * expect. For MCQ / full-text matching, the answer is snapped to the exact
- * option string (case-insensitive) so grading can never miss on a casing slip.
+ * Turn the model's raw JSON ({ title, passage, questions[], notes }) into the
+ * native-reading result: normal questions kept as-is, TABLE blocks expanded to
+ * tbl-formGroup FILL_BLANK questions (+ stitched grid), MAP/PLAN/DIAGRAM blocks
+ * expanded to MATCHING_FEATURES label questions (+ an SVG figure). Shared by the
+ * Groq and Claude generators so both produce identical, gradeable output.
  */
-export async function generateReadingExamGroq(input: {
-  documentText: string;
-}): Promise<ReadingExamResult> {
-  const doc = input.documentText.slice(0, 24000);
-  const userMessage = `TEST PAPER TEXT (bài đọc + câu hỏi):
-${doc}
-
-Trích NGUYÊN VĂN bài đọc, tìm mọi câu hỏi có đánh số theo đúng thứ tự, chấm đáp án đúng theo ĐÚNG ANSWER/OPTIONS RULES, và viết lời giải tiếng Việt. Nếu đề có BẢNG thì trả về block "TABLE"; nếu có BẢN ĐỒ/SƠ ĐỒ/PLAN thì VẼ LẠI bằng SVG trong block "MAP". Trả về JSON only.`;
-
-  const text = await groqChat(
-    [
-      { role: "system", content: READING_EXAM_SYS },
-      { role: "user", content: userMessage },
-    ],
-    { jsonMode: true, temperature: 0.2, maxTokens: 8000 },
-  );
-
-  const parsed = extractJSON(text) as {
-    title?: unknown; passage?: unknown; questions?: unknown; notes?: unknown;
-  };
+export function parseReadingExam(parsed: {
+  title?: unknown; passage?: unknown; questions?: unknown; notes?: unknown;
+}): ReadingExamResult {
   const rawItems = Array.isArray(parsed.questions) ? parsed.questions : [];
   const questions: ReadingExamQuestion[] = [];
   const figures: ReadingFigure[] = [];
@@ -835,6 +829,31 @@ Trích NGUYÊN VĂN bài đọc, tìm mọi câu hỏi có đánh số theo đú
     figures,
     notes: String(parsed.notes ?? "").trim(),
   };
+}
+
+/**
+ * Groq FALLBACK reading generator (used only when Claude isn't configured).
+ * Groq's free tier caps at ~12k tokens/minute, so we keep the request SMALL:
+ * trimmed input + modest max_tokens. Claude (generateReadingExamFromPdf) is the
+ * primary path — it reads the PDF natively with a huge context + high limits.
+ */
+export async function generateReadingExamGroq(input: {
+  documentText: string;
+}): Promise<ReadingExamResult> {
+  const doc = input.documentText.slice(0, 16000);
+  const userMessage = `TEST PAPER TEXT (bài đọc + câu hỏi):
+${doc}
+
+Trích NGUYÊN VĂN bài đọc, tìm mọi câu hỏi có đánh số theo đúng thứ tự, chấm đáp án đúng theo ĐÚNG ANSWER/OPTIONS RULES, và viết lời giải tiếng Việt. Nếu đề có BẢNG thì trả về block "TABLE"; nếu có BẢN ĐỒ/SƠ ĐỒ/PLAN thì VẼ LẠI bằng SVG trong block "MAP". Trả về JSON only.`;
+
+  const text = await groqChat(
+    [
+      { role: "system", content: READING_EXAM_SYS },
+      { role: "user", content: userMessage },
+    ],
+    { jsonMode: true, temperature: 0.2, maxTokens: 4000 },
+  );
+  return parseReadingExam(extractJSON(text) as Record<string, unknown>);
 }
 
 /** Generate a Vietnamese meaning + an English example sentence for a word. */

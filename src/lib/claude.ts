@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { READING_EXAM_SYS, parseReadingExam, type ReadingExamResult } from "@/lib/groq";
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY ?? "",
@@ -382,6 +383,40 @@ export async function generateReadingTest(input: {
     .join("");
 
   return extractJSON(text) as GeneratedReadingTest;
+}
+
+/**
+ * Teacher READING exam generator — Claude reads the uploaded PDF NATIVELY (beta
+ * documents API: keeps layout, multi-column passages, tables, and even works on
+ * scans) and returns the rich native-reading shape (all question types + table
+ * completion + AI-drawn map/plan SVG + Vietnamese explanations). This is the
+ * PRIMARY path for /api/assignments/generate-key — Claude's huge context + high
+ * limits make it far more reliable than Groq's 12k-tokens/minute free tier.
+ */
+export async function generateReadingExamFromPdf(pdfBase64: string): Promise<ReadingExamResult> {
+  type BetaBlock =
+    | { type: "document"; source: { type: "base64"; media_type: "application/pdf"; data: string } }
+    | Anthropic.TextBlockParam;
+  const blocks: BetaBlock[] = [
+    { type: "document", source: { type: "base64", media_type: "application/pdf", data: pdfBase64 } },
+    {
+      type: "text",
+      text: "The IELTS Reading exam is in the attached PDF. Read EVERY page, copy the passage verbatim, and build the complete native reading test now. If the paper has a TABLE emit a TABLE block; if it has a MAP/PLAN/DIAGRAM re-draw it as an SVG in a MAP block. Return ONLY the JSON.",
+    },
+  ];
+  const response = await client.beta.messages.create({
+    model: MODEL,
+    max_tokens: 8000,
+    temperature: 0.2,
+    system: READING_EXAM_SYS,
+    messages: [{ role: "user", content: blocks as unknown as Anthropic.Beta.Messages.BetaContentBlockParam[] }],
+    betas: ["pdfs-2024-09-25"],
+  });
+  const text = response.content
+    .filter((b): b is Anthropic.Beta.Messages.BetaTextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("");
+  return parseReadingExam(extractJSON(text) as Record<string, unknown>);
 }
 
 export interface WritingGradeInput {

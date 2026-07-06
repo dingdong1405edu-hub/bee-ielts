@@ -1,9 +1,11 @@
 "use client";
 import { createContext, useContext, useRef, type ReactNode } from "react";
-import { Eraser, Languages } from "lucide-react";
+import { Bold, Eraser, Languages } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type HighlightColor = "yellow" | "green" | "pink";
+// "bold" = bút in đậm: makes the marked text bold+underlined instead of a
+// coloured background, so it stands out on both the passage and the questions.
+export type HighlightColor = "bold" | "yellow" | "green" | "pink";
 // "translate" mode: click a word → fetch its Vietnamese gloss from the
 // (already-batch-loaded) translation map and show a popup. Coexists with
 // the highlight pen toggle — only one mode active at a time.
@@ -16,6 +18,7 @@ export interface Highlight {
 }
 
 const COLOR_CLASSES: Record<HighlightColor, string> = {
+  bold: "bg-transparent font-extrabold underline decoration-2 underline-offset-2 decoration-primary text-foreground",
   yellow: "bg-gold-300/70 dark:bg-gold-400/60 text-foreground",
   green: "bg-sage-300/70 dark:bg-sage-400/60 text-foreground",
   pink: "bg-pink-300/70 dark:bg-pink-400/60 text-foreground",
@@ -427,8 +430,27 @@ export function HighlightToolbar({
           ? "Bút"
           : tool === "eraser"
             ? "Tẩy"
-            : `Bôi ${tool === "yellow" ? "vàng" : tool === "green" ? "xanh" : "hồng"}`}
+            : tool === "translate"
+              ? "Dịch"
+              : tool === "bold"
+                ? "In đậm"
+                : `Bôi ${tool === "yellow" ? "vàng" : tool === "green" ? "xanh" : "hồng"}`}
       </span>
+      {/* Bút in đậm — làm chữ đậm lên (dùng được cả bài đọc lẫn câu hỏi) */}
+      <button
+        type="button"
+        onClick={() => setTool(tool === "bold" ? "none" : "bold")}
+        aria-label="Bút in đậm"
+        title={tool === "bold" ? "Tắt bút in đậm" : "Bút in đậm — click 1 từ hoặc kéo chọn để in đậm chữ"}
+        className={cn(
+          "h-7 w-7 rounded-full border-2 grid place-items-center transition-all",
+          tool === "bold"
+            ? "border-foreground bg-foreground text-background scale-110 ring-2 ring-foreground/30"
+            : "border-border hover:bg-muted text-foreground",
+        )}
+      >
+        <Bold className="h-3.5 w-3.5" />
+      </button>
       {colors.map((c) => (
         <button
           key={c.key}
