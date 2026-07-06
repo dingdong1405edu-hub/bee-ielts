@@ -1,5 +1,12 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { READING_EXAM_SYS, parseReadingExamParts, type ReadingExamMulti } from "@/lib/groq";
+import {
+  READING_EXAM_SYS,
+  READING_ONE_PASSAGE_SYS,
+  parseReadingExam,
+  parseReadingExamParts,
+  type ReadingExamMulti,
+  type ReadingExamPart,
+} from "@/lib/groq";
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY ?? "",
@@ -393,32 +400,158 @@ export async function generateReadingTest(input: {
  * PRIMARY path for /api/assignments/generate-key — Claude's huge context + high
  * limits make it far more reliable than Groq's 12k-tokens/minute free tier.
  */
-export async function generateReadingExamFromPdf(pdfBase64: string): Promise<ReadingExamMulti> {
-  type BetaBlock =
-    | { type: "document"; source: { type: "base64"; media_type: "application/pdf"; data: string } }
-    | Anthropic.TextBlockParam;
-  const blocks: BetaBlock[] = [
-    { type: "document", source: { type: "base64", media_type: "application/pdf", data: pdfBase64 } },
-    {
-      type: "text",
-      text: "The IELTS Reading exam is in the attached PDF. It usually has SEVERAL separate reading passages — read EVERY page and split them into one \"part\" per passage (never merge passages or their titles). For each passage copy its text verbatim but JOIN hard-wrapped lines into flowing paragraphs, and build the complete native reading test. If a passage has a TABLE emit a TABLE block; if it has a MAP/PLAN/DIAGRAM re-draw it as an SVG in a MAP block. Return ONLY the JSON.",
-    },
-  ];
-  // A full paper is 3–4 passages + up to 40 questions with Vietnamese solutions,
-  // so allow a large output (Claude's context/limits handle it; Groq can't).
+/** A PDF document content block, cached so the outline + per-passage calls reuse
+ *  the same processed PDF (cheaper + faster) within the 5-minute cache window. */
+function pdfDocBlock(pdfBase64: string) {
+  return {
+    type: "document",
+    source: { type: "base64", media_type: "application/pdf", data: pdfBase64 },
+    cache_control: { type: "ephemeral" },
+  };
+}
+
+function betaText(response: Anthropic.Beta.Messages.BetaMessage): string {
+  return response.content
+    .filter((b): b is Anthropic.Beta.Messages.BetaTextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("");
+}
+
+function toInt(v: unknown): number {
+  return typeof v === "number" ? v : parseInt(String(v ?? ""), 10);
+}
+
+interface PassageOutline {
+  title: string;
+  firstQuestion: number;
+  lastQuestion: number;
+}
+
+const READING_OUTLINE_SYS = `You are an IELTS Reading test analyst. The attached PDF is a FULL IELTS Reading paper that contains SEVERAL separate reading passages — usually 3 (Academic) or 4, each with its OWN title and its OWN block of numbered questions. Scan the WHOLE paper, first page to last.
+
+Return ONLY JSON:
+{ "passages": [ { "title": "<this passage's own title>", "firstQuestion": <first question number of this passage>, "lastQuestion": <last question number of this passage> } ] }
+
+Rules:
+- One entry per passage, in order. NEVER merge two passages.
+- Cover EVERY question from the first (usually 1) to the very last (an Academic paper usually ends at 40). The ranges must be contiguous and cover the whole paper.
+- Just the outline — do NOT extract passage text or questions here.`;
+
+/** Phase 1: list the passages (title + question range). A tiny, reliable task —
+ *  far more dependable than asking one call to extract the whole paper. */
+async function outlineReadingPassages(docBlock: unknown): Promise<PassageOutline[]> {
+  const response = await client.beta.messages.create({
+    model: MODEL,
+    max_tokens: 1500,
+    temperature: 0,
+    system: READING_OUTLINE_SYS,
+    messages: [
+      {
+        role: "user",
+        content: [
+          docBlock,
+          { type: "text", text: "List EVERY reading passage in this paper with its title and its question-number range. Return ONLY the JSON." },
+        ] as unknown as Anthropic.Beta.Messages.BetaContentBlockParam[],
+      },
+    ],
+    betas: ["pdfs-2024-09-25"],
+  });
+  const parsed = extractJSON(betaText(response)) as { passages?: unknown };
+  const raw = Array.isArray(parsed.passages) ? parsed.passages : [];
+  return raw
+    .map((p): PassageOutline => {
+      const o = (p ?? {}) as Record<string, unknown>;
+      return { title: String(o.title ?? "").trim(), firstQuestion: toInt(o.firstQuestion), lastQuestion: toInt(o.lastQuestion) };
+    })
+    .filter((o) => Number.isFinite(o.firstQuestion) && Number.isFinite(o.lastQuestion) && o.lastQuestion >= o.firstQuestion);
+}
+
+/** Phase 2: extract ONE passage (its full text + all its questions + solutions).
+ *  Focused, so the output always fits and never drops questions. */
+async function extractOnePassage(docBlock: unknown, o: PassageOutline): Promise<ReadingExamPart> {
+  const response = await client.beta.messages.create({
+    model: MODEL,
+    max_tokens: 8000,
+    temperature: 0.2,
+    system: READING_ONE_PASSAGE_SYS,
+    messages: [
+      {
+        role: "user",
+        content: [
+          docBlock,
+          {
+            type: "text",
+            text: `From the attached PDF, extract ONLY the reading passage titled "${o.title}" and its questions ${o.firstQuestion}–${o.lastQuestion}. Copy that passage's full text verbatim (join hard-wrapped lines into flowing paragraphs). Produce EVERY question from ${o.firstQuestion} to ${o.lastQuestion}, none skipped. If a question is a TABLE or MAP/PLAN, use the TABLE/MAP block. Return ONLY the JSON.`,
+          },
+        ] as unknown as Anthropic.Beta.Messages.BetaContentBlockParam[],
+      },
+    ],
+    betas: ["pdfs-2024-09-25"],
+  });
+  const r = parseReadingExam(extractJSON(betaText(response)) as Record<string, unknown>);
+  return { title: r.title || o.title, passage: r.passage, questions: r.questions, figures: r.figures };
+}
+
+/** Legacy one-shot fallback (whole paper in a single call) — used only if the
+ *  outline step yields nothing. */
+async function singleCallReadingExam(docBlock: unknown): Promise<ReadingExamMulti> {
   const response = await client.beta.messages.create({
     model: MODEL,
     max_tokens: 16000,
     temperature: 0.2,
     system: READING_EXAM_SYS,
-    messages: [{ role: "user", content: blocks as unknown as Anthropic.Beta.Messages.BetaContentBlockParam[] }],
+    messages: [
+      {
+        role: "user",
+        content: [
+          docBlock,
+          {
+            type: "text",
+            text: "The IELTS Reading exam is in the attached PDF. Split it into one \"part\" per passage (never merge passages or their titles), copy each passage verbatim but JOIN hard-wrapped lines into flowing paragraphs, and build EVERY question. Return ONLY the JSON.",
+          },
+        ] as unknown as Anthropic.Beta.Messages.BetaContentBlockParam[],
+      },
+    ],
     betas: ["pdfs-2024-09-25"],
   });
-  const text = response.content
-    .filter((b): b is Anthropic.Beta.Messages.BetaTextBlock => b.type === "text")
-    .map((b) => b.text)
-    .join("");
-  return parseReadingExamParts(extractJSON(text) as Record<string, unknown>);
+  return parseReadingExamParts(extractJSON(betaText(response)) as Record<string, unknown>);
+}
+
+export async function generateReadingExamFromPdf(pdfBase64: string): Promise<ReadingExamMulti> {
+  const docBlock = pdfDocBlock(pdfBase64);
+
+  // Phase 1: outline the passages (cheap + reliable) — this also warms the PDF
+  // prompt cache so the per-passage calls below are fast + cheap.
+  let outline: PassageOutline[] = [];
+  try {
+    outline = await outlineReadingPassages(docBlock);
+  } catch (e) {
+    console.error("[generateReadingExamFromPdf] outline failed:", e);
+  }
+
+  // No usable outline → one-shot fallback so we still return something.
+  if (outline.length === 0) return singleCallReadingExam(docBlock);
+
+  // Phase 2: extract each passage on its own — focused so none is ever dropped.
+  const settled = await Promise.all(
+    outline.map(async (o) => {
+      try {
+        return await extractOnePassage(docBlock, o);
+      } catch (e) {
+        console.error(`[generateReadingExamFromPdf] passage "${o.title}" (${o.firstQuestion}-${o.lastQuestion}) failed:`, e);
+        return null;
+      }
+    }),
+  );
+  const parts = settled.filter(
+    (p): p is ReadingExamPart => !!p && (p.passage.length > 0 || p.questions.length > 0),
+  );
+  if (parts.length === 0) return singleCallReadingExam(docBlock);
+  const missing = outline.length - parts.length;
+  return {
+    parts,
+    notes: missing > 0 ? `AI tách được ${parts.length}/${outline.length} bài đọc — hãy kiểm tra các bài còn thiếu.` : "",
+  };
 }
 
 export interface WritingGradeInput {

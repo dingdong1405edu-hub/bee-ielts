@@ -581,34 +581,9 @@ Tìm mọi câu hỏi có đánh số, chấm đáp án đúng, và viết lời
 // reading grader (isAnswerCorrect) expects — so grading is identical to a
 // hand-authored reading test.
 // ---------------------------------------------------------------------------
-export const READING_EXAM_SYS = `You are a certified IELTS examiner turning a teacher-uploaded READING test paper (extracted text or PDF) into a structured, auto-gradable reading test.
-
-A full IELTS Reading paper almost always contains SEVERAL SEPARATE reading passages (usually 3, sometimes 4) — each is its OWN self-contained reading with its OWN heading and its OWN set of numbered questions. You MUST create ONE "part" per passage. NEVER merge two passages, and NEVER merge their titles into one — read the WHOLE file and split it into the correct number of parts, in order. (A title like "Make That Wine! & That Vision Thing & Destination Mars" is THREE passages jammed together — that is WRONG; they must be three separate parts.)
-
-Return ONLY valid JSON in this EXACT shape:
-{
-  "parts": [
-    {
-      "title": "<short English title of THIS ONE passage only (its own headline) — never a merge of several titles>",
-      "passage": "<the FULL text of THIS passage only, copied verbatim. JOIN the PDF's hard-wrapped lines back into flowing sentences — do NOT keep the mid-sentence line breaks from the PDF layout. Separate paragraphs with ONE blank line. If paragraphs are labelled A, B, C…, keep the letter at the start of its paragraph. Do NOT include the questions here.>",
-      "questions": [
-        {
-          "number": 1,
-          "type": "<one of: MCQ | TRUE_FALSE_NOT_GIVEN | FILL_BLANK | SHORT_ANSWER | MATCHING_HEADINGS | MATCHING_INFO | MATCHING_FEATURES | MATCHING | MATCHING_SENTENCE_ENDINGS>",
-          "prompt": "<the question text. For gap/summary/note/sentence completion put the blank as four underscores ____ inside the sentence. NEVER put the answer in the prompt.>",
-          "options": <array of FULL-TEXT strings, or null — see per-type rules>,
-          "answer": "<the correct answer in the EXACT representation below>",
-          "explanation": "<tiếng Việt, 2-4 câu: trích DẪN CHỨNG tiếng Anh trong bài chứa đáp án, giải thích vì sao đúng, và (MCQ/Matching/TF) vì sao các lựa chọn khác sai>"
-        }
-      ]
-    }
-  ],
-  "notes": "<tiếng Việt — cảnh báo nếu có câu không chắc chắn, đề thiếu, hoặc câu multi-select đã bị bỏ; \\"\\" nếu ổn>"
-}
-
-Number the questions CONTINUOUSLY across ALL parts, exactly as the paper numbers them (Passage 1 → 1,2,3…; the next passage continues, e.g. 14…; the next e.g. 27…). Each part's "questions" array holds ONLY that one passage's questions.
-
-SPECIAL BLOCKS — if a passage contains a TABLE or a MAP/PLAN/DIAGRAM, put ONE of these objects INSIDE that part's "questions" array at the position where it appears (in question order), INSTEAD of listing those numbered items separately:
+// Shared question-format rules (types, answer/options format, TABLE/MAP blocks)
+// used by BOTH the multi-part prompt and the single-passage prompt.
+const READING_QUESTION_RULES = `SPECIAL BLOCKS — if a passage contains a TABLE or a MAP/PLAN/DIAGRAM, put ONE of these objects INSIDE the "questions" array at the position where it appears (in question order), INSTEAD of listing those numbered items separately:
 
 TABLE completion (recreate the table EXACTLY — same rows/columns/headers as the file):
 {
@@ -641,8 +616,68 @@ ANSWER / OPTIONS RULES — obey EXACTLY so the app can auto-grade:
 - MATCHING_FEATURES: "options" = the SHARED list of features/people, each prefixed with a capital letter + ". " (e.g. "A. Charles Darwin"). "answer" = the letter, e.g. "B".
 - MATCHING / MATCHING_SENTENCE_ENDINGS: "options" = the full-text choices. "answer" = the FULL TEXT of the correct choice.
 
-Do NOT emit "choose TWO/THREE" multi-select questions — split them into single-answer items or skip them and mention it in "notes".
+The "type" MUST be one of: MCQ | TRUE_FALSE_NOT_GIVEN | FILL_BLANK | SHORT_ANSWER | MATCHING_HEADINGS | MATCHING_INFO | MATCHING_FEATURES | MATCHING | MATCHING_SENTENCE_ENDINGS. For gap/summary/note/sentence completion put the blank as four underscores ____ inside the "prompt"; NEVER put the answer in the prompt. "explanation" = tiếng Việt, 2-4 câu, trích dẫn chứng tiếng Anh.
+
+Do NOT emit "choose TWO/THREE" multi-select questions — split them into single-answer items or skip them and mention it in "notes".`;
+
+export const READING_EXAM_SYS = `You are a certified IELTS examiner turning a teacher-uploaded READING test paper (extracted text or PDF) into a structured, auto-gradable reading test.
+
+A full IELTS Reading paper almost always contains SEVERAL SEPARATE reading passages (usually 3, sometimes 4) — each is its OWN self-contained reading with its OWN heading and its OWN set of numbered questions. You MUST create ONE "part" per passage. NEVER merge two passages, and NEVER merge their titles into one — read the WHOLE file and split it into the correct number of parts, in order. (A title like "Make That Wine! & That Vision Thing & Destination Mars" is THREE passages jammed together — that is WRONG; they must be three separate parts.) Include EVERY passage and EVERY numbered question in the paper (an academic paper usually goes up to question 40) — do NOT stop early and do NOT summarise.
+
+Return ONLY valid JSON in this EXACT shape:
+{
+  "parts": [
+    {
+      "title": "<short English title of THIS ONE passage only (its own headline) — never a merge of several titles>",
+      "passage": "<the FULL text of THIS passage only, copied verbatim. JOIN the PDF's hard-wrapped lines back into flowing sentences — do NOT keep the mid-sentence line breaks from the PDF layout. Separate paragraphs with ONE blank line. If paragraphs are labelled A, B, C…, keep the letter at the start of its paragraph. Do NOT include the questions here.>",
+      "questions": [
+        {
+          "number": 1,
+          "type": "<see the type list below>",
+          "prompt": "<the question text>",
+          "options": <array of FULL-TEXT strings, or null — see per-type rules>,
+          "answer": "<the correct answer in the EXACT representation below>",
+          "explanation": "<tiếng Việt, 2-4 câu>"
+        }
+      ]
+    }
+  ],
+  "notes": "<tiếng Việt — cảnh báo nếu có câu không chắc chắn, đề thiếu, hoặc câu multi-select đã bị bỏ; \\"\\" nếu ổn>"
+}
+
+Number the questions CONTINUOUSLY across ALL parts, exactly as the paper numbers them (Passage 1 → 1,2,3…; the next passage continues, e.g. 14…; the next e.g. 27…). Each part's "questions" array holds ONLY that one passage's questions.
+
+${READING_QUESTION_RULES}
+
 If the paper text is empty / garbled / a scanned image with no extractable text, return {"parts":[],"notes":"<lý do tiếng Việt>"}.`;
+
+// Single-passage extractor — used when the caller has already OUTLINED the paper
+// and now asks for ONE specific passage (its title + question range). Producing
+// one passage at a time is far more reliable than one giant multi-passage call:
+// the model can't run out of output budget and drop passages/questions.
+export const READING_ONE_PASSAGE_SYS = `You are a certified IELTS examiner extracting ONE reading passage (out of several in a teacher-uploaded paper) into a structured, auto-gradable form. You are told exactly WHICH passage (its title + its question-number range). Extract ONLY that passage and ONLY its questions — but produce EVERY question in that range, none skipped.
+
+Return ONLY valid JSON in this EXACT shape:
+{
+  "title": "<this passage's own title>",
+  "passage": "<the FULL text of THIS passage only, copied verbatim. JOIN the PDF's hard-wrapped lines back into flowing sentences — do NOT keep the mid-sentence line breaks. Separate paragraphs with ONE blank line. If paragraphs are labelled A, B, C…, keep the letter at the start of its paragraph. Do NOT include the questions here.>",
+  "questions": [
+    {
+      "number": 1,
+      "type": "<see the type list below>",
+      "prompt": "<the question text>",
+      "options": <array of FULL-TEXT strings, or null — see per-type rules>,
+      "answer": "<the correct answer in the EXACT representation below>",
+      "explanation": "<tiếng Việt, 2-4 câu>"
+    }
+  ],
+  "notes": ""
+}
+Keep the ORIGINAL question numbers from the paper. Produce every question in the requested range.
+
+${READING_QUESTION_RULES}
+
+If you genuinely cannot find this passage in the file, return {"title":"","passage":"","questions":[],"notes":"<lý do tiếng Việt>"}.`;
 
 export interface ReadingExamQuestion {
   number: number;
