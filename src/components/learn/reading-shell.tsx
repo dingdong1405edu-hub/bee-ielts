@@ -436,9 +436,9 @@ function PartQuestions({
             {groupFigures.map((f, i) => (
               <ReadingFigureBlock key={`fig-${g.startIdx}-${i}`} figure={f} />
             ))}
-            <ReadingGroupHeader type={g.type} start={firstNum} end={lastNum} />
+            <ReadingGroupHeader type={g.type} start={firstNum} end={lastNum} highlightKey={`hdr:${groupQuestions[0]?.id ?? g.startIdx}`} />
             {hasList && groupQuestions[0]?.options && groupQuestions[0].options.length > 0 && (
-              <ReferenceList type={g.type} options={groupQuestions[0].options} />
+              <ReferenceList type={g.type} options={groupQuestions[0].options} groupKey={groupQuestions[0].id} />
             )}
             {isFormGroup ? (
               <FormBlock
@@ -486,7 +486,7 @@ function PartQuestions({
   );
 }
 
-function ReferenceList({ type, options }: { type: string; options: string[] }) {
+function ReferenceList({ type, options, groupKey }: { type: string; options: string[]; groupKey: string }) {
   const label =
     type === "MATCHING_HEADINGS" ? "List of Headings" :
     type === "MATCHING_FEATURES" ? "List of Options" :
@@ -498,7 +498,10 @@ function ReferenceList({ type, options }: { type: string; options: string[] }) {
       </div>
       <ul className="space-y-1 text-sm leading-relaxed">
         {options.map((opt, i) => (
-          <li key={i}>{opt}</li>
+          <li key={i}>
+            {/* Highlightable so bút in đậm / bôi màu chạm được cả danh sách heading. */}
+            <HighlightableText textKey={`hl:${groupKey}:${i}`} text={opt} />
+          </li>
         ))}
       </ul>
     </div>
@@ -586,7 +589,7 @@ function QuestionInput({
 
   // Inline blanks for FILL_BLANK / SHORT_ANSWER — render prompt with inline input
   if ((q.type === "FILL_BLANK" || q.type === "SHORT_ANSWER") && /_{2,}|\{N\}/.test(q.prompt)) {
-    return <InlineBlankRow num={num} prompt={q.prompt} value={value} onChange={onChange} />;
+    return <InlineBlankRow qid={q.id} num={num} prompt={q.prompt} value={value} onChange={onChange} />;
   }
 
   if (q.type === "FILL_BLANK" || q.type === "SHORT_ANSWER") {
@@ -661,11 +664,13 @@ function QuestionInput({
  * several sentences can flow together inside one paragraph.
  */
 function InlineBlankSentence({
+  qid,
   num,
   prompt,
   value,
   onChange,
 }: {
+  qid: string;
   num: number;
   prompt: string;
   value: string;
@@ -693,14 +698,16 @@ function InlineBlankSentence({
             </span>
           );
         }
-        return <span key={i}>{p}</span>;
+        // Each static fragment is its own highlightable snippet so bút in đậm /
+        // bôi màu chạm được cả câu điền từ ở panel bên phải.
+        return <HighlightableText key={i} textKey={`hl:${qid}:${i}`} text={p} />;
       })}
     </>
   );
 }
 
 /** Single inline-blank question (used inside a mixed group). */
-function InlineBlankRow(props: { num: number; prompt: string; value: string; onChange: (v: string) => void }) {
+function InlineBlankRow(props: { qid: string; num: number; prompt: string; value: string; onChange: (v: string) => void }) {
   return (
     <div className="text-[15px] leading-relaxed">
       <InlineBlankSentence {...props} />
@@ -723,7 +730,7 @@ function InlineBlankGroup({
       {items.map(({ q, num, value, onChange }, idx) => (
         <span key={q.id}>
           {idx > 0 ? " " : null}
-          <InlineBlankSentence num={num} prompt={q.prompt} value={value} onChange={onChange} />
+          <InlineBlankSentence qid={q.id} num={num} prompt={q.prompt} value={value} onChange={onChange} />
         </span>
       ))}
     </p>

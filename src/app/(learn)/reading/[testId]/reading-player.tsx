@@ -255,7 +255,7 @@ export function ReadingPlayer({
                 unit.layout === "table" ? TableBlanks : unit.layout === "flow" ? FlowBlanks : FormBlanks;
               return (
                 <div key={`fg-${unit.items[0].id}`}>
-                  <ReadingGroupHeader type="FILL_BLANK" start={unit.startNum} end={end} />
+                  <ReadingGroupHeader type="FILL_BLANK" start={unit.startNum} end={end} highlightKey={`hdr:${unit.items[0].id}`} />
                   <Card>
                     <CardContent className="p-5">
                       <FormBlock
@@ -298,7 +298,7 @@ export function ReadingPlayer({
             return (
               <div key={q.id}>
                 {groupStart && (
-                  <ReadingGroupHeader type={q.type} start={groupStart.start + 1} end={groupStart.end + 1} />
+                  <ReadingGroupHeader type={q.type} start={groupStart.start + 1} end={groupStart.end + 1} highlightKey={`hdr:${q.id}`} />
                 )}
               <Card className={cn(submitted && (isCorrect ? "border-success" : "border-destructive"))}>
                 <CardContent className="p-5 space-y-3">

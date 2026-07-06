@@ -1,5 +1,6 @@
 "use client";
 import { Bookmark } from "lucide-react";
+import { HighlightableText } from "@/components/learn/highlightable-passage";
 
 const INSTRUCTIONS: Record<string, string> = {
   MCQ: "Choose the correct letter, A, B, C or D.",
@@ -40,10 +41,14 @@ export function ReadingGroupHeader({
   type,
   start,
   end,
+  highlightKey,
 }: {
   type: string;
   start: number;
   end: number;
+  /** When set (inside a HighlightProvider), the instruction becomes highlightable
+   *  so bút in đậm / bôi màu chạm được cả câu hướng dẫn đề bài. */
+  highlightKey?: string;
 }) {
   const range = start === end ? `Question ${start}` : `Questions ${start}–${end}`;
   const instruction = INSTRUCTIONS[type] ?? "";
@@ -58,7 +63,13 @@ export function ReadingGroupHeader({
         <Bookmark className="h-4 w-4 text-primary" />
         <span className="text-xs uppercase tracking-wider font-extrabold text-primary">{name}</span>
       </div>
-      <p className="mt-2 text-sm leading-relaxed text-foreground">{instruction}</p>
+      <p className="mt-2 text-sm leading-relaxed text-foreground">
+        {highlightKey && instruction ? (
+          <HighlightableText textKey={highlightKey} text={instruction} />
+        ) : (
+          instruction
+        )}
+      </p>
       <div className="mt-3 h-px bg-border" />
     </div>
   );

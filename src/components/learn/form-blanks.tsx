@@ -241,7 +241,7 @@ export function FormBlanks({
                   />
                 );
               }
-              return <span key={i}>{p}</span>;
+              return <HighlightableText key={i} textKey={`hl:${it.id}:${i}`} text={p} />;
             })}
           </span>
         );
@@ -302,7 +302,7 @@ export function TableBlanks({
                       />
                     );
                   }
-                  return <span key={pi}>{p}</span>;
+                  return <HighlightableText key={pi} textKey={`hl:${items[0]?.id ?? "tbl"}:${ri}:${ci}:${pi}`} text={p} />;
                 });
                 return ri === 0 ? (
                   <th key={ci} className="border px-3 py-2.5 text-left font-bold bg-muted/50">
@@ -384,7 +384,7 @@ export function FlowBlanks({
                     />
                   );
                 }
-                return <span key={pi}>{p}</span>;
+                return <HighlightableText key={pi} textKey={`hl:${items[0]?.id ?? "fc"}:${li}:${pi}`} text={p} />;
               })}
             </div>
             {li < lines.length - 1 && (
