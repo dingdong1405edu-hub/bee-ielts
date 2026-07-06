@@ -176,7 +176,8 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
       const data = await res.json();
       if (!res.ok) {
         if (data.scanned) setShowManual(true); // scanned PDF → nudge manual entry
-        throw new Error(data.error || "AI không tạo được đáp án");
+        const msg = data.error || "AI không tạo được đáp án";
+        throw new Error(data.detail ? `${msg} (${data.detail})` : msg);
       }
       if (data.mode === "reading") {
         // Native reading test: passage + full-text questions → ReadingShell.

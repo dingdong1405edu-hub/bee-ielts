@@ -6,6 +6,10 @@ const nextConfig = {
   },
   experimental: {
     serverActions: { bodySizeLimit: "10mb" },
+    // pdf-parse (used to read teacher-uploaded đề PDFs) bundles an old pdfjs
+    // that breaks when webpack bundles it into the server output. Keep it as a
+    // runtime require from node_modules so PDF text extraction works in prod.
+    serverComponentsExternalPackages: ["pdf-parse"],
   },
   async rewrites() {
     return [

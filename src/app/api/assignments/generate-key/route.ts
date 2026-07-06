@@ -46,6 +46,15 @@ export async function POST(req: Request) {
   const gate = await requireTeacher();
   if (gate instanceof NextResponse) return gate;
 
+  // Fail fast + clearly if the AI key isn't configured on the server, so the
+  // teacher sees "báo admin" instead of a vague "AI tạo thất bại".
+  if (!process.env.GROQ_API_KEY) {
+    return NextResponse.json(
+      { error: "Máy chủ chưa cấu hình khoá AI (GROQ_API_KEY). Hãy báo admin thêm khoá rồi thử lại." },
+      { status: 500 },
+    );
+  }
+
   const parsed = bodySchema.safeParse(await req.json().catch(() => ({})));
   if (!parsed.success) {
     return NextResponse.json(
@@ -55,15 +64,19 @@ export async function POST(req: Request) {
   }
   const { skill, pdfUrl, audioUrl } = parsed.data;
 
-  // 1) PDF → text.
+  // 1) PDF → text. A THROW here is a system/read failure (bad file, pdf lib) —
+  // distinct from a valid-but-textless scan (handled by the length guard below).
   let documentText = "";
   try {
     documentText = await extractPdfText(pdfUrl);
   } catch (e) {
     console.error("[generate-key] pdf extract failed:", e);
     return NextResponse.json(
-      { error: "Không đọc được nội dung PDF. Hãy chắc chắn đây là file PDF có chữ." },
-      { status: 422 },
+      {
+        error: "Máy chủ chưa đọc được nội dung file PDF. Hãy thử lại; nếu vẫn lỗi hãy báo để kiểm tra.",
+        detail: e instanceof Error ? e.message.slice(0, 200) : String(e).slice(0, 200),
+      },
+      { status: 500 },
     );
   }
 
@@ -162,7 +175,10 @@ export async function POST(req: Request) {
   } catch (e) {
     console.error("[generate-key] groq failed:", e);
     return NextResponse.json(
-      { error: "AI tạo đáp án thất bại. Thử lại sau ít phút hoặc nhập đáp án thủ công." },
+      {
+        error: "AI tạo đáp án thất bại. Thử lại sau ít phút hoặc nhập đáp án thủ công.",
+        detail: e instanceof Error ? e.message.slice(0, 200) : String(e).slice(0, 200),
+      },
       { status: 502 },
     );
   }
