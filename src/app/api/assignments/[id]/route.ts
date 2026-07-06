@@ -18,7 +18,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { canManageAllClasses } from "@/lib/teacher-auth";
-import { attemptsAllowedOf } from "@/lib/attempts";
+import { attemptsAllowedOf, canAttempt } from "@/lib/attempts";
 
 export const dynamic = "force-dynamic";
 
@@ -118,6 +118,31 @@ export async function GET(
     };
   }
 
+  // Post-submit REVIEW: reveal the answer key + explanations ONLY when the
+  // student has submitted AND has no attempts left — this powers the native
+  // Reading solutions view without leaking the key to game a retake. (The
+  // passage itself is student-safe and already rides in config.reading.)
+  let review: { id: string; correctAnswer: string; explanation: string | null }[] | null = null;
+  const allowed = attemptsAllowedOf(assignment.config);
+  if (
+    isMember && !isManager && alreadySubmitted &&
+    !canAttempt(allowed, submission?.attemptCount ?? 0)
+  ) {
+    const keyRows = await prisma.question.findMany({
+      where: { id: { in: assignment.questionIds } },
+      select: { id: true, correctAnswer: true, explanation: true },
+    });
+    const kById = new Map(keyRows.map((r) => [r.id, r]));
+    review = assignment.questionIds
+      .map((qid) => kById.get(qid))
+      .filter((r): r is NonNullable<typeof r> => Boolean(r))
+      .map((r) => ({
+        id: r.id,
+        correctAnswer: typeof r.correctAnswer === "string" ? r.correctAnswer : String(r.correctAnswer ?? ""),
+        explanation: r.explanation,
+      }));
+  }
+
   return NextResponse.json({
     assignment: {
       id: assignment.id,
@@ -138,5 +163,6 @@ export async function GET(
     isManager,
     alreadySubmitted,
     submission,
+    review,
   });
 }

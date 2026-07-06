@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Clock, Send, GripVertical, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -61,11 +61,28 @@ interface Props {
    * advances. Submit only appears on the last part.
    */
   sequential?: boolean;
+  /** Extra node in the top-right header cluster (e.g. a teacher-exam anti-cheat
+   *  badge). Optional & additive — native practice/mock pass nothing. */
+  headerRight?: ReactNode;
+  /** Controlled answers — lifts answer state to a parent that owns the timer +
+   *  auto-submit (a teacher assignment exam). Omit → internal state (native
+   *  practice/mock behave exactly as before). */
+  answers?: Record<string, string>;
+  onAnswerChange?: (id: string, value: string) => void;
+  /** When provided (including null), the parent owns the countdown: the shell
+   *  shows this remaining-seconds value and runs NO internal timer / auto-submit.
+   *  null → "Không giới hạn". Omit → the shell keeps its own timer. */
+  remainingOverride?: number | null;
 }
 
-export function ReadingShell({ testTitle, parts, timeLimit, onSubmit, submitting, countUp, sequential }: Props) {
+export function ReadingShell({
+  testTitle, parts, timeLimit, onSubmit, submitting, countUp, sequential, headerRight,
+  answers: answersProp, onAnswerChange, remainingOverride,
+}: Props) {
   const [activePart, setActivePart] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [internalAnswers, setInternalAnswers] = useState<Record<string, string>>({});
+  const controlled = answersProp !== undefined && onAnswerChange !== undefined;
+  const answers = controlled ? answersProp! : internalAnswers;
   const [remaining, setRemaining] = useState(timeLimit);
   const [elapsed, setElapsed] = useState(0);
   const [leftWidth, setLeftWidth] = useState(50);
@@ -76,8 +93,10 @@ export function ReadingShell({ testTitle, parts, timeLimit, onSubmit, submitting
   // options use "q:<id>" / "o:<id>:<i>" keys (see HighlightProvider).
   const [highlights, setHighlights] = useState<Record<string, Highlight[]>>({});
 
-  // global timer — đếm xuôi (practise) hoặc đếm ngược + tự nộp khi hết giờ (thi thử)
+  // global timer — đếm xuôi (practise) hoặc đếm ngược + tự nộp khi hết giờ (thi thử).
+  // When remainingOverride is set the parent owns time → run no internal timer.
   useEffect(() => {
+    if (remainingOverride !== undefined) return;
     const t = setInterval(() => {
       if (countUp) {
         setElapsed((e) => e + 1);
@@ -123,8 +142,10 @@ export function ReadingShell({ testTitle, parts, timeLimit, onSubmit, submitting
     document.body.style.userSelect = "none";
   };
 
-  const setAnswer = (qId: string, value: string) =>
-    setAnswers((a) => ({ ...a, [qId]: value }));
+  const setAnswer = (qId: string, value: string) => {
+    if (controlled) onAnswerChange!(qId, value);
+    else setInternalAnswers((a) => ({ ...a, [qId]: value }));
+  };
 
   const setPartHighlights = (partId: string, next: Highlight[]) =>
     setHighlights((h) => ({ ...h, [partId]: next }));
@@ -153,12 +174,21 @@ export function ReadingShell({ testTitle, parts, timeLimit, onSubmit, submitting
           </div>
         </div>
         <div className="flex items-center gap-1.5 md:gap-3 shrink-0">
+          {headerRight}
           <div className="hidden md:block">
             <HighlightToolbar tool={tool} setTool={setTool} />
           </div>
-          <div className="flex items-center gap-1 md:gap-1.5 text-xs md:text-base font-extrabold">
+          <div className="flex items-center gap-1 md:gap-1.5 text-xs md:text-base font-extrabold tabular-nums">
             <Clock className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
-            {countUp ? (
+            {remainingOverride !== undefined ? (
+              remainingOverride === null ? (
+                <span>Không giới hạn</span>
+              ) : (
+                <span>
+                  {Math.floor(remainingOverride / 60)}:{String(remainingOverride % 60).padStart(2, "0")}
+                </span>
+              )
+            ) : countUp ? (
               <>
                 <span className="hidden sm:inline">
                   {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")} đã làm

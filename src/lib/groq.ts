@@ -561,6 +561,150 @@ Tìm mọi câu hỏi có đánh số, chấm đáp án đúng, và viết lời
   return { questions, notes: String(parsed.notes ?? "").trim() };
 }
 
+// ---------------------------------------------------------------------------
+// READING exam generator — emits a NATIVE-reading-shaped test so a teacher's
+// AI-generated assignment renders in the SAME ReadingShell the learner
+// practice / mock uses (passage pane + question pane, real per-type inputs).
+// Unlike PAPER_KEY_SYS (a letter answer sheet over a PDF), MCQ options here are
+// FULL TEXT and the answer is stored in the exact representation the native
+// reading grader (isAnswerCorrect) expects — so grading is identical to a
+// hand-authored reading test.
+// ---------------------------------------------------------------------------
+const READING_EXAM_SYS = `You are a certified IELTS examiner turning a teacher-uploaded READING test paper (extracted text) into a structured, auto-gradable reading test.
+
+The paper text contains BOTH the reading passage(s) AND the numbered questions. Return the passage verbatim plus every question, in order.
+
+Return ONLY valid JSON in this EXACT shape:
+{
+  "title": "<short English title of the reading, e.g. the passage headline>",
+  "passage": "<the FULL reading passage text, copied verbatim from the paper. Keep paragraph breaks as blank lines. If the paper labels paragraphs A, B, C… keep those labels at the start of each paragraph. If there are multiple passages, concatenate them in order, each under its own heading line. Do NOT include the questions here.>",
+  "questions": [
+    {
+      "number": 1,
+      "type": "<one of: MCQ | TRUE_FALSE_NOT_GIVEN | FILL_BLANK | SHORT_ANSWER | MATCHING_HEADINGS | MATCHING_INFO | MATCHING_FEATURES | MATCHING | MATCHING_SENTENCE_ENDINGS>",
+      "prompt": "<the question text. For gap/summary/note/sentence completion put the blank as four underscores ____ inside the sentence. NEVER put the answer in the prompt.>",
+      "options": <array of FULL-TEXT strings, or null — see per-type rules>,
+      "answer": "<the correct answer in the EXACT representation below>",
+      "explanation": "<tiếng Việt, 2-4 câu: trích DẪN CHỨNG tiếng Anh trong bài chứa đáp án, giải thích vì sao đúng, và (MCQ/Matching/TF) vì sao các lựa chọn khác sai>"
+    }
+  ],
+  "notes": "<tiếng Việt — cảnh báo nếu có câu không chắc chắn, đề thiếu, hoặc câu multi-select đã bị bỏ; \\"\\" nếu ổn>"
+}
+
+ANSWER / OPTIONS RULES — obey EXACTLY so the app can auto-grade:
+- MCQ: "options" = the full text of each choice (NO "A."/"B." prefixes). "answer" = the FULL TEXT of the correct choice, copied CHARACTER-FOR-CHARACTER from one entry of "options".
+- TRUE_FALSE_NOT_GIVEN: "options" = ["True","False","Not Given"]. "answer" = "True" | "False" | "Not Given". For YES/NO/NOT GIVEN questions, map YES→"True", NO→"False", keep "Not Given" (same 3-way control).
+- FILL_BLANK / SHORT_ANSWER: "options" = null. "answer" = the exact word(s) from the passage, obeying any word limit (e.g. NO MORE THAN TWO WORDS). Join accepted alternatives with "/", e.g. "car/automobile", "20/twenty". Use FILL_BLANK for gap/note/summary/sentence completion (put ____ in the prompt); use SHORT_ANSWER for "answer the question" items.
+- MATCHING_HEADINGS: "options" = the SHARED list of ALL headings, each prefixed with a lowercase roman numeral + ". " (e.g. "i. A surprising return to an old format"). EVERY heading question repeats the SAME full "options" array. "answer" = the roman numeral only, e.g. "iii". "prompt" = the paragraph label, e.g. "Paragraph A".
+- MATCHING_INFO: "options" = paragraph letters ["A","B","C",...] up to the number of paragraphs. "answer" = the paragraph letter, e.g. "C". "prompt" = the information statement.
+- MATCHING_FEATURES: "options" = the SHARED list of features/people, each prefixed with a capital letter + ". " (e.g. "A. Charles Darwin"). "answer" = the letter, e.g. "B".
+- MATCHING / MATCHING_SENTENCE_ENDINGS: "options" = the full-text choices. "answer" = the FULL TEXT of the correct choice.
+
+Do NOT emit "choose TWO/THREE" multi-select questions — split them into single-answer items or skip them and mention it in "notes".
+If the paper text is empty / garbled / a scanned image with no extractable text, return {"title":"","passage":"","questions":[],"notes":"<lý do tiếng Việt>"}.`;
+
+export interface ReadingExamQuestion {
+  number: number;
+  type: string;
+  prompt: string;
+  options: string[] | null;
+  answer: string;
+  explanation: string;
+}
+export interface ReadingExamResult {
+  title: string;
+  passage: string;
+  questions: ReadingExamQuestion[];
+  notes: string;
+}
+
+const READING_EXAM_TYPES = new Set([
+  "MCQ", "TRUE_FALSE_NOT_GIVEN", "FILL_BLANK", "SHORT_ANSWER",
+  "MATCHING_HEADINGS", "MATCHING_INFO", "MATCHING_FEATURES",
+  "MATCHING", "MATCHING_SENTENCE_ENDINGS",
+]);
+
+/** Coerce the AI's `type` into a valid native reading QuestionType string. */
+function normalizeReadingType(t: unknown): string {
+  const s = String(t ?? "").trim().toUpperCase();
+  if (READING_EXAM_TYPES.has(s)) return s;
+  if (s === "TRUE_FALSE" || s === "YES_NO_NOT_GIVEN" || s === "YES_NO") return "TRUE_FALSE_NOT_GIVEN";
+  if (s === "GAP_FILL" || s === "NOTE_COMPLETION" || s === "SUMMARY" || s === "SENTENCE_COMPLETION") return "FILL_BLANK";
+  return "SHORT_ANSWER";
+}
+
+/** Map a TF answer to the exact <select> values ReadingShell renders. */
+function normalizeTfAnswer(a: string): string {
+  const u = a.trim().toUpperCase();
+  if (u === "TRUE" || u === "YES" || u === "T" || u === "Y") return "True";
+  if (u === "FALSE" || u === "NO" || u === "F" || u === "N") return "False";
+  if (u === "NOT GIVEN" || u === "NG" || u === "NOTGIVEN") return "Not Given";
+  return a.trim();
+}
+
+/**
+ * Read an extracted READING paper and produce a native-shaped test:
+ * { title, passage, questions[] }, where each question already holds full-text
+ * options + a correctAnswer in the representation ReadingShell + isAnswerCorrect
+ * expect. For MCQ / full-text matching, the answer is snapped to the exact
+ * option string (case-insensitive) so grading can never miss on a casing slip.
+ */
+export async function generateReadingExamGroq(input: {
+  documentText: string;
+}): Promise<ReadingExamResult> {
+  const doc = input.documentText.slice(0, 24000);
+  const userMessage = `TEST PAPER TEXT (bài đọc + câu hỏi):
+${doc}
+
+Trích NGUYÊN VĂN bài đọc, tìm mọi câu hỏi có đánh số theo đúng thứ tự, chấm đáp án đúng theo ĐÚNG ANSWER/OPTIONS RULES, và viết lời giải tiếng Việt. Trả về JSON only.`;
+
+  const text = await groqChat(
+    [
+      { role: "system", content: READING_EXAM_SYS },
+      { role: "user", content: userMessage },
+    ],
+    { jsonMode: true, temperature: 0.2, maxTokens: 8000 },
+  );
+
+  const parsed = extractJSON(text) as {
+    title?: unknown; passage?: unknown; questions?: unknown; notes?: unknown;
+  };
+  const rawQs = Array.isArray(parsed.questions) ? parsed.questions : [];
+  const questions: ReadingExamQuestion[] = rawQs
+    .map((q): ReadingExamQuestion => {
+      const o = (q ?? {}) as Record<string, unknown>;
+      const type = normalizeReadingType(o.type);
+      const n = typeof o.number === "number" ? o.number : parseInt(String(o.number ?? ""), 10);
+      const opts = Array.isArray(o.options)
+        ? o.options.map((x) => String(x)).filter((s) => s.trim().length > 0)
+        : null;
+      let answer = String(o.answer ?? "").trim();
+      if (type === "TRUE_FALSE_NOT_GIVEN") answer = normalizeTfAnswer(answer);
+      // Full-text answer types: snap to the exact option string (case-insensitive)
+      // so isAnswerCorrect's exact match can't fail on a casing/whitespace slip.
+      if ((type === "MCQ" || type === "MATCHING" || type === "MATCHING_SENTENCE_ENDINGS") && opts) {
+        const hit = opts.find((o2) => o2.trim().toLowerCase() === answer.toLowerCase());
+        if (hit) answer = hit;
+      }
+      return {
+        number: n,
+        type,
+        prompt: String(o.prompt ?? "").trim(),
+        options: opts && opts.length > 0 ? opts : null,
+        answer,
+        explanation: String(o.explanation ?? "").trim(),
+      };
+    })
+    .filter((q) => Number.isFinite(q.number) && q.answer.length > 0 && q.prompt.length > 0);
+
+  return {
+    title: String(parsed.title ?? "").trim(),
+    passage: String(parsed.passage ?? "").trim(),
+    questions,
+    notes: String(parsed.notes ?? "").trim(),
+  };
+}
+
 /** Generate a Vietnamese meaning + an English example sentence for a word. */
 export async function defineWordGroq(
   term: string,

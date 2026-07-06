@@ -49,7 +49,7 @@ export async function POST(req: Request) {
 
   const assignment = await prisma.assignment.findUnique({
     where: { id: assignmentId },
-    select: { id: true, classId: true, config: true },
+    select: { id: true, classId: true, config: true, questionIds: true },
   });
   if (!assignment) {
     return NextResponse.json({ error: "Không tìm thấy bài tập" }, { status: 404 });
@@ -86,6 +86,22 @@ export async function POST(req: Request) {
     attemptCount,
   });
 
+  // On the final allowed attempt, hand back the answer key + explanations so the
+  // client can render the native reading solutions immediately (no extra fetch).
+  // Gated identically to GET's review — nothing while retakes remain.
+  let review: { id: string; correctAnswer: string; explanation: string | null }[] | null = null;
+  if (!canAttempt(allowed, attemptCount)) {
+    const keyRows = await prisma.question.findMany({
+      where: { id: { in: assignment.questionIds ?? [] } },
+      select: { id: true, correctAnswer: true, explanation: true },
+    });
+    review = keyRows.map((r) => ({
+      id: r.id,
+      correctAnswer: typeof r.correctAnswer === "string" ? r.correctAnswer : String(r.correctAnswer ?? ""),
+      explanation: r.explanation,
+    }));
+  }
+
   return NextResponse.json({
     ok: true,
     band: result.band,
@@ -98,5 +114,6 @@ export async function POST(req: Request) {
     cheatCount: cheatLogs?.count ?? 0,
     attemptCount,
     attemptsAllowed: allowed,
+    review,
   });
 }

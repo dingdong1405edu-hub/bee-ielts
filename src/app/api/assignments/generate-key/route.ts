@@ -19,7 +19,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireTeacher } from "@/lib/teacher-auth";
 import { extractPdfText } from "@/lib/pdf-extract";
-import { generatePaperKeyGroq } from "@/lib/groq";
+import { generatePaperKeyGroq, generateReadingExamGroq } from "@/lib/groq";
 import { deepgramTranscribe } from "@/lib/deepgram";
 
 export const maxDuration = 60;
@@ -114,8 +114,33 @@ export async function POST(req: Request) {
     );
   }
 
-  // 3) Generate the key + solutions.
+  // 3) Generate.
   try {
+    if (skill === "READING") {
+      // READING → a full native-shaped test (passage + questions with full-text
+      // options), so the student does it in the same ReadingShell as practice.
+      const result = await generateReadingExamGroq({ documentText });
+      if (result.questions.length === 0 || !result.passage) {
+        return NextResponse.json(
+          {
+            error:
+              "AI chưa đọc được bài đọc hoặc câu hỏi trong đề. Hãy kiểm tra lại file hoặc nhập đáp án thủ công.",
+            notes: result.notes,
+          },
+          { status: 422 },
+        );
+      }
+      return NextResponse.json({
+        mode: "reading",
+        title: result.title,
+        passage: result.passage,
+        questions: result.questions,
+        notes: result.notes,
+        meta: { pdfChars: documentText.length },
+      });
+    }
+
+    // LISTENING → unchanged letter-based answer sheet over the PDF + audio.
     const result = await generatePaperKeyGroq({ skill, documentText, audioTranscript });
     if (result.questions.length === 0) {
       return NextResponse.json(
@@ -128,6 +153,7 @@ export async function POST(req: Request) {
       );
     }
     return NextResponse.json({
+      mode: "listening",
       questions: result.questions,
       notes: result.notes,
       meta: { pdfChars: documentText.length, transcriptChars: audioTranscript.length },

@@ -15,6 +15,7 @@
  * `isAnswerCorrect` in lib/utils.
  */
 import type { QuestionType } from "@prisma/client";
+import type { ReadingExamQuestion } from "@/lib/groq";
 
 export interface ParsedAnswer {
   /** Question number as typed by the teacher (drives displayNumber). */
@@ -184,6 +185,32 @@ export function aiToCustomQuestions(items: AiKeyItem[]) {
       prompt: prompt || `Câu ${it.number}`,
       options: c.options,
       correctAnswer: c.correctAnswer,
+      explanation: explanation || undefined,
+      displayNumber: it.number,
+    };
+  });
+}
+
+/**
+ * Convert AI READING-exam questions → the `custom_questions` payload for
+ * POST /api/assignments, PRESERVING the native reading representation: MCQ /
+ * matching keep their FULL-TEXT options and a correctAnswer in the exact form
+ * ReadingShell emits + isAnswerCorrect matches. Unlike `aiToCustomQuestions`
+ * (which runs the answer through `classify()` and collapses MCQ to a letter for
+ * the PDF answer-sheet), this keeps everything native so the exam renders and
+ * grades identically to the learner Reading practice/mock.
+ */
+export function readingAiToCustomQuestions(items: ReadingExamQuestion[]) {
+  return items.map((it) => {
+    const options =
+      Array.isArray(it.options) && it.options.length > 0 ? it.options : undefined;
+    const prompt = (it.prompt ?? "").trim() || `Câu ${it.number}`;
+    const explanation = (it.explanation ?? "").trim();
+    return {
+      type: it.type as QuestionType,
+      prompt,
+      options,
+      correctAnswer: String(it.answer ?? "").trim(),
       explanation: explanation || undefined,
       displayNumber: it.number,
     };

@@ -20,7 +20,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { aiToCustomQuestions, classifyAnswer, parseAnswerKey, toCustomQuestions, typeLabel } from "@/lib/answer-key";
+import { aiToCustomQuestions, classifyAnswer, parseAnswerKey, readingAiToCustomQuestions, toCustomQuestions, typeLabel } from "@/lib/answer-key";
+import type { ReadingExamQuestion } from "@/lib/groq";
 import { PaperFileField } from "@/components/teacher/paper-file-field";
 import { playPopSfx } from "@/lib/quiz-sfx";
 
@@ -63,6 +64,9 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
   const [answerKey, setAnswerKey] = useState("");
   // AI-generated key + solutions (teacher just uploads → AI does the answers).
   const [aiQuestions, setAiQuestions] = useState<AiItem[] | null>(null);
+  // READING → a native-shaped test (passage + full-text questions) rendered in
+  // the same ReadingShell the learner practice uses.
+  const [aiReading, setAiReading] = useState<{ title: string; passage: string; questions: ReadingExamQuestion[] } | null>(null);
   const [aiNotes, setAiNotes] = useState("");
   const [generating, setGenerating] = useState(false);
   const [showManual, setShowManual] = useState(false);
@@ -115,7 +119,7 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
 
   function resetSkillFields() {
     setPdfUrl(""); setAudioUrl(""); setAnswerKey("");
-    setAiQuestions(null); setAiNotes(""); setShowManual(false);
+    setAiQuestions(null); setAiReading(null); setAiNotes(""); setShowManual(false);
     setWPrompt(""); setWImageUrl("");
     setSTopic(""); setSQuestions("");
   }
@@ -174,11 +178,26 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
         if (data.scanned) setShowManual(true); // scanned PDF → nudge manual entry
         throw new Error(data.error || "AI không tạo được đáp án");
       }
-      setAiQuestions(data.questions as AiItem[]);
-      setAiNotes(typeof data.notes === "string" ? data.notes : "");
-      setShowManual(false);
-      playPopSfx();
-      toast.success(`AI đã tạo ${data.questions.length} câu — đáp án + lời giải chi tiết`);
+      if (data.mode === "reading") {
+        // Native reading test: passage + full-text questions → ReadingShell.
+        setAiReading({
+          title: data.title || "",
+          passage: data.passage || "",
+          questions: data.questions as ReadingExamQuestion[],
+        });
+        setAiQuestions(null);
+        setAiNotes(typeof data.notes === "string" ? data.notes : "");
+        setShowManual(false);
+        playPopSfx();
+        toast.success(`AI đã đọc bài + tạo ${data.questions.length} câu (giống Reading luyện tập)`);
+      } else {
+        setAiQuestions(data.questions as AiItem[]);
+        setAiReading(null);
+        setAiNotes(typeof data.notes === "string" ? data.notes : "");
+        setShowManual(false);
+        playPopSfx();
+        toast.success(`AI đã tạo ${data.questions.length} câu — đáp án + lời giải chi tiết`);
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Lỗi khi tạo đáp án");
     } finally {
@@ -209,13 +228,24 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
     if (isPaper) {
       if (!pdfUrl.trim()) return toast.error("Tải lên file PDF đề bài");
       if (skill === "LISTENING" && !audioUrl.trim()) return toast.error("Bài Listening cần file âm thanh");
-      config.paper = { skill, pdfUrl: pdfUrl.trim(), audioUrl: skill === "LISTENING" ? audioUrl.trim() : undefined };
-      if (aiQuestions && aiQuestions.length > 0) {
-        body.custom_questions = aiToCustomQuestions(aiQuestions);
-      } else if (parsed.answers.length > 0) {
-        body.custom_questions = toCustomQuestions(parsed.answers);
+
+      if (skill === "READING" && aiReading && aiReading.questions.length > 0) {
+        // Native reading exam: the passage rides in config.reading; questions
+        // carry full-text options + a native correctAnswer. config.paper.skill
+        // lets GradingService auto-grade them as READING (no readingId needed).
+        config.reading = { passage: aiReading.passage, title: aiReading.title || title.trim() };
+        config.paper = { skill: "READING" };
+        body.custom_questions = readingAiToCustomQuestions(aiReading.questions);
       } else {
-        return toast.error("Bấm “AI tạo đáp án & lời giải” hoặc tự nhập đáp án");
+        // Listening (PDF + audio) OR manual fallback → letter answer sheet.
+        config.paper = { skill, pdfUrl: pdfUrl.trim(), audioUrl: skill === "LISTENING" ? audioUrl.trim() : undefined };
+        if (aiQuestions && aiQuestions.length > 0) {
+          body.custom_questions = aiToCustomQuestions(aiQuestions);
+        } else if (parsed.answers.length > 0) {
+          body.custom_questions = toCustomQuestions(parsed.answers);
+        } else {
+          return toast.error("Bấm “AI tạo đáp án & lời giải” hoặc tự nhập đáp án");
+        }
       }
     } else if (skill === "WRITING") {
       if (!wPrompt.trim()) return toast.error("Nhập đề bài Writing");
@@ -327,17 +357,20 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
           </CardContent></Card>
 
           {/* AI answer key + solutions — teacher just uploads, AI does the rest */}
-          {!aiQuestions ? (
+          {!aiQuestions && !aiReading ? (
             <Card className="border-primary/30 bg-primary/5">
               <CardContent className="space-y-3 p-5 text-center">
                 <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-primary/10">
                   <Wand2 className="h-6 w-6 text-primary" />
                 </span>
                 <div>
-                  <h3 className="text-lg font-bold">Để AI làm đáp án cho bạn</h3>
+                  <h3 className="text-lg font-bold">Để AI làm đề cho bạn</h3>
                   <p className="mx-auto max-w-md text-sm text-muted-foreground">
                     Chỉ cần tải {skill === "LISTENING" ? "đề PDF + file nghe" : "đề PDF"} lên — AI sẽ đọc,
-                    chấm đáp án đúng và viết <strong>lời giải chi tiết</strong> cho từng câu. Bạn không phải gõ đáp án.
+                    {skill === "READING"
+                      ? <> tách bài đọc + câu hỏi thành <strong>bài Reading giống hệt phần luyện tập</strong> (đọc bên trái, làm câu hỏi bên phải), kèm lời giải.</>
+                      : <> chấm đáp án đúng và viết <strong>lời giải chi tiết</strong> cho từng câu.</>}
+                    {" "}Bạn không phải gõ đáp án.
                   </p>
                 </div>
                 <Button
@@ -366,7 +399,7 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
                 </button>
               </CardContent>
             </Card>
-          ) : (
+          ) : aiQuestions ? (
             <Card className="border-leaf/40">
               <CardContent className="space-y-3 p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -415,10 +448,61 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
                 </ul>
               </CardContent>
             </Card>
+          ) : null}
+
+          {/* Native READING preview: passage + full-text questions */}
+          {aiReading && (
+            <Card className="border-leaf/40">
+              <CardContent className="space-y-3 p-5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-leaf" />
+                    <h3 className="font-bold">AI đã tạo bài Reading · {aiReading.questions.length} câu</h3>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <Button onClick={generateKey} disabled={generating} variant="outline" size="sm" className="rounded-lg">
+                      {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Tạo lại
+                    </Button>
+                    <Button onClick={() => { setAiReading(null); setAiNotes(""); }} variant="ghost" size="sm" className="rounded-lg text-muted-foreground">
+                      <Trash2 className="h-3.5 w-3.5" /> Xoá
+                    </Button>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Học sinh sẽ làm bài trong giao diện Reading <strong>giống hệt phần luyện tập</strong> — đọc bài bên trái, câu hỏi bên phải.
+                </p>
+                {aiNotes && (
+                  <p className="rounded-lg border border-amber-300 bg-amber-50/70 p-2.5 text-xs text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
+                    ⚠️ Lưu ý từ AI: {aiNotes}
+                  </p>
+                )}
+                <details className="rounded-lg border bg-muted/20 p-3">
+                  <summary className="cursor-pointer text-sm font-semibold">Xem bài đọc ({aiReading.passage.length.toLocaleString()} ký tự)</summary>
+                  <p className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap text-sm text-muted-foreground">{aiReading.passage}</p>
+                </details>
+                <ul className="space-y-2">
+                  {aiReading.questions.map((q) => (
+                    <li key={q.number} className="rounded-lg border bg-muted/20 p-3">
+                      <div className="flex items-start gap-2">
+                        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-bold text-primary">{q.number}</span>
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <p className="text-sm font-medium">{q.prompt}</p>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <Badge variant="success" className="font-semibold">{q.answer}</Badge>
+                            <span className="text-xs text-muted-foreground">· {q.type}</span>
+                          </div>
+                          {q.explanation && <p className="text-xs leading-relaxed text-muted-foreground">{q.explanation}</p>}
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
           )}
 
           {/* Manual fallback — for scanned PDFs or fixing the AI's key */}
-          {(showManual || (!aiQuestions && answerKey.trim().length > 0)) && (
+          {(showManual || (!aiQuestions && !aiReading && answerKey.trim().length > 0)) && (
             <Card><CardContent className="space-y-3 p-5">
               <div className="space-y-1.5">
                 <Label htmlFor="key">Nhập đáp án thủ công</Label>
