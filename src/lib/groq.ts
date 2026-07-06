@@ -471,6 +471,96 @@ Return JSON only.`;
   };
 }
 
+const PAPER_KEY_SYS = `You are a certified IELTS examiner and test-setter building an ANSWER KEY WITH DETAILED SOLUTIONS from a teacher-uploaded test paper.
+
+You receive the extracted TEXT of an IELTS READING or LISTENING test paper.
+- READING: the reading passage(s) AND the questions are both in the paper text — answers come from the passage.
+- LISTENING: the questions are in the paper text, and the audio content is provided separately as an AUDIO TRANSCRIPT — answers come from the transcript.
+
+Your job:
+1. Identify EVERY numbered question in the paper, IN ORDER (do not skip, do not invent).
+2. Determine the single CORRECT answer for each from the passage / transcript.
+3. Write a DETAILED explanation in Vietnamese for each.
+
+ANSWER FORMAT — the "answer" field MUST follow these rules exactly so the app can auto-grade it:
+- Multiple choice → the single option LETTER only: "A", "B", "C", "D" (up to "H").
+- True/False/Not Given → "TRUE", "FALSE" or "NOT GIVEN". Yes/No/Not Given → "YES", "NO" or "NOT GIVEN".
+- Gap-fill / note / sentence / summary completion / short answer → the exact word(s) copied from the passage/transcript, obeying any word limit (e.g. "NO MORE THAN TWO WORDS"). If more than one form is acceptable, join alternatives with "/" (e.g. "car/automobile", "20/twenty").
+- Matching (headings / features / info / sentence endings) → the matching LETTER (e.g. "C"), or the exact option text if it is not lettered.
+
+"prompt": the question text, kept concise. Paraphrase if the extracted text is messy but keep the meaning and any blanks (use "____" for a gap). Do NOT include the answer inside the prompt.
+
+"explanation" (Vietnamese, 2-4 câu, chi tiết):
+- Trích DẪN CHỨNG bằng tiếng Anh (câu/cụm trong bài đọc hoặc transcript) chứa đáp án.
+- Giải thích vì sao đáp án đúng khớp với dẫn chứng.
+- Với MCQ/Matching/True-False, nói NGẮN GỌN vì sao (các) lựa chọn khác sai.
+
+Return ONLY valid JSON in this exact shape:
+{
+  "questions": [
+    { "number": 1, "prompt": "<question text>", "answer": "<theo đúng ANSWER FORMAT>", "explanation": "<tiếng Việt, có trích dẫn tiếng Anh>" }
+  ],
+  "notes": "<tiếng Việt — cảnh báo nếu có câu nào KHÔNG chắc chắn, đọc không rõ, hoặc file có vẻ thiếu; để \\"\\" nếu mọi thứ rõ ràng>"
+}
+
+If the paper text is empty, garbled, or clearly a scanned image with no extractable question text, return {"questions": [], "notes": "<giải thích ngắn bằng tiếng Việt>"}.`;
+
+export interface PaperKeyItem {
+  number: number;
+  prompt: string;
+  answer: string;
+  explanation: string;
+}
+export interface PaperKeyResult {
+  questions: PaperKeyItem[];
+  notes: string;
+}
+
+/**
+ * Read an extracted Reading/Listening test paper (+ audio transcript for
+ * Listening) and produce the answer key with detailed Vietnamese solutions.
+ * The `answer` strings follow the exact format `classify()` in lib/answer-key
+ * expects, so the generated questions grade identically to a hand-typed key.
+ */
+export async function generatePaperKeyGroq(input: {
+  skill: "READING" | "LISTENING";
+  documentText: string;
+  audioTranscript?: string;
+}): Promise<PaperKeyResult> {
+  const doc = input.documentText.slice(0, 24000);
+  const transcript = (input.audioTranscript ?? "").slice(0, 16000);
+  const userMessage = `SKILL: ${input.skill}
+${input.skill === "LISTENING" ? `AUDIO TRANSCRIPT (đáp án lấy từ đây):\n${transcript || "(không có transcript)"}\n\n` : ""}TEST PAPER TEXT (đề bài — chứa câu hỏi${input.skill === "READING" ? " và bài đọc" : ""}):
+${doc}
+
+Tìm mọi câu hỏi có đánh số, chấm đáp án đúng, và viết lời giải chi tiết. Trả về JSON only.`;
+
+  const text = await groqChat(
+    [
+      { role: "system", content: PAPER_KEY_SYS },
+      { role: "user", content: userMessage },
+    ],
+    { jsonMode: true, temperature: 0.2, maxTokens: 6000 },
+  );
+
+  const parsed = extractJSON(text) as { questions?: unknown; notes?: unknown };
+  const rawQs = Array.isArray(parsed.questions) ? parsed.questions : [];
+  const questions: PaperKeyItem[] = rawQs
+    .map((q): PaperKeyItem => {
+      const o = (q ?? {}) as Record<string, unknown>;
+      const n = typeof o.number === "number" ? o.number : parseInt(String(o.number ?? ""), 10);
+      return {
+        number: n,
+        prompt: String(o.prompt ?? "").trim(),
+        answer: String(o.answer ?? "").trim(),
+        explanation: String(o.explanation ?? "").trim(),
+      };
+    })
+    .filter((q) => Number.isFinite(q.number) && q.answer.length > 0);
+
+  return { questions, notes: String(parsed.notes ?? "").trim() };
+}
+
 /** Generate a Vietnamese meaning + an English example sentence for a word. */
 export async function defineWordGroq(
   term: string,

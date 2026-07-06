@@ -150,3 +150,42 @@ export function toCustomQuestions(answers: ParsedAnswer[]) {
     displayNumber: a.n,
   }));
 }
+
+/** Public wrapper around the internal classifier — lets the builder show the
+ *  detected type/options for one AI-generated answer in the review preview. */
+export function classifyAnswer(rawAnswer: string) {
+  return classify(rawAnswer);
+}
+
+/** One AI-generated answer: real question text + raw answer + Vietnamese
+ *  solution. Produced by `generatePaperKeyGroq`. */
+export interface AiKeyItem {
+  number: number;
+  prompt?: string;
+  answer: string;
+  explanation?: string;
+}
+
+/**
+ * Convert AI-generated { number, prompt, answer, explanation } items into the
+ * `custom_questions` payload for POST /api/assignments. Runs each raw answer
+ * through the SAME `classify()` used for hand-typed keys, so grading (type +
+ * options + correctAnswer) is identical — but now we also keep the real
+ * question `prompt` and store the detailed `explanation` (lời giải) so the
+ * teacher gets a complete solution sheet.
+ */
+export function aiToCustomQuestions(items: AiKeyItem[]) {
+  return items.map((it) => {
+    const c = classify(it.answer);
+    const prompt = (it.prompt ?? "").trim();
+    const explanation = (it.explanation ?? "").trim();
+    return {
+      type: c.type,
+      prompt: prompt || `Câu ${it.number}`,
+      options: c.options,
+      correctAnswer: c.correctAnswer,
+      explanation: explanation || undefined,
+      displayNumber: it.number,
+    };
+  });
+}

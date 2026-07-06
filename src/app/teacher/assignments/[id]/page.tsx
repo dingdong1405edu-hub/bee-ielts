@@ -5,9 +5,11 @@ import { ArrowLeft, CheckCircle2, Clock, Eye, ShieldAlert } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { canManageAllClasses } from "@/lib/teacher-auth";
+import { typeLabel } from "@/lib/answer-key";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { SolutionSheet, type SolutionItem } from "@/components/teacher/solution-sheet";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +19,22 @@ function cheatCountOf(cheatLogs: Prisma.JsonValue | null | undefined): number {
     if (typeof c === "number") return c;
   }
   return 0;
+}
+
+/** Read config.paper.skill so we know this is a Reading/Listening paper assignment. */
+function paperSkillOf(config: Prisma.JsonValue | null | undefined): "READING" | "LISTENING" | null {
+  if (config && typeof config === "object" && !Array.isArray(config)) {
+    const paper = (config as Record<string, unknown>).paper;
+    if (paper && typeof paper === "object" && !Array.isArray(paper)) {
+      const s = (paper as Record<string, unknown>).skill;
+      if (s === "READING" || s === "LISTENING") return s;
+    }
+  }
+  return null;
+}
+
+function coerceAnswer(v: Prisma.JsonValue | null): string {
+  return typeof v === "string" ? v : String(v ?? "");
 }
 
 function fmtDateTime(d: Date | null): string {
@@ -57,6 +75,7 @@ export default async function AssignmentReviewPage({
       title: true,
       deadline: true,
       questionIds: true,
+      config: true,
       class: {
         select: {
           name: true,
@@ -97,6 +116,33 @@ export default async function AssignmentReviewPage({
   const avgBand = bands.length ? Math.round((bands.reduce((a, b) => a + b, 0) / bands.length) * 10) / 10 : null;
   const flagged = roster.filter((r) => r.cheatCount > 0).length;
   const totalAttempts = roster.reduce((s, r) => s + r.attemptCount, 0);
+
+  // Paper-mode (Reading/Listening) assignments carry the answer key + AI lời
+  // giải on their custom questions — surface it as a complete solution sheet.
+  const paperSkill = paperSkillOf(assignment.config);
+  let solutionItems: SolutionItem[] = [];
+  if (paperSkill) {
+    const qRows = await prisma.question.findMany({
+      where: { id: { in: assignment.questionIds } },
+      select: { id: true, type: true, prompt: true, correctAnswer: true, explanation: true, displayNumber: true },
+    });
+    const byId = new Map(qRows.map((q) => [q.id, q]));
+    solutionItems = assignment.questionIds
+      .map((id, i): SolutionItem | null => {
+        const q = byId.get(id);
+        if (!q) return null;
+        const prompt = q.prompt && !/^Câu\s*\d+\s*$/i.test(q.prompt) ? q.prompt : "";
+        return {
+          number: q.displayNumber ?? i + 1,
+          prompt,
+          answer: coerceAnswer(q.correctAnswer),
+          typeLabel: typeLabel(q.type),
+          explanation: q.explanation ?? "",
+        };
+      })
+      .filter((x): x is SolutionItem => x !== null);
+  }
+  const skillLabel = paperSkill === "READING" ? "Reading" : paperSkill === "LISTENING" ? "Listening" : "";
 
   return (
     <div className="space-y-5">
@@ -139,6 +185,16 @@ export default async function AssignmentReviewPage({
           <p className={cn("mt-1 text-2xl font-bold", flagged > 0 ? "text-destructive" : "text-leaf")}>{flagged}</p>
         </CardContent></Card>
       </div>
+
+      {/* Answer key + AI solutions (paper-mode Reading/Listening) */}
+      {solutionItems.length > 0 && (
+        <SolutionSheet
+          title={assignment.title}
+          className={assignment.class.name}
+          skillLabel={skillLabel}
+          items={solutionItems}
+        />
+      )}
 
       {/* Roster */}
       {roster.length === 0 ? (
