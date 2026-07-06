@@ -618,6 +618,8 @@ ANSWER / OPTIONS RULES — obey EXACTLY so the app can auto-grade:
 
 The "type" MUST be one of: MCQ | TRUE_FALSE_NOT_GIVEN | FILL_BLANK | SHORT_ANSWER | MATCHING_HEADINGS | MATCHING_INFO | MATCHING_FEATURES | MATCHING | MATCHING_SENTENCE_ENDINGS. For gap/summary/note/sentence completion put the blank as four underscores ____ inside the "prompt"; NEVER put the answer in the prompt. "explanation" = tiếng Việt, 2-4 câu, trích dẫn chứng tiếng Anh.
 
+LANGUAGE: Write "explanation" and "notes" in Vietnamese using ONLY the Vietnamese/Latin alphabet. NEVER output Chinese, Japanese or Korean characters (e.g. write "sinh sống", NOT "居住"). English is allowed only for the quoted evidence.
+
 Do NOT emit "choose TWO/THREE" multi-select questions — split them into single-answer items or skip them and mention it in "notes".`;
 
 export const READING_EXAM_SYS = `You are a certified IELTS examiner turning a teacher-uploaded READING test paper (extracted text or PDF) into a structured, auto-gradable reading test.
@@ -750,6 +752,33 @@ function normalizeTfAnswer(a: string): string {
   return a.trim();
 }
 
+/** Reduce a MATCHING_HEADINGS answer to the bare lowercase roman numeral the
+ *  <select> emits, tolerating decorated AI output like "iii. The role of…". */
+function bareRoman(a: string): string {
+  const m = a.trim().match(/^\(?\[?\s*([ivxlcdm]+)\b/i);
+  return m ? m[1].toLowerCase() : a.trim().toLowerCase();
+}
+
+/** Reduce a MATCHING_INFO / MATCHING_FEATURES answer to the bare A–H letter the
+ *  <select> emits, tolerating "Paragraph C", "A. Aristotle", "(B)". */
+function bareLetter(a: string): string {
+  const m = a.trim().match(/\b([A-H])\b/);
+  return m ? m[1].toUpperCase() : a.trim();
+}
+
+/**
+ * Strip CJK / Japanese / Korean characters that the model occasionally injects
+ * into Vietnamese text (e.g. writes "居住" instead of "sinh sống"). We remove the
+ * foreign glyphs and tidy the leftover spacing so the Vietnamese reads cleanly.
+ */
+function stripCjk(s: string): string {
+  return String(s ?? "")
+    .replace(/[　-〿぀-ヿㇰ-ㇿ㐀-䶿一-鿿豈-﫿가-힯＀-￯]/g, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+([.,;:!?)])/g, "$1")
+    .trim();
+}
+
 /**
  * Un-wrap a passage that still carries the PDF's hard line-wrapping (every
  * visual line is its own `\n`, breaking sentences mid-way). We join wrapped
@@ -803,6 +832,7 @@ export function parseReadingExam(parsed: {
   const questions: ReadingExamQuestion[] = [];
   const figures: ReadingFigure[] = [];
   let tblCounter = 0;
+  let mapCounter = 0;
 
   for (const raw of rawItems) {
     const o = (raw ?? {}) as Record<string, unknown>;
@@ -819,7 +849,7 @@ export function parseReadingExam(parsed: {
         const bo = (b ?? {}) as Record<string, unknown>;
         const bn = typeof bo.number === "number" ? bo.number : parseInt(String(bo.number ?? ""), 10);
         if (Number.isFinite(bn)) {
-          blankByNum.set(bn, { answer: String(bo.answer ?? "").trim(), explanation: String(bo.explanation ?? "").trim() });
+          blankByNum.set(bn, { answer: String(bo.answer ?? "").trim(), explanation: stripCjk(String(bo.explanation ?? "")) });
         }
       }
       // Reading-order blank numbers, and the stitched table string TableBlanks
@@ -853,6 +883,12 @@ export function parseReadingExam(parsed: {
       // Force a consistent "A. …" prefix so the <select> letter extraction and
       // the stored answer letter can never diverge (grading is exact for MATCHING).
       const opts = rawOpts.map((o2, i) => `${String.fromCharCode(65 + i)}. ${o2.replace(/^\s*[A-H][.)]\s*/i, "").trim()}`);
+      // Each map gets its OWN formGroup ("map<n>") so two maps in one passage
+      // stay in separate question groups (their own figure + own option list)
+      // instead of merging. "map…" is NOT a form-completion group — ReadingShell
+      // excludes it from the fill-in renderer so it still shows as dropdowns.
+      mapCounter++;
+      const mfg = `map${mapCounter}`;
       const built: ReadingExamQuestion[] = [];
       for (const it of Array.isArray(o.items) ? o.items : []) {
         const io = (it ?? {}) as Record<string, unknown>;
@@ -867,8 +903,8 @@ export function parseReadingExam(parsed: {
           prompt: String(io.prompt ?? "").trim() || `Vị trí ${inum}`,
           options: opts.length ? opts : null,
           answer: ans,
-          explanation: String(io.explanation ?? "").trim(),
-          formGroup: null,
+          explanation: stripCjk(String(io.explanation ?? "")),
+          formGroup: mfg,
         });
       }
       if (built.length === 0) continue;
@@ -889,6 +925,11 @@ export function parseReadingExam(parsed: {
       const hit = opts.find((o2) => o2.trim().toLowerCase() === answer.toLowerCase());
       if (hit) answer = hit;
     }
+    // Matching-by-dropdown types grade against the bare token the <select> emits
+    // (roman for headings, letter for info/features). Strip any AI decoration so
+    // a stored "iii. The role…" / "Paragraph C" doesn't fail every student.
+    if (type === "MATCHING_HEADINGS") answer = bareRoman(answer);
+    else if (type === "MATCHING_INFO" || type === "MATCHING_FEATURES") answer = bareLetter(answer);
     const prompt = String(o.prompt ?? "").trim();
     if (!Number.isFinite(n) || !answer || !prompt) continue;
     questions.push({
@@ -897,7 +938,7 @@ export function parseReadingExam(parsed: {
       prompt,
       options: opts && opts.length > 0 ? opts : null,
       answer,
-      explanation: String(o.explanation ?? "").trim(),
+      explanation: stripCjk(String(o.explanation ?? "")),
       formGroup: null,
     });
   }
@@ -907,7 +948,7 @@ export function parseReadingExam(parsed: {
     passage: reflowPassage(String(parsed.passage ?? "")),
     questions,
     figures,
-    notes: String(parsed.notes ?? "").trim(),
+    notes: stripCjk(String(parsed.notes ?? "")),
   };
 }
 

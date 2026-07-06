@@ -426,20 +426,33 @@ interface PassageOutline {
   firstQuestion: number;
   lastQuestion: number;
 }
+interface OutlineResult {
+  passages: PassageOutline[];
+  lastQuestion: number;
+}
 
-const READING_OUTLINE_SYS = `You are an IELTS Reading test analyst. The attached PDF is a FULL IELTS Reading paper that contains SEVERAL separate reading passages — usually 3 (Academic) or 4, each with its OWN title and its OWN block of numbered questions. Scan the WHOLE paper, first page to last.
+const READING_OUTLINE_SYS = `You are an IELTS Reading test analyst. The attached PDF is a FULL IELTS Reading paper made of SEVERAL separate reading passages, each with its OWN title/heading and its OWN block of numbered questions. Scan the WHOLE paper — EVERY page, first to last. Do NOT stop after the first one or two passages.
+
+HOW MANY PASSAGES:
+- A standard Academic paper has 40 questions across EXACTLY 3 passages (~13–14 questions each: e.g. 1–13, 14–26, 27–40). It is NEVER just 2 passages. Some papers have 4.
+- Each passage begins with a NEW heading/title (often labelled "Reading Passage 1/2/3", or a big title line) followed by its own body text and its own question block. A new title = a new passage. If you counted fewer passages than the question count implies (e.g. only 2 for a 40-question paper), you MISSED one — look again on the later pages.
 
 Return ONLY JSON:
-{ "passages": [ { "title": "<this passage's own title>", "firstQuestion": <first question number of this passage>, "lastQuestion": <last question number of this passage> } ] }
+{
+  "passages": [ { "title": "<this passage's own title>", "firstQuestion": <first question number of this passage>, "lastQuestion": <last question number of this passage> } ],
+  "lastQuestion": <the number of the VERY LAST question in the whole paper, e.g. 40>
+}
 
 Rules:
-- One entry per passage, in order. NEVER merge two passages.
-- Cover EVERY question from the first (usually 1) to the very last (an Academic paper usually ends at 40). The ranges must be contiguous and cover the whole paper.
+- One entry per passage, in order. NEVER merge two passages into one entry.
+- "firstQuestion" = the first numbered question that belongs to that passage. Ranges are contiguous and cover 1 … "lastQuestion".
+- "lastQuestion" = the highest question number ANYWHERE in the paper (usually 40). Do NOT under-count — check the final pages.
 - Just the outline — do NOT extract passage text or questions here.`;
 
-/** Phase 1: list the passages (title + question range). A tiny, reliable task —
- *  far more dependable than asking one call to extract the whole paper. */
-async function outlineReadingPassages(docBlock: unknown): Promise<PassageOutline[]> {
+/** Phase 1: list the passages (title + first question) + the paper's last
+ *  question number. A tiny, reliable task — far more dependable than asking one
+ *  call to extract the whole paper. */
+async function outlineReadingPassages(docBlock: unknown): Promise<OutlineResult> {
   const response = await client.beta.messages.create({
     model: MODEL,
     max_tokens: 1500,
@@ -450,25 +463,65 @@ async function outlineReadingPassages(docBlock: unknown): Promise<PassageOutline
         role: "user",
         content: [
           docBlock,
-          { type: "text", text: "List EVERY reading passage in this paper with its title and its question-number range. Return ONLY the JSON." },
+          { type: "text", text: "List EVERY reading passage with its title + first question number, and the paper's LAST question number. Return ONLY the JSON." },
         ] as unknown as Anthropic.Beta.Messages.BetaContentBlockParam[],
       },
     ],
     betas: ["pdfs-2024-09-25"],
   });
-  const parsed = extractJSON(betaText(response)) as { passages?: unknown };
+  const parsed = extractJSON(betaText(response)) as { passages?: unknown; lastQuestion?: unknown };
   const raw = Array.isArray(parsed.passages) ? parsed.passages : [];
-  return raw
+  const passages = raw
     .map((p): PassageOutline => {
       const o = (p ?? {}) as Record<string, unknown>;
       return { title: String(o.title ?? "").trim(), firstQuestion: toInt(o.firstQuestion), lastQuestion: toInt(o.lastQuestion) };
     })
-    .filter((o) => Number.isFinite(o.firstQuestion) && Number.isFinite(o.lastQuestion) && o.lastQuestion >= o.firstQuestion);
+    .filter((o) => Number.isFinite(o.firstQuestion));
+  return { passages, lastQuestion: toInt(parsed.lastQuestion) };
 }
 
-/** Phase 2: extract ONE passage (its full text + all its questions + solutions).
- *  Focused, so the output always fits and never drops questions. */
-async function extractOnePassage(docBlock: unknown, o: PassageOutline): Promise<ReadingExamPart> {
+/** Make the ranges contiguous + covering the whole paper: a passage's lastQuestion
+ *  is the next passage's firstQuestion − 1, and the FINAL passage runs to the
+ *  paper's last question. This fixes an outline that under-reports a passage's
+ *  range (e.g. "27–27" for a passage that actually owns 27–40). */
+function normalizeOutline(res: OutlineResult): PassageOutline[] {
+  const ps = res.passages.filter((p) => Number.isFinite(p.firstQuestion)).sort((a, b) => a.firstQuestion - b.firstQuestion);
+  if (ps.length === 0) return [];
+  const overallLast = Math.max(
+    Number.isFinite(res.lastQuestion) ? res.lastQuestion : 0,
+    ...ps.map((p) => (Number.isFinite(p.lastQuestion) ? p.lastQuestion : 0)),
+    ps[ps.length - 1].firstQuestion,
+  );
+  return ps.map((p, i) => {
+    const firstQuestion = p.firstQuestion;
+    let lastQuestion = i < ps.length - 1 ? ps[i + 1].firstQuestion - 1 : overallLast;
+    if (!Number.isFinite(lastQuestion) || lastQuestion < firstQuestion) {
+      lastQuestion = Number.isFinite(p.lastQuestion) && p.lastQuestion >= firstQuestion ? p.lastQuestion : firstQuestion;
+    }
+    return { title: p.title, firstQuestion, lastQuestion };
+  });
+}
+
+/** ONE extraction attempt for a passage. The call gets the whole paper's outline
+ *  so it knows the boundaries. Assigning the result to this part is the delicate
+ *  bit — a call can (a) return exactly this passage's questions, (b) leak a
+ *  neighbour's, or (c) return the right passage with restarted numbering, and we
+ *  must NEVER silently put another passage's content into this part (that
+ *  mis-grades students with no warning). So:
+ *   - keep questions whose number is in THIS passage's range (trims leaks);
+ *   - only when the returned numbers do NOT belong to ANY other passage (so it's
+ *     a genuine restart of THIS passage, not a leak) do we trust position and
+ *     renumber them onto the range;
+ *   - otherwise keep just the in-range set (possibly empty) → the retry pass +
+ *     empty-part guard surface it to the teacher instead of mis-assigning. */
+async function extractOnePassage(
+  docBlock: unknown,
+  outline: PassageOutline[],
+  idx: number,
+  outlineText: string,
+): Promise<ReadingExamPart> {
+  const o = outline[idx];
+  const expected = Math.max(1, o.lastQuestion - o.firstQuestion + 1);
   const response = await client.beta.messages.create({
     model: MODEL,
     max_tokens: 8000,
@@ -481,7 +534,10 @@ async function extractOnePassage(docBlock: unknown, o: PassageOutline): Promise<
           docBlock,
           {
             type: "text",
-            text: `From the attached PDF, extract ONLY the reading passage titled "${o.title}" and its questions ${o.firstQuestion}–${o.lastQuestion}. Copy that passage's full text verbatim (join hard-wrapped lines into flowing paragraphs). Produce EVERY question from ${o.firstQuestion} to ${o.lastQuestion}, none skipped. If a question is a TABLE or MAP/PLAN, use the TABLE/MAP block. Return ONLY the JSON.`,
+            text: `This IELTS Reading paper has ${outline.length} passages:
+${outlineText}
+
+Extract ONLY passage ${idx + 1} — "${o.title}" — and ONLY its questions ${o.firstQuestion}–${o.lastQuestion} (that is ${expected} questions). Do NOT include a single question that belongs to another passage (those are extracted separately). Copy THIS passage's full text verbatim (join hard-wrapped lines into flowing paragraphs). You MUST produce EVERY question from ${o.firstQuestion} to ${o.lastQuestion} with the paper's ORIGINAL numbers — do not stop early, do not skip any. If a question is a TABLE or MAP/PLAN, use the TABLE/MAP block. Return ONLY the JSON.`,
           },
         ] as unknown as Anthropic.Beta.Messages.BetaContentBlockParam[],
       },
@@ -489,7 +545,59 @@ async function extractOnePassage(docBlock: unknown, o: PassageOutline): Promise<
     betas: ["pdfs-2024-09-25"],
   });
   const r = parseReadingExam(extractJSON(betaText(response)) as Record<string, unknown>);
-  return { title: r.title || o.title, passage: r.passage, questions: r.questions, figures: r.figures };
+  const inRange = r.questions.filter((q) => q.number >= o.firstQuestion && q.number <= o.lastQuestion);
+
+  let questions = inRange;
+  let figures = r.figures.filter((f) => f.atNumber >= o.firstQuestion && f.atNumber <= o.lastQuestion);
+
+  if (inRange.length < r.questions.length && inRange.length < expected) {
+    // Some/all returned questions are OUT of this passage's range. Decide: a
+    // restart of THIS passage (safe to renumber) vs a leaked wrong passage
+    // (must reject). It's a restart only if NONE of the returned numbers fall in
+    // another passage's declared range.
+    const collidesOther = r.questions.some((q) =>
+      outline.some((oo, j) => j !== idx && q.number >= oo.firstQuestion && q.number <= oo.lastQuestion),
+    );
+    if (!collidesOther && r.questions.length >= 2) {
+      const slice = r.questions.slice(0, expected);
+      const remap = new Map<number, number>();
+      questions = slice.map((q, i) => {
+        remap.set(q.number, o.firstQuestion + i);
+        return { ...q, number: o.firstQuestion + i };
+      });
+      figures = r.figures
+        .filter((f) => remap.has(f.atNumber))
+        .map((f) => ({ ...f, atNumber: remap.get(f.atNumber)! }));
+    }
+    // else: keep `inRange` — leaks dropped; nothing mis-assigned.
+  }
+  return { title: r.title || o.title, passage: r.passage, questions, figures };
+}
+
+/** Extract a passage, RETRYING up to 3× and keeping the attempt with the most
+ *  questions — so an under-producing call (1 of 14 questions) gets corrected
+ *  instead of shipping a near-empty part. Stops as soon as a call returns the
+ *  expected count. */
+async function extractPassageBest(
+  docBlock: unknown,
+  outline: PassageOutline[],
+  idx: number,
+  outlineText: string,
+): Promise<ReadingExamPart> {
+  const o = outline[idx];
+  const expected = Math.max(1, o.lastQuestion - o.firstQuestion + 1);
+  let best: ReadingExamPart = { title: o.title, passage: "", questions: [], figures: [] };
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const r = await extractOnePassage(docBlock, outline, idx, outlineText);
+      if (r.questions.length > best.questions.length) best = r;
+      else if (r.passage && !best.passage) best = { ...best, passage: r.passage };
+    } catch (e) {
+      console.error(`[extractPassageBest] "${o.title}" attempt ${attempt} failed:`, e);
+    }
+    if (best.questions.length >= expected) break;
+  }
+  return best;
 }
 
 /** Legacy one-shot fallback (whole paper in a single call) — used only if the
@@ -522,36 +630,47 @@ export async function generateReadingExamFromPdf(pdfBase64: string): Promise<Rea
 
   // Phase 1: outline the passages (cheap + reliable) — this also warms the PDF
   // prompt cache so the per-passage calls below are fast + cheap.
-  let outline: PassageOutline[] = [];
+  let outlineRes: OutlineResult;
   try {
-    outline = await outlineReadingPassages(docBlock);
+    outlineRes = await outlineReadingPassages(docBlock);
   } catch (e) {
     console.error("[generateReadingExamFromPdf] outline failed:", e);
+    return singleCallReadingExam(docBlock);
   }
-
-  // No usable outline → one-shot fallback so we still return something.
+  const outline = normalizeOutline(outlineRes);
   if (outline.length === 0) return singleCallReadingExam(docBlock);
 
-  // Phase 2: extract each passage on its own — focused so none is ever dropped.
-  const settled = await Promise.all(
-    outline.map(async (o) => {
-      try {
-        return await extractOnePassage(docBlock, o);
-      } catch (e) {
-        console.error(`[generateReadingExamFromPdf] passage "${o.title}" (${o.firstQuestion}-${o.lastQuestion}) failed:`, e);
-        return null;
-      }
-    }),
+  // A shared map of the whole paper so every extraction knows the exact
+  // boundaries and never bleeds a neighbouring passage's questions into itself.
+  const outlineText = outline
+    .map((o, i) => `${i + 1}. "${o.title}" — questions ${o.firstQuestion}–${o.lastQuestion}`)
+    .join("\n");
+
+  // Phase 2: extract each passage on its own, retrying until it yields its full
+  // question count — so no passage ships near-empty.
+  const parts = await Promise.all(
+    outline.map((_o, i) => extractPassageBest(docBlock, outline, i, outlineText)),
   );
-  const parts = settled.filter(
-    (p): p is ReadingExamPart => !!p && (p.passage.length > 0 || p.questions.length > 0),
-  );
-  if (parts.length === 0) return singleCallReadingExam(docBlock);
-  const missing = outline.length - parts.length;
-  return {
-    parts,
-    notes: missing > 0 ? `AI tách được ${parts.length}/${outline.length} bài đọc — hãy kiểm tra các bài còn thiếu.` : "",
-  };
+
+  // If NOTHING came back at all, fall back to the one-shot path.
+  if (parts.every((p) => p.passage.length === 0 && p.questions.length === 0)) {
+    return singleCallReadingExam(docBlock);
+  }
+  // KEEP every outline passage as a part (even one that produced nothing) so the
+  // Part count/structure is preserved and an empty part is SURFACED to the
+  // teacher (builder shows "⚠ chưa có câu hỏi" + blocks the save) rather than a
+  // whole passage silently vanishing and shifting the Part numbers.
+  const produced = parts.reduce((n, p) => n + p.questions.length, 0);
+  const expectedTotal = outline.reduce((n, o) => n + Math.max(0, o.lastQuestion - o.firstQuestion + 1), 0);
+  const missing = Math.max(0, expectedTotal - produced);
+  const emptyParts = parts.filter((p) => p.questions.length === 0).length;
+  let notes = "";
+  if (emptyParts > 0) {
+    notes = `Có ${emptyParts} bài đọc AI chưa lấy được câu hỏi — hãy bấm "Tạo lại" hoặc kiểm tra lại file.`;
+  } else if (missing > 0) {
+    notes = `AI mới tạo ${produced}/${expectedTotal} câu — còn ${missing} câu chưa lấy được. Hãy bấm "Tạo lại" hoặc kiểm tra lại file.`;
+  }
+  return { parts, notes };
 }
 
 export interface WritingGradeInput {

@@ -220,6 +220,12 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
     );
   const updateReadingPassage = (pi: number, passage: string) =>
     setAiReading((r) => (r ? { parts: r.parts.map((part, i) => (i === pi ? { ...part, passage } : part)) } : r));
+  const removeReadingPart = (pi: number) =>
+    setAiReading((r) => {
+      if (!r) return r;
+      const parts = r.parts.filter((_, i) => i !== pi);
+      return parts.length > 0 ? { parts } : null;
+    });
   const updateListeningQ = (number: number, patch: Partial<AiItem>) =>
     setAiQuestions((qs) => (qs ? qs.map((q) => (q.number === number ? { ...q, ...patch } : q)) : qs));
 
@@ -248,6 +254,13 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
       if (skill === "LISTENING" && !audioUrl.trim()) return toast.error("Bài Listening cần file âm thanh");
 
       if (skill === "READING" && aiReading && aiReading.parts.some((p) => p.questions.length > 0)) {
+        // Never ship a reading part with zero questions — it renders as an empty
+        // Part for the student. Force the teacher to regenerate/fix first.
+        const emptyPart = aiReading.parts.findIndex((p) => p.questions.length === 0);
+        if (emptyPart >= 0) {
+          setSubmitting(false);
+          return toast.error(`Part ${emptyPart + 1} chưa có câu hỏi — bấm "Tạo lại" hoặc xoá bài đọc trống trước khi giao.`);
+        }
         // Native reading exam SPLIT INTO PARTS: each passage rides in
         // config.reading.parts (with its question count so the learner side can
         // slice the flat question list back into parts); questions carry
@@ -515,6 +528,11 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
                     ⚠️ Lưu ý từ AI: {aiNotes}
                   </p>
                 )}
+                {aiReading.parts.some((p) => p.questions.length === 0) && (
+                  <p className="rounded-lg border border-destructive/40 bg-destructive/10 p-2.5 text-xs font-semibold text-destructive">
+                    ⚠️ Có bài đọc chưa có câu hỏi. Bấm <strong>Tạo lại</strong> để AI làm lại, hoặc kiểm tra file — không giao được khi còn bài trống.
+                  </p>
+                )}
 
                 {aiReading.parts.map((part, pi) => (
                   <div key={pi} className="space-y-3 rounded-xl border-2 border-leaf/30 bg-leaf/5 p-3">
@@ -526,7 +544,21 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
                         className="h-8 flex-1 text-sm font-bold"
                         placeholder="Tiêu đề bài đọc"
                       />
-                      <span className="shrink-0 text-xs text-muted-foreground">{part.questions.length} câu</span>
+                      {part.questions.length > 0 ? (
+                        <span className="shrink-0 text-xs text-muted-foreground">{part.questions.length} câu</span>
+                      ) : (
+                        <span className="shrink-0 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-bold text-destructive">
+                          ⚠ chưa có câu hỏi
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeReadingPart(pi)}
+                        title="Xoá bài đọc này"
+                        className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
                     </div>
 
                     <details className="rounded-lg border bg-muted/20 p-3">
