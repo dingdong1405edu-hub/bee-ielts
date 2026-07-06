@@ -591,6 +591,30 @@ Return ONLY valid JSON in this EXACT shape:
   "notes": "<tiếng Việt — cảnh báo nếu có câu không chắc chắn, đề thiếu, hoặc câu multi-select đã bị bỏ; \\"\\" nếu ổn>"
 }
 
+SPECIAL BLOCKS — if the paper contains a TABLE or a MAP/PLAN/DIAGRAM, put ONE of these objects INSIDE the "questions" array at the position where it appears (in question order), INSTEAD of listing those numbered items separately:
+
+TABLE completion (recreate the table EXACTLY — same rows/columns/headers as the file):
+{
+  "type": "TABLE",
+  "grid": [ ["Header 1","Header 2","Header 3"], ["row cell","{{7}}","row cell"], ["row cell","row cell","{{8}}"] ],
+  "blanks": [ { "number": 7, "answer": "<exact word(s) from passage; use / for alternatives>", "explanation": "<tiếng Việt>" }, { "number": 8, "answer": "...", "explanation": "..." } ]
+}
+- "grid" is the table as a 2D array (first inner array = header row). Copy every cell's text verbatim. Put the marker "{{N}}" (N = the question number) in the cell that is a gap the student fills. One "{{N}}" per gap, in the SAME position as in the file.
+- "blanks" lists every gap with its number + answer (word-limit rules as FILL_BLANK) + Vietnamese explanation.
+
+MAP / PLAN / DIAGRAM labelling (RE-DRAW it yourself as clean SVG):
+{
+  "type": "MAP",
+  "instruction": "<the task instruction, e.g. 'Label the plan. Choose the correct letter A–H.'>",
+  "svg": "<a self-contained SVG that RE-DRAWS the map/plan/diagram from the file. Use a viewBox (e.g. viewBox='0 0 400 300'), NO width/height px. Use ONLY simple shapes: rect, line, polyline, polygon, circle, path, text. Put the QUESTION NUMBERS (1,2,3…) as <text> at each location to be labelled. IMPORTANT: use SINGLE quotes for every attribute (e.g. <rect x='10' y='10' width='80' height='40' fill='none' stroke='currentColor'/>) so the JSON stays valid. Keep it readable and roughly faithful to the file layout.>",
+  "options": [ "A. Reception", "B. Car park", "C. Café", "D. Library" ],
+  "items": [ { "number": 1, "prompt": "<optional label name, e.g. 'The main entrance'>", "answer": "C", "explanation": "<tiếng Việt>" }, { "number": 2, "answer": "A", "explanation": "..." } ]
+}
+- "options" = the SHARED list of labels A–H (with the letter prefix), shown to the student.
+- "items" = one per numbered location on the map; "answer" = the correct LETTER only (e.g. "C").
+- Draw the SAME numbered locations in the SVG so the student can match number → letter.
+Only emit TABLE/MAP when the file actually has one. Do NOT invent them.
+
 ANSWER / OPTIONS RULES — obey EXACTLY so the app can auto-grade:
 - MCQ: "options" = the full text of each choice (NO "A."/"B." prefixes). "answer" = the FULL TEXT of the correct choice, copied CHARACTER-FOR-CHARACTER from one entry of "options".
 - TRUE_FALSE_NOT_GIVEN: "options" = ["True","False","Not Given"]. "answer" = "True" | "False" | "Not Given". For YES/NO/NOT GIVEN questions, map YES→"True", NO→"False", keep "Not Given" (same 3-way control).
@@ -610,12 +634,44 @@ export interface ReadingExamQuestion {
   options: string[] | null;
   answer: string;
   explanation: string;
+  /** Table-completion members share a "tbl…" formGroup so TableBlanks renders
+   *  them as one grid. Normal questions leave this null. */
+  formGroup?: string | null;
+}
+/** An AI-drawn map/plan/diagram (inline SVG) rendered above the question group
+ *  that starts at `atNumber`. */
+export interface ReadingFigure {
+  svg: string;
+  atNumber: number;
+  caption?: string;
 }
 export interface ReadingExamResult {
   title: string;
   passage: string;
   questions: ReadingExamQuestion[];
+  figures: ReadingFigure[];
   notes: string;
+}
+
+/** Keep only a safe, standalone <svg>…</svg>: strip scripts, foreignObject, all
+ *  inline event handlers (quoted OR unquoted) and javascript: URIs so a figure
+ *  can't run code. Applied to AI output AND re-applied when an assignment is
+ *  saved (a teacher could POST arbitrary config), since the result is served to
+ *  students via dangerouslySetInnerHTML. Exported for that write-path re-check. */
+export function sanitizeSvg(raw: unknown): string {
+  let s = String(raw ?? "").trim();
+  const lo = s.toLowerCase();
+  const start = lo.indexOf("<svg");
+  const end = lo.lastIndexOf("</svg>");
+  if (start === -1 || end === -1) return "";
+  s = s.slice(start, end + 6);
+  s = s.replace(/<script[\s\S]*?<\/script>/gi, "");
+  s = s.replace(/<foreignobject[\s\S]*?<\/foreignobject>/gi, "");
+  s = s.replace(/\son\w+\s*=\s*"[^"]*"/gi, "");     // on…="…"
+  s = s.replace(/\son\w+\s*=\s*'[^']*'/gi, "");      // on…='…'
+  s = s.replace(/\son\w+\s*=\s*[^\s>]+/gi, "");      // on…=unquoted
+  s = s.replace(/javascript:/gi, "");
+  return s.slice(0, 20000);
 }
 
 const READING_EXAM_TYPES = new Set([
@@ -656,7 +712,7 @@ export async function generateReadingExamGroq(input: {
   const userMessage = `TEST PAPER TEXT (bài đọc + câu hỏi):
 ${doc}
 
-Trích NGUYÊN VĂN bài đọc, tìm mọi câu hỏi có đánh số theo đúng thứ tự, chấm đáp án đúng theo ĐÚNG ANSWER/OPTIONS RULES, và viết lời giải tiếng Việt. Trả về JSON only.`;
+Trích NGUYÊN VĂN bài đọc, tìm mọi câu hỏi có đánh số theo đúng thứ tự, chấm đáp án đúng theo ĐÚNG ANSWER/OPTIONS RULES, và viết lời giải tiếng Việt. Nếu đề có BẢNG thì trả về block "TABLE"; nếu có BẢN ĐỒ/SƠ ĐỒ/PLAN thì VẼ LẠI bằng SVG trong block "MAP". Trả về JSON only.`;
 
   const text = await groqChat(
     [
@@ -669,38 +725,114 @@ Trích NGUYÊN VĂN bài đọc, tìm mọi câu hỏi có đánh số theo đú
   const parsed = extractJSON(text) as {
     title?: unknown; passage?: unknown; questions?: unknown; notes?: unknown;
   };
-  const rawQs = Array.isArray(parsed.questions) ? parsed.questions : [];
-  const questions: ReadingExamQuestion[] = rawQs
-    .map((q): ReadingExamQuestion => {
-      const o = (q ?? {}) as Record<string, unknown>;
-      const type = normalizeReadingType(o.type);
-      const n = typeof o.number === "number" ? o.number : parseInt(String(o.number ?? ""), 10);
-      const opts = Array.isArray(o.options)
-        ? o.options.map((x) => String(x)).filter((s) => s.trim().length > 0)
-        : null;
-      let answer = String(o.answer ?? "").trim();
-      if (type === "TRUE_FALSE_NOT_GIVEN") answer = normalizeTfAnswer(answer);
-      // Full-text answer types: snap to the exact option string (case-insensitive)
-      // so isAnswerCorrect's exact match can't fail on a casing/whitespace slip.
-      if ((type === "MCQ" || type === "MATCHING" || type === "MATCHING_SENTENCE_ENDINGS") && opts) {
-        const hit = opts.find((o2) => o2.trim().toLowerCase() === answer.toLowerCase());
-        if (hit) answer = hit;
+  const rawItems = Array.isArray(parsed.questions) ? parsed.questions : [];
+  const questions: ReadingExamQuestion[] = [];
+  const figures: ReadingFigure[] = [];
+  let tblCounter = 0;
+
+  for (const raw of rawItems) {
+    const o = (raw ?? {}) as Record<string, unknown>;
+    const rawType = String(o.type ?? "").trim().toUpperCase();
+
+    // ---- TABLE completion → tbl-formGroup FILL_BLANK questions -------------
+    if (rawType === "TABLE") {
+      const grid = (Array.isArray(o.grid) ? o.grid : Array.isArray(o.rows) ? o.rows : []) as unknown[];
+      const rows: string[][] = grid.map((r) =>
+        Array.isArray(r) ? r.map((c) => String(c ?? "")) : [String(r ?? "")],
+      );
+      const blankByNum = new Map<number, { answer: string; explanation: string }>();
+      for (const b of Array.isArray(o.blanks) ? o.blanks : []) {
+        const bo = (b ?? {}) as Record<string, unknown>;
+        const bn = typeof bo.number === "number" ? bo.number : parseInt(String(bo.number ?? ""), 10);
+        if (Number.isFinite(bn)) {
+          blankByNum.set(bn, { answer: String(bo.answer ?? "").trim(), explanation: String(bo.explanation ?? "").trim() });
+        }
       }
-      return {
-        number: n,
-        type,
-        prompt: String(o.prompt ?? "").trim(),
-        options: opts && opts.length > 0 ? opts : null,
-        answer,
-        explanation: String(o.explanation ?? "").trim(),
-      };
-    })
-    .filter((q) => Number.isFinite(q.number) && q.answer.length > 0 && q.prompt.length > 0);
+      // Reading-order blank numbers, and the stitched table string TableBlanks
+      // parses (rows = "\n", cells = "|", each blank = "_____").
+      const order: number[] = [];
+      const tableStr = rows
+        .map((row) => row.map((cell) => cell.replace(/\{\{\s*(\d+)\s*\}\}/g, (_m, d) => { order.push(parseInt(d, 10)); return "_____"; })).join("|"))
+        .join("\n");
+      if (order.length === 0) continue;
+      tblCounter++;
+      const fg = `tbl${tblCounter}`;
+      order.forEach((num, idx) => {
+        const b = blankByNum.get(num) ?? { answer: "", explanation: "" };
+        questions.push({
+          number: num,
+          type: "FILL_BLANK",
+          prompt: idx === 0 ? tableStr : "", // whole grid rides on the first member
+          options: null,
+          answer: b.answer,
+          explanation: b.explanation,
+          formGroup: fg,
+        });
+      });
+      continue;
+    }
+
+    // ---- MAP / PLAN / DIAGRAM → SVG figure + MATCHING_FEATURES labels -------
+    if (rawType === "MAP" || rawType === "PLAN" || rawType === "DIAGRAM") {
+      const svg = sanitizeSvg(o.svg);
+      const rawOpts = Array.isArray(o.options) ? o.options.map((x) => String(x)).filter((s) => s.trim().length > 0) : [];
+      // Force a consistent "A. …" prefix so the <select> letter extraction and
+      // the stored answer letter can never diverge (grading is exact for MATCHING).
+      const opts = rawOpts.map((o2, i) => `${String.fromCharCode(65 + i)}. ${o2.replace(/^\s*[A-H][.)]\s*/i, "").trim()}`);
+      const built: ReadingExamQuestion[] = [];
+      for (const it of Array.isArray(o.items) ? o.items : []) {
+        const io = (it ?? {}) as Record<string, unknown>;
+        const inum = typeof io.number === "number" ? io.number : parseInt(String(io.number ?? ""), 10);
+        if (!Number.isFinite(inum)) continue;
+        let ans = String(io.answer ?? "").trim();
+        const lm = ans.match(/^([A-H])\b/i); // "C" or "C. Reception" → "C"
+        if (lm) ans = lm[1].toUpperCase();
+        built.push({
+          number: inum,
+          type: "MATCHING_FEATURES",
+          prompt: String(io.prompt ?? "").trim() || `Vị trí ${inum}`,
+          options: opts.length ? opts : null,
+          answer: ans,
+          explanation: String(io.explanation ?? "").trim(),
+          formGroup: null,
+        });
+      }
+      if (built.length === 0) continue;
+      questions.push(...built);
+      if (svg) {
+        figures.push({ svg, atNumber: built[0].number, caption: String(o.instruction ?? o.caption ?? "").trim() || undefined });
+      }
+      continue;
+    }
+
+    // ---- normal question ---------------------------------------------------
+    const type = normalizeReadingType(o.type);
+    const n = typeof o.number === "number" ? o.number : parseInt(String(o.number ?? ""), 10);
+    const opts = Array.isArray(o.options) ? o.options.map((x) => String(x)).filter((s) => s.trim().length > 0) : null;
+    let answer = String(o.answer ?? "").trim();
+    if (type === "TRUE_FALSE_NOT_GIVEN") answer = normalizeTfAnswer(answer);
+    if ((type === "MCQ" || type === "MATCHING" || type === "MATCHING_SENTENCE_ENDINGS") && opts) {
+      const hit = opts.find((o2) => o2.trim().toLowerCase() === answer.toLowerCase());
+      if (hit) answer = hit;
+    }
+    const prompt = String(o.prompt ?? "").trim();
+    if (!Number.isFinite(n) || !answer || !prompt) continue;
+    questions.push({
+      number: n,
+      type,
+      prompt,
+      options: opts && opts.length > 0 ? opts : null,
+      answer,
+      explanation: String(o.explanation ?? "").trim(),
+      formGroup: null,
+    });
+  }
 
   return {
     title: String(parsed.title ?? "").trim(),
     passage: String(parsed.passage ?? "").trim(),
     questions,
+    figures,
     notes: String(parsed.notes ?? "").trim(),
   };
 }

@@ -21,7 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { aiToCustomQuestions, classifyAnswer, parseAnswerKey, readingAiToCustomQuestions, toCustomQuestions, typeLabel } from "@/lib/answer-key";
-import type { ReadingExamQuestion } from "@/lib/groq";
+import type { ReadingExamQuestion, ReadingFigure } from "@/lib/groq";
 import { PaperFileField } from "@/components/teacher/paper-file-field";
 import { playPopSfx } from "@/lib/quiz-sfx";
 
@@ -66,7 +66,7 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
   const [aiQuestions, setAiQuestions] = useState<AiItem[] | null>(null);
   // READING → a native-shaped test (passage + full-text questions) rendered in
   // the same ReadingShell the learner practice uses.
-  const [aiReading, setAiReading] = useState<{ title: string; passage: string; questions: ReadingExamQuestion[] } | null>(null);
+  const [aiReading, setAiReading] = useState<{ title: string; passage: string; questions: ReadingExamQuestion[]; figures: ReadingFigure[] } | null>(null);
   const [aiNotes, setAiNotes] = useState("");
   const [generating, setGenerating] = useState(false);
   const [showManual, setShowManual] = useState(false);
@@ -184,6 +184,7 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
           title: data.title || "",
           passage: data.passage || "",
           questions: data.questions as ReadingExamQuestion[],
+          figures: Array.isArray(data.figures) ? (data.figures as ReadingFigure[]) : [],
         });
         setAiQuestions(null);
         setAiNotes(typeof data.notes === "string" ? data.notes : "");
@@ -204,6 +205,12 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
       setGenerating(false);
     }
   };
+
+  // Teacher can fix the AI's answers/questions before saving (kể cả khi AI làm).
+  const updateReadingQ = (number: number, patch: Partial<ReadingExamQuestion>) =>
+    setAiReading((r) => (r ? { ...r, questions: r.questions.map((q) => (q.number === number ? { ...q, ...patch } : q)) } : r));
+  const updateListeningQ = (number: number, patch: Partial<AiItem>) =>
+    setAiQuestions((qs) => (qs ? qs.map((q) => (q.number === number ? { ...q, ...patch } : q)) : qs));
 
   const submit = async () => {
     if (!classId) return toast.error("Chọn lớp");
@@ -233,7 +240,11 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
         // Native reading exam: the passage rides in config.reading; questions
         // carry full-text options + a native correctAnswer. config.paper.skill
         // lets GradingService auto-grade them as READING (no readingId needed).
-        config.reading = { passage: aiReading.passage, title: aiReading.title || title.trim() };
+        config.reading = {
+          passage: aiReading.passage,
+          title: aiReading.title || title.trim(),
+          figures: aiReading.figures,
+        };
         config.paper = { skill: "READING" };
         body.custom_questions = readingAiToCustomQuestions(aiReading.questions);
       } else {
@@ -417,7 +428,7 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Kiểm tra nhanh đáp án bên dưới. Học sinh sẽ làm bài; giáo viên xem được lời giải chi tiết ở trang chấm bài.
+                  Sửa lại đáp án nếu AI chấm sai — gõ trực tiếp vào ô. Học sinh sẽ làm bài; giáo viên xem lời giải chi tiết ở trang chấm bài.
                 </p>
                 {aiNotes && (
                   <p className="rounded-lg border border-amber-300 bg-amber-50/70 p-2.5 text-xs text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
@@ -431,11 +442,16 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
                       <li key={q.number} className="rounded-lg border bg-muted/20 p-3">
                         <div className="flex items-start gap-2">
                           <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-bold text-primary">{q.number}</span>
-                          <div className="min-w-0 flex-1 space-y-1">
+                          <div className="min-w-0 flex-1 space-y-1.5">
                             {q.prompt && <p className="text-sm font-medium">{q.prompt}</p>}
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <Badge variant="success" className="font-semibold">{c.correctAnswer}</Badge>
-                              <span className="text-xs text-muted-foreground">· {typeLabel(c.type)}</span>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Input
+                                value={q.answer}
+                                onChange={(e) => updateListeningQ(q.number, { answer: e.target.value })}
+                                className="h-8 w-32 font-mono text-sm font-semibold"
+                                placeholder="Đáp án"
+                              />
+                              <span className="text-xs text-muted-foreground">→ {c.correctAnswer} · {typeLabel(c.type)}</span>
                             </div>
                             {q.explanation && (
                               <p className="text-xs leading-relaxed text-muted-foreground">{q.explanation}</p>
@@ -469,7 +485,8 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Học sinh sẽ làm bài trong giao diện Reading <strong>giống hệt phần luyện tập</strong> — đọc bài bên trái, câu hỏi bên phải.
+                  Học sinh làm trong giao diện Reading <strong>giống hệt phần luyện tập</strong> (đọc trái, câu hỏi phải).
+                  Có thể <strong>sửa lại câu hỏi / đáp án / lời giải</strong> nếu AI làm chưa chuẩn — gõ trực tiếp vào ô.
                 </p>
                 {aiNotes && (
                   <p className="rounded-lg border border-amber-300 bg-amber-50/70 p-2.5 text-xs text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
@@ -478,20 +495,61 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
                 )}
                 <details className="rounded-lg border bg-muted/20 p-3">
                   <summary className="cursor-pointer text-sm font-semibold">Xem bài đọc ({aiReading.passage.length.toLocaleString()} ký tự)</summary>
-                  <p className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap text-sm text-muted-foreground">{aiReading.passage}</p>
+                  <Textarea
+                    value={aiReading.passage}
+                    onChange={(e) => setAiReading((r) => (r ? { ...r, passage: e.target.value } : r))}
+                    rows={8}
+                    className="mt-2 text-sm"
+                  />
                 </details>
-                <ul className="space-y-2">
+                {aiReading.figures.length > 0 && (
+                  <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
+                    <p className="text-sm font-semibold">AI đã vẽ lại {aiReading.figures.length} sơ đồ/bản đồ (SVG) — kiểm tra xem có giống đề không:</p>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {aiReading.figures.map((f, i) => (
+                        <div key={i} className="rounded-lg border bg-card p-2">
+                          {f.caption && <p className="mb-1 text-xs font-medium text-muted-foreground">{f.caption}</p>}
+                          <div
+                            className="overflow-x-auto text-foreground [&_svg]:mx-auto [&_svg]:h-auto [&_svg]:max-w-full"
+                            dangerouslySetInnerHTML={{ __html: f.svg }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <ul className="space-y-2.5">
                   {aiReading.questions.map((q) => (
                     <li key={q.number} className="rounded-lg border bg-muted/20 p-3">
                       <div className="flex items-start gap-2">
                         <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-bold text-primary">{q.number}</span>
-                        <div className="min-w-0 flex-1 space-y-1">
-                          <p className="text-sm font-medium">{q.prompt}</p>
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <Badge variant="success" className="font-semibold">{q.answer}</Badge>
-                            <span className="text-xs text-muted-foreground">· {q.type}</span>
+                        <div className="min-w-0 flex-1 space-y-1.5">
+                          <Input
+                            value={q.prompt}
+                            onChange={(e) => updateReadingQ(q.number, { prompt: e.target.value })}
+                            className="h-8 text-sm font-medium"
+                            placeholder="Câu hỏi"
+                          />
+                          {q.options && q.options.length > 0 && (
+                            <p className="text-xs text-muted-foreground">Lựa chọn: {q.options.join(" · ")}</p>
+                          )}
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs font-semibold text-leaf">Đáp án:</span>
+                            <Input
+                              value={q.answer}
+                              onChange={(e) => updateReadingQ(q.number, { answer: e.target.value })}
+                              className="h-8 w-40 text-sm font-semibold"
+                              placeholder="Đáp án đúng"
+                            />
+                            <span className="text-xs text-muted-foreground">{q.type}</span>
                           </div>
-                          {q.explanation && <p className="text-xs leading-relaxed text-muted-foreground">{q.explanation}</p>}
+                          <Textarea
+                            value={q.explanation}
+                            onChange={(e) => updateReadingQ(q.number, { explanation: e.target.value })}
+                            rows={2}
+                            className="text-xs"
+                            placeholder="Lời giải (tuỳ chọn)"
+                          />
                         </div>
                       </div>
                     </li>

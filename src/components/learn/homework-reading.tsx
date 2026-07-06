@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { AssignmentLocked } from "@/components/learn/assignment-locked";
-import { ReadingShell, type ShellPart, type ShellQ, type QType } from "@/components/learn/reading-shell";
+import { ReadingShell, type ShellPart, type ShellQ, type QType, type ShellFigure } from "@/components/learn/reading-shell";
 import { ReadingSolutions, type SolutionPassage } from "@/components/learn/reading-solutions";
 
 interface RawQuestion {
@@ -57,6 +57,7 @@ export function HomeworkReading({ assignmentId }: { assignmentId: string }) {
   const [meta, setMeta] = useState<{ title: string; className: string } | null>(null);
   const [passage, setPassage] = useState("");
   const [readingTitle, setReadingTitle] = useState("");
+  const [figures, setFigures] = useState<ShellFigure[]>([]);
   const [questions, setQuestions] = useState<RawQuestion[]>([]);
   const [antiCheat, setAntiCheat] = useState(false);
   const [locked, setLocked] = useState<{ openAt: string | null } | null>(null);
@@ -136,11 +137,12 @@ export function HomeworkReading({ assignmentId }: { assignmentId: string }) {
         const cfg = (data.assignment.config ?? {}) as {
           durationMin?: number;
           antiCheat?: boolean;
-          reading?: { passage?: string; title?: string };
+          reading?: { passage?: string; title?: string; figures?: ShellFigure[] };
         };
         setMeta({ title: data.assignment.title, className: data.assignment.className });
         setPassage(cfg.reading?.passage ?? "");
         setReadingTitle(cfg.reading?.title ?? "");
+        setFigures(Array.isArray(cfg.reading?.figures) ? cfg.reading!.figures! : []);
         setQuestions(Array.isArray(data.questions) ? (data.questions as RawQuestion[]) : []);
         setAntiCheat(Boolean(cfg.antiCheat));
         setIsManager(Boolean(data.isManager));
@@ -342,6 +344,7 @@ export function HomeworkReading({ assignmentId }: { assignmentId: string }) {
     title: readingTitle || meta?.title || "Reading",
     passage,
     questions: shellQuestions,
+    figures,
   };
 
   return (

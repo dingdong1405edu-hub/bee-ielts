@@ -31,6 +31,23 @@ import { Prisma, QuestionType } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireTeacher, canManageAllClasses } from "@/lib/teacher-auth";
 import { notifyMany } from "@/lib/notify";
+import { sanitizeSvg } from "@/lib/groq";
+
+/** Re-sanitize any AI-drawn SVG figures in config.reading before they are
+ *  stored + served to students (a teacher could POST arbitrary config). */
+function sanitizeConfigFigures(config: Record<string, unknown> | undefined): void {
+  if (!config || typeof config !== "object") return;
+  const reading = (config as Record<string, unknown>).reading;
+  if (!reading || typeof reading !== "object") return;
+  const figures = (reading as Record<string, unknown>).figures;
+  if (!Array.isArray(figures)) return;
+  (reading as Record<string, unknown>).figures = figures
+    .map((f) => {
+      const fo = (f ?? {}) as Record<string, unknown>;
+      return { ...fo, svg: sanitizeSvg(fo.svg) };
+    })
+    .filter((f) => typeof f.svg === "string" && f.svg.length > 0);
+}
 
 /** One uploaded file attached to a custom question (audio MP3 / image / pdf). */
 const attachmentSchema = z.object({
@@ -46,7 +63,10 @@ const attachmentSchema = z.object({
  *  the shape mirrors whatever the bank questions use. */
 const customQuestionSchema = z.object({
   type: z.nativeEnum(QuestionType),
-  prompt: z.string().trim().min(1, "Câu hỏi cần nội dung").max(10000),
+  // Empty allowed: table/form-completion members share one grid on the first
+  // member, so the rest legitimately have an empty prompt (they still carry the
+  // answer). Trusted content — generated server-side or reviewed by the teacher.
+  prompt: z.string().trim().max(10000),
   options: z.any().optional(),
   correctAnswer: z
     .any()
@@ -105,6 +125,9 @@ export async function POST(req: Request) {
   }
   const { classId, title, deadline, openAt, skill, bankQuestionIds, customQuestions, description, config } =
     parsed.data;
+
+  // Neutralise any SVG figures before they persist + reach students.
+  sanitizeConfigFigures(config);
 
   // Class must exist and be managed by the caller.
   const cls = await prisma.class.findUnique({

@@ -135,6 +135,7 @@ export async function POST(req: Request) {
         title: result.title,
         passage: result.passage,
         questions: result.questions,
+        figures: result.figures,
         notes: result.notes,
         meta: { pdfChars: documentText.length },
       });

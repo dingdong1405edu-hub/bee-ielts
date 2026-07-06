@@ -11,9 +11,11 @@ import { formatDuration, cn, isAnswerCorrect } from "@/lib/utils";
 import { TipsCard } from "@/components/learn/tips-card";
 import { ReadingGroupHeader, groupStartFor } from "@/components/learn/reading-group-header";
 import { ReadingComments } from "@/components/learn/reading-comments";
-import { FormBlanks, MultiSelectQuestion, groupQuestions } from "@/components/learn/form-blanks";
+import { FormBlanks, FlowBlanks, TableBlanks, MultiSelectQuestion, groupQuestions } from "@/components/learn/form-blanks";
 import {
   HighlightablePassage,
+  HighlightableText,
+  HighlightProvider,
   HighlightToolbar,
   type Highlight,
   type HighlightTool,
@@ -51,12 +53,13 @@ export function ReadingPlayer({
   const [elapsed, setElapsed] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  // Highlight pen state — shared across the passage card. The active tool
-  // controls cursor + click behaviour inside HighlightablePassage; the
-  // highlights array stores marked ranges (persisted in component state
-  // only, no DB write — same as ReadingShell / mock test).
+  // Highlight pen state. The active tool controls cursor + click behaviour; the
+  // highlights are keyed ranges (persisted in component state only, no DB write
+  // — same model as ReadingShell / mock test): key "passage" for the bài đọc,
+  // "q:<id>" / "o:<id>:<i>" for each question prompt / option so học sinh có
+  // thể tô cả đề bài lẫn bài đọc.
   const [tool, setTool] = useState<HighlightTool>("none");
-  const [highlights, setHighlights] = useState<Highlight[]>([]);
+  const [highlights, setHighlights] = useState<Record<string, Highlight[]>>({});
 
   // ============= Translate mode state =============
   // We pre-fetch a word→{pos,vi} map for the WHOLE passage in one Claude
@@ -130,6 +133,7 @@ export function ReadingPlayer({
     : 0;
 
   return (
+    <HighlightProvider tool={tool} highlights={highlights} onChange={setHighlights}>
     <div className="max-w-7xl mx-auto space-y-4">
       <div className="relative overflow-hidden rounded-2xl flex items-center justify-between flex-wrap gap-3 p-4">
         
@@ -174,9 +178,9 @@ export function ReadingPlayer({
             )}
             <HighlightablePassage
               passage={passage}
-              highlights={highlights}
+              highlights={highlights["passage"] ?? []}
               tool={tool}
-              onChangeHighlights={setHighlights}
+              onChangeHighlights={(next) => setHighlights((h) => ({ ...h, passage: next }))}
               onWordClick={({ word, sentence, x, y }) => {
                 const w = word.replace(/[^A-Za-z'-]/g, "").toLowerCase();
                 if (!w) return;
@@ -247,12 +251,14 @@ export function ReadingPlayer({
           {groupQuestions(questions).map((unit) => {
             if (unit.kind === "form") {
               const end = unit.startNum + unit.items.length - 1;
+              const FormBlock =
+                unit.layout === "table" ? TableBlanks : unit.layout === "flow" ? FlowBlanks : FormBlanks;
               return (
                 <div key={`fg-${unit.items[0].id}`}>
                   <ReadingGroupHeader type="FILL_BLANK" start={unit.startNum} end={end} />
                   <Card>
                     <CardContent className="p-5">
-                      <FormBlanks
+                      <FormBlock
                         items={unit.items}
                         startNum={unit.startNum}
                         answers={answers}
@@ -298,13 +304,15 @@ export function ReadingPlayer({
                 <CardContent className="p-5 space-y-3">
                   <div className="flex items-start gap-2">
                     <span className="font-semibold text-primary">{num}.</span>
-                    <p className="font-medium flex-1">{q.prompt}</p>
+                    <p className="font-medium flex-1">
+                      <HighlightableText textKey={`q:${q.id}`} text={q.prompt} />
+                    </p>
                     {submitted && (isCorrect ? <CheckCircle2 className="h-5 w-5 text-success" /> : <XCircle className="h-5 w-5 text-destructive" />)}
                   </div>
 
                   {q.options ? (
                     <div className="space-y-2">
-                      {q.options.map((opt) => (
+                      {q.options.map((opt, oi) => (
                         <label
                           key={opt}
                           className={cn(
@@ -324,7 +332,7 @@ export function ReadingPlayer({
                             onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
                             className="h-4 w-4"
                           />
-                          <span className="text-sm">{opt}</span>
+                          <HighlightableText textKey={`o:${q.id}:${oi}`} text={opt} className="text-sm" />
                         </label>
                       ))}
                     </div>
@@ -383,5 +391,6 @@ export function ReadingPlayer({
         />
       )}
     </div>
+    </HighlightProvider>
   );
 }

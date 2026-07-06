@@ -3,8 +3,8 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Clock, Send, GripVertical, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ReadingGroupHeader, computeQuestionGroups } from "@/components/learn/reading-group-header";
-import { FormBlanks, MultiSelectQuestion } from "@/components/learn/form-blanks";
+import { ReadingGroupHeader } from "@/components/learn/reading-group-header";
+import { FormBlanks, FlowBlanks, TableBlanks, MultiSelectQuestion } from "@/components/learn/form-blanks";
 import {
   HighlightablePassage,
   HighlightableText,
@@ -38,6 +38,14 @@ export interface ShellQ {
   displayNumber?: number | null;
 }
 
+/** An AI-drawn map/plan/diagram (inline SVG) shown above the question group
+ *  that starts at `atNumber`. */
+export interface ShellFigure {
+  svg: string;
+  atNumber: number;
+  caption?: string;
+}
+
 export interface ShellPart {
   id: string;
   title: string;
@@ -45,6 +53,21 @@ export interface ShellPart {
   passage: string;
   imageUrl?: string | null;
   questions: ShellQ[];
+  figures?: ShellFigure[];
+}
+
+/** Render a sanitized inline SVG figure (map/plan/diagram) + optional caption. */
+function ReadingFigureBlock({ figure }: { figure: ShellFigure }) {
+  return (
+    <div className="rounded-2xl border bg-card p-3 md:p-4">
+      {figure.caption && <p className="mb-2 text-sm font-semibold">{figure.caption}</p>}
+      <div
+        className="mx-auto max-w-full overflow-x-auto text-foreground [&_svg]:mx-auto [&_svg]:h-auto [&_svg]:max-w-full"
+        // SVG is sanitized server-side (scripts/handlers stripped) in lib/groq.
+        dangerouslySetInnerHTML={{ __html: figure.svg }}
+      />
+    </div>
+  );
 }
 
 interface Props {
@@ -299,6 +322,7 @@ export function ReadingShell({
             startIndex={startIdxOfPart}
             answers={answers}
             onChange={setAnswer}
+            figures={currentPart.figures}
           />
         </div>
       </div>
@@ -316,30 +340,79 @@ export function ReadingShell({
   );
 }
 
+/** Contiguous runs sharing BOTH type and formGroup (null treated as its own
+ *  run). Unlike a type-only grouping, this keeps a table/flow block separate
+ *  from an adjacent same-type sentence-completion run. */
+function groupByTypeAndForm(questions: ShellQ[]): { type: string; startIdx: number; endIdx: number }[] {
+  const groups: { type: string; startIdx: number; endIdx: number }[] = [];
+  for (let i = 0; i < questions.length; i++) {
+    const q = questions[i];
+    const last = groups[groups.length - 1];
+    if (
+      last &&
+      questions[last.startIdx].type === q.type &&
+      (questions[last.startIdx].formGroup ?? null) === (q.formGroup ?? null)
+    ) {
+      last.endIdx = i;
+    } else {
+      groups.push({ type: q.type, startIdx: i, endIdx: i });
+    }
+  }
+  return groups;
+}
+
 function PartQuestions({
   questions,
   startIndex,
   answers,
   onChange,
+  figures = [],
 }: {
   questions: ShellQ[];
   startIndex: number;
   answers: Record<string, string>;
   onChange: (id: string, value: string) => void;
+  figures?: ShellFigure[];
 }) {
-  const groups = computeQuestionGroups(questions);
+  // Group by TYPE *and* formGroup so a table (tbl… FILL_BLANK) that sits next to
+  // ordinary sentence-completion (also FILL_BLANK) still forms its own block and
+  // renders as a grid instead of collapsing into one mangled FILL_BLANK group.
+  const groups = groupByTypeAndForm(questions);
+  const groupRange = (g: { startIdx: number; endIdx: number }) => {
+    const first = questions[g.startIdx]?.displayNumber ?? startIndex + g.startIdx;
+    const last = questions[g.endIdx]?.displayNumber ?? startIndex + g.endIdx;
+    return [Math.min(first, last), Math.max(first, last)] as const;
+  };
+  // A figure sits above the group whose number range contains its atNumber; any
+  // that match no group render at the top so they're never lost.
+  const topFigures = figures.filter((f) => !groups.some((g) => {
+    const [lo, hi] = groupRange(g);
+    return f.atNumber >= lo && f.atNumber <= hi;
+  }));
   return (
     <div className="max-w-2xl mx-auto space-y-4 md:space-y-5">
+      {topFigures.map((f, i) => (
+        <ReadingFigureBlock key={`topfig-${i}`} figure={f} />
+      ))}
       {groups.map((g) => {
         const groupQuestions = questions.slice(g.startIdx, g.endIdx + 1);
         const groupStart = startIndex + g.startIdx;
         const groupEnd = startIndex + g.endIdx;
+        // Prefer the paper's own numbering (displayNumber) for the header + the
+        // inline blank pills, so a stand-alone passage (e.g. Q27–40) numbers right.
+        const firstNum = groupQuestions[0]?.displayNumber ?? groupStart;
+        const lastNum = groupQuestions[groupQuestions.length - 1]?.displayNumber ?? groupEnd;
+        const [lo, hi] = groupRange(g);
+        const groupFigures = figures.filter((f) => f.atNumber >= lo && f.atNumber <= hi);
         const hasList = g.type === "MATCHING_HEADINGS" || g.type === "MATCHING_FEATURES";
         // Pasted form-completion: every question shares one formGroup key —
         // render the whole block as one flowing passage with inline blanks.
         const fg = groupQuestions[0]?.formGroup;
         const isFormGroup =
           !!fg && !fg.startsWith("ms") && groupQuestions.every((q) => q.formGroup === fg);
+        // Table (tbl…) / flow-chart (fc…) completion get their own layout;
+        // everything else flows as a completion passage.
+        const FormBlock = fg?.startsWith("tbl") ? TableBlanks : fg?.startsWith("fc") ? FlowBlanks : FormBlanks;
         // Sentence-completion run: every question has an inline blank, so the
         // sentences flow together as one continuous paragraph (no line breaks).
         const isInlineRun =
@@ -347,14 +420,17 @@ function PartQuestions({
           groupQuestions.every((q) => /_{2,}|\{N\}/.test(q.prompt));
         return (
           <div key={g.startIdx} className="space-y-2">
-            <ReadingGroupHeader type={g.type} start={groupStart} end={groupEnd} />
+            {groupFigures.map((f, i) => (
+              <ReadingFigureBlock key={`fig-${g.startIdx}-${i}`} figure={f} />
+            ))}
+            <ReadingGroupHeader type={g.type} start={firstNum} end={lastNum} />
             {hasList && groupQuestions[0]?.options && groupQuestions[0].options.length > 0 && (
               <ReferenceList type={g.type} options={groupQuestions[0].options} />
             )}
             {isFormGroup ? (
-              <FormBlanks
+              <FormBlock
                 items={groupQuestions}
-                startNum={groupStart}
+                startNum={firstNum}
                 answers={answers}
                 onChange={onChange}
               />
@@ -780,6 +856,7 @@ function MobileToggle({
             startIndex={startIndex}
             answers={answers}
             onChange={setAnswer}
+            figures={currentPart.figures}
           />
         )}
       </div>

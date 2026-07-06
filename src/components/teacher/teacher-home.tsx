@@ -9,7 +9,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { BookOpen, Check, ChevronDown, Copy, GraduationCap, Loader2, Lock, Plus, Settings2, Users } from "lucide-react";
+import { BookOpen, Check, ChevronDown, Copy, GraduationCap, Loader2, Lock, Plus, Settings2, Trash2, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,6 +63,31 @@ export function TeacherHome({ initialClasses }: { initialClasses: TeacherClass[]
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const deleteAssignment = async (classId: string, assignmentId: string, title: string) => {
+    if (!window.confirm(`Xoá bài "${title}"? Toàn bộ bài nộp của học sinh cho bài này cũng sẽ bị xoá và không khôi phục được.`)) {
+      return;
+    }
+    setDeletingId(assignmentId);
+    try {
+      const res = await fetch(`/api/assignments/${assignmentId}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Không xoá được bài");
+      setClasses((cs) =>
+        cs.map((c) =>
+          c.id === classId
+            ? { ...c, assignments: c.assignments.filter((a) => a.id !== assignmentId), assignmentCount: Math.max(0, c.assignmentCount - 1) }
+            : c,
+        ),
+      );
+      toast.success("Đã xoá bài");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Lỗi khi xoá bài");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const createClass = async () => {
     const n = name.trim();
@@ -195,17 +220,27 @@ export function TeacherHome({ initialClasses }: { initialClasses: TeacherClass[]
                 {c.assignments.length > 0 && (
                   <ul className="divide-y divide-border rounded-lg border">
                     {c.assignments.map((a) => (
-                      <li key={a.id}>
+                      <li key={a.id} className="flex items-center gap-1 pr-1.5 transition-colors hover:bg-accent">
                         <Link
                           href={`/teacher/assignments/${a.id}`}
-                          className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm transition-colors hover:bg-accent"
+                          className="flex min-w-0 flex-1 items-center justify-between gap-3 px-3 py-2.5 text-sm"
                         >
                           <span className="min-w-0 flex-1 truncate font-medium">{a.title}</span>
-                          <span className="shrink-0 text-xs text-muted-foreground">Hạn: {fmtDate(a.deadline)}</span>
+                          <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">Hạn: {fmtDate(a.deadline)}</span>
                           <Badge variant="secondary" className="shrink-0">
                             {a.submissionCount} nộp
                           </Badge>
                         </Link>
+                        <button
+                          type="button"
+                          onClick={() => deleteAssignment(c.id, a.id, a.title)}
+                          disabled={deletingId === a.id}
+                          aria-label="Xoá bài"
+                          title="Xoá bài đã giao"
+                          className="grid h-8 w-8 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                        >
+                          {deletingId === a.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                        </button>
                       </li>
                     ))}
                   </ul>

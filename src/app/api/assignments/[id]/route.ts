@@ -166,3 +166,51 @@ export async function GET(
     review,
   });
 }
+
+/**
+ * DELETE /api/assignments/:id — the class teacher (or admin/owner) removes a
+ * posted assignment. Submissions cascade via the FK; teacher-authored custom
+ * questions (created fresh per assignment, never shared) are cleaned up so no
+ * orphan rows are left behind. Bank questions (createdById = null) are kept.
+ */
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Chưa đăng nhập" }, { status: 401 });
+  }
+  const me = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { id: true, role: true },
+  });
+  if (!me) return NextResponse.json({ error: "Chưa đăng nhập" }, { status: 401 });
+
+  const { id } = await params;
+  const assignment = await prisma.assignment.findUnique({
+    where: { id },
+    select: { id: true, questionIds: true, class: { select: { teacherId: true } } },
+  });
+  if (!assignment) {
+    return NextResponse.json({ error: "Không tìm thấy bài tập" }, { status: 404 });
+  }
+  if (assignment.class.teacherId !== me.id && !canManageAllClasses(me.role)) {
+    return NextResponse.json({ error: "Bạn không phụ trách lớp này" }, { status: 403 });
+  }
+
+  await prisma.$transaction(async (tx) => {
+    // Cascade deletes the assignment's submissions via the FK.
+    await tx.assignment.delete({ where: { id } });
+    // Remove the teacher-authored questions this assignment owned (custom
+    // questions are created per-assignment and not shared). Bank questions
+    // (createdById = null) are left untouched.
+    if (assignment.questionIds.length > 0) {
+      await tx.question.deleteMany({
+        where: { id: { in: assignment.questionIds }, createdById: { not: null } },
+      });
+    }
+  });
+
+  return NextResponse.json({ ok: true });
+}

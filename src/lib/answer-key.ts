@@ -204,8 +204,13 @@ export function readingAiToCustomQuestions(items: ReadingExamQuestion[]) {
   return items.map((it) => {
     const options =
       Array.isArray(it.options) && it.options.length > 0 ? it.options : undefined;
-    const prompt = (it.prompt ?? "").trim() || `Câu ${it.number}`;
     const explanation = (it.explanation ?? "").trim();
+    // Table-completion members keep their formGroup; the whole grid rides on the
+    // first member so its prompt may be empty for the rest — do NOT substitute a
+    // "Câu N" placeholder there (it would corrupt the stitched table). Only fall
+    // back to a placeholder for a normal question with a truly empty prompt.
+    const rawPrompt = (it.prompt ?? "").trim();
+    const prompt = it.formGroup ? rawPrompt : rawPrompt || `Câu ${it.number}`;
     return {
       type: it.type as QuestionType,
       prompt,
@@ -213,6 +218,7 @@ export function readingAiToCustomQuestions(items: ReadingExamQuestion[]) {
       correctAnswer: String(it.answer ?? "").trim(),
       explanation: explanation || undefined,
       displayNumber: it.number,
+      formGroup: it.formGroup ?? undefined,
     };
   });
 }
