@@ -34,19 +34,31 @@ import { notifyMany } from "@/lib/notify";
 import { sanitizeSvg } from "@/lib/groq";
 
 /** Re-sanitize any AI-drawn SVG figures in config.reading before they are
- *  stored + served to students (a teacher could POST arbitrary config). */
-function sanitizeConfigFigures(config: Record<string, unknown> | undefined): void {
-  if (!config || typeof config !== "object") return;
-  const reading = (config as Record<string, unknown>).reading;
-  if (!reading || typeof reading !== "object") return;
-  const figures = (reading as Record<string, unknown>).figures;
-  if (!Array.isArray(figures)) return;
-  (reading as Record<string, unknown>).figures = figures
+ *  stored + served to students (a teacher could POST arbitrary config). Handles
+ *  both the multi-part shape (config.reading.parts[].figures) and the legacy
+ *  single-passage shape (config.reading.figures). */
+function sanitizeFigureArray(figures: unknown): unknown {
+  if (!Array.isArray(figures)) return figures;
+  return figures
     .map((f) => {
       const fo = (f ?? {}) as Record<string, unknown>;
       return { ...fo, svg: sanitizeSvg(fo.svg) };
     })
-    .filter((f) => typeof f.svg === "string" && f.svg.length > 0);
+    .filter((f) => typeof f.svg === "string" && (f.svg as string).length > 0);
+}
+function sanitizeConfigFigures(config: Record<string, unknown> | undefined): void {
+  if (!config || typeof config !== "object") return;
+  const reading = (config as Record<string, unknown>).reading;
+  if (!reading || typeof reading !== "object") return;
+  const r = reading as Record<string, unknown>;
+  if (Array.isArray(r.figures)) r.figures = sanitizeFigureArray(r.figures);
+  if (Array.isArray(r.parts)) {
+    r.parts = r.parts.map((p) => {
+      const po = (p ?? {}) as Record<string, unknown>;
+      if (Array.isArray(po.figures)) po.figures = sanitizeFigureArray(po.figures);
+      return po;
+    });
+  }
 }
 
 /** One uploaded file attached to a custom question (audio MP3 / image / pdf). */

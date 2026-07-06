@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { READING_EXAM_SYS, parseReadingExam, type ReadingExamResult } from "@/lib/groq";
+import { READING_EXAM_SYS, parseReadingExamParts, type ReadingExamMulti } from "@/lib/groq";
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY ?? "",
@@ -393,7 +393,7 @@ export async function generateReadingTest(input: {
  * PRIMARY path for /api/assignments/generate-key — Claude's huge context + high
  * limits make it far more reliable than Groq's 12k-tokens/minute free tier.
  */
-export async function generateReadingExamFromPdf(pdfBase64: string): Promise<ReadingExamResult> {
+export async function generateReadingExamFromPdf(pdfBase64: string): Promise<ReadingExamMulti> {
   type BetaBlock =
     | { type: "document"; source: { type: "base64"; media_type: "application/pdf"; data: string } }
     | Anthropic.TextBlockParam;
@@ -401,12 +401,14 @@ export async function generateReadingExamFromPdf(pdfBase64: string): Promise<Rea
     { type: "document", source: { type: "base64", media_type: "application/pdf", data: pdfBase64 } },
     {
       type: "text",
-      text: "The IELTS Reading exam is in the attached PDF. Read EVERY page, copy the passage verbatim, and build the complete native reading test now. If the paper has a TABLE emit a TABLE block; if it has a MAP/PLAN/DIAGRAM re-draw it as an SVG in a MAP block. Return ONLY the JSON.",
+      text: "The IELTS Reading exam is in the attached PDF. It usually has SEVERAL separate reading passages — read EVERY page and split them into one \"part\" per passage (never merge passages or their titles). For each passage copy its text verbatim but JOIN hard-wrapped lines into flowing paragraphs, and build the complete native reading test. If a passage has a TABLE emit a TABLE block; if it has a MAP/PLAN/DIAGRAM re-draw it as an SVG in a MAP block. Return ONLY the JSON.",
     },
   ];
+  // A full paper is 3–4 passages + up to 40 questions with Vietnamese solutions,
+  // so allow a large output (Claude's context/limits handle it; Groq can't).
   const response = await client.beta.messages.create({
     model: MODEL,
-    max_tokens: 8000,
+    max_tokens: 16000,
     temperature: 0.2,
     system: READING_EXAM_SYS,
     messages: [{ role: "user", content: blocks as unknown as Anthropic.Beta.Messages.BetaContentBlockParam[] }],
@@ -416,7 +418,7 @@ export async function generateReadingExamFromPdf(pdfBase64: string): Promise<Rea
     .filter((b): b is Anthropic.Beta.Messages.BetaTextBlock => b.type === "text")
     .map((b) => b.text)
     .join("");
-  return parseReadingExam(extractJSON(text) as Record<string, unknown>);
+  return parseReadingExamParts(extractJSON(text) as Record<string, unknown>);
 }
 
 export interface WritingGradeInput {

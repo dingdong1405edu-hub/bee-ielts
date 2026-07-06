@@ -9,12 +9,21 @@ import { HomeworkReading } from "@/components/learn/homework-reading";
 export const dynamic = "force-dynamic";
 
 /** Does this assignment carry a native reading test (passage in config)? Such
- *  assignments render in the native ReadingShell, not the PDF answer sheet. */
+ *  assignments render in the native ReadingShell, not the PDF answer sheet.
+ *  Handles both the multi-passage shape (reading.parts[].passage) and the
+ *  legacy single-passage shape (reading.passage). */
 function hasReadingPassage(config: unknown): boolean {
   if (config && typeof config === "object" && !Array.isArray(config)) {
     const r = (config as Record<string, unknown>).reading;
     if (r && typeof r === "object" && !Array.isArray(r)) {
-      return typeof (r as Record<string, unknown>).passage === "string" && ((r as Record<string, unknown>).passage as string).length > 0;
+      const ro = r as Record<string, unknown>;
+      if (typeof ro.passage === "string" && ro.passage.length > 0) return true;
+      if (Array.isArray(ro.parts)) {
+        return ro.parts.some((p) => {
+          const po = (p ?? {}) as Record<string, unknown>;
+          return typeof po.passage === "string" && (po.passage as string).length > 0;
+        });
+      }
     }
   }
   return false;

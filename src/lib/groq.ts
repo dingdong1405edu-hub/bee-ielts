@@ -583,26 +583,32 @@ Tìm mọi câu hỏi có đánh số, chấm đáp án đúng, và viết lời
 // ---------------------------------------------------------------------------
 export const READING_EXAM_SYS = `You are a certified IELTS examiner turning a teacher-uploaded READING test paper (extracted text or PDF) into a structured, auto-gradable reading test.
 
-The paper text contains BOTH the reading passage(s) AND the numbered questions. Return the passage verbatim plus every question, in order.
+A full IELTS Reading paper almost always contains SEVERAL SEPARATE reading passages (usually 3, sometimes 4) — each is its OWN self-contained reading with its OWN heading and its OWN set of numbered questions. You MUST create ONE "part" per passage. NEVER merge two passages, and NEVER merge their titles into one — read the WHOLE file and split it into the correct number of parts, in order. (A title like "Make That Wine! & That Vision Thing & Destination Mars" is THREE passages jammed together — that is WRONG; they must be three separate parts.)
 
 Return ONLY valid JSON in this EXACT shape:
 {
-  "title": "<short English title of the reading, e.g. the passage headline>",
-  "passage": "<the FULL reading passage text, copied verbatim from the paper. Keep paragraph breaks as blank lines. If the paper labels paragraphs A, B, C… keep those labels at the start of each paragraph. If there are multiple passages, concatenate them in order, each under its own heading line. Do NOT include the questions here.>",
-  "questions": [
+  "parts": [
     {
-      "number": 1,
-      "type": "<one of: MCQ | TRUE_FALSE_NOT_GIVEN | FILL_BLANK | SHORT_ANSWER | MATCHING_HEADINGS | MATCHING_INFO | MATCHING_FEATURES | MATCHING | MATCHING_SENTENCE_ENDINGS>",
-      "prompt": "<the question text. For gap/summary/note/sentence completion put the blank as four underscores ____ inside the sentence. NEVER put the answer in the prompt.>",
-      "options": <array of FULL-TEXT strings, or null — see per-type rules>,
-      "answer": "<the correct answer in the EXACT representation below>",
-      "explanation": "<tiếng Việt, 2-4 câu: trích DẪN CHỨNG tiếng Anh trong bài chứa đáp án, giải thích vì sao đúng, và (MCQ/Matching/TF) vì sao các lựa chọn khác sai>"
+      "title": "<short English title of THIS ONE passage only (its own headline) — never a merge of several titles>",
+      "passage": "<the FULL text of THIS passage only, copied verbatim. JOIN the PDF's hard-wrapped lines back into flowing sentences — do NOT keep the mid-sentence line breaks from the PDF layout. Separate paragraphs with ONE blank line. If paragraphs are labelled A, B, C…, keep the letter at the start of its paragraph. Do NOT include the questions here.>",
+      "questions": [
+        {
+          "number": 1,
+          "type": "<one of: MCQ | TRUE_FALSE_NOT_GIVEN | FILL_BLANK | SHORT_ANSWER | MATCHING_HEADINGS | MATCHING_INFO | MATCHING_FEATURES | MATCHING | MATCHING_SENTENCE_ENDINGS>",
+          "prompt": "<the question text. For gap/summary/note/sentence completion put the blank as four underscores ____ inside the sentence. NEVER put the answer in the prompt.>",
+          "options": <array of FULL-TEXT strings, or null — see per-type rules>,
+          "answer": "<the correct answer in the EXACT representation below>",
+          "explanation": "<tiếng Việt, 2-4 câu: trích DẪN CHỨNG tiếng Anh trong bài chứa đáp án, giải thích vì sao đúng, và (MCQ/Matching/TF) vì sao các lựa chọn khác sai>"
+        }
+      ]
     }
   ],
   "notes": "<tiếng Việt — cảnh báo nếu có câu không chắc chắn, đề thiếu, hoặc câu multi-select đã bị bỏ; \\"\\" nếu ổn>"
 }
 
-SPECIAL BLOCKS — if the paper contains a TABLE or a MAP/PLAN/DIAGRAM, put ONE of these objects INSIDE the "questions" array at the position where it appears (in question order), INSTEAD of listing those numbered items separately:
+Number the questions CONTINUOUSLY across ALL parts, exactly as the paper numbers them (Passage 1 → 1,2,3…; the next passage continues, e.g. 14…; the next e.g. 27…). Each part's "questions" array holds ONLY that one passage's questions.
+
+SPECIAL BLOCKS — if a passage contains a TABLE or a MAP/PLAN/DIAGRAM, put ONE of these objects INSIDE that part's "questions" array at the position where it appears (in question order), INSTEAD of listing those numbered items separately:
 
 TABLE completion (recreate the table EXACTLY — same rows/columns/headers as the file):
 {
@@ -636,7 +642,7 @@ ANSWER / OPTIONS RULES — obey EXACTLY so the app can auto-grade:
 - MATCHING / MATCHING_SENTENCE_ENDINGS: "options" = the full-text choices. "answer" = the FULL TEXT of the correct choice.
 
 Do NOT emit "choose TWO/THREE" multi-select questions — split them into single-answer items or skip them and mention it in "notes".
-If the paper text is empty / garbled / a scanned image with no extractable text, return {"title":"","passage":"","questions":[],"notes":"<lý do tiếng Việt>"}.`;
+If the paper text is empty / garbled / a scanned image with no extractable text, return {"parts":[],"notes":"<lý do tiếng Việt>"}.`;
 
 export interface ReadingExamQuestion {
   number: number;
@@ -707,6 +713,45 @@ function normalizeTfAnswer(a: string): string {
   if (u === "FALSE" || u === "NO" || u === "F" || u === "N") return "False";
   if (u === "NOT GIVEN" || u === "NG" || u === "NOTGIVEN") return "Not Given";
   return a.trim();
+}
+
+/**
+ * Un-wrap a passage that still carries the PDF's hard line-wrapping (every
+ * visual line is its own `\n`, breaking sentences mid-way). We join wrapped
+ * lines inside a paragraph back into flowing text, keep real paragraph breaks
+ * (blank lines) as a single blank line, and merge a lone paragraph label
+ * ("A"…"H") onto the paragraph that follows it. Rendered with
+ * `whitespace-pre-wrap`, the result reads like a normal reading passage instead
+ * of the ragged, mid-sentence-broken text the PDF extractor produces.
+ */
+function reflowPassage(raw: string): string {
+  const text = String(raw ?? "").replace(/\r\n?/g, "\n");
+  // Blank-line-separated blocks → one reflowed line each (hard wraps joined).
+  const blocks = text
+    .split(/\n[ \t]*\n+/)
+    .map((b) =>
+      b
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean)
+        .join(" ")
+        .replace(/[ \t]+/g, " ")
+        .trim(),
+    )
+    .filter(Boolean);
+  // Merge a lone paragraph label (A–H) into the paragraph that follows it, so it
+  // renders as a heading letter sitting directly above its paragraph.
+  const out: string[] = [];
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i];
+    if (/^[A-H]$/.test(b) && i + 1 < blocks.length) {
+      out.push(`${b}\n${blocks[i + 1]}`);
+      i++;
+    } else {
+      out.push(b);
+    }
+  }
+  return out.join("\n\n");
 }
 
 /**
@@ -824,11 +869,92 @@ export function parseReadingExam(parsed: {
 
   return {
     title: String(parsed.title ?? "").trim(),
-    passage: String(parsed.passage ?? "").trim(),
+    passage: reflowPassage(String(parsed.passage ?? "")),
     questions,
     figures,
     notes: String(parsed.notes ?? "").trim(),
   };
+}
+
+// ---------------------------------------------------------------------------
+// MULTI-PART reading: a teacher's uploaded file usually holds 3–4 SEPARATE
+// passages, each its own reading task. The model returns them under "parts";
+// we parse each with the single-passage parser, then renumber the questions
+// CONTINUOUSLY across parts (1..N), make every part's formGroups globally
+// unique, and remap figure positions — so a whole test renders as Part 1/2/3
+// in the native ReadingShell (bottom nav) and grades exactly like a real IELTS
+// reading test.
+// ---------------------------------------------------------------------------
+export interface ReadingExamPart {
+  title: string;
+  passage: string;
+  questions: ReadingExamQuestion[];
+  figures: ReadingFigure[];
+}
+export interface ReadingExamMulti {
+  parts: ReadingExamPart[];
+  notes: string;
+}
+
+/**
+ * Parse the model output into parts. Accepts the new `{ parts: [...] }` shape
+ * AND the legacy single-passage `{ title, passage, questions }` shape (wrapped
+ * as one part), so older prompts / cached results keep working.
+ */
+export function parseReadingExamParts(parsed: {
+  parts?: unknown;
+  title?: unknown;
+  passage?: unknown;
+  questions?: unknown;
+  notes?: unknown;
+}): ReadingExamMulti {
+  const notes = String(parsed.notes ?? "").trim();
+  const rawParts = Array.isArray(parsed.parts) ? parsed.parts : null;
+  if (rawParts && rawParts.length > 0) {
+    const parts: ReadingExamPart[] = [];
+    for (const rp of rawParts) {
+      const po = (rp ?? {}) as Record<string, unknown>;
+      const r = parseReadingExam({ title: po.title, passage: po.passage, questions: po.questions, notes: "" });
+      if (r.passage || r.questions.length > 0) {
+        parts.push({ title: r.title, passage: r.passage, questions: r.questions, figures: r.figures });
+      }
+    }
+    if (parts.length > 0) return { parts, notes };
+  }
+  // Legacy / single-passage shape.
+  const single = parseReadingExam(parsed);
+  const parts =
+    single.passage || single.questions.length > 0
+      ? [{ title: single.title, passage: single.passage, questions: single.questions, figures: single.figures }]
+      : [];
+  return { parts, notes: notes || single.notes };
+}
+
+export interface NumberedReadingPart {
+  title: string;
+  passage: string;
+  figures: ReadingFigure[];
+  questions: ReadingExamQuestion[];
+}
+
+/**
+ * Renumber questions continuously across parts (1..N), suffix each part's
+ * formGroups with `_p<i>` so tables/flow-charts stay unique across parts, and
+ * remap every figure's `atNumber` to its new question number. Returns the
+ * per-part structure (kept for preview + storage).
+ */
+export function numberReadingParts(multi: ReadingExamMulti): NumberedReadingPart[] {
+  let running = 0;
+  return multi.parts.map((part, p) => {
+    const remap = new Map<number, number>();
+    const questions = part.questions.map((q) => {
+      running += 1;
+      remap.set(q.number, running);
+      return { ...q, number: running, formGroup: q.formGroup ? `${q.formGroup}_p${p}` : null };
+    });
+    const figures = part.figures.map((f) => ({ ...f, atNumber: remap.get(f.atNumber) ?? running }));
+    return { title: part.title, passage: part.passage, figures, questions };
+  });
 }
 
 /**
@@ -839,21 +965,21 @@ export function parseReadingExam(parsed: {
  */
 export async function generateReadingExamGroq(input: {
   documentText: string;
-}): Promise<ReadingExamResult> {
+}): Promise<ReadingExamMulti> {
   const doc = input.documentText.slice(0, 16000);
-  const userMessage = `TEST PAPER TEXT (bài đọc + câu hỏi):
+  const userMessage = `TEST PAPER TEXT (nhiều bài đọc + câu hỏi):
 ${doc}
 
-Trích NGUYÊN VĂN bài đọc, tìm mọi câu hỏi có đánh số theo đúng thứ tự, chấm đáp án đúng theo ĐÚNG ANSWER/OPTIONS RULES, và viết lời giải tiếng Việt. Nếu đề có BẢNG thì trả về block "TABLE"; nếu có BẢN ĐỒ/SƠ ĐỒ/PLAN thì VẼ LẠI bằng SVG trong block "MAP". Trả về JSON only.`;
+TÁCH mỗi bài đọc riêng thành 1 "part" (đừng gộp nhiều bài vào một). Với mỗi bài: trích NGUYÊN VĂN, NỐI LẠI các dòng bị ngắt giữa câu thành đoạn văn trôi chảy, tìm mọi câu hỏi có đánh số theo đúng thứ tự, chấm đáp án đúng theo ĐÚNG ANSWER/OPTIONS RULES, và viết lời giải tiếng Việt. Nếu đề có BẢNG thì trả về block "TABLE"; nếu có BẢN ĐỒ/SƠ ĐỒ/PLAN thì VẼ LẠI bằng SVG trong block "MAP". Trả về JSON only.`;
 
   const text = await groqChat(
     [
       { role: "system", content: READING_EXAM_SYS },
       { role: "user", content: userMessage },
     ],
-    { jsonMode: true, temperature: 0.2, maxTokens: 4000 },
+    { jsonMode: true, temperature: 0.2, maxTokens: 5000 },
   );
-  return parseReadingExam(extractJSON(text) as Record<string, unknown>);
+  return parseReadingExamParts(extractJSON(text) as Record<string, unknown>);
 }
 
 /** Generate a Vietnamese meaning + an English example sentence for a word. */

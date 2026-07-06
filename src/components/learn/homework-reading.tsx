@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { AssignmentLocked } from "@/components/learn/assignment-locked";
-import { ReadingShell, type ShellPart, type ShellQ, type QType, type ShellFigure } from "@/components/learn/reading-shell";
+import { ReadingShell, type ShellPart, type QType, type ShellFigure } from "@/components/learn/reading-shell";
 import { ReadingSolutions, type SolutionPassage } from "@/components/learn/reading-solutions";
 
 interface RawQuestion {
@@ -58,6 +58,12 @@ export function HomeworkReading({ assignmentId }: { assignmentId: string }) {
   const [passage, setPassage] = useState("");
   const [readingTitle, setReadingTitle] = useState("");
   const [figures, setFigures] = useState<ShellFigure[]>([]);
+  // Multi-passage assignments store one entry per passage (title + passage +
+  // figures + how many questions it owns) so the flat question list can be
+  // sliced back into Part 1/2/3. Null → legacy single-passage assignment.
+  const [readingParts, setReadingParts] = useState<
+    { title: string; passage: string; figures: ShellFigure[]; count: number }[] | null
+  >(null);
   const [questions, setQuestions] = useState<RawQuestion[]>([]);
   const [antiCheat, setAntiCheat] = useState(false);
   const [locked, setLocked] = useState<{ openAt: string | null } | null>(null);
@@ -137,12 +143,30 @@ export function HomeworkReading({ assignmentId }: { assignmentId: string }) {
         const cfg = (data.assignment.config ?? {}) as {
           durationMin?: number;
           antiCheat?: boolean;
-          reading?: { passage?: string; title?: string; figures?: ShellFigure[] };
+          reading?: {
+            passage?: string;
+            title?: string;
+            figures?: ShellFigure[];
+            parts?: { title?: string; passage?: string; figures?: ShellFigure[]; count?: number }[];
+          };
         };
         setMeta({ title: data.assignment.title, className: data.assignment.className });
-        setPassage(cfg.reading?.passage ?? "");
-        setReadingTitle(cfg.reading?.title ?? "");
-        setFigures(Array.isArray(cfg.reading?.figures) ? cfg.reading!.figures! : []);
+        const cfgReading = cfg.reading ?? {};
+        if (Array.isArray(cfgReading.parts) && cfgReading.parts.length > 0) {
+          setReadingParts(
+            cfgReading.parts.map((p) => ({
+              title: p.title ?? "Reading",
+              passage: p.passage ?? "",
+              figures: Array.isArray(p.figures) ? p.figures : [],
+              count: typeof p.count === "number" ? p.count : 0,
+            })),
+          );
+        } else {
+          setReadingParts(null);
+          setPassage(cfgReading.passage ?? "");
+          setReadingTitle(cfgReading.title ?? "");
+          setFigures(Array.isArray(cfgReading.figures) ? cfgReading.figures : []);
+        }
         setQuestions(Array.isArray(data.questions) ? (data.questions as RawQuestion[]) : []);
         setAntiCheat(Boolean(cfg.antiCheat));
         setIsManager(Boolean(data.isManager));
@@ -271,22 +295,42 @@ export function HomeworkReading({ assignmentId }: { assignmentId: string }) {
     return <AssignmentLocked title={meta?.title ?? ""} className={meta?.className ?? ""} openAt={locked.openAt} />;
   }
 
+  // Split the flat question list back into passages. A multi-passage assignment
+  // stores per-part counts; slice the questions (already in part order) by them.
+  // Legacy single-passage assignments fall back to one part with all questions.
+  const questionParts: { title: string; passage: string; figures: ShellFigure[]; qs: RawQuestion[] }[] = (() => {
+    if (readingParts && readingParts.length > 0) {
+      const out: { title: string; passage: string; figures: ShellFigure[]; qs: RawQuestion[] }[] = [];
+      let idx = 0;
+      for (const p of readingParts) {
+        const n = p.count > 0 ? p.count : 0;
+        out.push({ title: p.title, passage: p.passage, figures: p.figures, qs: questions.slice(idx, idx + n) });
+        idx += n;
+      }
+      // Any leftover (count drift) → append to the last part so nothing is lost.
+      if (idx < questions.length && out.length > 0) out[out.length - 1].qs.push(...questions.slice(idx));
+      const nonEmpty = out.filter((p) => p.qs.length > 0 || p.passage);
+      if (nonEmpty.length > 0) return nonEmpty;
+    }
+    return [{ title: readingTitle || meta?.title || "Reading", passage, figures, qs: questions }];
+  })();
+
   if (phase === "done" && done) {
     const showSolutions = !!review && questions.length > 0;
     const reviewMap = new Map((review ?? []).map((r) => [r.id, r]));
     const solutionPassages: SolutionPassage[] = showSolutions
-      ? [{
-          id: assignmentId,
-          title: readingTitle || meta?.title || "Reading",
-          passage,
-          questions: questions.map((q) => ({
+      ? questionParts.map((p, i) => ({
+          id: `${assignmentId}-p${i}`,
+          title: p.title,
+          passage: p.passage,
+          questions: p.qs.map((q) => ({
             id: q.id,
             type: q.type,
             prompt: q.prompt,
             options: q.options,
             correctAnswer: reviewMap.get(q.id)?.correctAnswer ?? "",
           })),
-        }]
+        }))
       : [];
     return (
       <div className="mx-auto mt-6 max-w-3xl space-y-4">
@@ -329,29 +373,28 @@ export function HomeworkReading({ assignmentId }: { assignmentId: string }) {
     );
   }
 
-  // ---- doing: the native Reading exam ----
-  const shellQuestions: ShellQ[] = questions.map((q) => ({
-    id: q.id,
-    type: q.type as QType,
-    prompt: q.prompt,
-    options: q.options,
-    correctAnswer: "", // key withheld pre-submit; unused by the inputs
-    formGroup: q.formGroup ?? null,
-    displayNumber: q.displayNumber ?? null,
+  // ---- doing: the native Reading exam (one ReadingShell part per passage) ----
+  const parts: ShellPart[] = questionParts.map((p, i) => ({
+    id: `${assignmentId}-p${i}`,
+    title: p.title,
+    passage: p.passage,
+    figures: p.figures,
+    questions: p.qs.map((q) => ({
+      id: q.id,
+      type: q.type as QType,
+      prompt: q.prompt,
+      options: q.options,
+      correctAnswer: "", // key withheld pre-submit; unused by the inputs
+      formGroup: q.formGroup ?? null,
+      displayNumber: q.displayNumber ?? null,
+    })),
   }));
-  const part: ShellPart = {
-    id: assignmentId,
-    title: readingTitle || meta?.title || "Reading",
-    passage,
-    questions: shellQuestions,
-    figures,
-  };
 
   return (
     <ReadingShell
       key={attemptNo}
       testTitle={meta?.title ?? "Reading"}
-      parts={[part]}
+      parts={parts}
       timeLimit={0}
       onSubmit={() => void doSubmit()}
       submitting={submitting || isManager}

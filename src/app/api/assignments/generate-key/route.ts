@@ -16,12 +16,13 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireTeacher } from "@/lib/teacher-auth";
 import { extractPdfText } from "@/lib/pdf-extract";
-import { generatePaperKeyGroq, generateReadingExamGroq, type ReadingExamResult } from "@/lib/groq";
+import { generatePaperKeyGroq, generateReadingExamGroq, numberReadingParts, type NumberedReadingPart } from "@/lib/groq";
 import { generateReadingExamFromPdf } from "@/lib/claude";
 import { deepgramTranscribe } from "@/lib/deepgram";
 
-// Claude reading a full PDF + solving every question can take a while.
-export const maxDuration = 120;
+// Claude reading a full multi-passage PDF + solving up to 40 questions with
+// Vietnamese solutions can take a couple of minutes.
+export const maxDuration = 300;
 
 const bodySchema = z.object({
   skill: z.enum(["READING", "LISTENING"]),
@@ -55,15 +56,13 @@ async function pdfToBase64(pdfUrl: string): Promise<string | null> {
   }
 }
 
-function readingResponse(result: ReadingExamResult, engine: string) {
+function readingResponse(parts: NumberedReadingPart[], notes: string, engine: string) {
+  const total = parts.reduce((n, p) => n + p.questions.length, 0);
   return NextResponse.json({
     mode: "reading",
-    title: result.title,
-    passage: result.passage,
-    questions: result.questions,
-    figures: result.figures,
-    notes: result.notes,
-    meta: { engine },
+    parts,
+    notes,
+    meta: { engine, partCount: parts.length, questionCount: total },
   });
 }
 
@@ -97,8 +96,9 @@ export async function POST(req: Request) {
       const b64 = await pdfToBase64(pdfUrl);
       if (b64) {
         try {
-          const result = await generateReadingExamFromPdf(b64);
-          if (result.passage && result.questions.length > 0) return readingResponse(result, "claude");
+          const multi = await generateReadingExamFromPdf(b64);
+          const parts = numberReadingParts(multi);
+          if (parts.some((p) => p.questions.length > 0)) return readingResponse(parts, multi.notes, "claude");
           console.warn("[generate-key] claude returned empty reading — falling back to groq");
         } catch (e) {
           console.error("[generate-key] claude reading failed — falling back to groq:", e);
@@ -133,14 +133,15 @@ export async function POST(req: Request) {
       );
     }
     try {
-      const result = await generateReadingExamGroq({ documentText });
-      if (!result.passage || result.questions.length === 0) {
+      const multi = await generateReadingExamGroq({ documentText });
+      const parts = numberReadingParts(multi);
+      if (!parts.some((p) => p.questions.length > 0)) {
         return NextResponse.json(
-          { error: "AI chưa đọc được bài đọc hoặc câu hỏi. Hãy kiểm tra lại file hoặc nhập đáp án thủ công.", notes: result.notes },
+          { error: "AI chưa đọc được bài đọc hoặc câu hỏi. Hãy kiểm tra lại file hoặc nhập đáp án thủ công.", notes: multi.notes },
           { status: 422 },
         );
       }
-      return readingResponse(result, "groq");
+      return readingResponse(parts, multi.notes, "groq");
     } catch (e) {
       console.error("[generate-key] groq reading failed:", e);
       return NextResponse.json(

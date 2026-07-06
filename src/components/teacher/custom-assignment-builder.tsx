@@ -21,7 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { aiToCustomQuestions, classifyAnswer, parseAnswerKey, readingAiToCustomQuestions, toCustomQuestions, typeLabel } from "@/lib/answer-key";
-import type { ReadingExamQuestion, ReadingFigure } from "@/lib/groq";
+import type { ReadingExamQuestion, NumberedReadingPart } from "@/lib/groq";
 import { PaperFileField } from "@/components/teacher/paper-file-field";
 import { playPopSfx } from "@/lib/quiz-sfx";
 
@@ -64,9 +64,10 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
   const [answerKey, setAnswerKey] = useState("");
   // AI-generated key + solutions (teacher just uploads → AI does the answers).
   const [aiQuestions, setAiQuestions] = useState<AiItem[] | null>(null);
-  // READING → a native-shaped test (passage + full-text questions) rendered in
-  // the same ReadingShell the learner practice uses.
-  const [aiReading, setAiReading] = useState<{ title: string; passage: string; questions: ReadingExamQuestion[]; figures: ReadingFigure[] } | null>(null);
+  // READING → a native-shaped test SPLIT INTO PARTS (one per passage in the
+  // file), rendered in the same ReadingShell (Part 1/2/3) the learner practice
+  // uses. Questions are numbered continuously across parts.
+  const [aiReading, setAiReading] = useState<{ parts: NumberedReadingPart[] } | null>(null);
   const [aiNotes, setAiNotes] = useState("");
   const [generating, setGenerating] = useState(false);
   const [showManual, setShowManual] = useState(false);
@@ -180,18 +181,15 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
         throw new Error(data.detail ? `${msg} (${data.detail})` : msg);
       }
       if (data.mode === "reading") {
-        // Native reading test: passage + full-text questions → ReadingShell.
-        setAiReading({
-          title: data.title || "",
-          passage: data.passage || "",
-          questions: data.questions as ReadingExamQuestion[],
-          figures: Array.isArray(data.figures) ? (data.figures as ReadingFigure[]) : [],
-        });
+        // Native reading test SPLIT INTO PARTS (one per passage) → ReadingShell.
+        const parts = Array.isArray(data.parts) ? (data.parts as NumberedReadingPart[]) : [];
+        const total = parts.reduce((n, p) => n + p.questions.length, 0);
+        setAiReading({ parts });
         setAiQuestions(null);
         setAiNotes(typeof data.notes === "string" ? data.notes : "");
         setShowManual(false);
         playPopSfx();
-        toast.success(`AI đã đọc bài + tạo ${data.questions.length} câu (giống Reading luyện tập)`);
+        toast.success(`AI đã tách ${parts.length} bài đọc · ${total} câu (giống Reading luyện tập)`);
       } else {
         setAiQuestions(data.questions as AiItem[]);
         setAiReading(null);
@@ -208,8 +206,20 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
   };
 
   // Teacher can fix the AI's answers/questions before saving (kể cả khi AI làm).
-  const updateReadingQ = (number: number, patch: Partial<ReadingExamQuestion>) =>
-    setAiReading((r) => (r ? { ...r, questions: r.questions.map((q) => (q.number === number ? { ...q, ...patch } : q)) } : r));
+  const updateReadingQ = (pi: number, number: number, patch: Partial<ReadingExamQuestion>) =>
+    setAiReading((r) =>
+      r
+        ? {
+            parts: r.parts.map((part, i) =>
+              i === pi
+                ? { ...part, questions: part.questions.map((q) => (q.number === number ? { ...q, ...patch } : q)) }
+                : part,
+            ),
+          }
+        : r,
+    );
+  const updateReadingPassage = (pi: number, passage: string) =>
+    setAiReading((r) => (r ? { parts: r.parts.map((part, i) => (i === pi ? { ...part, passage } : part)) } : r));
   const updateListeningQ = (number: number, patch: Partial<AiItem>) =>
     setAiQuestions((qs) => (qs ? qs.map((q) => (q.number === number ? { ...q, ...patch } : q)) : qs));
 
@@ -237,17 +247,24 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
       if (!pdfUrl.trim()) return toast.error("Tải lên file PDF đề bài");
       if (skill === "LISTENING" && !audioUrl.trim()) return toast.error("Bài Listening cần file âm thanh");
 
-      if (skill === "READING" && aiReading && aiReading.questions.length > 0) {
-        // Native reading exam: the passage rides in config.reading; questions
-        // carry full-text options + a native correctAnswer. config.paper.skill
-        // lets GradingService auto-grade them as READING (no readingId needed).
+      if (skill === "READING" && aiReading && aiReading.parts.some((p) => p.questions.length > 0)) {
+        // Native reading exam SPLIT INTO PARTS: each passage rides in
+        // config.reading.parts (with its question count so the learner side can
+        // slice the flat question list back into parts); questions carry
+        // full-text options + a native correctAnswer. config.paper.skill lets
+        // GradingService auto-grade them as READING (no readingId needed).
         config.reading = {
-          passage: aiReading.passage,
-          title: aiReading.title || title.trim(),
-          figures: aiReading.figures,
+          parts: aiReading.parts.map((p) => ({
+            title: p.title || title.trim(),
+            passage: p.passage,
+            figures: p.figures,
+            count: p.questions.length,
+          })),
         };
         config.paper = { skill: "READING" };
-        body.custom_questions = readingAiToCustomQuestions(aiReading.questions);
+        // Flatten every part's questions in order — displayNumber already runs
+        // continuously across parts, so the flat list slices back cleanly.
+        body.custom_questions = aiReading.parts.flatMap((p) => readingAiToCustomQuestions(p.questions));
       } else {
         // Listening (PDF + audio) OR manual fallback → letter answer sheet.
         config.paper = { skill, pdfUrl: pdfUrl.trim(), audioUrl: skill === "LISTENING" ? audioUrl.trim() : undefined };
@@ -467,14 +484,17 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
             </Card>
           ) : null}
 
-          {/* Native READING preview: passage + full-text questions */}
+          {/* Native READING preview: SPLIT INTO PARTS (one card per passage) */}
           {aiReading && (
             <Card className="border-leaf/40">
-              <CardContent className="space-y-3 p-5">
+              <CardContent className="space-y-4 p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="h-5 w-5 text-leaf" />
-                    <h3 className="font-bold">AI đã tạo bài Reading · {aiReading.questions.length} câu</h3>
+                    <h3 className="font-bold">
+                      AI đã tách {aiReading.parts.length} bài đọc ·{" "}
+                      {aiReading.parts.reduce((n, p) => n + p.questions.length, 0)} câu
+                    </h3>
                   </div>
                   <div className="flex gap-1.5">
                     <Button onClick={generateKey} disabled={generating} variant="outline" size="sm" className="rounded-lg">
@@ -486,76 +506,95 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Học sinh làm trong giao diện Reading <strong>giống hệt phần luyện tập</strong> (đọc trái, câu hỏi phải).
-                  Có thể <strong>sửa lại câu hỏi / đáp án / lời giải</strong> nếu AI làm chưa chuẩn — gõ trực tiếp vào ô.
+                  Mỗi bài đọc là một <strong>Part</strong> riêng — học sinh làm lần lượt trong giao diện Reading{" "}
+                  <strong>giống hệt phần luyện tập</strong> (đọc trái, câu hỏi phải). Có thể{" "}
+                  <strong>sửa lại bài đọc / câu hỏi / đáp án / lời giải</strong> nếu AI làm chưa chuẩn — gõ trực tiếp vào ô.
                 </p>
                 {aiNotes && (
                   <p className="rounded-lg border border-amber-300 bg-amber-50/70 p-2.5 text-xs text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
                     ⚠️ Lưu ý từ AI: {aiNotes}
                   </p>
                 )}
-                <details className="rounded-lg border bg-muted/20 p-3">
-                  <summary className="cursor-pointer text-sm font-semibold">Xem bài đọc ({aiReading.passage.length.toLocaleString()} ký tự)</summary>
-                  <Textarea
-                    value={aiReading.passage}
-                    onChange={(e) => setAiReading((r) => (r ? { ...r, passage: e.target.value } : r))}
-                    rows={8}
-                    className="mt-2 text-sm"
-                  />
-                </details>
-                {aiReading.figures.length > 0 && (
-                  <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
-                    <p className="text-sm font-semibold">AI đã vẽ lại {aiReading.figures.length} sơ đồ/bản đồ (SVG) — kiểm tra xem có giống đề không:</p>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {aiReading.figures.map((f, i) => (
-                        <div key={i} className="rounded-lg border bg-card p-2">
-                          {f.caption && <p className="mb-1 text-xs font-medium text-muted-foreground">{f.caption}</p>}
-                          <div
-                            className="overflow-x-auto text-foreground [&_svg]:mx-auto [&_svg]:h-auto [&_svg]:max-w-full"
-                            dangerouslySetInnerHTML={{ __html: f.svg }}
-                          />
-                        </div>
-                      ))}
+
+                {aiReading.parts.map((part, pi) => (
+                  <div key={pi} className="space-y-3 rounded-xl border-2 border-leaf/30 bg-leaf/5 p-3">
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-full bg-leaf px-2.5 py-0.5 text-xs font-extrabold text-white">Part {pi + 1}</span>
+                      <Input
+                        value={part.title}
+                        onChange={(e) => setAiReading((r) => (r ? { parts: r.parts.map((p, i) => (i === pi ? { ...p, title: e.target.value } : p)) } : r))}
+                        className="h-8 flex-1 text-sm font-bold"
+                        placeholder="Tiêu đề bài đọc"
+                      />
+                      <span className="shrink-0 text-xs text-muted-foreground">{part.questions.length} câu</span>
                     </div>
-                  </div>
-                )}
-                <ul className="space-y-2.5">
-                  {aiReading.questions.map((q) => (
-                    <li key={q.number} className="rounded-lg border bg-muted/20 p-3">
-                      <div className="flex items-start gap-2">
-                        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-bold text-primary">{q.number}</span>
-                        <div className="min-w-0 flex-1 space-y-1.5">
-                          <Input
-                            value={q.prompt}
-                            onChange={(e) => updateReadingQ(q.number, { prompt: e.target.value })}
-                            className="h-8 text-sm font-medium"
-                            placeholder="Câu hỏi"
-                          />
-                          {q.options && q.options.length > 0 && (
-                            <p className="text-xs text-muted-foreground">Lựa chọn: {q.options.join(" · ")}</p>
-                          )}
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-xs font-semibold text-leaf">Đáp án:</span>
-                            <Input
-                              value={q.answer}
-                              onChange={(e) => updateReadingQ(q.number, { answer: e.target.value })}
-                              className="h-8 w-40 text-sm font-semibold"
-                              placeholder="Đáp án đúng"
-                            />
-                            <span className="text-xs text-muted-foreground">{q.type}</span>
-                          </div>
-                          <Textarea
-                            value={q.explanation}
-                            onChange={(e) => updateReadingQ(q.number, { explanation: e.target.value })}
-                            rows={2}
-                            className="text-xs"
-                            placeholder="Lời giải (tuỳ chọn)"
-                          />
+
+                    <details className="rounded-lg border bg-muted/20 p-3">
+                      <summary className="cursor-pointer text-sm font-semibold">Xem bài đọc ({part.passage.length.toLocaleString()} ký tự)</summary>
+                      <Textarea
+                        value={part.passage}
+                        onChange={(e) => updateReadingPassage(pi, e.target.value)}
+                        rows={8}
+                        className="mt-2 text-sm"
+                      />
+                    </details>
+
+                    {part.figures.length > 0 && (
+                      <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
+                        <p className="text-sm font-semibold">AI đã vẽ lại {part.figures.length} sơ đồ/bản đồ (SVG) — kiểm tra xem có giống đề không:</p>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {part.figures.map((f, i) => (
+                            <div key={i} className="rounded-lg border bg-card p-2">
+                              {f.caption && <p className="mb-1 text-xs font-medium text-muted-foreground">{f.caption}</p>}
+                              <div
+                                className="overflow-x-auto text-foreground [&_svg]:mx-auto [&_svg]:h-auto [&_svg]:max-w-full"
+                                dangerouslySetInnerHTML={{ __html: f.svg }}
+                              />
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    </li>
-                  ))}
-                </ul>
+                    )}
+
+                    <ul className="space-y-2.5">
+                      {part.questions.map((q) => (
+                        <li key={q.number} className="rounded-lg border bg-muted/20 p-3">
+                          <div className="flex items-start gap-2">
+                            <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-bold text-primary">{q.number}</span>
+                            <div className="min-w-0 flex-1 space-y-1.5">
+                              <Input
+                                value={q.prompt}
+                                onChange={(e) => updateReadingQ(pi, q.number, { prompt: e.target.value })}
+                                className="h-8 text-sm font-medium"
+                                placeholder="Câu hỏi"
+                              />
+                              {q.options && q.options.length > 0 && (
+                                <p className="text-xs text-muted-foreground">Lựa chọn: {q.options.join(" · ")}</p>
+                              )}
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-xs font-semibold text-leaf">Đáp án:</span>
+                                <Input
+                                  value={q.answer}
+                                  onChange={(e) => updateReadingQ(pi, q.number, { answer: e.target.value })}
+                                  className="h-8 w-40 text-sm font-semibold"
+                                  placeholder="Đáp án đúng"
+                                />
+                                <span className="text-xs text-muted-foreground">{q.type}</span>
+                              </div>
+                              <Textarea
+                                value={q.explanation}
+                                onChange={(e) => updateReadingQ(pi, q.number, { explanation: e.target.value })}
+                                rows={2}
+                                className="text-xs"
+                                placeholder="Lời giải (tuỳ chọn)"
+                              />
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
               </CardContent>
             </Card>
           )}
