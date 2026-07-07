@@ -67,7 +67,11 @@ export async function groqChat(messages: GroqMessage[], opts: GroqOptions = {}):
       return data.choices[0]?.message?.content ?? "";
     }
     const txt = await res.text();
-    if ((res.status === 429 || res.status >= 500) && attempt < maxRetries) {
+    // A "Request too large" 429 is DETERMINISTIC — this one request exceeds the
+    // per-minute token ceiling, so retrying the SAME request never succeeds.
+    // Surface it at once (no backoff storm) so the caller sends a smaller request.
+    const tooLarge = res.status === 429 && /request too large/i.test(txt);
+    if (!tooLarge && (res.status === 429 || res.status >= 500) && attempt < maxRetries) {
       const ra = parseInt(res.headers.get("retry-after") ?? "", 10);
       const waitMs = Number.isFinite(ra) ? Math.min(ra * 1000, 32000) : (attempt + 1) * 4000;
       await new Promise((r) => setTimeout(r, waitMs));
@@ -128,6 +132,59 @@ function extractJSON(text: string): unknown {
   const end = trimmed.lastIndexOf("}");
   if (start === -1 || end === -1) throw new Error("No JSON object in response");
   return JSON.parse(trimmed.slice(start, end + 1));
+}
+
+/**
+ * Parse a JSON object that may be TRUNCATED (the model hit max_tokens mid-output).
+ * First tries a clean parse; on failure it scans the text — ignoring string
+ * contents — remembers the position right AFTER the last fully-closed nested
+ * element, cuts there, and appends the closing brackets that were still open, so
+ * `JSON.parse` succeeds on the salvageable prefix. This turns a cut-off reading
+ * response (which used to throw away ALL questions) into the questions that DID
+ * finish. Throws only if nothing at all is recoverable.
+ */
+function parseJsonLoose(text: string): unknown {
+  const trimmed = text.trim();
+  const start = trimmed.indexOf("{");
+  if (start === -1) throw new Error("No JSON object in response");
+  const s = trimmed.slice(start);
+  const lastClose = s.lastIndexOf("}");
+  if (lastClose !== -1) {
+    try {
+      return JSON.parse(s.slice(0, lastClose + 1));
+    } catch {
+      /* truncated or malformed — fall through to bracket repair */
+    }
+  }
+  let inStr = false;
+  let esc = false;
+  const stack: string[] = [];
+  let cut = -1;
+  let cutStack: string[] = [];
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === "\\") esc = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') inStr = true;
+    else if (c === "{" || c === "[") stack.push(c);
+    else if (c === "}" || c === "]") {
+      stack.pop();
+      // Just closed a nested element while still inside an outer container — a safe
+      // place to cut (keeps every element completed up to here).
+      if (stack.length >= 1) {
+        cut = i + 1;
+        cutStack = stack.slice();
+      }
+    }
+  }
+  if (cut === -1) throw new Error("Truncated JSON with no salvageable element");
+  let repaired = s.slice(0, cut);
+  for (let k = cutStack.length - 1; k >= 0; k--) repaired += cutStack[k] === "{" ? "}" : "]";
+  return JSON.parse(repaired);
 }
 
 const WRITING_SYS = `You are a certified IELTS examiner. Score essays using official IELTS band descriptors (0–9 in 0.5 increments).
@@ -663,7 +720,7 @@ Return ONLY valid JSON in this EXACT shape:
           "prompt": "<the question text>",
           "options": <array of FULL-TEXT strings, or null — see per-type rules>,
           "answer": "<the correct answer in the EXACT representation below>",
-          "explanation": "<tiếng Việt, 2-4 câu>"
+          "explanation": "<tiếng Việt, 1 câu ngắn gọn>"
         }
       ]
     }
@@ -1070,16 +1127,19 @@ async function readingCallGroq(slice: string, tailFrom: number): Promise<Reading
   const userMessage = `TEST PAPER TEXT (nhiều bài đọc + câu hỏi):
 ${slice}
 
-TÁCH mỗi bài đọc riêng thành 1 "part" (đừng gộp nhiều bài vào một). ${scope} Với mỗi bài: trích NGUYÊN VĂN, NỐI LẠI các dòng bị ngắt giữa câu thành đoạn văn trôi chảy, giữ ĐÚNG số thứ tự câu hỏi gốc, chấm đáp án đúng theo ĐÚNG ANSWER/OPTIONS RULES, và viết lời giải tiếng Việt. Nếu đề có BẢNG thì trả về block "TABLE"; nếu có BẢN ĐỒ/SƠ ĐỒ/PLAN thì VẼ LẠI bằng SVG trong block "MAP". Trả về JSON only.`;
+TÁCH mỗi bài đọc riêng thành 1 "part" (đừng gộp nhiều bài vào một). ${scope} Với mỗi bài: trích NGUYÊN VĂN, NỐI LẠI các dòng bị ngắt giữa câu thành đoạn văn trôi chảy, giữ ĐÚNG số thứ tự câu hỏi gốc, chấm đáp án đúng theo ĐÚNG ANSWER/OPTIONS RULES, và viết lời giải NGẮN (1 câu tiếng Việt). Nếu đề có BẢNG thì trả về block "TABLE"; nếu có BẢN ĐỒ/SƠ ĐỒ/PLAN thì VẼ LẠI bằng SVG trong block "MAP". Nếu đề rất dài, ưu tiên KHÔNG bỏ sót câu theo đúng thứ tự nhưng TỐI ĐA 30 câu. Trả về JSON only.`;
   try {
     const text = await groqChat(
       [
         { role: "system", content: READING_EXAM_SYS },
         { role: "user", content: userMessage },
       ],
-      { jsonMode: true, temperature: 0.2, maxTokens: 7000, maxRetries: 3, timeoutMs: 75000 },
+      // Output bounded to fit Groq free tier's ~12k tokens/minute in ONE request
+      // (input ~4k + output ~5.2k stays under the ceiling → no "request too large").
+      // parseJsonLoose salvages the questions that finished if we still hit the cap.
+      { jsonMode: true, temperature: 0.2, maxTokens: 5200, maxRetries: 2, timeoutMs: 50000 },
     );
-    return parseReadingExamParts(extractJSON(text) as Record<string, unknown>).parts;
+    return parseReadingExamParts(parseJsonLoose(text) as Record<string, unknown>).parts;
   } catch (e) {
     console.error("[groq reading] call failed:", e);
     return [];
@@ -1098,37 +1158,29 @@ TÁCH mỗi bài đọc riêng thành 1 "part" (đừng gộp nhiều bài vào 
  */
 export async function generateReadingExamGroq(input: { documentText: string }): Promise<ReadingExamMulti> {
   const doc = input.documentText;
-  const maxNum = (ps: ReadingExamPart[]) =>
-    ps.reduce((m, p) => p.questions.reduce((mm, q) => Math.max(mm, q.number), m), 0);
 
-  // (1) Primary call over the front of the paper.
-  let parts = await readingCallGroq(doc.slice(0, 17000), 0);
+  // ONE well-sized call — no fan-out. Groq's free tier is ~12k tokens/MINUTE, so a
+  // SECOND big call in the same minute reliably 429s and stalls the request; that
+  // two-call design was why generation "ran long then errored". A single bounded
+  // call over the front of the paper (which the 30-question cap already targets),
+  // parsed loosely so a cut-off response still yields its finished questions, loads
+  // fast and never hangs. Need the full 40? "Tạo lại" (a fresh minute resets the
+  // budget) or a valid ANTHROPIC_API_KEY (Claude reads the whole PDF at once).
+  let parts = await readingCallGroq(doc.slice(0, 16000), 0);
 
-  // (2) Tail recovery: a full paper runs to ~40, so if we stopped well short the
-  // last passage was cut off by the slice/output — fetch it from the END of the
-  // document with ONE more call. Bounded to a single extra call (never a storm).
-  const got = maxNum(parts);
-  if (parts.length > 0 && got > 0 && got < 36 && doc.length > 20000) {
-    const tail = await readingCallGroq(doc.slice(doc.length - 20000), got);
-    for (const tp of tail) {
-      const fresh = tp.questions.filter((q) => q.number > got);
-      if (fresh.length === 0) continue;
-      const freshNums = new Set(fresh.map((q) => q.number));
-      parts.push({ title: tp.title, passage: tp.passage, questions: fresh, figures: tp.figures.filter((f) => freshNums.has(f.atNumber)) });
-    }
-  }
-
-  // Last resort: nothing came back → try once over a smaller front slice.
+  // Last resort ONLY when the first call produced nothing (empty/failed): a smaller
+  // slice is lighter and more likely to fit. Mutually exclusive with a good first
+  // result, so we never fire two heavy calls back-to-back.
   if (parts.every((p) => p.questions.length === 0)) {
-    parts = await readingCallGroq(doc.slice(0, 13000), 0);
+    parts = await readingCallGroq(doc.slice(0, 11000), 0);
   }
 
   const produced = parts.reduce((n, p) => n + p.questions.length, 0);
   let notes = "";
   if (produced === 0) {
     notes = "AI chưa đọc được câu hỏi trong file — hãy thử lại hoặc nhập đáp án thủ công.";
-  } else if (produced < 34) {
-    notes = `Mới tạo ${produced} câu — Groq (bản miễn phí) bị giới hạn nên có thể còn thiếu. Hãy bấm "Tạo lại", hoặc thêm khoá Anthropic hợp lệ để AI đọc trọn đề.`;
+  } else if (produced < 30) {
+    notes = `Mới tạo ${produced} câu — Groq (bản miễn phí) giới hạn dung lượng mỗi lượt nên có thể còn thiếu. Bấm "Tạo lại" để bổ sung, hoặc thêm khoá Anthropic để AI đọc trọn đề.`;
   }
   return { parts, notes };
 }
