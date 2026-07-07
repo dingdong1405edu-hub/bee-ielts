@@ -56,20 +56,20 @@ async function pdfToBase64(pdfUrl: string): Promise<string | null> {
   }
 }
 
-function readingResponse(parts: NumberedReadingPart[], notes: string, engine: string) {
+function readingResponse(parts: NumberedReadingPart[], notes: string, engine: string, claudeReason = "") {
   const total = parts.reduce((n, p) => n + p.questions.length, 0);
   // Groq is the WEAK fallback (small context, truncates a full paper → misses the
-  // later passages). If it ran, the server is missing ANTHROPIC_API_KEY — say so
-  // loudly, because none of the Claude-path reliability applies.
+  // later passages). If it ran, either the server has no ANTHROPIC_API_KEY OR the
+  // Claude PDF path errored — surface WHICH, so we stop guessing why it's on Groq.
   const finalNotes =
     engine === "groq"
-      ? `⚠ Đang dùng Groq (bản dự phòng, dễ thiếu câu vì không đọc trọn file). Hãy thêm ANTHROPIC_API_KEY trên máy chủ để AI đọc trọn PDF và tách đủ các câu.${notes ? " " + notes : ""}`
+      ? `⚠ Đang dùng Groq (bản dự phòng, dễ thiếu câu vì không đọc trọn file).${claudeReason ? " Lý do không dùng được Claude: " + claudeReason + "." : ""} Hãy thêm/kiểm tra ANTHROPIC_API_KEY trên máy chủ để AI đọc trọn PDF và tách đủ các câu.${notes ? " " + notes : ""}`
       : notes;
   return NextResponse.json({
     mode: "reading",
     parts,
     notes: finalNotes,
-    meta: { engine, partCount: parts.length, questionCount: total },
+    meta: { engine, partCount: parts.length, questionCount: total, claudeReason: claudeReason || undefined },
   });
 }
 
@@ -99,6 +99,9 @@ export async function POST(req: Request) {
   if (skill === "READING") {
     // PRIMARY: Claude reads the PDF natively (no pdf-parse, no token-limit,
     // handles scans). Falls back to Groq (needs extracted text) on any failure.
+    // `claudeReason` records WHY we fell back so the teacher (and we) can tell a
+    // missing key from a runtime error instead of guessing.
+    let claudeReason = "";
     if (hasClaude) {
       const b64 = await pdfToBase64(pdfUrl);
       if (b64) {
@@ -106,11 +109,17 @@ export async function POST(req: Request) {
           const multi = await generateReadingExamFromPdf(b64);
           const parts = numberReadingParts(multi);
           if (parts.some((p) => p.questions.length > 0)) return readingResponse(parts, multi.notes, "claude");
+          claudeReason = "Claude đọc được file nhưng không tách ra được câu hỏi nào";
           console.warn("[generate-key] claude returned empty reading — falling back to groq");
         } catch (e) {
+          claudeReason = `Claude gặp lỗi khi đọc PDF — ${e instanceof Error ? e.message.slice(0, 200) : String(e).slice(0, 200)}`;
           console.error("[generate-key] claude reading failed — falling back to groq:", e);
         }
+      } else {
+        claudeReason = "không đọc/giải mã được file PDF gửi lên";
       }
+    } else {
+      claudeReason = "máy chủ CHƯA cấu hình ANTHROPIC_API_KEY";
     }
 
     if (!hasGroq) {
@@ -148,7 +157,7 @@ export async function POST(req: Request) {
           { status: 422 },
         );
       }
-      return readingResponse(parts, multi.notes, "groq");
+      return readingResponse(parts, multi.notes, "groq", claudeReason);
     } catch (e) {
       console.error("[generate-key] groq reading failed:", e);
       return NextResponse.json(
