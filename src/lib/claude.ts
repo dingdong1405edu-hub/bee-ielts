@@ -544,6 +544,42 @@ function normalizeOutline(res: OutlineResult): PassageOutline[] {
   });
 }
 
+/** UNION two outlines by passage start, so a re-outline can only ADD passages it
+ *  found (typically the missed tail) — never DROP one the first pass already had.
+ *  Starts within 3 of each other are the same boundary (IELTS passages are ≥10
+ *  apart); we keep one, preferring the entry that carries a title. */
+function mergeOutlines(a: OutlineResult, b: OutlineResult): OutlineResult {
+  const all = [...a.passages, ...b.passages]
+    .filter((p) => Number.isFinite(p.firstQuestion))
+    .sort((x, y) => x.firstQuestion - y.firstQuestion);
+  const merged: PassageOutline[] = [];
+  for (const p of all) {
+    const near = merged.find((m) => Math.abs(m.firstQuestion - p.firstQuestion) <= 3);
+    if (near) {
+      if (!near.title && p.title) near.title = p.title;
+      if (Number.isFinite(p.lastQuestion) && p.lastQuestion > (near.lastQuestion || 0)) near.lastQuestion = p.lastQuestion;
+      continue;
+    }
+    merged.push({ ...p });
+  }
+  return { passages: merged, lastQuestion: Math.max(a.lastQuestion || 0, b.lastQuestion || 0) };
+}
+
+/** Typical questions-per-passage for THIS paper, inferred from the gaps between
+ *  the passage starts the outline already found (≈13 for a 3-passage paper, ≈10
+ *  for a 4-passage one). Used to place synthesised tail passages on real
+ *  boundaries. Falls back to 13 when there's too little signal. */
+function medianGap(firsts: number[]): number {
+  const sorted = [...firsts].sort((a, b) => a - b);
+  const gaps: number[] = [];
+  for (let i = 1; i < sorted.length; i++) gaps.push(sorted[i] - sorted[i - 1]);
+  if (gaps.length === 0) return 13;
+  gaps.sort((a, b) => a - b);
+  const mid = Math.floor(gaps.length / 2);
+  const m = gaps.length % 2 ? gaps[mid] : Math.round((gaps[mid - 1] + gaps[mid]) / 2);
+  return m >= 6 ? m : 13; // guard against tiny/garbage gaps over-splitting the tail
+}
+
 /** Normalise a passage title for comparison: drop "Reading Passage N" wrappers +
  *  punctuation, lowercase. */
 function titleKey(s: string): string {
@@ -768,6 +804,10 @@ async function singleCallReadingExam(docBlock: unknown): Promise<ReadingExamMult
   return parseReadingExamParts(extractJSON(betaText(response)) as Record<string, unknown>);
 }
 
+/** A full IELTS Academic Reading paper is essentially always ~40 questions; a
+ *  final total this far below is treated as a likely missed passage. */
+const IELTS_FLOOR = 38;
+
 export async function generateReadingExamFromPdf(pdfBase64: string): Promise<ReadingExamMulti> {
   const docBlock = pdfDocBlock(pdfBase64);
 
@@ -792,12 +832,13 @@ export async function generateReadingExamFromPdf(pdfBase64: string): Promise<Rea
   const reach = (r: OutlineResult) => Math.max(passageReach(r), r.lastQuestion || 0);
 
   // The outline under-counted: its passages don't reach the paper's real last
-  // question. Force a re-outline with that number as a hard target and keep
-  // whichever result reaches further.
+  // question. Force a re-outline with that number as a hard target and MERGE the
+  // two (union) so the retry can only ADD passages — a retry that finds the tail
+  // but drops a middle passage can never wipe out the good first result.
   if (trueLast > 0 && trueLast > reach(outlineRes) + 1) {
     try {
       const retry = await outlineReadingPassages(docBlock, trueLast);
-      if (reach(retry) > reach(outlineRes)) outlineRes = retry;
+      if (retry.passages.length > 0) outlineRes = mergeOutlines(outlineRes, retry);
     } catch (e) {
       console.error("[generateReadingExamFromPdf] outline retry failed:", e);
     }
@@ -805,15 +846,19 @@ export async function generateReadingExamFromPdf(pdfBase64: string): Promise<Rea
   if (trueLast > (outlineRes.lastQuestion || 0)) outlineRes.lastQuestion = trueLast;
 
   // Still short after the retry: the model won't enumerate the tail passage(s).
-  // SYNTHESISE outline entries for the missing tail (IELTS passages run ~13
-  // questions each) so Phase 2 still attempts questions the outline never listed
-  // — the per-passage extraction reads the PDF and fills in the real title/text.
+  // SYNTHESISE outline entries for the missing tail so Phase 2 still attempts
+  // questions the outline never listed — the per-passage extraction reads the PDF
+  // and fills in the real title/text. Step by THIS paper's own passage size
+  // (median gap between found starts: ≈13 for 3-passage, ≈10 for 4-passage) so
+  // the synthesised boundaries land on the real passage edges.
   if (trueLast > 0 && trueLast > passageReach(outlineRes) + 1 && outlineRes.passages.length > 0) {
-    const lastFirst = outlineRes.passages.reduce((m, p) => Math.max(m, p.firstQuestion || 0), 0);
-    // ~13 questions per IELTS passage. `lastQuestion: trueLast` on each entry is
-    // fixed up by normalizeOutline (a passage's last = next passage's first − 1);
-    // the `− 3` guard avoids spawning a tiny 1–2 question tail part.
-    for (let from = lastFirst + 13; from <= trueLast - 3; from += 13) {
+    const firsts = outlineRes.passages.map((p) => p.firstQuestion).filter((n) => Number.isFinite(n));
+    const lastFirst = Math.max(...firsts);
+    const step = medianGap(firsts);
+    // `lastQuestion: trueLast` on each entry is fixed up by normalizeOutline (a
+    // passage's last = next passage's first − 1); the `− 3` guard avoids spawning
+    // a tiny 1–2 question tail part.
+    for (let from = lastFirst + step; from <= trueLast - 3; from += step) {
       outlineRes.passages.push({ title: "", firstQuestion: from, lastQuestion: trueLast });
     }
   }
@@ -888,6 +933,14 @@ export async function generateReadingExamFromPdf(pdfBase64: string): Promise<Rea
     notes = `Có ${emptyParts} bài đọc AI chưa lấy được câu hỏi — hãy bấm "Tạo lại" hoặc kiểm tra lại file.`;
   } else if (missing > 0) {
     notes = `AI mới tạo ${produced}/${expectedTotal} câu — còn ${missing} câu chưa lấy được. Hãy bấm "Tạo lại" hoặc kiểm tra lại file.`;
+  } else if (produced < IELTS_FLOOR && trueLast <= 0) {
+    // Absolute floor: `missing` is measured against expectedTotal, which is
+    // derived from the SAME outline — so a silent undercount (outline stops at
+    // 26, findLastQuestion also failed → trueLast=0) makes them agree at 26 and
+    // slips through. A full IELTS Academic Reading is essentially always ~40, so
+    // a result this far under, with no reliable last-question read to trust,
+    // means the final passage was likely missed — surface it.
+    notes = `AI mới lấy ${produced} câu — IELTS Reading thường có 40 câu, có thể còn sót bài đọc/câu hỏi cuối. Hãy kiểm tra lại file hoặc bấm "Tạo lại".`;
   }
   return { parts, notes };
 }
