@@ -1077,7 +1077,7 @@ TÁCH mỗi bài đọc riêng thành 1 "part" (đừng gộp nhiều bài vào 
         { role: "system", content: READING_EXAM_SYS },
         { role: "user", content: userMessage },
       ],
-      { jsonMode: true, temperature: 0.2, maxTokens: 6500, maxRetries: 3, timeoutMs: 70000 },
+      { jsonMode: true, temperature: 0.2, maxTokens: 7000, maxRetries: 3, timeoutMs: 75000 },
     );
     return parseReadingExamParts(extractJSON(text) as Record<string, unknown>).parts;
   } catch (e) {

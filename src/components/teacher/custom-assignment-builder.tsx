@@ -12,7 +12,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowLeft, BookOpen, CheckCircle2, Clock, Headphones, Loader2, Mic, PenLine, RefreshCw, Send, Sparkles, Trash2, Wand2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, BookOpen, CheckCircle2, Clock, Headphones, Loader2, Mic, PenLine, RefreshCw, Send, Sparkles, Trash2, Wand2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,8 +29,10 @@ import { playPopSfx } from "@/lib/quiz-sfx";
 const PDF_MAX = 8 * 1024 * 1024;
 const AUDIO_MAX = 15 * 1024 * 1024;
 const IMG_MAX = 5 * 1024 * 1024;
-/** A teacher assignment is capped at this many questions (per the product rule). */
-const MAX_READING_Q = 20;
+/** Max questions per assignment — set near the ceiling Groq's free tier can build
+ *  in the 1–2 call reading path (≈2 passages + tail). Above this, Groq starts
+ *  dropping questions, so we cap here and warn the teacher prominently. */
+const MAX_READING_Q = 30;
 
 /** Trim a native reading test to the first `max` questions (keeping whole
  *  questions, dropping parts once full). Numbers stay continuous. */
@@ -297,6 +299,22 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
         // Every question must have a correct answer (auto-grading needs it).
         const noAns = aiReading.parts.flatMap((p) => p.questions).find((q) => !String(q.answer ?? "").trim());
         if (noAns) return toast.error(`Câu ${noAns.number} chưa có đáp án đúng — hãy chọn/nhập đáp án.`);
+        // Manual: validate choice options (blank/duplicate/answer-not-in-options
+        // would silently mis-grade every student).
+        if (manualReading) {
+          const CHOICE = new Set(["MCQ", "MATCHING", "MATCHING_SENTENCE_ENDINGS"]);
+          const LISTED = new Set(["MATCHING_HEADINGS", "MATCHING_FEATURES", "MATCHING_INFO"]);
+          for (const q of aiReading.parts.flatMap((p) => p.questions)) {
+            const clean = (q.options ?? []).map((o) => String(o).trim()).filter(Boolean);
+            if (CHOICE.has(q.type)) {
+              if (clean.length < 2) return toast.error(`Câu ${q.number}: cần ít nhất 2 lựa chọn có nội dung.`);
+              if (new Set(clean.map((o) => o.toLowerCase())).size !== clean.length) return toast.error(`Câu ${q.number}: có lựa chọn trùng nhau.`);
+              if (!clean.includes(String(q.answer).trim())) return toast.error(`Câu ${q.number}: hãy đánh dấu 1 lựa chọn làm đáp án đúng.`);
+            } else if (LISTED.has(q.type) && clean.length < 2) {
+              return toast.error(`Câu ${q.number}: danh sách lựa chọn còn trống — hãy nhập đủ.`);
+            }
+          }
+        }
         // Native reading exam SPLIT INTO PARTS: each passage rides in
         // config.reading.parts (with its question count so the learner side can
         // slice the flat question list back into parts); questions carry
@@ -433,6 +451,18 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
       {/* Skill-specific form */}
       {isPaper && (
         <>
+          {/* PROMINENT reminder: the per-assignment question cap. */}
+          <div className="flex items-start gap-3 rounded-xl border-2 border-amber-400 bg-amber-50 p-4 shadow-sm dark:border-amber-500/60 dark:bg-amber-500/10">
+            <AlertTriangle className="mt-0.5 h-6 w-6 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div className="space-y-1 text-sm text-amber-900 dark:text-amber-200">
+              <p className="text-base font-extrabold uppercase tracking-wide">Tối đa {MAX_READING_Q} câu hỏi cho 1 bài</p>
+              <p className="font-semibold">
+                Đây là mức <strong>gần tối đa</strong> mà AI Groq (bản miễn phí) tạo được ổn định. Nếu AI tạo <strong>thiếu câu</strong>,
+                hãy bấm <strong>“Tạo lại”</strong> hoặc giảm số câu. Muốn chắc chắn đủ {MAX_READING_Q} câu &amp; nhanh hơn → thêm <strong>khoá Anthropic</strong> hợp lệ trên máy chủ.
+              </p>
+            </div>
+          </div>
+
           {/* Manual READING needs no file — hide the uploader in that mode. */}
           {!(skill === "READING" && manualReading) && (
             <Card><CardContent className="space-y-4 p-5">

@@ -54,10 +54,28 @@ export function ManualReadingBuilder({
   const total = parts.reduce((n, p) => n + p.questions.length, 0);
   const atLimit = total >= max;
 
-  /** Renumber every question 1..N across parts, then push up. */
+  // A headings/features question added AFTER the shared list was typed starts with
+  // options:null; re-broadcast the part's shared list onto every such question on
+  // EVERY mutation, so its learner dropdown is never empty (empty = always wrong).
+  const broadcastShared = (p: NumberedReadingPart): NumberedReadingPart => {
+    let questions = p.questions;
+    for (const type of ["MATCHING_HEADINGS", "MATCHING_FEATURES"]) {
+      const canonical = questions.find((q) => q.type === type && q.options && q.options.length > 0)?.options;
+      if (!canonical) continue;
+      questions = questions.map((q) => (q.type === type && !(q.options && q.options.length > 0) ? { ...q, options: canonical } : q));
+    }
+    return questions === p.questions ? p : { ...p, questions };
+  };
+
+  /** Renumber every question 1..N across parts (+ broadcast shared lists), push up. */
   const commit = (next: NumberedReadingPart[]) => {
     let n = 0;
-    onChange({ parts: next.map((p) => ({ ...p, questions: p.questions.map((q) => ({ ...q, number: ++n })) })) });
+    onChange({
+      parts: next.map((p) => {
+        const w = broadcastShared(p);
+        return { ...w, questions: w.questions.map((q) => ({ ...q, number: ++n })) };
+      }),
+    });
   };
   const patchPart = (pi: number, patch: Partial<NumberedReadingPart>) =>
     commit(parts.map((p, i) => (i === pi ? { ...p, ...patch } : p)));
@@ -79,19 +97,26 @@ export function ManualReadingBuilder({
     const q = p.questions.find((x) => x.type === type && x.options && x.options.length > 0);
     return (q?.options ?? []).map((o) => o.replace(strip, "").trim());
   };
-  const setSharedList = (pi: number, type: string, items: string[], prefix: (i: number) => string) => {
+  const setSharedList = (pi: number, type: string, items: string[], prefix: (i: number) => string, strip: RegExp) => {
     const options = items.map((t, i) => `${prefix(i)} ${t}`.trim());
+    const tokens = type === "MATCHING_HEADINGS" ? ROMAN : LETTERS;
     commit(
-      parts.map((p, i) =>
-        i === pi
-          ? {
-              ...p,
-              questions: p.questions.map((q) =>
-                q.type === type ? { ...q, options, answer: keepValidToken(q.answer, type, items.length) } : q,
-              ),
-            }
-          : p,
-      ),
+      parts.map((p, i) => {
+        if (i !== pi) return p;
+        const oldItems = sharedList(p, type, strip); // texts in the OLD order
+        return {
+          ...p,
+          questions: p.questions.map((q) => {
+            if (q.type !== type) return q;
+            // Preserve the teacher's choice by ITEM TEXT (not positional token) so
+            // reordering/deleting a heading doesn't silently point at another one.
+            const oldPos = tokens.indexOf(q.answer);
+            const oldText = oldPos >= 0 ? oldItems[oldPos] : undefined;
+            const newPos = oldText !== undefined ? items.findIndex((t) => t === oldText) : -1;
+            return { ...q, options, answer: newPos >= 0 ? tokens[newPos] ?? "" : "" };
+          }),
+        };
+      }),
     );
   };
 
@@ -144,14 +169,14 @@ export function ManualReadingBuilder({
               <SharedListEditor
                 title="Danh sách tiêu đề (List of Headings) — mỗi dòng 1 tiêu đề, tự đánh i, ii, iii…"
                 items={headings}
-                onChange={(items) => setSharedList(pi, "MATCHING_HEADINGS", items, (i) => `${ROMAN[i] ?? i + 1}.`)}
+                onChange={(items) => setSharedList(pi, "MATCHING_HEADINGS", items, (i) => `${ROMAN[i] ?? i + 1}.`, /^\s*[ivxlcdm]+[.)]\s*/i)}
               />
             )}
             {hasFeatures && (
               <SharedListEditor
                 title="Danh sách lựa chọn (List of Options A, B, C…) — mỗi dòng 1 mục"
                 items={features}
-                onChange={(items) => setSharedList(pi, "MATCHING_FEATURES", items, (i) => `${LETTERS[i] ?? "?"}.`)}
+                onChange={(items) => setSharedList(pi, "MATCHING_FEATURES", items, (i) => `${LETTERS[i] ?? "?"}.`, /^\s*[A-H][.)]\s*/i)}
               />
             )}
 
@@ -222,12 +247,6 @@ function promptPlaceholder(type: string): string {
   if (type === "MATCHING_HEADINGS") return "Nhãn đoạn văn, ví dụ: Đoạn A";
   if (type === "MATCHING_INFO") return "Thông tin cần nối với đoạn văn";
   return "Nội dung câu hỏi";
-}
-/** Keep an answer token still valid after the shared list shrinks. */
-function keepValidToken(answer: string, type: string, len: number): string {
-  if (type === "MATCHING_HEADINGS") return ROMAN.slice(0, len).includes(answer) ? answer : "";
-  if (type === "MATCHING_FEATURES") return LETTERS.slice(0, len).includes(answer) ? answer : "";
-  return answer;
 }
 
 function SharedListEditor({ title, items, onChange }: { title: string; items: string[]; onChange: (items: string[]) => void }) {
@@ -349,7 +368,7 @@ function AnswerEditor({
             placeholder={`Lựa chọn ${oi + 1}`}
           />
           {options.length > 2 && (
-            <button type="button" onClick={() => onPatch({ options: options.filter((_, j) => j !== oi) })} className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
+            <button type="button" onClick={() => onPatch({ options: options.filter((_, j) => j !== oi), answer: q.answer === opt ? "" : q.answer })} className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
               <Trash2 className="h-3.5 w-3.5" />
             </button>
           )}
