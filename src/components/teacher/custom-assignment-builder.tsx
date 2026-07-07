@@ -23,11 +23,29 @@ import { cn } from "@/lib/utils";
 import { aiToCustomQuestions, classifyAnswer, parseAnswerKey, readingAiToCustomQuestions, toCustomQuestions, typeLabel } from "@/lib/answer-key";
 import type { ReadingExamQuestion, NumberedReadingPart } from "@/lib/groq";
 import { PaperFileField } from "@/components/teacher/paper-file-field";
+import { ManualReadingBuilder } from "@/components/teacher/manual-reading-builder";
 import { playPopSfx } from "@/lib/quiz-sfx";
 
 const PDF_MAX = 8 * 1024 * 1024;
 const AUDIO_MAX = 15 * 1024 * 1024;
 const IMG_MAX = 5 * 1024 * 1024;
+/** A teacher assignment is capped at this many questions (per the product rule). */
+const MAX_READING_Q = 20;
+
+/** Trim a native reading test to the first `max` questions (keeping whole
+ *  questions, dropping parts once full). Numbers stay continuous. */
+function capReadingParts(parts: NumberedReadingPart[], max: number): NumberedReadingPart[] {
+  let count = 0;
+  const out: NumberedReadingPart[] = [];
+  for (const p of parts) {
+    if (count >= max) break;
+    const qs = p.questions.slice(0, max - count);
+    if (qs.length === 0) continue;
+    out.push({ ...p, questions: qs });
+    count += qs.length;
+  }
+  return out;
+}
 
 type Skill = "READING" | "LISTENING" | "WRITING" | "SPEAKING";
 
@@ -71,6 +89,8 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
   const [aiNotes, setAiNotes] = useState("");
   const [generating, setGenerating] = useState(false);
   const [showManual, setShowManual] = useState(false);
+  // READING only: teacher hand-authors the test (no PDF/AI) via ManualReadingBuilder.
+  const [manualReading, setManualReading] = useState(false);
   // Writing
   const [wTaskType, setWTaskType] = useState<1 | 2>(2);
   const [wPrompt, setWPrompt] = useState("");
@@ -120,7 +140,7 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
 
   function resetSkillFields() {
     setPdfUrl(""); setAudioUrl(""); setAnswerKey("");
-    setAiQuestions(null); setAiReading(null); setAiNotes(""); setShowManual(false);
+    setAiQuestions(null); setAiReading(null); setAiNotes(""); setShowManual(false); setManualReading(false);
     setWPrompt(""); setWImageUrl("");
     setSTopic(""); setSQuestions("");
   }
@@ -182,11 +202,19 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
       }
       if (data.mode === "reading") {
         // Native reading test SPLIT INTO PARTS (one per passage) → ReadingShell.
-        const parts = Array.isArray(data.parts) ? (data.parts as NumberedReadingPart[]) : [];
+        const rawParts = Array.isArray(data.parts) ? (data.parts as NumberedReadingPart[]) : [];
+        const rawTotal = rawParts.reduce((n, p) => n + p.questions.length, 0);
+        // Enforce the ≤20-questions rule — trim the AI output if it produced more.
+        const parts = rawTotal > MAX_READING_Q ? capReadingParts(rawParts, MAX_READING_Q) : rawParts;
         const total = parts.reduce((n, p) => n + p.questions.length, 0);
         setAiReading({ parts });
         setAiQuestions(null);
-        setAiNotes(typeof data.notes === "string" ? data.notes : "");
+        setManualReading(false);
+        setAiNotes(
+          rawTotal > MAX_READING_Q
+            ? `Đã giới hạn ${MAX_READING_Q} câu (đề có ${rawTotal} câu). ${typeof data.notes === "string" ? data.notes : ""}`.trim()
+            : typeof data.notes === "string" ? data.notes : "",
+        );
         setShowManual(false);
         playPopSfx();
         const engine = data?.meta?.engine === "groq" ? " · Groq dự phòng" : "";
@@ -251,17 +279,24 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
     };
 
     if (isPaper) {
-      if (!pdfUrl.trim()) return toast.error("Tải lên file PDF đề bài");
+      // Manual READING needs no PDF (teacher types the passage). Everything else does.
+      if (!(skill === "READING" && manualReading) && !pdfUrl.trim()) return toast.error("Tải lên file PDF đề bài");
       if (skill === "LISTENING" && !audioUrl.trim()) return toast.error("Bài Listening cần file âm thanh");
+      if (skill === "READING" && manualReading) {
+        const totalQ = aiReading?.parts.reduce((n, p) => n + p.questions.length, 0) ?? 0;
+        if (totalQ === 0) return toast.error("Thêm ít nhất 1 câu hỏi cho bài Reading.");
+      }
 
       if (skill === "READING" && aiReading && aiReading.parts.some((p) => p.questions.length > 0)) {
         // Never ship a reading part with zero questions — it renders as an empty
         // Part for the student. Force the teacher to regenerate/fix first.
         const emptyPart = aiReading.parts.findIndex((p) => p.questions.length === 0);
         if (emptyPart >= 0) {
-          setSubmitting(false);
-          return toast.error(`Part ${emptyPart + 1} chưa có câu hỏi — bấm "Tạo lại" hoặc xoá bài đọc trống trước khi giao.`);
+          return toast.error(`Part ${emptyPart + 1} chưa có câu hỏi — thêm câu hỏi hoặc xoá bài đọc trống trước khi giao.`);
         }
+        // Every question must have a correct answer (auto-grading needs it).
+        const noAns = aiReading.parts.flatMap((p) => p.questions).find((q) => !String(q.answer ?? "").trim());
+        if (noAns) return toast.error(`Câu ${noAns.number} chưa có đáp án đúng — hãy chọn/nhập đáp án.`);
         // Native reading exam SPLIT INTO PARTS: each passage rides in
         // config.reading.parts (with its question count so the learner side can
         // slice the flat question list back into parts); questions carry
@@ -302,6 +337,12 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
       const questions = sQuestions.split("\n").map((q) => q.trim()).filter(Boolean);
       if (questions.length === 0) return toast.error("Nhập ít nhất 1 câu hỏi Speaking");
       config.speaking = { part: sPart, topic: sTopic.trim() || title.trim(), questions };
+    }
+
+    // Product rule: at most 20 questions per assignment (Reading / Listening).
+    const qCount = Array.isArray(body.custom_questions) ? (body.custom_questions as unknown[]).length : 0;
+    if (qCount > MAX_READING_Q) {
+      return toast.error(`Tối đa ${MAX_READING_Q} câu hỏi cho 1 bài — hãy xoá bớt câu hoặc bài đọc.`);
     }
 
     setSubmitting(true);
@@ -392,12 +433,15 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
       {/* Skill-specific form */}
       {isPaper && (
         <>
-          <Card><CardContent className="space-y-4 p-5">
-            <PaperFileField kind="pdf" label="File đề bài (PDF)" value={pdfUrl} onChange={setPdfUrl} maxBytes={PDF_MAX} />
-            {skill === "LISTENING" && (
-              <PaperFileField kind="audio" label="File nghe (MP3)" value={audioUrl} onChange={setAudioUrl} maxBytes={AUDIO_MAX} />
-            )}
-          </CardContent></Card>
+          {/* Manual READING needs no file — hide the uploader in that mode. */}
+          {!(skill === "READING" && manualReading) && (
+            <Card><CardContent className="space-y-4 p-5">
+              <PaperFileField kind="pdf" label="File đề bài (PDF)" value={pdfUrl} onChange={setPdfUrl} maxBytes={PDF_MAX} />
+              {skill === "LISTENING" && (
+                <PaperFileField kind="audio" label="File nghe (MP3)" value={audioUrl} onChange={setAudioUrl} maxBytes={AUDIO_MAX} />
+              )}
+            </CardContent></Card>
+          )}
 
           {/* AI answer key + solutions — teacher just uploads, AI does the rest */}
           {!aiQuestions && !aiReading ? (
@@ -440,6 +484,23 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
                 >
                   {showManual ? "Ẩn nhập đáp án thủ công" : "Hoặc tự nhập đáp án thủ công"}
                 </button>
+                {skill === "READING" && (
+                  <div className="border-t pt-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="rounded-full"
+                      onClick={() => {
+                        setManualReading(true);
+                        setAiReading({ parts: [{ title: "", passage: "", figures: [], questions: [] }] });
+                        setAiNotes("");
+                      }}
+                    >
+                      <PenLine className="h-4 w-4" /> Tự soạn Reading thủ công (không cần file)
+                    </Button>
+                    <p className="mt-1.5 text-xs text-muted-foreground">Nhập bài đọc + câu hỏi bằng tay, đủ mọi dạng — tối đa {MAX_READING_Q} câu.</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ) : aiQuestions ? (
@@ -498,8 +559,29 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
             </Card>
           ) : null}
 
-          {/* Native READING preview: SPLIT INTO PARTS (one card per passage) */}
-          {aiReading && (
+          {/* Manual READING authoring — full type-aware editor (no PDF/AI). */}
+          {skill === "READING" && manualReading && aiReading && (
+            <Card className="border-honey/40">
+              <CardContent className="space-y-4 p-5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <PenLine className="h-5 w-5 text-honey-deep" />
+                    <h3 className="font-bold">Tự soạn Reading</h3>
+                  </div>
+                  <Button
+                    onClick={() => { setManualReading(false); setAiReading(null); }}
+                    variant="ghost" size="sm" className="rounded-lg text-muted-foreground"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" /> Huỷ, quay lại
+                  </Button>
+                </div>
+                <ManualReadingBuilder value={aiReading} onChange={setAiReading} max={MAX_READING_Q} />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Native READING preview (AI): SPLIT INTO PARTS (one card per passage) */}
+          {aiReading && !manualReading && (
             <Card className="border-leaf/40">
               <CardContent className="space-y-4 p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
