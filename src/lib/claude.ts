@@ -451,10 +451,50 @@ Rules:
 - "lastQuestion" = the highest question number ANYWHERE in the paper (usually 40). Do NOT under-count — check the final pages.
 - Just the outline — do NOT extract passage text or questions here.`;
 
+const READING_LASTQ_SYS = `You are analysing a FULL IELTS Reading paper (attached PDF). Your ONLY job: find the SINGLE HIGHEST question number in the ENTIRE paper. IELTS Academic papers almost always end at question 40 (occasionally 38–42). The questions run across MANY pages and SEVERAL passages, so the highest number is on the LAST pages — you MUST scan through to the very last page, do not answer from the first pages. Return ONLY JSON: {"lastQuestion": <the highest question number anywhere in the paper>}.`;
+
+/** Focused, highly-reliable read of JUST the last question number. Far more
+ *  dependable than trusting the full outline's count — used to catch an outline
+ *  that stopped early and never saw the final passage's questions. */
+async function findLastQuestion(docBlock: unknown): Promise<number> {
+  try {
+    const response = await client.beta.messages.create({
+      model: MODEL,
+      max_tokens: 200,
+      temperature: 0,
+      system: READING_LASTQ_SYS,
+      messages: [
+        {
+          role: "user",
+          content: [
+            docBlock,
+            { type: "text", text: 'Scan to the LAST page. What is the highest question number in the whole paper? Return ONLY {"lastQuestion": N}.' },
+          ] as unknown as Anthropic.Beta.Messages.BetaContentBlockParam[],
+        },
+      ],
+      betas: ["pdfs-2024-09-25"],
+    });
+    const parsed = extractJSON(betaText(response)) as { lastQuestion?: unknown };
+    const n = toInt(parsed.lastQuestion);
+    // IELTS Reading tops out at 40 (rarely a couple more). Anything wildly bigger
+    // is a misread — ignore it so we don't synthesise dozens of junk parts.
+    return Number.isFinite(n) && n > 0 && n <= 50 ? n : 0;
+  } catch (e) {
+    console.error("[findLastQuestion] failed:", e);
+    return 0;
+  }
+}
+
 /** Phase 1: list the passages (title + first question) + the paper's last
  *  question number. A tiny, reliable task — far more dependable than asking one
- *  call to extract the whole paper. */
-async function outlineReadingPassages(docBlock: unknown): Promise<OutlineResult> {
+ *  call to extract the whole paper. `hintLast`, when given, is the independently
+ *  confirmed last question number: we force the outline to cover through it so it
+ *  can't stop after the first two passages. */
+async function outlineReadingPassages(docBlock: unknown, hintLast?: number): Promise<OutlineResult> {
+  const hint =
+    hintLast && hintLast > 0
+      ? ` IMPORTANT: this paper's questions run all the way to question ${hintLast}. You MUST list every passage through question ${hintLast}. If your passage list stops before ${hintLast}, you MISSED the passage(s) on the later pages — look again at those pages and include them (there is almost certainly a passage covering the final questions up to ${hintLast}).`
+      : "";
   const response = await client.beta.messages.create({
     model: MODEL,
     max_tokens: 1500,
@@ -465,7 +505,7 @@ async function outlineReadingPassages(docBlock: unknown): Promise<OutlineResult>
         role: "user",
         content: [
           docBlock,
-          { type: "text", text: "List EVERY reading passage with its title + first question number, and the paper's LAST question number. Return ONLY the JSON." },
+          { type: "text", text: `List EVERY reading passage with its title + first question number, and the paper's LAST question number. Return ONLY the JSON.${hint}` },
         ] as unknown as Anthropic.Beta.Messages.BetaContentBlockParam[],
       },
     ],
@@ -647,6 +687,9 @@ async function extractOnePassage(
 ): Promise<ReadingExamPart> {
   const o = outline[idx];
   const expected = Math.max(1, o.lastQuestion - o.firstQuestion + 1);
+  const label = o.title
+    ? `"${o.title}"`
+    : `the passage whose questions are numbered ${o.firstQuestion}–${o.lastQuestion}`;
   const response = await client.beta.messages.create({
     model: MODEL,
     max_tokens: 8000,
@@ -662,7 +705,7 @@ async function extractOnePassage(
             text: `This IELTS Reading paper has ${outline.length} passages:
 ${outlineText}
 
-Extract ONLY passage ${idx + 1} — "${o.title}" — and ONLY its questions ${o.firstQuestion}–${o.lastQuestion} (that is ${expected} questions). Do NOT include a single question that belongs to another passage (those are extracted separately). Copy THIS passage's full text verbatim (join hard-wrapped lines into flowing paragraphs). You MUST produce EVERY question from ${o.firstQuestion} to ${o.lastQuestion} with the paper's ORIGINAL numbers — do not stop early, do not skip any. If a question is a TABLE or MAP/PLAN, use the TABLE/MAP block. Return ONLY the JSON.`,
+Extract ONLY passage ${idx + 1} — ${label} — and ONLY its questions ${o.firstQuestion}–${o.lastQuestion} (that is ${expected} questions). Do NOT include a single question that belongs to another passage (those are extracted separately). Copy THIS passage's full text verbatim (join hard-wrapped lines into flowing paragraphs). You MUST produce EVERY question from ${o.firstQuestion} to ${o.lastQuestion} with the paper's ORIGINAL numbers — do not stop early, do not skip any. If a question is a TABLE or MAP/PLAN, use the TABLE/MAP block. Return ONLY the JSON.`,
           },
         ] as unknown as Anthropic.Beta.Messages.BetaContentBlockParam[],
       },
@@ -729,14 +772,52 @@ export async function generateReadingExamFromPdf(pdfBase64: string): Promise<Rea
   const docBlock = pdfDocBlock(pdfBase64);
 
   // Phase 1: outline the passages (cheap + reliable) — this also warms the PDF
-  // prompt cache so the per-passage calls below are fast + cheap.
+  // prompt cache so the per-passage calls below are fast + cheap. We run the
+  // outline AND an independent focused read of the LAST question number in
+  // parallel; the latter catches the common failure where the outline stops
+  // after the first two passages and never reports the final passage's questions
+  // (the exact "only 26 of 40" bug).
   let outlineRes: OutlineResult;
+  let trueLast = 0;
   try {
-    outlineRes = await outlineReadingPassages(docBlock);
+    [outlineRes, trueLast] = await Promise.all([outlineReadingPassages(docBlock), findLastQuestion(docBlock)]);
   } catch (e) {
     console.error("[generateReadingExamFromPdf] outline failed:", e);
     return singleCallReadingExam(docBlock);
   }
+
+  // How far up the question numbers does the outline actually reach?
+  const passageReach = (r: OutlineResult) =>
+    r.passages.reduce((m, p) => Math.max(m, p.lastQuestion || 0, p.firstQuestion || 0), 0);
+  const reach = (r: OutlineResult) => Math.max(passageReach(r), r.lastQuestion || 0);
+
+  // The outline under-counted: its passages don't reach the paper's real last
+  // question. Force a re-outline with that number as a hard target and keep
+  // whichever result reaches further.
+  if (trueLast > 0 && trueLast > reach(outlineRes) + 1) {
+    try {
+      const retry = await outlineReadingPassages(docBlock, trueLast);
+      if (reach(retry) > reach(outlineRes)) outlineRes = retry;
+    } catch (e) {
+      console.error("[generateReadingExamFromPdf] outline retry failed:", e);
+    }
+  }
+  if (trueLast > (outlineRes.lastQuestion || 0)) outlineRes.lastQuestion = trueLast;
+
+  // Still short after the retry: the model won't enumerate the tail passage(s).
+  // SYNTHESISE outline entries for the missing tail (IELTS passages run ~13
+  // questions each) so Phase 2 still attempts questions the outline never listed
+  // — the per-passage extraction reads the PDF and fills in the real title/text.
+  if (trueLast > 0 && trueLast > passageReach(outlineRes) + 1 && outlineRes.passages.length > 0) {
+    const lastFirst = outlineRes.passages.reduce((m, p) => Math.max(m, p.firstQuestion || 0), 0);
+    // ~13 questions per IELTS passage. `lastQuestion: trueLast` on each entry is
+    // fixed up by normalizeOutline (a passage's last = next passage's first − 1);
+    // the `− 3` guard avoids spawning a tiny 1–2 question tail part.
+    for (let from = lastFirst + 13; from <= trueLast - 3; from += 13) {
+      outlineRes.passages.push({ title: "", firstQuestion: from, lastQuestion: trueLast });
+    }
+  }
+
   const outline = normalizeOutline(outlineRes);
   if (outline.length === 0) return singleCallReadingExam(docBlock);
   const expectedOf = (o: PassageOutline) => Math.max(1, o.lastQuestion - o.firstQuestion + 1);
@@ -745,7 +826,7 @@ export async function generateReadingExamFromPdf(pdfBase64: string): Promise<Rea
   // A shared map of the whole paper so every extraction knows the exact
   // boundaries and never bleeds a neighbouring passage's questions into itself.
   const outlineText = outline
-    .map((o, i) => `${i + 1}. "${o.title}" — questions ${o.firstQuestion}–${o.lastQuestion}`)
+    .map((o, i) => `${i + 1}. ${o.title ? `"${o.title}"` : "(untitled — read its heading from the PDF)"} — questions ${o.firstQuestion}–${o.lastQuestion}`)
     .join("\n");
 
   // Phase 2: extract each passage on its own, retrying until it yields its full

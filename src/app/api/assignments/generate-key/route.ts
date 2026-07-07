@@ -58,10 +58,17 @@ async function pdfToBase64(pdfUrl: string): Promise<string | null> {
 
 function readingResponse(parts: NumberedReadingPart[], notes: string, engine: string) {
   const total = parts.reduce((n, p) => n + p.questions.length, 0);
+  // Groq is the WEAK fallback (small context, truncates a full paper → misses the
+  // later passages). If it ran, the server is missing ANTHROPIC_API_KEY — say so
+  // loudly, because none of the Claude-path reliability applies.
+  const finalNotes =
+    engine === "groq"
+      ? `⚠ Đang dùng Groq (bản dự phòng, dễ thiếu câu vì không đọc trọn file). Hãy thêm ANTHROPIC_API_KEY trên máy chủ để AI đọc trọn PDF và tách đủ các câu.${notes ? " " + notes : ""}`
+      : notes;
   return NextResponse.json({
     mode: "reading",
     parts,
-    notes,
+    notes: finalNotes,
     meta: { engine, partCount: parts.length, questionCount: total },
   });
 }
