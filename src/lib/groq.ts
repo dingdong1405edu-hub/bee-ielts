@@ -18,6 +18,10 @@ interface GroqOptions {
    *  multi-call reading path raises this so it can pace itself under the free
    *  tier's tokens-per-minute cap instead of failing. */
   maxRetries?: number;
+  /** Per-request wall-clock timeout in ms (default 60s). A hung request aborts
+   *  and (if retries remain) retries, so one stalled call can't block the whole
+   *  multi-call reading pipeline until the route's 300s cap. */
+  timeoutMs?: number;
 }
 
 export async function groqChat(messages: GroqMessage[], opts: GroqOptions = {}): Promise<string> {
@@ -36,12 +40,28 @@ export async function groqChat(messages: GroqMessage[], opts: GroqOptions = {}):
   // ("request too large") is deterministic — never retried; the caller must
   // send a smaller request instead.
   const maxRetries = opts.maxRetries ?? 2;
+  const timeoutMs = opts.timeoutMs ?? 60000;
   for (let attempt = 0; ; attempt++) {
-    const res = await fetch(GROQ_URL, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    let res: Response;
+    try {
+      res = await fetch(GROQ_URL, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: ctrl.signal,
+      });
+    } catch (e) {
+      // Timeout/abort or network error — retry if attempts remain, else surface it.
+      if (attempt < maxRetries) {
+        await new Promise((r) => setTimeout(r, (attempt + 1) * 4000));
+        continue;
+      }
+      throw e instanceof Error ? e : new Error(String(e));
+    } finally {
+      clearTimeout(timer);
+    }
     if (res.ok) {
       const data = (await res.json()) as { choices: { message: { content: string } }[] };
       return data.choices[0]?.message?.content ?? "";
@@ -1101,12 +1121,17 @@ async function outlineReadingGroq(doc: string): Promise<{ passages: GroqOutlineP
  *  tail passages (stepped by the paper's own passage size) when the outline
  *  under-counts, so Phase 2 still attempts every question. Exported for tests. */
 export function normalizeGroqOutline(passages: GroqOutlinePassage[], lastQuestion: number): GroqOutlinePassage[] {
-  const ps = passages.filter((p) => Number.isFinite(p.firstQuestion)).sort((a, b) => a.firstQuestion - b.firstQuestion);
+  const ps = passages.filter((p) => Number.isFinite(p.firstQuestion) && p.firstQuestion > 0 && p.firstQuestion <= 50).sort((a, b) => a.firstQuestion - b.firstQuestion);
   if (ps.length === 0) return [];
-  const overallLast = Math.max(
-    Number.isFinite(lastQuestion) ? lastQuestion : 0,
-    ...ps.map((p) => Math.max(p.lastQuestion || 0, p.firstQuestion)),
-    ps[ps.length - 1].firstQuestion,
+  // Clamp to a sane IELTS ceiling — a real reading paper never exceeds ~40
+  // questions, so a mis-read lastQuestion can't explode the synthesised tail.
+  const overallLast = Math.min(
+    50,
+    Math.max(
+      Number.isFinite(lastQuestion) ? lastQuestion : 0,
+      ...ps.map((p) => Math.max(p.lastQuestion || 0, p.firstQuestion)),
+      ps[ps.length - 1].firstQuestion,
+    ),
   );
   const gaps: number[] = [];
   for (let i = 1; i < ps.length; i++) gaps.push(ps[i].firstQuestion - ps[i - 1].firstQuestion);
@@ -1123,9 +1148,13 @@ export function normalizeGroqOutline(passages: GroqOutlinePassage[], lastQuestio
 /** The slice of raw text most likely to hold passage `idx` — located by the
  *  passage's startText/title anchor, else proportionally from the question
  *  numbers. Keeps each per-passage call small. Exported for tests. */
-export function sliceForPassageGroq(doc: string, norm: GroqOutlinePassage[], idx: number): string {
-  const CAP = 15000;
+export function sliceForPassageGroq(doc: string, norm: GroqOutlinePassage[], idx: number, wide = false): string {
+  const CAP = wide ? 28000 : 15000;
+  const pad = wide ? 5000 : 2000;
+  const lead = wide ? 3000 : 250;
   const lower = doc.toLowerCase();
+  const L = norm[norm.length - 1].lastQuestion || 40;
+  const per = doc.length / Math.max(1, L);
   const anchorPos = (p?: GroqOutlinePassage): number => {
     if (!p) return -1;
     for (const a of [p.startText, p.title]) {
@@ -1142,19 +1171,50 @@ export function sliceForPassageGroq(doc: string, norm: GroqOutlinePassage[], idx
   let end = anchorPos(norm[idx + 1]);
   if (start === -1 || (end !== -1 && end <= start)) {
     // Proportional fallback: map the question numbers onto the text length.
-    const L = norm[norm.length - 1].lastQuestion || 40;
-    const per = doc.length / Math.max(1, L);
-    start = Math.max(0, Math.floor((o.firstQuestion - 1) * per) - 2000);
-    end = Math.min(doc.length, Math.ceil(o.lastQuestion * per) + 2000);
+    start = Math.max(0, Math.floor((o.firstQuestion - 1) * per) - pad);
+    end = Math.min(doc.length, Math.ceil(o.lastQuestion * per) + pad);
   } else {
-    start = Math.max(0, start - 250);
-    if (end === -1) end = doc.length;
+    start = Math.max(0, start - lead);
+    if (end === -1) {
+      // Next passage's anchor not found: don't run to end-of-doc (that swallows
+      // later passages) — stop around the next passage's proportional start.
+      end = idx < norm.length - 1
+        ? Math.min(doc.length, Math.ceil(norm[idx + 1].firstQuestion * per) + pad)
+        : doc.length;
+    }
   }
   const slice = doc.slice(start, end);
+  // The slice already starts at this passage; if it still exceeds CAP the head
+  // (passage text + its questions) is what matters, so keep the head.
   return slice.length > CAP ? slice.slice(0, CAP) : slice;
 }
 
-async function extractOnePassageGroq(sliceText: string, o: GroqOutlinePassage, totalQuestions: number): Promise<ReadingExamPart> {
+// Content words of a title (drop punctuation + short function words) → used to
+// tell whether an extracted slice actually returned THIS passage or a neighbour.
+const GROQ_TITLE_STOP = new Set(["the", "a", "an", "and", "or", "of", "to", "in", "on", "for", "with", "how", "why", "new"]);
+function groqTitleWords(s: string): Set<string> {
+  return new Set(
+    String(s ?? "").toLowerCase().replace(/reading\s+passage\s*\d+/g, " ").replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length >= 2 && !GROQ_TITLE_STOP.has(w)),
+  );
+}
+/** Which outline passage does `title` best match? Index, or -1 if no clear win. */
+function bestTitleMatchGroq(title: string, norm: GroqOutlinePassage[]): number {
+  const wa = groqTitleWords(title);
+  if (wa.size === 0) return -1;
+  let best = -1, bestScore = 0, tie = false;
+  norm.forEach((o, i) => {
+    const wb = groqTitleWords(o.title);
+    if (wb.size === 0) return;
+    let inter = 0;
+    for (const w of wa) if (wb.has(w)) inter++;
+    const score = inter / Math.min(wa.size, wb.size);
+    if (score > bestScore) { bestScore = score; best = i; tie = false; }
+    else if (score === bestScore && score > 0) tie = true;
+  });
+  return bestScore >= 0.5 && !tie ? best : -1;
+}
+
+async function extractOnePassageGroq(sliceText: string, o: GroqOutlinePassage, totalQuestions: number, norm: GroqOutlinePassage[], idx: number): Promise<ReadingExamPart> {
   const expected = Math.max(1, o.lastQuestion - o.firstQuestion + 1);
   const label = o.title ? `"${o.title}"` : `the passage whose questions are numbered ${o.firstQuestion}–${o.lastQuestion}`;
   const user = `Below is ONE passage (with its questions) from a ${totalQuestions}-question IELTS reading paper, as extracted text:
@@ -1170,11 +1230,29 @@ Extract passage ${label} and EVERY one of its questions ${o.firstQuestion}–${o
     { jsonMode: true, temperature: 0.2, maxTokens: 6000, maxRetries: 4 },
   );
   const r = parseReadingExam(extractJSON(text) as Record<string, unknown>);
-  const inRange = r.questions.filter((q) => q.number >= o.firstQuestion && q.number <= o.lastQuestion);
-  // The slice IS this passage, so if the model restarted/drifted the numbers keep
-  // what it returned (numberReadingParts renumbers by position later); otherwise
-  // trim to the range so a neighbour's stray that leaked into the slice is dropped.
-  const questions = inRange.length > 0 ? inRange : r.questions;
+  const inThis = (n: number) => n >= o.firstQuestion && n <= o.lastQuestion;
+  const inAnother = (n: number) => norm.some((oo, j) => j !== idx && n >= oo.firstQuestion && n <= oo.lastQuestion);
+  const inRange = r.questions.filter((q) => inThis(q.number));
+  // Questions this passage doesn't own AND no OTHER passage owns either (a seam
+  // question or one the outline's range missed) — safe to keep here.
+  const orphans = r.questions.filter((q) => !inThis(q.number) && !inAnother(q.number));
+  const titleIdx = bestTitleMatchGroq(r.title, norm);
+
+  let questions: ReadingExamQuestion[];
+  if (titleIdx !== -1 && titleIdx !== idx) {
+    // The slice clearly returned a DIFFERENT passage (mislocated anchor) — reject
+    // so we never inject a neighbour's questions into this part.
+    questions = [];
+  } else if (inRange.length > 0) {
+    questions = [...inRange, ...orphans];
+  } else if (r.questions.length >= 2) {
+    // Nothing in range but the slice IS targeted at this passage and its title
+    // doesn't point elsewhere → the model restarted/drifted the numbers; keep it
+    // (numberReadingParts renumbers by position across parts afterwards).
+    questions = r.questions;
+  } else {
+    questions = [];
+  }
   const keptNums = new Set(questions.map((q) => q.number));
   const figures = r.figures.filter((f) => keptNums.has(f.atNumber));
   return { title: r.title || o.title, passage: r.passage, questions, figures };
@@ -1187,9 +1265,11 @@ async function extractPassageBestGroq(doc: string, norm: GroqOutlinePassage[], i
   const expected = Math.max(1, o.lastQuestion - o.firstQuestion + 1);
   let best: ReadingExamPart = { title: o.title, passage: "", questions: [], figures: [] };
   for (let attempt = 0; attempt < 2; attempt++) {
-    const slice = attempt === 0 ? sliceForPassageGroq(doc, norm, idx) : doc.slice(0, 22000);
+    // attempt 1 widens the window AROUND THIS passage (never re-reads the document
+    // head, which would pull in passage 1's content).
+    const slice = sliceForPassageGroq(doc, norm, idx, attempt === 1);
     try {
-      const r = await extractOnePassageGroq(slice, o, totalQuestions);
+      const r = await extractOnePassageGroq(slice, o, totalQuestions, norm, idx);
       if (r.questions.length > best.questions.length) best = r;
       else if (r.passage && !best.passage) best = { ...best, passage: r.passage };
     } catch (e) {
@@ -1233,9 +1313,17 @@ export async function generateReadingExamGroq(input: { documentText: string }): 
   const totalQuestions = norm[norm.length - 1].lastQuestion || outlineRes.lastQuestion || 40;
 
   // Phase 2: extract each passage on its own (small output — never truncated),
-  // retrying a short passage with a wider window so no question is dropped.
+  // retrying a short passage with a wider window so no question is dropped. A
+  // wall-clock budget (well under the route's 300s cap) stops us launching a new
+  // passage if we're running late — we return what we have and the notes flag the
+  // rest, instead of the whole request timing out with nothing.
+  const started = Date.now();
   const parts: ReadingExamPart[] = [];
   for (let i = 0; i < norm.length; i++) {
+    if (i > 0 && Date.now() - started > 250000) {
+      console.warn(`[groq reading] time budget hit after ${i}/${norm.length} passages`);
+      break;
+    }
     parts.push(await extractPassageBestGroq(doc, norm, i, totalQuestions));
   }
 
