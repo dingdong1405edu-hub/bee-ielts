@@ -14,6 +14,10 @@ interface GroqOptions {
   temperature?: number;
   maxTokens?: number;
   jsonMode?: boolean;
+  /** How many times to retry a 429/5xx before giving up (default 2). The
+   *  multi-call reading path raises this so it can pace itself under the free
+   *  tier's tokens-per-minute cap instead of failing. */
+  maxRetries?: number;
 }
 
 export async function groqChat(messages: GroqMessage[], opts: GroqOptions = {}): Promise<string> {
@@ -31,7 +35,7 @@ export async function groqChat(messages: GroqMessage[], opts: GroqOptions = {}):
   // Retry transient rate-limits (429) + server errors with backoff. A 413
   // ("request too large") is deterministic — never retried; the caller must
   // send a smaller request instead.
-  const maxRetries = 2;
+  const maxRetries = opts.maxRetries ?? 2;
   for (let attempt = 0; ; attempt++) {
     const res = await fetch(GROQ_URL, {
       method: "POST",
@@ -45,7 +49,7 @@ export async function groqChat(messages: GroqMessage[], opts: GroqOptions = {}):
     const txt = await res.text();
     if ((res.status === 429 || res.status >= 500) && attempt < maxRetries) {
       const ra = parseInt(res.headers.get("retry-after") ?? "", 10);
-      const waitMs = Number.isFinite(ra) ? Math.min(ra * 1000, 20000) : (attempt + 1) * 4000;
+      const waitMs = Number.isFinite(ra) ? Math.min(ra * 1000, 32000) : (attempt + 1) * 4000;
       await new Promise((r) => setTimeout(r, waitMs));
       continue;
     }
@@ -1034,28 +1038,220 @@ export function numberReadingParts(multi: ReadingExamMulti): NumberedReadingPart
 }
 
 /**
- * Groq FALLBACK reading generator (used only when Claude isn't configured).
- * Groq's free tier caps at ~12k tokens/minute, so we keep the request SMALL:
- * trimmed input + modest max_tokens. Claude (generateReadingExamFromPdf) is the
- * primary path — it reads the PDF natively with a huge context + high limits.
+ * Groq reading generator — the ONLY reading engine when Claude isn't configured.
+ * Groq's free tier caps around 12k tokens/minute and one call can't copy a whole
+ * 40-question paper before hitting the output limit (which silently drops the
+ * later passages → the "26 of 40" bug). So we work like the Claude PDF path:
+ *  (1) OUTLINE the passages from the FULL text (+ the paper's last question);
+ *  (2) extract each passage on its OWN call — small output that can't be
+ *      truncated — slicing the input to that passage's region to stay under the
+ *      token cap, retrying a short passage with a wider window.
+ * Tables and maps/plans are emitted per passage via the shared TABLE/MAP blocks.
  */
-export async function generateReadingExamGroq(input: {
-  documentText: string;
-}): Promise<ReadingExamMulti> {
-  const doc = input.documentText.slice(0, 16000);
+
+interface GroqOutlinePassage {
+  title: string;
+  firstQuestion: number;
+  lastQuestion: number;
+  startText: string;
+}
+
+function gInt(v: unknown): number {
+  return typeof v === "number" ? v : parseInt(String(v ?? ""), 10);
+}
+
+const READING_OUTLINE_GROQ_SYS = `You are an IELTS Reading analyst. The text below is a FULL reading test extracted from a PDF — SEVERAL separate passages, each with its own title and its own block of numbered questions. Scan the WHOLE text, first line to last.
+
+A standard Academic paper has 40 questions across EXACTLY 3 passages (~13–14 each, e.g. 1–13, 14–26, 27–40); some have 4. For 40 questions it is almost NEVER just 2 passages — if you only found 2, you MISSED one further down the text.
+
+Return ONLY JSON:
+{
+  "passages": [
+    { "title": "<this passage's own short title>", "firstQuestion": <first question number of this passage>, "startText": "<the first 8–12 words of THIS passage's body text, copied verbatim so it can be located>" }
+  ],
+  "lastQuestion": <the highest question number anywhere in the paper, usually 40>
+}
+Rules: one entry per passage, in order; NEVER merge two passages; "firstQuestion" is the first numbered question of that passage; "startText" copied verbatim from the text. Do NOT extract the questions here — outline only.`;
+
+async function outlineReadingGroq(doc: string): Promise<{ passages: GroqOutlinePassage[]; lastQuestion: number }> {
+  const text = await groqChat(
+    [
+      { role: "system", content: READING_OUTLINE_GROQ_SYS },
+      { role: "user", content: `TEST PAPER TEXT:\n${doc.slice(0, 44000)}\n\nList EVERY passage (title + first question number + a verbatim startText) and the paper's LAST question number. Return ONLY the JSON.` },
+    ],
+    { jsonMode: true, temperature: 0, maxTokens: 1200, maxRetries: 4 },
+  );
+  const parsed = extractJSON(text) as { passages?: unknown; lastQuestion?: unknown };
+  const raw = Array.isArray(parsed.passages) ? parsed.passages : [];
+  const passages = raw
+    .map((p): GroqOutlinePassage => {
+      const o = (p ?? {}) as Record<string, unknown>;
+      return {
+        title: String(o.title ?? "").trim(),
+        firstQuestion: gInt(o.firstQuestion),
+        lastQuestion: gInt(o.lastQuestion),
+        startText: String(o.startText ?? "").trim(),
+      };
+    })
+    .filter((o) => Number.isFinite(o.firstQuestion));
+  return { passages, lastQuestion: gInt(parsed.lastQuestion) };
+}
+
+/** Make ranges contiguous + cover to the paper's last question, synthesising
+ *  tail passages (stepped by the paper's own passage size) when the outline
+ *  under-counts, so Phase 2 still attempts every question. Exported for tests. */
+export function normalizeGroqOutline(passages: GroqOutlinePassage[], lastQuestion: number): GroqOutlinePassage[] {
+  const ps = passages.filter((p) => Number.isFinite(p.firstQuestion)).sort((a, b) => a.firstQuestion - b.firstQuestion);
+  if (ps.length === 0) return [];
+  const overallLast = Math.max(
+    Number.isFinite(lastQuestion) ? lastQuestion : 0,
+    ...ps.map((p) => Math.max(p.lastQuestion || 0, p.firstQuestion)),
+    ps[ps.length - 1].firstQuestion,
+  );
+  const gaps: number[] = [];
+  for (let i = 1; i < ps.length; i++) gaps.push(ps[i].firstQuestion - ps[i - 1].firstQuestion);
+  gaps.sort((a, b) => a - b);
+  const step = gaps.length ? Math.max(6, gaps[Math.floor(gaps.length / 2)]) : 13;
+  const lastFirst = ps[ps.length - 1].firstQuestion;
+  for (let from = lastFirst + step; from <= overallLast - 3; from += step) {
+    ps.push({ title: "", firstQuestion: from, lastQuestion: overallLast, startText: "" });
+  }
+  ps.sort((a, b) => a.firstQuestion - b.firstQuestion);
+  return ps.map((p, i) => ({ ...p, lastQuestion: i < ps.length - 1 ? ps[i + 1].firstQuestion - 1 : overallLast }));
+}
+
+/** The slice of raw text most likely to hold passage `idx` — located by the
+ *  passage's startText/title anchor, else proportionally from the question
+ *  numbers. Keeps each per-passage call small. Exported for tests. */
+export function sliceForPassageGroq(doc: string, norm: GroqOutlinePassage[], idx: number): string {
+  const CAP = 15000;
+  const lower = doc.toLowerCase();
+  const anchorPos = (p?: GroqOutlinePassage): number => {
+    if (!p) return -1;
+    for (const a of [p.startText, p.title]) {
+      const needle = (a || "").toLowerCase().trim().slice(0, 40);
+      if (needle.length >= 6) {
+        const pos = lower.indexOf(needle);
+        if (pos !== -1) return pos;
+      }
+    }
+    return -1;
+  };
+  const o = norm[idx];
+  let start = anchorPos(o);
+  let end = anchorPos(norm[idx + 1]);
+  if (start === -1 || (end !== -1 && end <= start)) {
+    // Proportional fallback: map the question numbers onto the text length.
+    const L = norm[norm.length - 1].lastQuestion || 40;
+    const per = doc.length / Math.max(1, L);
+    start = Math.max(0, Math.floor((o.firstQuestion - 1) * per) - 2000);
+    end = Math.min(doc.length, Math.ceil(o.lastQuestion * per) + 2000);
+  } else {
+    start = Math.max(0, start - 250);
+    if (end === -1) end = doc.length;
+  }
+  const slice = doc.slice(start, end);
+  return slice.length > CAP ? slice.slice(0, CAP) : slice;
+}
+
+async function extractOnePassageGroq(sliceText: string, o: GroqOutlinePassage, totalQuestions: number): Promise<ReadingExamPart> {
+  const expected = Math.max(1, o.lastQuestion - o.firstQuestion + 1);
+  const label = o.title ? `"${o.title}"` : `the passage whose questions are numbered ${o.firstQuestion}–${o.lastQuestion}`;
+  const user = `Below is ONE passage (with its questions) from a ${totalQuestions}-question IELTS reading paper, as extracted text:
+
+${sliceText}
+
+Extract passage ${label} and EVERY one of its questions ${o.firstQuestion}–${o.lastQuestion} (that is ${expected} questions) — do NOT skip any, do NOT stop early. Copy the passage text verbatim (join hard-wrapped lines into flowing paragraphs). Keep the paper's ORIGINAL question numbers. If the passage has a TABLE, use the TABLE block; if it has a MAP/PLAN/DIAGRAM, use the MAP block (redraw it as SVG). Chấm đáp án đúng theo ĐÚNG ANSWER/OPTIONS RULES và viết lời giải tiếng Việt. Return ONLY the JSON.`;
+  const text = await groqChat(
+    [
+      { role: "system", content: READING_ONE_PASSAGE_SYS },
+      { role: "user", content: user },
+    ],
+    { jsonMode: true, temperature: 0.2, maxTokens: 6000, maxRetries: 4 },
+  );
+  const r = parseReadingExam(extractJSON(text) as Record<string, unknown>);
+  const inRange = r.questions.filter((q) => q.number >= o.firstQuestion && q.number <= o.lastQuestion);
+  // The slice IS this passage, so if the model restarted/drifted the numbers keep
+  // what it returned (numberReadingParts renumbers by position later); otherwise
+  // trim to the range so a neighbour's stray that leaked into the slice is dropped.
+  const questions = inRange.length > 0 ? inRange : r.questions;
+  const keptNums = new Set(questions.map((q) => q.number));
+  const figures = r.figures.filter((f) => keptNums.has(f.atNumber));
+  return { title: r.title || o.title, passage: r.passage, questions, figures };
+}
+
+/** Extract a passage, and if it comes back short, retry ONCE with a wider window
+ *  (more of the document) so a mis-located slice doesn't lose questions. */
+async function extractPassageBestGroq(doc: string, norm: GroqOutlinePassage[], idx: number, totalQuestions: number): Promise<ReadingExamPart> {
+  const o = norm[idx];
+  const expected = Math.max(1, o.lastQuestion - o.firstQuestion + 1);
+  let best: ReadingExamPart = { title: o.title, passage: "", questions: [], figures: [] };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const slice = attempt === 0 ? sliceForPassageGroq(doc, norm, idx) : doc.slice(0, 22000);
+    try {
+      const r = await extractOnePassageGroq(slice, o, totalQuestions);
+      if (r.questions.length > best.questions.length) best = r;
+      else if (r.passage && !best.passage) best = { ...best, passage: r.passage };
+    } catch (e) {
+      console.error(`[groq reading] passage ${idx + 1} attempt ${attempt} failed:`, e);
+    }
+    if (best.questions.length >= expected) break;
+  }
+  return best;
+}
+
+/** Legacy one-shot fallback — used only if the outline step yields nothing. */
+async function singleCallReadingGroq(doc: string): Promise<ReadingExamMulti> {
   const userMessage = `TEST PAPER TEXT (nhiều bài đọc + câu hỏi):
-${doc}
+${doc.slice(0, 24000)}
 
-TÁCH mỗi bài đọc riêng thành 1 "part" (đừng gộp nhiều bài vào một). Với mỗi bài: trích NGUYÊN VĂN, NỐI LẠI các dòng bị ngắt giữa câu thành đoạn văn trôi chảy, tìm mọi câu hỏi có đánh số theo đúng thứ tự, chấm đáp án đúng theo ĐÚNG ANSWER/OPTIONS RULES, và viết lời giải tiếng Việt. Nếu đề có BẢNG thì trả về block "TABLE"; nếu có BẢN ĐỒ/SƠ ĐỒ/PLAN thì VẼ LẠI bằng SVG trong block "MAP". Trả về JSON only.`;
-
+TÁCH mỗi bài đọc riêng thành 1 "part" (đừng gộp nhiều bài vào một). Với mỗi bài: trích NGUYÊN VĂN, NỐI LẠI các dòng bị ngắt giữa câu thành đoạn văn trôi chảy, tìm MỌI câu hỏi có đánh số theo đúng thứ tự (đừng bỏ câu nào), chấm đáp án đúng theo ĐÚNG ANSWER/OPTIONS RULES, và viết lời giải tiếng Việt. Nếu đề có BẢNG thì trả về block "TABLE"; nếu có BẢN ĐỒ/SƠ ĐỒ/PLAN thì VẼ LẠI bằng SVG trong block "MAP". Trả về JSON only.`;
   const text = await groqChat(
     [
       { role: "system", content: READING_EXAM_SYS },
       { role: "user", content: userMessage },
     ],
-    { jsonMode: true, temperature: 0.2, maxTokens: 5000 },
+    { jsonMode: true, temperature: 0.2, maxTokens: 8000, maxRetries: 3 },
   );
   return parseReadingExamParts(extractJSON(text) as Record<string, unknown>);
+}
+
+export async function generateReadingExamGroq(input: { documentText: string }): Promise<ReadingExamMulti> {
+  const doc = input.documentText;
+
+  // Phase 1: outline the passages from the WHOLE text (+ the paper's last question).
+  let outlineRes: { passages: GroqOutlinePassage[]; lastQuestion: number };
+  try {
+    outlineRes = await outlineReadingGroq(doc);
+  } catch (e) {
+    console.error("[groq reading] outline failed:", e);
+    return singleCallReadingGroq(doc);
+  }
+  const norm = normalizeGroqOutline(outlineRes.passages, outlineRes.lastQuestion);
+  if (norm.length === 0) return singleCallReadingGroq(doc);
+
+  const totalQuestions = norm[norm.length - 1].lastQuestion || outlineRes.lastQuestion || 40;
+
+  // Phase 2: extract each passage on its own (small output — never truncated),
+  // retrying a short passage with a wider window so no question is dropped.
+  const parts: ReadingExamPart[] = [];
+  for (let i = 0; i < norm.length; i++) {
+    parts.push(await extractPassageBestGroq(doc, norm, i, totalQuestions));
+  }
+
+  if (parts.every((p) => p.questions.length === 0)) return singleCallReadingGroq(doc);
+
+  const produced = parts.reduce((n, p) => n + p.questions.length, 0);
+  const expectedTotal = norm.reduce((n, o) => n + Math.max(0, o.lastQuestion - o.firstQuestion + 1), 0);
+  const missing = Math.max(0, expectedTotal - produced);
+  const emptyParts = parts.filter((p) => p.questions.length === 0).length;
+  let notes = "";
+  if (emptyParts > 0) {
+    notes = `Có ${emptyParts} bài đọc chưa lấy được câu hỏi — hãy bấm "Tạo lại" hoặc kiểm tra lại file.`;
+  } else if (missing > 0) {
+    notes = `Mới tạo ${produced}/${expectedTotal} câu — còn ${missing} câu chưa lấy được. Hãy bấm "Tạo lại" hoặc kiểm tra lại file.`;
+  }
+  return { parts, notes };
 }
 
 /** Generate a Vietnamese meaning + an English example sentence for a word. */
