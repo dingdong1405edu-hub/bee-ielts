@@ -707,6 +707,8 @@ export const READING_EXAM_SYS = `You are a certified IELTS examiner turning a te
 
 A full IELTS Reading paper almost always contains SEVERAL SEPARATE reading passages (usually 3, sometimes 4) — each is its OWN self-contained reading with its OWN heading and its OWN set of numbered questions. You MUST create ONE "part" per passage. NEVER merge two passages, and NEVER merge their titles into one — read the WHOLE file and split it into the correct number of parts, in order. (A title like "Make That Wine! & That Vision Thing & Destination Mars" is THREE passages jammed together — that is WRONG; they must be three separate parts.) Include EVERY passage and EVERY numbered question in the paper (an academic paper usually goes up to question 40) — do NOT stop early and do NOT summarise.
 
+BOUNDARIES: MỘT passage thường có NHIỀU nhóm câu hỏi khác loại (ví dụ Questions 1–6 nối tiêu đề, 7–10 True/False/Not Given, 11–13 điền từ) — TẤT CẢ các nhóm đó thuộc CÙNG MỘT part. Chỉ mở part MỚI khi sang bài đọc khác (mốc "READING PASSAGE 2/3"). TUYỆT ĐỐI không tách các nhóm câu hỏi của cùng một bài đọc thành nhiều part, và không đẩy những câu CUỐI của passage này sang part sau. Ví dụ: nếu Passage 1 có câu 1–13 thì part 1 phải chứa ĐỦ câu 1–13, không được để câu 11–13 rơi sang part 2.
+
 Return ONLY valid JSON in this EXACT shape:
 {
   "parts": [
@@ -1146,14 +1148,123 @@ TÁCH mỗi bài đọc riêng thành 1 "part" (đừng gộp nhiều bài vào 
   }
 }
 
+/** Numbers word → digit for "Reading Passage One/Two/Three". */
+const PASSAGE_WORD: Record<string, number> = { one: 1, two: 2, three: 3, four: 4 };
+
+/**
+ * From the paper's OWN structure markers, work out where each reading passage
+ * STARTS (its first question number). IELTS papers mark passages as "READING
+ * PASSAGE 1/2/3" and introduce each block with "Questions X–Y". We pair each
+ * passage header with the first "Questions X–…" after it → the passage start
+ * numbers, e.g. [1, 14, 27]. Returns [] (caller keeps the AI grouping) unless it
+ * finds ≥2 headers with plausible, strictly-increasing starts.
+ */
+function detectPassageStarts(doc: string): number[] {
+  const headers: { pos: number; passage: number }[] = [];
+  const hre = /reading\s+passage\s+(\d+|one|two|three|four)/gi;
+  for (let m = hre.exec(doc); m; m = hre.exec(doc)) {
+    const tok = m[1].toLowerCase();
+    const n = /^\d+$/.test(tok) ? parseInt(tok, 10) : PASSAGE_WORD[tok];
+    if (n) headers.push({ pos: m.index, passage: n });
+  }
+  if (headers.length < 2) return [];
+  // First textual position of each passage number (ignore later repeats).
+  const firstPos = new Map<number, number>();
+  for (const h of headers) if (!firstPos.has(h.passage)) firstPos.set(h.passage, h.pos);
+  const ordered = [...firstPos.entries()].sort((a, b) => a[0] - b[0]);
+
+  const ranges: { pos: number; start: number }[] = [];
+  const qre = /questions?\s+(\d+)\s*(?:[-–—]|to)\s*\d+/gi;
+  for (let m = qre.exec(doc); m; m = qre.exec(doc)) ranges.push({ pos: m.index, start: parseInt(m[1], 10) });
+
+  const starts: number[] = [];
+  for (const [, pos] of ordered) {
+    const r = ranges.find((x) => x.pos >= pos);
+    if (r) starts.push(r.start);
+  }
+  const uniq = [...new Set(starts)].sort((a, b) => a - b);
+  if (uniq.length < 2) return [];
+  if (uniq[0] > 2) return []; // Passage 1 always starts at Q1 (Q2 at most) — else a
+  // stray "Reading Passage 2" mention fooled us; don't risk breaking a good grouping.
+  for (let i = 1; i < uniq.length; i++) {
+    const gap = uniq[i] - uniq[i - 1];
+    if (gap < 3 || gap > 25) return []; // implausible spacing → don't trust it
+  }
+  return uniq;
+}
+
+/**
+ * Fix questions the model put in the WRONG passage (e.g. the file's Passage 1 has
+ * 13 questions but the model kept 10 and spilled 3 into Passage 2). The model
+ * reads front-to-back, so its questions are already in reading ORDER; we only
+ * need the per-passage COUNTS, which the paper's markers give us via the gaps
+ * between passage starts ([1,14,27] → counts [13,13,…]). We then re-slice the
+ * reading-ordered questions into the correct parts. Robust even if the model
+ * restarted its numbering (it never relies on the numbers). Markers not found →
+ * parts returned unchanged.
+ */
+function rebinPartsByDocBoundaries(parts: ReadingExamPart[], doc: string): ReadingExamPart[] {
+  const starts = detectPassageStarts(doc);
+  if (starts.length < 2) return parts;
+
+  // Flatten in reading order, carrying each figure with its question.
+  type Item = { q: ReadingExamQuestion; fig?: ReadingFigure; src: number };
+  const flat: Item[] = [];
+  parts.forEach((part, src) => {
+    const startIdx = flat.length;
+    const usedFig = new Set<number>();
+    for (const q of part.questions) {
+      let fig: ReadingFigure | undefined;
+      for (let fi = 0; fi < part.figures.length; fi++) {
+        if (!usedFig.has(fi) && part.figures[fi].atNumber === q.number) { fig = part.figures[fi]; usedFig.add(fi); break; }
+      }
+      flat.push({ q, fig, src });
+    }
+    // A figure that matched no question number rides on the part's first item.
+    if (flat.length > startIdx && usedFig.size < part.figures.length && !flat[startIdx].fig) {
+      for (let fi = 0; fi < part.figures.length; fi++) {
+        if (!usedFig.has(fi)) { flat[startIdx].fig = part.figures[fi]; usedFig.add(fi); break; }
+      }
+    }
+  });
+  if (flat.length === 0) return parts;
+
+  // Per-passage target counts from the start gaps; the last passage takes the rest.
+  const counts = starts.map((s, i) => (i < starts.length - 1 ? starts[i + 1] - s : Infinity));
+  if (counts.some((c) => c <= 0)) return parts;
+
+  const newParts: ReadingExamPart[] = [];
+  let pos = 0;
+  let running = 0;
+  for (let i = 0; i < counts.length && pos < flat.length; i++) {
+    const take = Math.min(counts[i], flat.length - pos);
+    const slice = flat.slice(pos, pos + take);
+    pos += take;
+    if (slice.length === 0) continue;
+    // Title/passage from the source part that contributed the most questions here.
+    const tally = new Map<number, number>();
+    for (const it of slice) tally.set(it.src, (tally.get(it.src) ?? 0) + 1);
+    const domSrc = [...tally.entries()].sort((a, b) => b[1] - a[1])[0][0];
+    const source = parts[domSrc];
+    const questions: ReadingExamQuestion[] = [];
+    const figures: ReadingFigure[] = [];
+    for (const it of slice) {
+      running += 1;
+      questions.push({ ...it.q, number: running });
+      if (it.fig) figures.push({ ...it.fig, atNumber: running });
+    }
+    newParts.push({ title: source.title, passage: source.passage, questions, figures });
+  }
+  return newParts.length > 0 ? newParts : parts;
+}
+
 /**
  * Groq reading generator — the ONLY engine when Claude isn't configured. Groq's
- * free tier is tokens-per-minute limited, so MANY calls storm the rate limit and
- * error/time out. We keep it to 1–2 well-sized calls that always LOAD:
- *   (1) one call over the FRONT of the paper (passages 1–2, ~questions 1–26);
- *   (2) only if the tail looks missing, ONE more call over the END of the paper
- *       to recover the final passage (~27–40). Appends only NEW question numbers
- *       so nothing is duplicated.
+ * free tier is tokens-per-minute limited, so we keep it to ONE well-sized call
+ * (a second big call in the same minute 429s and stalls). The response is parsed
+ * loosely (a cut-off reply still yields its finished questions), then questions
+ * are RE-BINNED into the right passages using the paper's own markers so a
+ * passage's last questions don't leak into the next part.
  * Tables/maps are emitted via the shared TABLE/MAP blocks.
  */
 export async function generateReadingExamGroq(input: { documentText: string }): Promise<ReadingExamMulti> {
@@ -1174,6 +1285,10 @@ export async function generateReadingExamGroq(input: { documentText: string }): 
   if (parts.every((p) => p.questions.length === 0)) {
     parts = await readingCallGroq(doc.slice(0, 11000), 0);
   }
+
+  // Re-bin questions into the correct passages from the paper's markers (fixes a
+  // passage's tail questions leaking into the next part).
+  parts = rebinPartsByDocBoundaries(parts, doc);
 
   const produced = parts.reduce((n, p) => n + p.questions.length, 0);
   let notes = "";
