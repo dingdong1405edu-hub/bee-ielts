@@ -4,12 +4,13 @@
  */
 
 import { DEFAULT_VOICE } from "./tts-voices";
+import { getApiKey } from "@/lib/api-keys";
 
 const DG_LISTEN = "https://api.deepgram.com/v1/listen";
 const DG_SPEAK = "https://api.deepgram.com/v1/speak";
 
-function key(): string {
-  const k = process.env.DEEPGRAM_API_KEY;
+async function key(): Promise<string> {
+  const k = await getApiKey("DEEPGRAM");
   if (!k) throw new Error("DEEPGRAM_API_KEY not set");
   return k;
 }
@@ -103,7 +104,7 @@ async function groqWhisperTranscribe(
   contentType: string,
   primingKeywords: string[] = [],
 ): Promise<DGTranscript> {
-  const groqKey = process.env.GROQ_API_KEY;
+  const groqKey = await getApiKey("GROQ");
   if (!groqKey) throw new Error("GROQ_API_KEY not set");
 
   const ext = extForCt(contentType || "audio/webm");
@@ -206,7 +207,7 @@ export async function deepgramTranscribe(
   // Deepgram first — gives us per-word confidence, which the UI uses to
   // underline mispronounced words. Only one model: nova-2 → nova-3 was a
   // pointless retry when both share the same auth token (a 401 stays 401).
-  const dgKey = process.env.DEEPGRAM_API_KEY;
+  const dgKey = await getApiKey("DEEPGRAM");
   if (dgKey) {
     const params = new URLSearchParams({
       model: "nova-2",
@@ -347,7 +348,7 @@ async function groqWhisperTranscribeWithTimings(
   contentType: string,
   fallbackDurationSec: number,
 ): Promise<DGTranscriptWithTimings> {
-  const groqKey = process.env.GROQ_API_KEY;
+  const groqKey = await getApiKey("GROQ");
   if (!groqKey) throw new Error("GROQ_API_KEY not set");
 
   const ext = extForCt(contentType || "audio/webm");
@@ -409,7 +410,7 @@ export async function deepgramTranscribeWithTimings(
   contentType: string,
   audioDurationSec: number = 0,
 ): Promise<DGTranscriptWithTimings> {
-  const dgKey = process.env.DEEPGRAM_API_KEY;
+  const dgKey = await getApiKey("DEEPGRAM");
   if (dgKey) {
     const ct = contentType || "audio/webm";
     // Accuracy-first model order: nova-3 (Deepgram's most accurate English
@@ -493,7 +494,7 @@ export async function deepgramSpeak(text: string, voice: string = DEFAULT_VOICE)
   const url = `${DG_SPEAK}?model=${encodeURIComponent(voice)}&encoding=mp3`;
   const res = await fetch(url, {
     method: "POST",
-    headers: { Authorization: `Token ${key()}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Token ${await key()}`, "Content-Type": "application/json" },
     body: JSON.stringify({ text: clean }),
   });
   if (!res.ok) {

@@ -47,6 +47,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     dbUser.role === "OWNER" || isOwner(dbUser.email)
       ? [
           ...nav,
+          { href: "/admin/api-keys", label: "Khoá API", icon: KeyRound },
           { href: "/admin/premium", label: "Premium", icon: KeyRound },
           { href: "/admin/access", label: "Phân quyền", icon: KeyRound },
         ]

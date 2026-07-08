@@ -789,6 +789,17 @@ model AdminActivity {
   @@index([userId, createdAt])
 }
 
+// Admin-managed AI provider keys. A row here OVERRIDES the matching env var, so
+// an admin can replace an expired/invalid key in the app (/admin/api-keys)
+// WITHOUT redeploying. No row → the code falls back to the env var (unchanged
+// behaviour). provider ∈ "GROQ" | "ANTHROPIC" | "DEEPGRAM" | "OPENAI".
+model ApiKey {
+  provider    String   @id
+  value       String   @db.Text
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+}
+
 // Examiner voices the Speaking module offers learners. Admin can add/remove
 // entries on /admin/voices so the catalogue isn't pinned to a hard-coded
 // list. voiceId is the Deepgram Aura identifier (e.g. aura-2-aurora-en).

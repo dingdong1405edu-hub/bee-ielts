@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { generateReadingTest, type ReadingImageInput, type ReadingPdfInput } from "@/lib/claude";
+import { getApiKey } from "@/lib/api-keys";
 
 // Claude needs time to read the passage and solve every question.
 export const maxDuration = 120;
@@ -92,7 +93,7 @@ export async function POST(req: Request) {
   if (!session?.user || session.user.role !== "ADMIN" && session.user.role !== "OWNER") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  if (!process.env.ANTHROPIC_API_KEY) {
+  if (!(await getApiKey("ANTHROPIC"))) {
     return NextResponse.json({ error: "Server chưa cấu hình ANTHROPIC_API_KEY" }, { status: 503 });
   }
 

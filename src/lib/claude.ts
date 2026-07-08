@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { getAnthropicClient } from "@/lib/api-keys";
 import {
   READING_EXAM_SYS,
   READING_ONE_PASSAGE_SYS,
@@ -9,10 +10,6 @@ import {
   type ReadingExamQuestion,
   type ReadingFigure,
 } from "@/lib/groq";
-
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY ?? "",
-});
 
 export const MODEL = "claude-sonnet-4-5-20250929";
 
@@ -245,7 +242,7 @@ ${perf}${mockBlock}${focusBlock}${vocabBlock}
 
 Hãy: (1) viết "assessment" đánh giá chi tiết đủ 6 kỹ năng + priorities, (2) thiết kế weeklyTemplate gồm đúng ${input.daysPerWeek} buổi — MỖI buổi có "blocks" (thời khoá biểu chi tiết theo phút, tổng ≈ ${sessionMinutes} phút) + "vocabFocus"${input.autoTime ? ` + "startTime" tự sắp xếp` : ""}. Được phép làm nhiều bài trong 1 kỹ năng hoặc ghép 2 kỹ năng trong cùng buổi nếu hợp lý. Chèn block Shadowing/Dictation cho kỹ năng Speaking/Writing nếu yếu. Trả về JSON.`;
 
-  const response = await client.messages.create({
+  const response = await (await getAnthropicClient()).messages.create({
     model: MODEL,
     max_tokens: 4000,
     temperature: 0.5,
@@ -354,7 +351,7 @@ export async function generateReadingTest(input: {
     }
     blocks.push({ type: "text", text: promptText });
 
-    const response = await client.beta.messages.create({
+    const response = await (await getAnthropicClient()).beta.messages.create({
       model: MODEL,
       max_tokens: 8000,
       temperature: 0.2,
@@ -378,7 +375,7 @@ export async function generateReadingTest(input: {
   }
   content.push({ type: "text", text: promptText });
 
-  const response = await client.messages.create({
+  const response = await (await getAnthropicClient()).messages.create({
     model: MODEL,
     max_tokens: 8000,
     temperature: 0.2,
@@ -458,7 +455,7 @@ const READING_LASTQ_SYS = `You are analysing a FULL IELTS Reading paper (attache
  *  that stopped early and never saw the final passage's questions. */
 async function findLastQuestion(docBlock: unknown): Promise<number> {
   try {
-    const response = await client.beta.messages.create({
+    const response = await (await getAnthropicClient()).beta.messages.create({
       model: MODEL,
       max_tokens: 200,
       temperature: 0,
@@ -495,7 +492,7 @@ async function outlineReadingPassages(docBlock: unknown, hintLast?: number): Pro
     hintLast && hintLast > 0
       ? ` IMPORTANT: this paper's questions run all the way to question ${hintLast}. You MUST list every passage through question ${hintLast}. If your passage list stops before ${hintLast}, you MISSED the passage(s) on the later pages — look again at those pages and include them (there is almost certainly a passage covering the final questions up to ${hintLast}).`
       : "";
-  const response = await client.beta.messages.create({
+  const response = await (await getAnthropicClient()).beta.messages.create({
     model: MODEL,
     max_tokens: 1500,
     temperature: 0,
@@ -726,7 +723,7 @@ async function extractOnePassage(
   const label = o.title
     ? `"${o.title}"`
     : `the passage whose questions are numbered ${o.firstQuestion}–${o.lastQuestion}`;
-  const response = await client.beta.messages.create({
+  const response = await (await getAnthropicClient()).beta.messages.create({
     model: MODEL,
     max_tokens: 8000,
     temperature: 0.2,
@@ -782,7 +779,7 @@ async function extractPassageBest(
 /** Legacy one-shot fallback (whole paper in a single call) — used only if the
  *  outline step yields nothing. */
 async function singleCallReadingExam(docBlock: unknown): Promise<ReadingExamMulti> {
-  const response = await client.beta.messages.create({
+  const response = await (await getAnthropicClient()).beta.messages.create({
     model: MODEL,
     max_tokens: 16000,
     temperature: 0.2,
@@ -977,7 +974,7 @@ ${input.essay}
 
 Please grade this essay and return the JSON.`;
 
-  const response = await client.messages.create({
+  const response = await (await getAnthropicClient()).messages.create({
     model: MODEL,
     max_tokens: 2500,
     temperature: 0.3,
@@ -1005,7 +1002,7 @@ ${input.transcript}
 
 Please grade and return the JSON.`;
 
-  const response = await client.messages.create({
+  const response = await (await getAnthropicClient()).messages.create({
     model: MODEL,
     max_tokens: 2500,
     temperature: 0.3,
@@ -1086,7 +1083,7 @@ export async function fixShadowingSegments(
     .join("\n");
   const userMessage = `Here are ${input.segments.length} shadowing segments from automatic speech recognition. Clean each English sentence, then produce IPA + Vietnamese for the cleaned version. Return the JSON:\n\n${lines}`;
 
-  const response = await client.messages.create({
+  const response = await (await getAnthropicClient()).messages.create({
     model: MODEL,
     max_tokens: Math.min(8000, 200 + input.segments.length * 180),
     temperature: 0.2,
@@ -1113,7 +1110,7 @@ export async function enrichShadowingSegments(
     .join("\n");
   const userMessage = `Here are ${input.segments.length} shadowing segments. Produce IPA + Vietnamese for every one and return the JSON:\n\n${lines}`;
 
-  const response = await client.messages.create({
+  const response = await (await getAnthropicClient()).messages.create({
     model: MODEL,
     max_tokens: Math.min(8000, 200 + input.segments.length * 120),
     temperature: 0.2,
@@ -1268,7 +1265,7 @@ ${speakingBlock}
 
 Viết BÁO CÁO CHI TIẾT theo schema JSON: mỗi kỹ năng có "errors" (BÁM bằng chứng trên — không bịa) và "howToImprove" (cách sửa cụ thể).`;
 
-    const response = await client.messages.create({
+    const response = await (await getAnthropicClient()).messages.create({
       model: MODEL,
       max_tokens: 4500,
       temperature: 0.4,
@@ -1338,7 +1335,7 @@ export async function estimateCefrLevel(
   const text = sampleText.replace(/\s+/g, " ").trim().slice(0, 4000);
   if (text.length < 20) return null;
   try {
-    const response = await client.messages.create({
+    const response = await (await getAnthropicClient()).messages.create({
       model: MODEL,
       max_tokens: 8,
       temperature: 0,
@@ -1409,7 +1406,7 @@ export async function extractTableFromImage(input: {
     text: "Convert this IELTS table-completion image into the JSON format described in the system prompt. Return only JSON.",
   });
 
-  const response = await client.messages.create({
+  const response = await (await getAnthropicClient()).messages.create({
     model: MODEL,
     max_tokens: 2000,
     temperature: 0.1,

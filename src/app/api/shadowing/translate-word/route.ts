@@ -13,8 +13,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import Anthropic from "@anthropic-ai/sdk";
 import { auth } from "@/auth";
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? "" });
+import { getAnthropicClient } from "@/lib/api-keys";
 
 // Per-route model override: translation popups are 1-2 sentence outputs.
 // Haiku 4.5 is the right tier — cheap, fast, and known-good as of Jan 2026.
@@ -76,7 +75,7 @@ export async function POST(req: Request) {
 
   try {
     const userMessage = `Word: "${word}"\nSentence: "${parsed.data.sentence}"\n\nProduce the JSON.`;
-    const response = await client.messages.create({
+    const response = await (await getAnthropicClient()).messages.create({
       model: TRANSLATE_MODEL,
       max_tokens: 220,
       temperature: 0.2,

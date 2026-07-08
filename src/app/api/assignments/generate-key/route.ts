@@ -19,6 +19,7 @@ import { extractPdfText } from "@/lib/pdf-extract";
 import { generatePaperKeyGroq, generateReadingExamGroq, numberReadingParts, type NumberedReadingPart } from "@/lib/groq";
 import { generateReadingExamFromPdf } from "@/lib/claude";
 import { deepgramTranscribe } from "@/lib/deepgram";
+import { getApiKey } from "@/lib/api-keys";
 
 // Claude reading a full multi-passage PDF + solving up to 40 questions with
 // Vietnamese solutions can take a couple of minutes.
@@ -77,8 +78,8 @@ export async function POST(req: Request) {
   const gate = await requireTeacher();
   if (gate instanceof NextResponse) return gate;
 
-  const hasGroq = !!process.env.GROQ_API_KEY;
-  const hasClaude = !!process.env.ANTHROPIC_API_KEY;
+  const hasGroq = !!(await getApiKey("GROQ"));
+  const hasClaude = !!(await getApiKey("ANTHROPIC"));
   if (!hasGroq && !hasClaude) {
     return NextResponse.json(
       { error: "Máy chủ chưa cấu hình khoá AI (ANTHROPIC_API_KEY hoặc GROQ_API_KEY). Hãy báo admin thêm khoá." },

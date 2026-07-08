@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
+import { getApiKey } from "@/lib/api-keys";
 
 const schema = z.object({
   prompt: z.string().trim().min(2).max(300),
@@ -15,7 +16,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const key = process.env.OPENAI_API_KEY;
+  const key = await getApiKey("OPENAI");
   if (!key) {
     return NextResponse.json(
       { error: "Chưa cấu hình OPENAI_API_KEY trên server" },

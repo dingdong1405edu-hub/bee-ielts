@@ -4,6 +4,7 @@ import { Skill } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { generateStudyPlan, type StudyAssessment } from "@/lib/claude";
+import { getApiKey } from "@/lib/api-keys";
 
 // availableWeekdays: Monday-start indices (0=Mon … 6=Sun) the learner can study.
 // focusNotes: optional free-text from the learner describing weak skills,
@@ -192,7 +193,7 @@ export async function POST(req: Request) {
   let assessment: StudyAssessment | null = null;
   let aiUsed = false;
 
-  if (process.env.ANTHROPIC_API_KEY) {
+  if (await getApiKey("ANTHROPIC")) {
     try {
       const plan = await generateStudyPlan({
         targetBand,

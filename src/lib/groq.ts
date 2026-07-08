@@ -1,4 +1,5 @@
 import { isAnswerCorrect } from "@/lib/utils";
+import { getApiKey } from "@/lib/api-keys";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const DEFAULT_MODEL = "llama-3.3-70b-versatile";
@@ -25,7 +26,7 @@ interface GroqOptions {
 }
 
 export async function groqChat(messages: GroqMessage[], opts: GroqOptions = {}): Promise<string> {
-  const key = process.env.GROQ_API_KEY;
+  const key = await getApiKey("GROQ");
   if (!key) throw new Error("GROQ_API_KEY not set");
 
   const body: Record<string, unknown> = {
@@ -88,7 +89,7 @@ export async function groqChat(messages: GroqMessage[], opts: GroqOptions = {}):
  * symbols, etc.). On any error the caller should treat the image as unsafe.
  */
 export async function moderateImageGroq(dataUrl: string): Promise<{ safe: boolean; reason: string }> {
-  const key = process.env.GROQ_API_KEY;
+  const key = await getApiKey("GROQ");
   if (!key) throw new Error("GROQ_API_KEY not set");
 
   const prompt = `You are moderating images for a Vietnamese English-learning community used by students.

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { extractTableFromImage, type ReadingImageInput } from "@/lib/claude";
+import { getApiKey } from "@/lib/api-keys";
 
 // One image rarely needs more than 30s, but a multi-page table can.
 export const maxDuration = 60;
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
   if (!session?.user || session.user.role !== "ADMIN" && session.user.role !== "OWNER") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  if (!process.env.ANTHROPIC_API_KEY) {
+  if (!(await getApiKey("ANTHROPIC"))) {
     return NextResponse.json({ error: "Server chưa cấu hình ANTHROPIC_API_KEY" }, { status: 503 });
   }
 

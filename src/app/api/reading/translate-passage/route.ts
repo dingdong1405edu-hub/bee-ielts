@@ -17,8 +17,7 @@ import { z } from "zod";
 import { createHash } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import { auth } from "@/auth";
-
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? "" });
+import { getAnthropicClient } from "@/lib/api-keys";
 
 // Haiku 4.5: cheap + fast, more than enough quality for single-word
 // dictionary glosses across a 500-word passage.
@@ -89,7 +88,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const response = await client.messages.create({
+    const response = await (await getAnthropicClient()).messages.create({
       model: MODEL,
       // 8000 covers a typical IELTS passage (~500-900 words → ~600 unique
       // → ~25 chars/entry JSON → ~15 KB). Add headroom.
