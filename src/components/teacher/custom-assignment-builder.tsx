@@ -24,6 +24,8 @@ import { aiToCustomQuestions, classifyAnswer, parseAnswerKey, readingAiToCustomQ
 import type { ReadingExamQuestion, NumberedReadingPart } from "@/lib/groq";
 import { PaperFileField } from "@/components/teacher/paper-file-field";
 import { ManualReadingBuilder } from "@/components/teacher/manual-reading-builder";
+import { ManualListeningBuilder, type ManualListeningValue } from "@/components/teacher/manual-listening-builder";
+import { buildFormQuestions, countBlanks } from "@/lib/form-completion";
 import { playPopSfx } from "@/lib/quiz-sfx";
 
 const PDF_MAX = 8 * 1024 * 1024;
@@ -47,6 +49,78 @@ function capReadingParts(parts: NumberedReadingPart[], max: number): NumberedRea
     count += qs.length;
   }
   return out;
+}
+
+/** One question in the POST /api/assignments custom_questions payload. */
+interface CustomQuestion {
+  type: string;
+  prompt: string;
+  options?: string[];
+  correctAnswer: string;
+  explanation?: string;
+  displayNumber?: number;
+  formGroup?: string;
+}
+
+/**
+ * Turn a manual LISTENING draft into validated custom_questions (form-completion
+ * block first, then loose questions), numbered continuously. Every answer token
+ * is stored in the EXACT form the learner ListeningShell + grader expect. Returns
+ * an error string on the first problem so the teacher can fix it before saving.
+ */
+function buildManualListeningPayload(
+  data: ManualListeningValue,
+  max: number,
+): { questions?: CustomQuestion[]; error?: string } {
+  const out: CustomQuestion[] = [];
+  let n = 0;
+
+  // 1) Form / note completion → one FILL_BLANK per blank (shared formGroup).
+  const fp = data.formPassage.trim();
+  if (fp) {
+    const blanks = countBlanks(fp);
+    if (blanks < 1) return { error: "Đoạn điền chỗ trống chưa có chỗ trống — dùng chuỗi dấu chấm cho mỗi chỗ." };
+    for (let i = 0; i < blanks; i++) {
+      if (!(data.formAnswers[i] || "").trim()) return { error: `Điền chỗ trống: thiếu đáp án cho chỗ ${i + 1}.` };
+    }
+    for (const q of buildFormQuestions(fp, data.formAnswers, "fg" + Date.now().toString(36))) {
+      out.push({ type: "FILL_BLANK", prompt: q.prompt, correctAnswer: q.correctAnswer, formGroup: q.formGroup, displayNumber: ++n });
+    }
+  }
+
+  // 2) Loose questions — validate per type so nothing silently mis-grades.
+  const CHOICE = new Set(["MCQ", "MATCHING", "MATCHING_SENTENCE_ENDINGS"]);
+  const LISTED = new Set(["MATCHING_HEADINGS", "MATCHING_FEATURES", "MATCHING_INFO"]);
+  for (const q of data.questions) {
+    const label = n + 1;
+    if (!q.prompt.trim()) return { error: `Câu ${label}: thiếu nội dung câu hỏi.` };
+    const answer = String(q.answer ?? "").trim();
+    if (!answer) return { error: `Câu ${label}: chưa có đáp án đúng.` };
+    let options = (q.options ?? []).map((o) => String(o).trim()).filter(Boolean);
+    if (CHOICE.has(q.type)) {
+      if (options.length < 2) return { error: `Câu ${label}: cần ít nhất 2 lựa chọn có nội dung.` };
+      if (new Set(options.map((o) => o.toLowerCase())).size !== options.length) return { error: `Câu ${label}: có lựa chọn trùng nhau.` };
+      if (!options.includes(answer)) return { error: `Câu ${label}: hãy đánh dấu 1 lựa chọn làm đáp án đúng.` };
+    } else if (LISTED.has(q.type)) {
+      if (options.length < 2) return { error: `Câu ${label}: danh sách lựa chọn còn trống — hãy nhập đủ.` };
+    } else if (q.type === "TRUE_FALSE_NOT_GIVEN") {
+      options = ["True", "False", "Not Given"]; // gives the learner radios; answer is one of these
+    } else {
+      options = []; // FILL_BLANK / SHORT_ANSWER — free text, no options
+    }
+    out.push({
+      type: q.type,
+      prompt: q.prompt.trim(),
+      options: options.length ? options : undefined,
+      correctAnswer: answer,
+      explanation: q.explanation?.trim() || undefined,
+      displayNumber: ++n,
+    });
+  }
+
+  if (out.length === 0) return { error: "Thêm ít nhất 1 câu hỏi hoặc một đoạn điền chỗ trống cho bài Listening." };
+  if (out.length > max) return { error: `Tối đa ${max} câu hỏi cho 1 bài — hãy xoá bớt câu.` };
+  return { questions: out };
 }
 
 type Skill = "READING" | "LISTENING" | "WRITING" | "SPEAKING";
@@ -93,6 +167,10 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
   const [showManual, setShowManual] = useState(false);
   // READING only: teacher hand-authors the test (no PDF/AI) via ManualReadingBuilder.
   const [manualReading, setManualReading] = useState(false);
+  // LISTENING only: teacher hand-authors the test (audio + typed questions) via
+  // ManualListeningBuilder — no PDF, rendered in the native ListeningShell.
+  const [manualListening, setManualListening] = useState(false);
+  const [listeningData, setListeningData] = useState<ManualListeningValue>({ questions: [], formPassage: "", formAnswers: [] });
   // Writing
   const [wTaskType, setWTaskType] = useState<1 | 2>(2);
   const [wPrompt, setWPrompt] = useState("");
@@ -143,6 +221,7 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
   function resetSkillFields() {
     setPdfUrl(""); setAudioUrl(""); setAnswerKey("");
     setAiQuestions(null); setAiReading(null); setAiNotes(""); setShowManual(false); setManualReading(false);
+    setManualListening(false); setListeningData({ questions: [], formPassage: "", formAnswers: [] });
     setWPrompt(""); setWImageUrl("");
     setSTopic(""); setSQuestions("");
   }
@@ -281,6 +360,17 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
     };
 
     if (isPaper) {
+      // MANUAL LISTENING — audio + typed questions rendered in the native
+      // ListeningShell (like admin listening practice). No PDF; grading uses
+      // config.paper.skill = "LISTENING" and config.listening carries the audio.
+      if (skill === "LISTENING" && manualListening) {
+        if (!audioUrl.trim()) return toast.error("Bài Listening cần file âm thanh");
+        const built = buildManualListeningPayload(listeningData, MAX_READING_Q);
+        if (built.error) return toast.error(built.error);
+        config.listening = { audioUrl: audioUrl.trim(), title: title.trim() };
+        config.paper = { skill: "LISTENING" };
+        body.custom_questions = built.questions;
+      } else {
       // Manual READING needs no PDF (teacher types the passage). Everything else does.
       if (!(skill === "READING" && manualReading) && !pdfUrl.trim()) return toast.error("Tải lên file PDF đề bài");
       if (skill === "LISTENING" && !audioUrl.trim()) return toast.error("Bài Listening cần file âm thanh");
@@ -342,6 +432,7 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
         } else {
           return toast.error("Bấm “AI tạo đáp án & lời giải” hoặc tự nhập đáp án");
         }
+      }
       }
     } else if (skill === "WRITING") {
       if (!wPrompt.trim()) return toast.error("Nhập đề bài Writing");
@@ -463,10 +554,13 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
             </div>
           </div>
 
-          {/* Manual READING needs no file — hide the uploader in that mode. */}
+          {/* Manual READING needs no file — hide the uploader in that mode.
+              Manual LISTENING still needs audio but no PDF → hide only the PDF. */}
           {!(skill === "READING" && manualReading) && (
             <Card><CardContent className="space-y-4 p-5">
-              <PaperFileField kind="pdf" label="File đề bài (PDF)" value={pdfUrl} onChange={setPdfUrl} maxBytes={PDF_MAX} />
+              {!(skill === "LISTENING" && manualListening) && (
+                <PaperFileField kind="pdf" label="File đề bài (PDF)" value={pdfUrl} onChange={setPdfUrl} maxBytes={PDF_MAX} />
+              )}
               {skill === "LISTENING" && (
                 <PaperFileField kind="audio" label="File nghe (MP3)" value={audioUrl} onChange={setAudioUrl} maxBytes={AUDIO_MAX} />
               )}
@@ -474,7 +568,7 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
           )}
 
           {/* AI answer key + solutions — teacher just uploads, AI does the rest */}
-          {!aiQuestions && !aiReading ? (
+          {!aiQuestions && !aiReading && !manualListening ? (
             <Card className="border-primary/30 bg-primary/5">
               <CardContent className="space-y-3 p-5 text-center">
                 <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-primary/10">
@@ -529,6 +623,23 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
                       <PenLine className="h-4 w-4" /> Tự soạn Reading thủ công (không cần file)
                     </Button>
                     <p className="mt-1.5 text-xs text-muted-foreground">Nhập bài đọc + câu hỏi bằng tay, đủ mọi dạng — tối đa {MAX_READING_Q} câu.</p>
+                  </div>
+                )}
+                {skill === "LISTENING" && (
+                  <div className="border-t pt-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="rounded-full"
+                      onClick={() => {
+                        setManualListening(true);
+                        setListeningData({ questions: [], formPassage: "", formAnswers: [] });
+                        setAiNotes("");
+                      }}
+                    >
+                      <PenLine className="h-4 w-4" /> Tự soạn Listening thủ công (không cần PDF)
+                    </Button>
+                    <p className="mt-1.5 text-xs text-muted-foreground">Tải audio ở trên, rồi nhập câu hỏi bằng tay — <strong>giống phần luyện tập Listening</strong>. Tối đa {MAX_READING_Q} câu.</p>
                   </div>
                 )}
               </CardContent>
@@ -606,6 +717,27 @@ export function CustomAssignmentBuilder({ classes }: { classes: { id: string; na
                   </Button>
                 </div>
                 <ManualReadingBuilder value={aiReading} onChange={setAiReading} max={MAX_READING_Q} />
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Manual LISTENING authoring — audio (above) + typed questions. */}
+          {skill === "LISTENING" && manualListening && (
+            <Card className="border-honey/40">
+              <CardContent className="space-y-4 p-5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <PenLine className="h-5 w-5 text-honey-deep" />
+                    <h3 className="font-bold">Tự soạn Listening</h3>
+                  </div>
+                  <Button
+                    onClick={() => { setManualListening(false); setListeningData({ questions: [], formPassage: "", formAnswers: [] }); }}
+                    variant="ghost" size="sm" className="rounded-lg text-muted-foreground"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" /> Huỷ, quay lại
+                  </Button>
+                </div>
+                <ManualListeningBuilder value={listeningData} onChange={setListeningData} max={MAX_READING_Q} />
               </CardContent>
             </Card>
           )}

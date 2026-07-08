@@ -5,6 +5,7 @@ import { ExamWorkspace } from "@/components/learn/exam-workspace";
 import { HomeworkWriting } from "@/components/learn/homework-writing";
 import { HomeworkSpeaking } from "@/components/learn/homework-speaking";
 import { HomeworkReading } from "@/components/learn/homework-reading";
+import { HomeworkListening } from "@/components/learn/homework-listening";
 
 export const dynamic = "force-dynamic";
 
@@ -29,10 +30,24 @@ function hasReadingPassage(config: unknown): boolean {
   return false;
 }
 
+/** Does this assignment carry a native listening test (audio + questions in
+ *  config.listening)? Such assignments render in the native ListeningShell, not
+ *  the PDF answer sheet. */
+function hasListeningAudio(config: unknown): boolean {
+  if (config && typeof config === "object" && !Array.isArray(config)) {
+    const l = (config as Record<string, unknown>).listening;
+    if (l && typeof l === "object" && !Array.isArray(l)) {
+      const audioUrl = (l as Record<string, unknown>).audioUrl;
+      return typeof audioUrl === "string" && audioUrl.length > 0;
+    }
+  }
+  return false;
+}
+
 /** Student exam page — làm bài tập giáo viên giao. Dispatches by skill: Writing
- *  → essay editor, Speaking → recorder, native Reading (AI-generated) → the
- *  ReadingShell homework, else (legacy paper / objective) → ExamWorkspace. Each
- *  component client-loads its own data (timer, lock, grade). */
+ *  → essay editor, Speaking → recorder, native Reading/Listening (AI or manual)
+ *  → the Reading/Listening shell homework, else (legacy paper / objective) →
+ *  ExamWorkspace. Each component client-loads its own data (timer, lock, grade). */
 export default async function ExamPage({
   params,
 }: {
@@ -48,6 +63,7 @@ export default async function ExamPage({
   });
 
   const nativeReading = assignment?.skill === "READING" && hasReadingPassage(assignment.config);
+  const nativeListening = assignment?.skill === "LISTENING" && hasListeningAudio(assignment.config);
 
   return (
     <div className="px-4 py-4">
@@ -57,6 +73,8 @@ export default async function ExamPage({
         <HomeworkSpeaking assignmentId={assignmentId} />
       ) : nativeReading ? (
         <HomeworkReading assignmentId={assignmentId} />
+      ) : nativeListening ? (
+        <HomeworkListening assignmentId={assignmentId} />
       ) : (
         <ExamWorkspace assignmentId={assignmentId} />
       )}

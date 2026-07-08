@@ -19,7 +19,7 @@ import type { ReadingExamQuestion, NumberedReadingPart } from "@/lib/groq";
 
 type ReadingValue = { parts: NumberedReadingPart[] };
 
-const TYPES: { value: string; label: string }[] = [
+export const TYPES: { value: string; label: string }[] = [
   { value: "MCQ", label: "Trắc nghiệm (chọn 1 đáp án)" },
   { value: "TRUE_FALSE_NOT_GIVEN", label: "True / False / Not Given" },
   { value: "FILL_BLANK", label: "Điền từ vào chỗ trống" },
@@ -30,11 +30,11 @@ const TYPES: { value: string; label: string }[] = [
   { value: "MATCHING", label: "Nối / ghép (chọn 1 phương án)" },
   { value: "MATCHING_SENTENCE_ENDINGS", label: "Nối vế câu (Sentence endings)" },
 ];
-const ROMAN = ["i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii", "xiii", "xiv"];
-const LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"];
+export const ROMAN = ["i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii", "xiii", "xiv"];
+export const LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
 /** A blank question of a given type, with sensible default options. */
-function blankQuestion(type: string): ReadingExamQuestion {
+export function blankQuestion(type: string): ReadingExamQuestion {
   const base: ReadingExamQuestion = { number: 0, type, prompt: "", options: null, answer: "", explanation: "" };
   if (type === "MCQ" || type === "MATCHING" || type === "MATCHING_SENTENCE_ENDINGS") base.options = ["", "", "", ""];
   else if (type === "MATCHING_INFO") base.options = LETTERS.slice(0, 6);
@@ -238,18 +238,18 @@ export function ManualReadingBuilder({
 }
 
 /** When the type changes, reset options/answer to that type's defaults. */
-function blankQuestionPatch(type: string): Partial<ReadingExamQuestion> {
+export function blankQuestionPatch(type: string): Partial<ReadingExamQuestion> {
   const b = blankQuestion(type);
   return { type: b.type, options: b.options, answer: "" };
 }
-function promptPlaceholder(type: string): string {
+export function promptPlaceholder(type: string): string {
   if (type === "FILL_BLANK") return "Câu hỏi — dùng ____ cho chỗ trống điền từ";
   if (type === "MATCHING_HEADINGS") return "Nhãn đoạn văn, ví dụ: Đoạn A";
   if (type === "MATCHING_INFO") return "Thông tin cần nối với đoạn văn";
   return "Nội dung câu hỏi";
 }
 
-function SharedListEditor({ title, items, onChange }: { title: string; items: string[]; onChange: (items: string[]) => void }) {
+export function SharedListEditor({ title, items, onChange }: { title: string; items: string[]; onChange: (items: string[]) => void }) {
   return (
     <div className="space-y-1 rounded-lg border bg-muted/20 p-2.5">
       <label className="text-xs font-semibold text-muted-foreground">{title}</label>
@@ -266,7 +266,7 @@ function SharedListEditor({ title, items, onChange }: { title: string; items: st
 
 /** The answer control for one question — type-specific so the stored value is the
  *  exact token the learner side + grader expect. */
-function AnswerEditor({
+export function AnswerEditor({
   q,
   headings,
   features,
