@@ -664,7 +664,7 @@ Tìm mọi câu hỏi có đánh số, chấm đáp án đúng, và viết lời
 // ---------------------------------------------------------------------------
 // Shared question-format rules (types, answer/options format, TABLE/MAP blocks)
 // used by BOTH the multi-part prompt and the single-passage prompt.
-const READING_QUESTION_RULES = `SPECIAL BLOCKS — if a passage contains a TABLE or a MAP/PLAN/DIAGRAM, put ONE of these objects INSIDE the "questions" array at the position where it appears (in question order), INSTEAD of listing those numbered items separately:
+const READING_QUESTION_RULES = `SPECIAL BLOCKS — if a passage contains a TABLE, a MAP/PLAN/DIAGRAM, or a FLOW-CHART / PROCESS diagram, put ONE of these objects INSIDE the "questions" array at the position where it appears (in question order), INSTEAD of listing those numbered items separately:
 
 TABLE completion (recreate the table EXACTLY — same rows/columns/headers as the file):
 {
@@ -686,7 +686,17 @@ MAP / PLAN / DIAGRAM labelling (RE-DRAW it yourself as clean SVG):
 - "options" = the SHARED list of labels A–H (with the letter prefix), shown to the student.
 - "items" = one per numbered location on the map; "answer" = the correct LETTER only (e.g. "C").
 - Draw the SAME numbered locations in the SVG so the student can match number → letter.
-Only emit TABLE/MAP when the file actually has one. Do NOT invent them.
+
+FLOW-CHART / PROCESS completion (boxes joined by arrows, with numbered gaps — recreate the boxes IN ARROW ORDER):
+{
+  "type": "FLOWCHART",
+  "steps": [ "manager (having just obtained {{18}})", "playing with language for a long time", "{{20}} set of words", "obeyed only at {{21}}", "can cause lack of {{22}}", "want {{23}} payback" ],
+  "blanks": [ { "number": 18, "answer": "<exact word(s) from passage; / for alternatives>", "explanation": "<tiếng Việt>" }, { "number": 20, "answer": "...", "explanation": "..." } ]
+}
+- "steps" = each box's text as ONE string, listed in the order the arrows flow (which matches the question numbering). Copy the box text verbatim; put "{{N}}" where a gap is. A box WITHOUT a gap is still a step — keep it (no marker) so the process reads correctly.
+- "blanks" = every gap: number + answer (word-limit rules as FILL_BLANK) + Vietnamese explanation.
+- Emit a FLOWCHART (NOT separate sentence-completion questions) whenever the file shows a flow-chart / process diagram: boxes or steps joined by arrows with numbered blanks.
+Only emit TABLE/MAP/FLOWCHART when the file actually has one. Do NOT invent them.
 
 ANSWER / OPTIONS RULES — obey EXACTLY so the app can auto-grade:
 - MCQ: "options" = the full text of each choice (NO "A."/"B." prefixes). "answer" = the FULL TEXT of the correct choice, copied CHARACTER-FOR-CHARACTER from one entry of "options".
@@ -916,6 +926,7 @@ export function parseReadingExam(parsed: {
   const figures: ReadingFigure[] = [];
   let tblCounter = 0;
   let mapCounter = 0;
+  let fcCounter = 0;
 
   for (const raw of rawItems) {
     const o = (raw ?? {}) as Record<string, unknown>;
@@ -950,6 +961,45 @@ export function parseReadingExam(parsed: {
           number: num,
           type: "FILL_BLANK",
           prompt: idx === 0 ? tableStr : "", // whole grid rides on the first member
+          options: null,
+          answer: b.answer,
+          explanation: b.explanation,
+          formGroup: fg,
+        });
+      });
+      continue;
+    }
+
+    // ---- FLOW-CHART / PROCESS completion → fc-formGroup FILL_BLANK questions -
+    if (rawType === "FLOWCHART" || rawType === "FLOW_CHART" || rawType === "FLOW" || rawType === "PROCESS") {
+      const steps = (Array.isArray(o.steps) ? o.steps : Array.isArray(o.lines) ? o.lines : Array.isArray(o.rows) ? o.rows : []).map((s) =>
+        String(s ?? ""),
+      );
+      const blankByNum = new Map<number, { answer: string; explanation: string }>();
+      for (const b of Array.isArray(o.blanks) ? o.blanks : []) {
+        const bo = (b ?? {}) as Record<string, unknown>;
+        const bn = typeof bo.number === "number" ? bo.number : parseInt(String(bo.number ?? ""), 10);
+        if (Number.isFinite(bn)) {
+          blankByNum.set(bn, { answer: String(bo.answer ?? "").trim(), explanation: stripCjk(String(bo.explanation ?? "")) });
+        }
+      }
+      // Each step is one box (its own line); "{{N}}" → an inline blank. FlowBlanks
+      // stitches the members' prompts back (join ""), splits on "\n", draws each
+      // line as a box with a ↓ arrow between them. Boxes with no gap are kept as
+      // static text lines so the process reads correctly.
+      const order: number[] = [];
+      const flowStr = steps
+        .map((step) => step.replace(/\{\{\s*(\d+)\s*\}\}/g, (_m, d) => { order.push(parseInt(d, 10)); return "_____"; }))
+        .join("\n");
+      if (order.length === 0) continue;
+      fcCounter++;
+      const fg = `fc${fcCounter}`;
+      order.forEach((num, idx) => {
+        const b = blankByNum.get(num) ?? { answer: "", explanation: "" };
+        questions.push({
+          number: num,
+          type: "FILL_BLANK",
+          prompt: idx === 0 ? flowStr : "", // whole flow-chart rides on the first member
           options: null,
           answer: b.answer,
           explanation: b.explanation,
