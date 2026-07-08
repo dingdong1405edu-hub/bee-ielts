@@ -4,6 +4,12 @@ import { getApiKey } from "@/lib/api-keys";
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const DEFAULT_MODEL = "llama-3.3-70b-versatile";
 const VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
+// Groq's free-tier rate/quota limits are PER-MODEL. When the primary is throttled
+// or has burned its daily token budget (429), these take over automatically — each
+// has its own separate bucket, so generation keeps working without the teacher
+// waiting or touching anything. Ordered best-quality-first; both still emit valid
+// structured JSON for reading/listening generation.
+const READING_FALLBACK_MODELS = ["meta-llama/llama-4-scout-17b-16e-instruct", "llama-3.1-8b-instant"];
 
 interface GroqMessage {
   role: "system" | "user" | "assistant";
@@ -12,6 +18,10 @@ interface GroqMessage {
 
 interface GroqOptions {
   model?: string;
+  /** Models to fall back to when the primary is rate-limited/exhausted (429).
+   *  Each Groq model has its OWN free-tier bucket, so rotating to one keeps
+   *  generation alive without the caller waiting or retrying by hand. */
+  fallbackModels?: string[];
   temperature?: number;
   maxTokens?: number;
   jsonMode?: boolean;
@@ -29,57 +39,77 @@ export async function groqChat(messages: GroqMessage[], opts: GroqOptions = {}):
   const key = await getApiKey("GROQ");
   if (!key) throw new Error("GROQ_API_KEY not set");
 
-  const body: Record<string, unknown> = {
-    model: opts.model ?? DEFAULT_MODEL,
-    messages,
-    temperature: opts.temperature ?? 0.3,
-    max_tokens: opts.maxTokens ?? 2500,
-  };
-  if (opts.jsonMode) body.response_format = { type: "json_object" };
-
-  // Retry transient rate-limits (429) + server errors with backoff. A 413
-  // ("request too large") is deterministic — never retried; the caller must
-  // send a smaller request instead.
   const maxRetries = opts.maxRetries ?? 2;
   const timeoutMs = opts.timeoutMs ?? 60000;
-  for (let attempt = 0; ; attempt++) {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-    let res: Response;
-    try {
-      res = await fetch(GROQ_URL, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-        signal: ctrl.signal,
-      });
-    } catch (e) {
-      // Timeout/abort or network error — retry if attempts remain, else surface it.
-      if (attempt < maxRetries) {
+  // Try the primary model, then any fallbacks. Free-tier limits are per-model, so
+  // when one is throttled/exhausted (429) the next has a fresh bucket — generation
+  // self-heals instead of failing and asking the teacher to "wait a minute".
+  const models = [opts.model ?? DEFAULT_MODEL, ...(opts.fallbackModels ?? [])];
+
+  let lastErr = "";
+  for (let mi = 0; mi < models.length; mi++) {
+    const isLastModel = mi === models.length - 1;
+    const body: Record<string, unknown> = {
+      model: models[mi],
+      messages,
+      temperature: opts.temperature ?? 0.3,
+      max_tokens: opts.maxTokens ?? 2500,
+    };
+    if (opts.jsonMode) body.response_format = { type: "json_object" };
+
+    for (let attempt = 0; ; attempt++) {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+      let res: Response;
+      try {
+        res = await fetch(GROQ_URL, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+          signal: ctrl.signal,
+        });
+      } catch (e) {
+        // Timeout/abort or network error — retry this model if attempts remain,
+        // else fall through to the next model (if any).
+        lastErr = e instanceof Error ? e.message : String(e);
+        if (attempt < maxRetries) {
+          await new Promise((r) => setTimeout(r, (attempt + 1) * 4000));
+          continue;
+        }
+        break;
+      } finally {
+        clearTimeout(timer);
+      }
+      if (res.ok) {
+        const data = (await res.json()) as { choices: { message: { content: string } }[] };
+        return data.choices[0]?.message?.content ?? "";
+      }
+      const txt = await res.text();
+      lastErr = `Groq ${res.status}: ${txt.slice(0, 200)}`;
+      // A bad/expired key fails identically on EVERY model — surface it now so the
+      // teacher sees the real "key invalid" reason instead of a rate-limit guess.
+      if (res.status === 401 || res.status === 403) throw new Error(lastErr);
+      const retryAfter = parseInt(res.headers.get("retry-after") ?? "", 10);
+      const tooLarge = res.status === 429 && /request too large/i.test(txt);
+      // A per-minute spike clears fast: one short same-model retry (only if the
+      // server's retry-after is small). A long/absent wait means the budget is
+      // spent — jump straight to the next model rather than stall.
+      if (!tooLarge && res.status === 429 && attempt < 1 && Number.isFinite(retryAfter) && retryAfter <= 10) {
+        await new Promise((r) => setTimeout(r, retryAfter * 1000));
+        continue;
+      }
+      // Transient server errors: back off and retry the SAME model.
+      if (res.status >= 500 && attempt < maxRetries) {
         await new Promise((r) => setTimeout(r, (attempt + 1) * 4000));
         continue;
       }
-      throw e instanceof Error ? e : new Error(String(e));
-    } finally {
-      clearTimeout(timer);
+      // Otherwise this model is done (429 exhausted, too-large, or a 4xx). Move on
+      // to the next model, which has its own bucket / different token ceiling.
+      break;
     }
-    if (res.ok) {
-      const data = (await res.json()) as { choices: { message: { content: string } }[] };
-      return data.choices[0]?.message?.content ?? "";
-    }
-    const txt = await res.text();
-    // A "Request too large" 429 is DETERMINISTIC — this one request exceeds the
-    // per-minute token ceiling, so retrying the SAME request never succeeds.
-    // Surface it at once (no backoff storm) so the caller sends a smaller request.
-    const tooLarge = res.status === 429 && /request too large/i.test(txt);
-    if (!tooLarge && (res.status === 429 || res.status >= 500) && attempt < maxRetries) {
-      const ra = parseInt(res.headers.get("retry-after") ?? "", 10);
-      const waitMs = Number.isFinite(ra) ? Math.min(ra * 1000, 32000) : (attempt + 1) * 4000;
-      await new Promise((r) => setTimeout(r, waitMs));
-      continue;
-    }
-    throw new Error(`Groq ${res.status}: ${txt.slice(0, 200)}`);
+    if (isLastModel) break;
   }
+  throw new Error(lastErr || "Groq request failed");
 }
 
 /**
@@ -633,7 +663,9 @@ Tìm mọi câu hỏi có đánh số, chấm đáp án đúng, và viết lời
       { role: "system", content: PAPER_KEY_SYS },
       { role: "user", content: userMessage },
     ],
-    { jsonMode: true, temperature: 0.2, maxTokens: 3500 },
+    // Same auto-fallback as reading: if the primary model is 429'd, another model's
+    // bucket takes over so building the answer key from an upload never dead-ends.
+    { jsonMode: true, temperature: 0.2, maxTokens: 3500, fallbackModels: READING_FALLBACK_MODELS },
   );
 
   const parsed = extractJSON(text) as { questions?: unknown; notes?: unknown };
@@ -1177,7 +1209,7 @@ function groqReadingErrorHint(msg: string): string {
   if (m.includes("request too large") || m.includes("413"))
     return "Đề quá dài cho 1 lượt Groq. Hãy tách nhỏ đề, hoặc thêm khoá Anthropic để đọc trọn PDF.";
   if (m.includes("429") || m.includes("rate limit") || m.includes("tokens per minute") || m.includes("quota"))
-    return "Groq đang quá tải hoặc hết lượt miễn phí (429). Chờ ~1 phút rồi bấm Tạo lại, hoặc soạn thủ công.";
+    return "Groq đã hết lượt miễn phí hôm nay trên tất cả mô hình dự phòng (429). Thử lại sau vài phút, hoặc dán một khoá Groq khác ở trang Admin → Khoá API (có hiệu lực ngay, không cần Redeploy).";
   if (m.includes("timeout") || m.includes("abort") || m.includes("timed out"))
     return "Groq phản hồi quá lâu (timeout). Bấm Tạo lại, hoặc soạn thủ công.";
   if (m.includes("5") && m.includes("groq 5")) return "Máy chủ Groq đang gặp sự cố (5xx). Thử lại sau ít phút.";
@@ -1208,7 +1240,9 @@ TÁCH mỗi bài đọc riêng thành 1 "part" (đừng gộp nhiều bài vào 
       // Output bounded to fit Groq free tier's ~12k tokens/minute in ONE request
       // (input ~4k + output ~5.2k stays under the ceiling → no "request too large").
       // parseJsonLoose salvages the questions that finished if we still hit the cap.
-      { jsonMode: true, temperature: 0.2, maxTokens: 5200, maxRetries: 2, timeoutMs: 50000 },
+      // fallbackModels: if the 70B model is throttled/exhausted (429), auto-retry on
+      // another model with its own free-tier bucket so generation never dead-ends.
+      { jsonMode: true, temperature: 0.2, maxTokens: 5200, maxRetries: 2, timeoutMs: 50000, fallbackModels: READING_FALLBACK_MODELS },
     );
     return { parts: parseReadingExamParts(parseJsonLoose(text) as Record<string, unknown>).parts };
   } catch (e) {
