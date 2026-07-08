@@ -1166,12 +1166,30 @@ export function numberReadingParts(multi: ReadingExamMulti): NumberedReadingPart
   });
 }
 
-/** ONE Groq call over a slice of the paper → parts. Kept small enough to fit the
- *  free tier's per-minute token budget (so it doesn't storm the rate limit) and
- *  NEVER throws — returns [] on failure so the caller degrades gracefully. When
- *  `tailFrom > 0` it asks only for passages whose questions come AFTER that
- *  number (used to recover a dropped final passage). */
-async function readingCallGroq(slice: string, tailFrom: number): Promise<ReadingExamPart[]> {
+/** Turn a raw Groq failure message into a clear Vietnamese reason for the teacher
+ *  (so a masked "AI chưa đọc được" no longer hides a 401/429/timeout root cause). */
+function groqReadingErrorHint(msg: string): string {
+  const m = msg.toLowerCase();
+  if (m.includes("groq_api_key not set")) return "Máy chủ chưa cấu hình GROQ_API_KEY.";
+  if (m.includes("401") || m.includes("invalid api key") || m.includes("invalid_api_key") || m.includes("unauthorized"))
+    return "Khoá Groq trên máy chủ KHÔNG hợp lệ (401). Hãy kiểm tra/cập nhật GROQ_API_KEY trên Railway rồi Redeploy.";
+  if (m.includes("request too large") || m.includes("413"))
+    return "Đề quá dài cho 1 lượt Groq. Hãy tách nhỏ đề, hoặc thêm khoá Anthropic để đọc trọn PDF.";
+  if (m.includes("429") || m.includes("rate limit") || m.includes("tokens per minute") || m.includes("quota"))
+    return "Groq đang quá tải hoặc hết lượt miễn phí (429). Chờ ~1 phút rồi bấm Tạo lại, hoặc soạn thủ công.";
+  if (m.includes("timeout") || m.includes("abort") || m.includes("timed out"))
+    return "Groq phản hồi quá lâu (timeout). Bấm Tạo lại, hoặc soạn thủ công.";
+  if (m.includes("5") && m.includes("groq 5")) return "Máy chủ Groq đang gặp sự cố (5xx). Thử lại sau ít phút.";
+  return `Groq báo lỗi: ${msg.slice(0, 140)}`;
+}
+
+/** ONE Groq call over a slice of the paper → parts (+ the raw error if it failed).
+ *  Kept small enough to fit the free tier's per-minute token budget (so it doesn't
+ *  storm the rate limit) and NEVER throws — returns { parts: [], error } on failure
+ *  so the caller degrades gracefully AND can tell the teacher WHY. When
+ *  `tailFrom > 0` it asks only for passages whose questions come AFTER that number
+ *  (used to recover a dropped final passage). */
+async function readingCallGroq(slice: string, tailFrom: number): Promise<{ parts: ReadingExamPart[]; error?: string }> {
   const scope =
     tailFrom > 0
       ? `CHỈ lấy các bài đọc chứa câu hỏi có SỐ THỨ TỰ LỚN HƠN ${tailFrom} (các bài ở phần SAU của đề, thường tới câu 40). Bỏ qua các câu đã ở phần đầu.`
@@ -1191,10 +1209,10 @@ TÁCH mỗi bài đọc riêng thành 1 "part" (đừng gộp nhiều bài vào 
       // parseJsonLoose salvages the questions that finished if we still hit the cap.
       { jsonMode: true, temperature: 0.2, maxTokens: 5200, maxRetries: 2, timeoutMs: 50000 },
     );
-    return parseReadingExamParts(parseJsonLoose(text) as Record<string, unknown>).parts;
+    return { parts: parseReadingExamParts(parseJsonLoose(text) as Record<string, unknown>).parts };
   } catch (e) {
     console.error("[groq reading] call failed:", e);
-    return [];
+    return { parts: [], error: e instanceof Error ? e.message : String(e) };
   }
 }
 
@@ -1327,13 +1345,17 @@ export async function generateReadingExamGroq(input: { documentText: string }): 
   // parsed loosely so a cut-off response still yields its finished questions, loads
   // fast and never hangs. Need the full 40? "Tạo lại" (a fresh minute resets the
   // budget) or a valid ANTHROPIC_API_KEY (Claude reads the whole PDF at once).
-  let parts = await readingCallGroq(doc.slice(0, 16000), 0);
+  const r1 = await readingCallGroq(doc.slice(0, 16000), 0);
+  let parts = r1.parts;
+  let lastError = r1.error ?? "";
 
   // Last resort ONLY when the first call produced nothing (empty/failed): a smaller
   // slice is lighter and more likely to fit. Mutually exclusive with a good first
   // result, so we never fire two heavy calls back-to-back.
   if (parts.every((p) => p.questions.length === 0)) {
-    parts = await readingCallGroq(doc.slice(0, 11000), 0);
+    const r2 = await readingCallGroq(doc.slice(0, 11000), 0);
+    parts = r2.parts;
+    if (r2.error) lastError = r2.error;
   }
 
   // Re-bin questions into the correct passages from the paper's markers (fixes a
@@ -1343,7 +1365,11 @@ export async function generateReadingExamGroq(input: { documentText: string }): 
   const produced = parts.reduce((n, p) => n + p.questions.length, 0);
   let notes = "";
   if (produced === 0) {
-    notes = "AI chưa đọc được câu hỏi trong file — hãy thử lại hoặc nhập đáp án thủ công.";
+    // Surface the REAL reason (401/429/timeout…) instead of a generic message —
+    // otherwise a bad key on the server just looks like "AI chưa đọc được".
+    notes = lastError
+      ? groqReadingErrorHint(lastError)
+      : "AI chưa đọc được câu hỏi trong file — có thể file là ảnh scan (không có chữ). Hãy thử lại hoặc nhập đáp án thủ công.";
   } else if (produced < 30) {
     notes = `Mới tạo ${produced} câu — Groq (bản miễn phí) giới hạn dung lượng mỗi lượt nên có thể còn thiếu. Bấm "Tạo lại" để bổ sung, hoặc thêm khoá Anthropic để AI đọc trọn đề.`;
   }

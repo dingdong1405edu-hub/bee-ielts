@@ -152,8 +152,16 @@ export async function POST(req: Request) {
       const multi = await generateReadingExamGroq({ documentText });
       const parts = numberReadingParts(multi);
       if (!parts.some((p) => p.questions.length > 0)) {
+        // multi.notes now carries the REAL reason (bad key / rate limit / scan…) —
+        // surface it in the error so the teacher sees WHY, not a generic message.
+        const reason = (multi.notes || "").trim();
         return NextResponse.json(
-          { error: "AI chưa đọc được bài đọc hoặc câu hỏi. Hãy kiểm tra lại file hoặc nhập đáp án thủ công.", notes: multi.notes },
+          {
+            error: reason
+              ? `Không tạo được bài. ${reason}`
+              : "AI chưa đọc được bài đọc hoặc câu hỏi. Hãy kiểm tra lại file hoặc nhập đáp án thủ công.",
+            notes: multi.notes,
+          },
           { status: 422 },
         );
       }
