@@ -985,7 +985,26 @@ export function parseReadingExam(parsed: {
       const tableStr = rows
         .map((row) => row.map((cell) => cell.replace(/\{\{\s*(\d+)\s*\}\}/g, (_m, d) => { order.push(parseInt(d, 10)); return "_____"; })).join("|"))
         .join("\n");
-      if (order.length === 0) continue;
+      if (order.length === 0) {
+        // Model listed blanks[] but omitted the {{N}} markers in the grid cells —
+        // don't drop the whole group; emit its blanks as plain fill-ins so no
+        // question is lost (teacher can refine rendering later).
+        const nums = [...blankByNum.keys()].sort((a, b) => a - b);
+        if (nums.length === 0) continue;
+        nums.forEach((num, idx) => {
+          const bb = blankByNum.get(num)!;
+          questions.push({
+            number: num,
+            type: "FILL_BLANK",
+            prompt: idx === 0 ? tableStr : `(${num})`,
+            options: null,
+            answer: bb.answer,
+            explanation: bb.explanation,
+            formGroup: null,
+          });
+        });
+        continue;
+      }
       tblCounter++;
       const fg = `tbl${tblCounter}`;
       order.forEach((num, idx) => {
@@ -1000,6 +1019,13 @@ export function parseReadingExam(parsed: {
           formGroup: fg,
         });
       });
+      // Any blank listed in blanks[] but whose {{N}} marker was missing from the grid
+      // is still emitted (as a plain fill-in) so no question is silently lost.
+      for (const [num, b] of blankByNum) {
+        if (!order.includes(num)) {
+          questions.push({ number: num, type: "FILL_BLANK", prompt: `(${num})`, options: null, answer: b.answer, explanation: b.explanation, formGroup: null });
+        }
+      }
       continue;
     }
 
@@ -1024,7 +1050,25 @@ export function parseReadingExam(parsed: {
       const flowStr = steps
         .map((step) => step.replace(/\{\{\s*(\d+)\s*\}\}/g, (_m, d) => { order.push(parseInt(d, 10)); return "_____"; }))
         .join("\n");
-      if (order.length === 0) continue;
+      if (order.length === 0) {
+        // Model listed blanks[] but omitted the {{N}} markers in the steps — don't
+        // drop the whole group; emit its blanks as plain fill-ins so no question is lost.
+        const nums = [...blankByNum.keys()].sort((a, b) => a - b);
+        if (nums.length === 0) continue;
+        nums.forEach((num, idx) => {
+          const bb = blankByNum.get(num)!;
+          questions.push({
+            number: num,
+            type: "FILL_BLANK",
+            prompt: idx === 0 ? flowStr : `(${num})`,
+            options: null,
+            answer: bb.answer,
+            explanation: bb.explanation,
+            formGroup: null,
+          });
+        });
+        continue;
+      }
       fcCounter++;
       const fg = `fc${fcCounter}`;
       order.forEach((num, idx) => {
@@ -1039,6 +1083,13 @@ export function parseReadingExam(parsed: {
           formGroup: fg,
         });
       });
+      // A blank in blanks[] whose {{N}} marker was missing from the steps is still
+      // emitted (plain fill-in) so no question is silently lost.
+      for (const [num, b] of blankByNum) {
+        if (!order.includes(num)) {
+          questions.push({ number: num, type: "FILL_BLANK", prompt: `(${num})`, options: null, answer: b.answer, explanation: b.explanation, formGroup: null });
+        }
+      }
       continue;
     }
 
@@ -1221,16 +1272,28 @@ function groqReadingErrorHint(msg: string): string {
  *  storm the rate limit) and NEVER throws — returns { parts: [], error } on failure
  *  so the caller degrades gracefully AND can tell the teacher WHY. When
  *  `tailFrom > 0` it asks only for passages whose questions come AFTER that number
- *  (used to recover a dropped final passage). */
-async function readingCallGroq(slice: string, tailFrom: number): Promise<{ parts: ReadingExamPart[]; error?: string }> {
-  const scope =
-    tailFrom > 0
+ *  (used to recover a dropped final passage). When `opts.singlePassage` the slice is
+ *  ONE passage, so it must return exactly that passage with ALL its questions. */
+async function readingCallGroq(
+  slice: string,
+  tailFrom: number,
+  opts: { model?: string; fallbackModels?: string[]; singlePassage?: boolean } = {},
+): Promise<{ parts: ReadingExamPart[]; error?: string }> {
+  const scope = opts.singlePassage
+    ? `Toàn bộ văn bản trên là MỘT phần đề đọc kèm câu hỏi của nó. Trả về ĐÚNG 1 "part": LẤY HẾT MỌI câu hỏi CÓ TRONG văn bản này (đừng bỏ câu nào), KHÔNG bịa thêm câu không có.`
+    : tailFrom > 0
       ? `CHỈ lấy các bài đọc chứa câu hỏi có SỐ THỨ TỰ LỚN HƠN ${tailFrom} (các bài ở phần SAU của đề, thường tới câu 40). Bỏ qua các câu đã ở phần đầu.`
       : `Lấy TẤT CẢ các bài đọc và MỌI câu hỏi trong đề (thường tới câu 40) — đừng bỏ bài nào, đừng bỏ câu nào.`;
-  const userMessage = `TEST PAPER TEXT (nhiều bài đọc + câu hỏi):
+  const label = opts.singlePassage
+    ? "TEST PAPER TEXT (MỘT phần đề + câu hỏi của nó):"
+    : "TEST PAPER TEXT (nhiều bài đọc + câu hỏi):";
+  const splitRule = opts.singlePassage
+    ? "Trả về ĐÚNG 1 part."
+    : 'TÁCH mỗi bài đọc riêng thành 1 "part" (đừng gộp nhiều bài vào một).';
+  const userMessage = `${label}
 ${slice}
 
-TÁCH mỗi bài đọc riêng thành 1 "part" (đừng gộp nhiều bài vào một). ${scope} Với mỗi bài: trích NGUYÊN VĂN, NỐI LẠI các dòng bị ngắt giữa câu thành đoạn văn trôi chảy, giữ ĐÚNG số thứ tự câu hỏi gốc, chấm đáp án đúng theo ĐÚNG ANSWER/OPTIONS RULES, và viết lời giải NGẮN (1 câu tiếng Việt). Nếu đề có BẢNG thì trả về block "TABLE"; nếu có BẢN ĐỒ/SƠ ĐỒ/PLAN thì VẼ LẠI bằng SVG trong block "MAP". Nếu đề rất dài, ưu tiên KHÔNG bỏ sót câu theo đúng thứ tự nhưng TỐI ĐA 30 câu. Trả về JSON only.`;
+${splitRule} ${scope} Với mỗi bài: trích NGUYÊN VĂN, NỐI LẠI các dòng bị ngắt giữa câu thành đoạn văn trôi chảy, giữ ĐÚNG số thứ tự câu hỏi gốc, chấm đáp án đúng theo ĐÚNG ANSWER/OPTIONS RULES, và viết lời giải NGẮN (1 câu tiếng Việt). Nếu đề có BẢNG thì trả về block "TABLE"; nếu có BẢN ĐỒ/SƠ ĐỒ/PLAN thì VẼ LẠI bằng SVG trong block "MAP". Trả về JSON only.`;
   try {
     const text = await groqChat(
       [
@@ -1238,11 +1301,20 @@ TÁCH mỗi bài đọc riêng thành 1 "part" (đừng gộp nhiều bài vào 
         { role: "user", content: userMessage },
       ],
       // Output bounded to fit Groq free tier's ~12k tokens/minute in ONE request
-      // (input ~4k + output ~5.2k stays under the ceiling → no "request too large").
-      // parseJsonLoose salvages the questions that finished if we still hit the cap.
-      // fallbackModels: if the 70B model is throttled/exhausted (429), auto-retry on
-      // another model with its own free-tier bucket so generation never dead-ends.
-      { jsonMode: true, temperature: 0.2, maxTokens: 5200, maxRetries: 2, timeoutMs: 50000, fallbackModels: READING_FALLBACK_MODELS },
+      // (input ~3-4k + output ~6k stays under the ceiling → no "request too large").
+      // 6000 gives a whole 13-14 question passage room to finish; parseJsonLoose
+      // salvages the questions that finished if we still hit the cap.
+      // model/fallbackModels: per-passage calls each prefer a DIFFERENT model so they
+      // don't drain one free-tier bucket, and still fall back if that model is 429'd.
+      {
+        jsonMode: true,
+        temperature: 0.2,
+        maxTokens: 6000,
+        maxRetries: 2,
+        timeoutMs: 50000,
+        model: opts.model,
+        fallbackModels: opts.fallbackModels ?? READING_FALLBACK_MODELS,
+      },
     );
     return { parts: parseReadingExamParts(parseJsonLoose(text) as Record<string, unknown>).parts };
   } catch (e) {
@@ -1294,6 +1366,185 @@ function detectPassageStarts(doc: string): number[] {
     if (gap < 3 || gap > 25) return []; // implausible spacing → don't trust it
   }
   return uniq;
+}
+
+/** Every "Questions X–Y" group the paper declares, with the char position of the
+ *  declaration. IELTS always heads each question group this way, so this tells us
+ *  how many questions exist and where — independent of passage headers. */
+function detectQuestionRanges(doc: string): { start: number; end: number; pos: number }[] {
+  const out: { start: number; end: number; pos: number }[] = [];
+  const re = /questions?\s+(\d+)\s*(?:[-–—]|to)\s*(\d+)/gi;
+  for (let m = re.exec(doc); m; m = re.exec(doc)) {
+    const s = parseInt(m[1], 10);
+    const e = parseInt(m[2], 10);
+    if (Number.isFinite(s) && Number.isFinite(e) && e >= s && e - s <= 30 && s >= 1 && e <= 60) {
+      out.push({ start: s, end: e, pos: m.index });
+    }
+  }
+  return out;
+}
+
+/**
+ * Char positions where each reading passage STARTS. Robust to how papers label
+ * passages: STRONG markers ("Reading Passage N", "Section N", "Part N") match
+ * anywhere (PDF reflow often glues them mid-line); a bare "Passage N" counts only at
+ * line start (so prose "…in the next passage two…" is ignored). If passage 1 is
+ * unlabeled (first marker is #2) but there is real text above it, a boundary at 0 is
+ * prepended. Returns the start positions (≥2, strictly increasing) or [] when there
+ * is no reliable multi-passage structure (caller then uses a single part).
+ */
+function passageBoundaries(doc: string): number[] {
+  const hits: { pos: number; num: number }[] = [];
+  const add = (re: RegExp) => {
+    for (let m = re.exec(doc); m; m = re.exec(doc)) {
+      const tok = m[1].toLowerCase();
+      const n = /^\d+$/.test(tok) ? parseInt(tok, 10) : PASSAGE_WORD[tok] ?? 0;
+      if (n >= 1 && n <= 6) hits.push({ pos: m.index, num: n });
+    }
+  };
+  // "Reading Passage N" never occurs in prose → match anywhere (catches a header the
+  // PDF extractor glued mid-line). "Section/Part/Passage N" DO appear in prose and as
+  // sub-headings → only count them at line start.
+  add(/reading\s+passage\s+(\d+|one|two|three|four)\b/gi);
+  add(/^[ \t]*(?:section|part|passage)\s+(\d+|one|two|three|four)\b/gim);
+  if (hits.length === 0) return [];
+  const firstPos = new Map<number, number>();
+  for (const h of hits.sort((a, b) => a.pos - b.pos)) if (!firstPos.has(h.num)) firstPos.set(h.num, h.pos);
+  let ordered = [...firstPos.entries()].map(([num, pos]) => ({ num, pos })).sort((a, b) => a.num - b.num);
+  // Passage 1 often has no label (paper just begins, then says "READING PASSAGE 2").
+  if (ordered[0].num === 2 && ordered[0].pos > 400) ordered = [{ num: 1, pos: 0 }, ...ordered];
+  if (ordered[0].num !== 1) return [];
+  for (let i = 1; i < ordered.length; i++) {
+    if (ordered[i].num !== ordered[i - 1].num + 1) return []; // gap → don't trust it
+    if (ordered[i].pos <= ordered[i - 1].pos) return []; // positions must increase
+  }
+  return ordered.length >= 2 ? ordered.map((o) => o.pos) : [];
+}
+
+interface ExtractBlock {
+  start: number;
+  end: number;
+  passageIndex: number;
+}
+
+/**
+ * Cut the paper into extraction blocks. When passages are detectable, ONE block per
+ * WHOLE passage (its full char span) — so every block carries its reading text and no
+ * passage is ever split across calls (a split later block would have no passage to
+ * grade against). Otherwise the paper is chunked by "Questions X–Y" groups (≤13 each)
+ * into a single part. Either way we extract by POSITION and renumber by position, so
+ * we never depend on the model preserving question numbers. Returns [] when the paper
+ * declares no question groups at all (caller uses a single call).
+ */
+function planExtractionBlocks(doc: string): ExtractBlock[] {
+  const ranges = detectQuestionRanges(doc).sort((a, b) => a.pos - b.pos);
+  if (ranges.length === 0) return [];
+  const bounds = passageBoundaries(doc);
+
+  if (bounds.length >= 2) {
+    // One block per passage span. Trust the boundaries only if EVERY span holds a
+    // question group — a span with none means the "boundary" was a sub-heading
+    // ("Section 1: Intro" inside a passage) or a stray mention, and splitting there
+    // would divide or drop real passage text. In that case fall through to chunking.
+    const blocks: ExtractBlock[] = [];
+    let allHaveQuestions = true;
+    for (let i = 0; i < bounds.length; i++) {
+      const start = bounds[i];
+      const end = i + 1 < bounds.length ? bounds[i + 1] : doc.length;
+      if (ranges.some((r) => r.pos >= start && r.pos < end)) blocks.push({ start, end, passageIndex: blocks.length });
+      else allHaveQuestions = false;
+    }
+    if (blocks.length >= 2 && allHaveQuestions) return blocks;
+  }
+
+  // No reliable passage structure — chunk by question groups (≤13 questions each so a
+  // reply never truncates), all in ONE part (passageIndex 0). Blocks tile by position.
+  const MAX_Q = 13;
+  const groups: { firstPos: number; qCount: number }[] = [];
+  for (const r of ranges) {
+    const rCount = Math.max(1, r.end - r.start + 1);
+    const cur = groups[groups.length - 1];
+    if (cur && cur.qCount + rCount <= MAX_Q) cur.qCount += rCount;
+    else groups.push({ firstPos: r.pos, qCount: rCount });
+  }
+  const starts: number[] = [];
+  for (let i = 0; i < groups.length; i++) {
+    let s = i === 0 ? 0 : groups[i].firstPos;
+    if (i > 0) s = Math.max(s, starts[i - 1] + 1);
+    starts.push(s);
+  }
+  return groups.map((g, i) => ({
+    start: starts[i],
+    end: i + 1 < starts.length ? starts[i + 1] : doc.length,
+    passageIndex: 0,
+  }));
+}
+
+/**
+ * Position-based reading extractor — the robust path. One Groq call per block (each
+ * ≤ ~13 questions, on rotating models so no single free-tier bucket drains), taking
+ * WHATEVER questions come back and renumbering them by position 1..N. Blocks of the
+ * same passage merge into one part. Never trusts the model's numbering, so a chunk
+ * whose numbers were restarted is NOT dropped (the old number-filter bug).
+ */
+async function generateByBlocks(doc: string): Promise<{ parts: ReadingExamPart[]; error: string }> {
+  const blocks = planExtractionBlocks(doc);
+  if (blocks.length === 0) return { parts: [], error: "" };
+  const MODELS = [DEFAULT_MODEL, "meta-llama/llama-4-scout-17b-16e-instruct", "llama-3.1-8b-instant"];
+
+  const results: { blockIndex: number; passageIndex: number; parts: ReadingExamPart[] }[] = [];
+  let lastError = "";
+  for (let i = 0; i < blocks.length; i++) {
+    const model = MODELS[i % MODELS.length];
+    const fallbackModels = MODELS.filter((m) => m !== model);
+    const text = doc.slice(blocks[i].start, Math.min(blocks[i].end, blocks[i].start + 16000));
+    let r = await readingCallGroq(text, 0, { model, fallbackModels, singlePassage: true });
+    // A whole passage came back empty (transient 429/parse miss) — try once more on a
+    // different primary model so we don't silently lose that passage and shift the rest.
+    if (r.parts.every((p) => p.questions.length === 0)) {
+      const alt = MODELS[(i + 1) % MODELS.length];
+      const r2 = await readingCallGroq(text, 0, { model: alt, fallbackModels: MODELS.filter((m) => m !== alt), singlePassage: true });
+      if (r2.parts.some((p) => p.questions.length > 0) || r2.error) r = r2;
+    }
+    if (r.error) lastError = r.error;
+    results.push({ blockIndex: i, passageIndex: blocks[i].passageIndex, parts: r.parts });
+  }
+
+  // Merge by passage, in doc order, renumbering by POSITION (never the model's number).
+  const acc = new Map<number, { questions: ReadingExamQuestion[]; figures: ReadingFigure[]; passages: string[] }>();
+  const order: number[] = [];
+  let running = 0;
+  for (const res of results) {
+    if (!acc.has(res.passageIndex)) {
+      acc.set(res.passageIndex, { questions: [], figures: [], passages: [] });
+      order.push(res.passageIndex);
+    }
+    const a = acc.get(res.passageIndex)!;
+    for (const p of res.parts) {
+      const oldToNew = new Map<number, number>();
+      for (const q of p.questions) {
+        running += 1;
+        oldToNew.set(q.number, running);
+        // Namespace the formGroup by source block so two tables/flow-charts that both
+        // came back as "tbl1"/"fc1" from different blocks never collide in one part.
+        a.questions.push({ ...q, number: running, formGroup: q.formGroup ? `b${res.blockIndex}_${q.formGroup}` : null });
+      }
+      const lastNum = a.questions.length ? a.questions[a.questions.length - 1].number : running;
+      for (const f of p.figures) a.figures.push({ ...f, atNumber: oldToNew.get(f.atNumber) ?? lastNum });
+      if (p.passage) a.passages.push(p.passage);
+    }
+  }
+
+  const parts: ReadingExamPart[] = [];
+  for (const pIdx of order) {
+    const a = acc.get(pIdx)!;
+    if (a.questions.length === 0) continue;
+    // Keep ALL distinct passage texts (a one-part header-less paper may have gathered
+    // several) so no reading text is lost; the common one-block part just uses its own.
+    const passage = [...new Set(a.passages.filter(Boolean))].join("\n\n");
+    parts.push({ title: "", passage, questions: a.questions, figures: a.figures });
+  }
+  return { parts, error: lastError };
 }
 
 /**
@@ -1362,41 +1613,54 @@ function rebinPartsByDocBoundaries(parts: ReadingExamPart[], doc: string): Readi
 }
 
 /**
- * Groq reading generator — the ONLY engine when Claude isn't configured. Groq's
- * free tier is tokens-per-minute limited, so we keep it to ONE well-sized call
- * (a second big call in the same minute 429s and stalls). The response is parsed
- * loosely (a cut-off reply still yields its finished questions), then questions
- * are RE-BINNED into the right passages using the paper's own markers so a
- * passage's last questions don't leak into the next part.
- * Tables/maps are emitted via the shared TABLE/MAP blocks.
+ * Groq reading generator — the ONLY engine when Claude isn't configured.
+ *
+ * ROBUST path (paper declares "Questions X–Y" groups): position-based block
+ * extraction — the paper is sliced at the CHAR POSITIONS of its question-group
+ * headers into blocks of ≤13 questions, each extracted on a rotating model and
+ * renumbered by POSITION. It never trusts the model's own numbering (weak models
+ * restart at 1), so no chunk is ever silently dropped — this is what fixes
+ * "29 declared but only 14 produced / wrong split". Blocks of the same passage
+ * merge into one part.
+ *
+ * FALLBACK path (no declared groups — tiny/odd paper): a single bounded call,
+ * parsed loosely, then re-binned by whatever markers exist. Tables/maps ride the
+ * shared TABLE/MAP blocks either way.
  */
 export async function generateReadingExamGroq(input: { documentText: string }): Promise<ReadingExamMulti> {
   const doc = input.documentText;
 
-  // ONE well-sized call — no fan-out. Groq's free tier is ~12k tokens/MINUTE, so a
-  // SECOND big call in the same minute reliably 429s and stalls the request; that
-  // two-call design was why generation "ran long then errored". A single bounded
-  // call over the front of the paper (which the 30-question cap already targets),
-  // parsed loosely so a cut-off response still yields its finished questions, loads
-  // fast and never hangs. Need the full 40? "Tạo lại" (a fresh minute resets the
-  // budget) or a valid ANTHROPIC_API_KEY (Claude reads the whole PDF at once).
-  const r1 = await readingCallGroq(doc.slice(0, 16000), 0);
-  let parts = r1.parts;
-  let lastError = r1.error ?? "";
+  let parts: ReadingExamPart[];
+  let lastError = "";
 
-  // Last resort ONLY when the first call produced nothing (empty/failed): a smaller
-  // slice is lighter and more likely to fit. Mutually exclusive with a good first
-  // result, so we never fire two heavy calls back-to-back.
-  if (parts.every((p) => p.questions.length === 0)) {
-    const r2 = await readingCallGroq(doc.slice(0, 11000), 0);
-    parts = r2.parts;
-    if (r2.error) lastError = r2.error;
+  const blocks = planExtractionBlocks(doc);
+  if (blocks.length > 0) {
+    const r = await generateByBlocks(doc);
+    parts = r.parts;
+    lastError = r.error;
+    // Total failure of the block path (all blocks errored/empty) → one plain call.
+    if (parts.every((p) => p.questions.length === 0)) {
+      const r1 = await readingCallGroq(doc.slice(0, 16000), 0);
+      if (r1.parts.some((p) => p.questions.length > 0)) parts = rebinPartsByDocBoundaries(r1.parts, doc);
+      if (r1.error) lastError = r1.error;
+    }
+  } else {
+    // No declared "Questions X–Y" groups (tiny/odd paper) — one bounded call.
+    const r1 = await readingCallGroq(doc.slice(0, 16000), 0);
+    parts = r1.parts;
+    lastError = r1.error ?? "";
+    if (parts.every((p) => p.questions.length === 0)) {
+      const r2 = await readingCallGroq(doc.slice(0, 11000), 0);
+      parts = r2.parts;
+      if (r2.error) lastError = r2.error;
+    }
+    parts = rebinPartsByDocBoundaries(parts, doc);
   }
 
-  // Re-bin questions into the correct passages from the paper's markers (fixes a
-  // passage's tail questions leaking into the next part).
-  parts = rebinPartsByDocBoundaries(parts, doc);
-
+  const declaredMax = (() => {
+    const rs = detectQuestionRanges(doc);
+    return rs.length ? Math.max(...rs.map((r) => r.end)) : 0;
+  })();
   const produced = parts.reduce((n, p) => n + p.questions.length, 0);
   let notes = "";
   if (produced === 0) {
@@ -1405,7 +1669,9 @@ export async function generateReadingExamGroq(input: { documentText: string }): 
     notes = lastError
       ? groqReadingErrorHint(lastError)
       : "AI chưa đọc được câu hỏi trong file — có thể file là ảnh scan (không có chữ). Hãy thử lại hoặc nhập đáp án thủ công.";
-  } else if (produced < 30) {
+  } else if (declaredMax >= 3 && produced < declaredMax - 1) {
+    notes = `Mới tạo ${produced}/${declaredMax} câu — có thể còn thiếu vài câu (một phần đề bị lỗi tải). Bấm "Tạo lại" để bổ sung, hoặc thêm khoá Anthropic để AI đọc trọn đề.`;
+  } else if (declaredMax === 0 && produced < 30) {
     notes = `Mới tạo ${produced} câu — Groq (bản miễn phí) giới hạn dung lượng mỗi lượt nên có thể còn thiếu. Bấm "Tạo lại" để bổ sung, hoặc thêm khoá Anthropic để AI đọc trọn đề.`;
   }
   return { parts, notes };
