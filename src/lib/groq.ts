@@ -1422,30 +1422,62 @@ function passageBoundaries(doc: string): number[] {
 }
 
 /**
+ * Within a gap between two question groups, find where the next passage's READING
+ * TEXT begins — i.e. the first long run of prose that isn't question stems, options,
+ * or instructions. This is exactly the teacher's rule: "when the questions stop and
+ * the passage appears, that part's questions are done." Returns the char offset
+ * inside `seg`, or -1 if no clear prose block is found.
+ */
+function findPassageTextStart(seg: string): number {
+  const isItem = (line: string): boolean => {
+    const s = line.trim();
+    if (s.length === 0) return false;
+    // Instruction lines are items regardless of length.
+    if (/^(?:do the following|answer the|choose\b|complete\b|write\b|give\b|questions?\s+\d|using the|from the (?:passage|list|box)|match\b|label\b|which\b)/i.test(s)) return true;
+    if (s.length > 78) return false; // long line → passage prose, not a question item
+    // Numbered stems, lettered options, TFNG keywords, section labels.
+    return /^(?:\d{1,2}[.)]\s|[A-J][.)]?\s|i{1,3}\.|iv\.|v\.|true\b|false\b|not\s+given\b|yes\b|no\b|section\b|part\b|reading\b|passage\b)/i.test(s);
+  };
+  let offset = 0;
+  let runStart = -1;
+  let runLen = 0;
+  for (const line of seg.split("\n")) {
+    if (isItem(line)) {
+      runStart = -1;
+      runLen = 0;
+    } else if (line.trim().length > 0) {
+      if (runStart < 0) runStart = offset;
+      runLen += line.trim().length;
+      // ≥600 chars of contiguous prose = a reading passage (a summary-completion
+      // paragraph or a long instruction is shorter and won't reach this).
+      if (runLen >= 600) return runStart;
+    }
+    offset += line.length + 1; // + newline
+  }
+  return -1;
+}
+
+/**
  * When a paper labels its passages only by TITLE ("Make That Wine!", "Destination
  * Mars") — no "Reading Passage N" / "Section N" — infer the passage boundaries from
- * the layout: a passage's reading text is a big block of prose, so a LARGE gap
- * between two consecutive "Questions X–Y" groups means a new passage's text sits in
- * between. Question groups WITHIN one passage sit close together. The cut is placed
- * in the middle of the prose gap (safely past the previous group's items, inside the
- * next passage's text). Returns boundary positions (≥2) or [] if none stand out.
+ * the layout: a new passage's reading text is a big block of prose, so wherever a
+ * real reading-passage prose block sits between two consecutive "Questions X–Y"
+ * groups, a new passage begins. Question groups WITHIN one passage sit close
+ * together with no such prose block between them. The cut is placed EXACTLY where
+ * that prose begins — so every question BEFORE it stays in the current part, and the
+ * passage + its questions form the next part (the teacher's rule: "when the
+ * questions stop and the passage appears, that part's questions are done"). Returns
+ * boundary positions (≥2) or [] if none stand out.
  */
 function inferBoundariesByGap(doc: string, ranges: { start: number; end: number; pos: number }[]): number[] {
   if (ranges.length < 2) return [];
-  const GAP = 1600; // a passage's reading text always exceeds this; intra-passage gaps don't
   const bounds = [0];
   for (let i = 1; i < ranges.length; i++) {
-    const gap = ranges[i].pos - ranges[i - 1].pos;
-    if (gap >= GAP) {
-      // Cut just PAST the previous group's question items (sized by its question count,
-      // ~180 chars each) so the next passage's block keeps as much of its reading text
-      // as possible — but never past 60% of the gap, so a long previous group's items
-      // are not split into the next block (which would re-extract them).
-      const prevCount = Math.max(1, ranges[i - 1].end - ranges[i - 1].start + 1);
-      const reserve = Math.min(prevCount * 180 + 300, Math.floor(gap * 0.6));
-      const cut = ranges[i - 1].pos + reserve;
-      bounds.push(Math.max(cut, bounds[bounds.length - 1] + 1));
-    }
+    if (ranges[i].pos - ranges[i - 1].pos < 500) continue; // groups adjacent → same passage
+    const seg = doc.slice(ranges[i - 1].pos, ranges[i].pos);
+    const rel = findPassageTextStart(seg);
+    if (rel < 0) continue; // no reading passage between them → same passage
+    bounds.push(Math.max(ranges[i - 1].pos + rel, bounds[bounds.length - 1] + 1));
   }
   return bounds.length >= 2 && bounds.length <= 6 ? bounds : [];
 }
