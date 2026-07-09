@@ -1421,6 +1421,35 @@ function passageBoundaries(doc: string): number[] {
   return ordered.length >= 2 ? ordered.map((o) => o.pos) : [];
 }
 
+/**
+ * When a paper labels its passages only by TITLE ("Make That Wine!", "Destination
+ * Mars") — no "Reading Passage N" / "Section N" — infer the passage boundaries from
+ * the layout: a passage's reading text is a big block of prose, so a LARGE gap
+ * between two consecutive "Questions X–Y" groups means a new passage's text sits in
+ * between. Question groups WITHIN one passage sit close together. The cut is placed
+ * in the middle of the prose gap (safely past the previous group's items, inside the
+ * next passage's text). Returns boundary positions (≥2) or [] if none stand out.
+ */
+function inferBoundariesByGap(doc: string, ranges: { start: number; end: number; pos: number }[]): number[] {
+  if (ranges.length < 2) return [];
+  const GAP = 1600; // a passage's reading text always exceeds this; intra-passage gaps don't
+  const bounds = [0];
+  for (let i = 1; i < ranges.length; i++) {
+    const gap = ranges[i].pos - ranges[i - 1].pos;
+    if (gap >= GAP) {
+      // Cut just PAST the previous group's question items (sized by its question count,
+      // ~180 chars each) so the next passage's block keeps as much of its reading text
+      // as possible — but never past 60% of the gap, so a long previous group's items
+      // are not split into the next block (which would re-extract them).
+      const prevCount = Math.max(1, ranges[i - 1].end - ranges[i - 1].start + 1);
+      const reserve = Math.min(prevCount * 180 + 300, Math.floor(gap * 0.6));
+      const cut = ranges[i - 1].pos + reserve;
+      bounds.push(Math.max(cut, bounds[bounds.length - 1] + 1));
+    }
+  }
+  return bounds.length >= 2 && bounds.length <= 6 ? bounds : [];
+}
+
 interface ExtractBlock {
   start: number;
   end: number;
@@ -1439,7 +1468,10 @@ interface ExtractBlock {
 function planExtractionBlocks(doc: string): ExtractBlock[] {
   const ranges = detectQuestionRanges(doc).sort((a, b) => a.pos - b.pos);
   if (ranges.length === 0) return [];
-  const bounds = passageBoundaries(doc);
+  // Prefer labelled boundaries ("Reading Passage N" / "Section N"); if the paper
+  // labels passages only by title, infer the boundaries from the prose-gap layout.
+  const labelled = passageBoundaries(doc);
+  const bounds = labelled.length >= 2 ? labelled : inferBoundariesByGap(doc, ranges);
 
   if (bounds.length >= 2) {
     // One block per passage span. Trust the boundaries only if EVERY span holds a
