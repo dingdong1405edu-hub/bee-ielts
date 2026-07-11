@@ -12,6 +12,7 @@ import { FileText, Headphones, ImageIcon, Link2, Loader2, Upload, X } from "luci
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 type FileKind = "pdf" | "audio" | "image";
 
@@ -38,20 +39,38 @@ export function PaperFileField({
   maxBytes: number;
 }) {
   const [busy, setBusy] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  // `dragleave` also fires when the pointer crosses a CHILD node, so a plain
+  // boolean flickers. Count enter/leave pairs and only drop the highlight at 0.
+  const dragDepth = useRef(0);
 
   const url = value.trim();
   const isData = url.startsWith("data:");
-  const accept = kind === "pdf" ? "application/pdf" : kind === "image" ? "image/*" : "audio/*";
+  const accept =
+    kind === "pdf"
+      ? "application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.pdf,.docx"
+      : kind === "image"
+        ? "image/*"
+        : "audio/*";
+  // Một số trình duyệt/OS trả `type` rỗng cho .docx → phải xét thêm phần đuôi file.
+  const isDoc = (f: File) =>
+    f.type === "application/pdf" ||
+    f.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    /\.(pdf|docx)$/i.test(f.name);
   const typeOk = (f: File) =>
-    kind === "pdf" ? f.type === "application/pdf" : kind === "image" ? f.type.startsWith("image/") : f.type.startsWith("audio/");
+    kind === "pdf" ? isDoc(f) : kind === "image" ? f.type.startsWith("image/") : f.type.startsWith("audio/");
   const maxMb = Math.round(maxBytes / 1024 / 1024);
 
   const onFile = async (file: File | undefined) => {
     if (!file) return;
     if (!typeOk(file)) {
       toast.error(
-        kind === "pdf" ? "Hãy chọn một file PDF" : kind === "image" ? "Hãy chọn một ảnh" : "Hãy chọn một file âm thanh (mp3, m4a…)",
+        kind === "pdf"
+          ? "Hãy chọn một file PDF hoặc .docx"
+          : kind === "image"
+            ? "Hãy chọn một ảnh"
+            : "Hãy chọn một file âm thanh (mp3, m4a…)",
       );
       return;
     }
@@ -73,7 +92,37 @@ export function PaperFileField({
     }
   };
 
+  // Drag & drop. `preventDefault` on dragOver is REQUIRED — without it the
+  // browser treats the drop as navigation and opens the file, losing the page.
+  const dragProps = {
+    onDragEnter: (e: React.DragEvent) => {
+      e.preventDefault();
+      if (busy) return;
+      dragDepth.current += 1;
+      setDragging(true);
+    },
+    onDragOver: (e: React.DragEvent) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+    },
+    onDragLeave: (e: React.DragEvent) => {
+      e.preventDefault();
+      dragDepth.current = Math.max(0, dragDepth.current - 1);
+      if (dragDepth.current === 0) setDragging(false);
+    },
+    onDrop: (e: React.DragEvent) => {
+      e.preventDefault();
+      dragDepth.current = 0;
+      setDragging(false);
+      if (busy) return;
+      void onFile(e.dataTransfer.files?.[0]); // onFile already validates type + size
+    },
+  };
+
   const Icon = kind === "pdf" ? FileText : kind === "image" ? ImageIcon : Headphones;
+  const dropHint = kind === "pdf" ? "file PDF / .docx" : kind === "image" ? "ảnh" : "file âm thanh";
+  // Trình duyệt không xem trước được .docx trong <iframe> → chỉ hiện thẻ tên file.
+  const isDocx = /wordprocessingml|\.docx(\?|$)/i.test(url);
 
   return (
     <div className="space-y-2">
@@ -101,19 +150,47 @@ export function PaperFileField({
           ) : kind === "image" ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={url} alt={label} className="max-h-64 w-full rounded-md border bg-white object-contain" />
+          ) : isDocx ? (
+            <p className="rounded-md border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+              File Word (.docx) — không xem trước được trong trình duyệt. AI vẫn đọc bình thường.
+            </p>
           ) : (
             <iframe src={url} title={label} className="h-64 w-full rounded-md border bg-white" />
           )}
         </div>
       ) : (
-        <div className="relative">
-          <Link2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder="Dán URL công khai: https://…"
-            className="pl-8"
-          />
+        <div
+          {...dragProps}
+          className={cn(
+            "space-y-3 rounded-xl border-2 border-dashed p-4 transition-colors",
+            dragging ? "border-primary bg-primary/5" : "border-muted-foreground/25 bg-muted/20",
+          )}
+        >
+          <div className="relative">
+            <Link2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder="Dán URL công khai: https://…"
+              className="pl-8"
+            />
+          </div>
+
+          <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-muted-foreground">
+            <span className="h-px flex-1 bg-border" />
+            hoặc
+            <span className="h-px flex-1 bg-border" />
+          </div>
+
+          <p className="text-center text-sm text-muted-foreground">
+            {dragging ? (
+              <span className="font-semibold text-primary">Thả {dropHint} vào đây…</span>
+            ) : (
+              <>
+                Kéo &amp; thả {dropHint} vào đây, hoặc bấm nút bên dưới
+              </>
+            )}
+          </p>
         </div>
       )}
 

@@ -9,7 +9,7 @@ const VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 // has its own separate bucket, so generation keeps working without the teacher
 // waiting or touching anything. Ordered best-quality-first; both still emit valid
 // structured JSON for reading/listening generation.
-const READING_FALLBACK_MODELS = ["meta-llama/llama-4-scout-17b-16e-instruct", "llama-3.1-8b-instant"];
+export const GROQ_FALLBACK_MODELS = ["meta-llama/llama-4-scout-17b-16e-instruct", "llama-3.1-8b-instant"];
 
 interface GroqMessage {
   role: "system" | "user" | "assistant";
@@ -665,7 +665,7 @@ Tìm mọi câu hỏi có đánh số, chấm đáp án đúng, và viết lời
     ],
     // Same auto-fallback as reading: if the primary model is 429'd, another model's
     // bucket takes over so building the answer key from an upload never dead-ends.
-    { jsonMode: true, temperature: 0.2, maxTokens: 3500, fallbackModels: READING_FALLBACK_MODELS },
+    { jsonMode: true, temperature: 0.2, maxTokens: 3500, fallbackModels: GROQ_FALLBACK_MODELS },
   );
 
   const parsed = extractJSON(text) as { questions?: unknown; notes?: unknown };
@@ -1313,7 +1313,7 @@ ${splitRule} ${scope} Với mỗi bài: trích NGUYÊN VĂN, NỐI LẠI các d�
         maxRetries: 2,
         timeoutMs: 50000,
         model: opts.model,
-        fallbackModels: opts.fallbackModels ?? READING_FALLBACK_MODELS,
+        fallbackModels: opts.fallbackModels ?? GROQ_FALLBACK_MODELS,
       },
     );
     return { parts: parseReadingExamParts(parseJsonLoose(text) as Record<string, unknown>).parts };
@@ -1438,6 +1438,12 @@ function findPassageTextStart(seg: string): number {
     // Numbered stems, lettered options, TFNG keywords, section labels.
     return /^(?:\d{1,2}[.)]\s|[A-J][.)]?\s|i{1,3}\.|iv\.|v\.|true\b|false\b|not\s+given\b|yes\b|no\b|section\b|part\b|reading\b|passage\b)/i.test(s);
   };
+  // Chỉ dòng ĐỦ DÀI mới được tính là văn xuôi bài đọc. Ô của BẢNG (file .docx
+  // trích ra mỗi ô một dòng ngắn ~20–50 ký tự) và các dòng ngắn khác bị bỏ qua —
+  // không cộng dồn, cũng không reset. Nếu đếm cả dòng ngắn, một bảng to nằm giữa
+  // hai cụm "Questions X–Y" sẽ vượt ngưỡng 600 và bị nhầm là bài đọc mới, cắt
+  // part sai (đã tái hiện được với đề Word có bảng).
+  const MIN_PROSE_LINE = 60;
   let offset = 0;
   let runStart = -1;
   let runLen = 0;
@@ -1445,7 +1451,7 @@ function findPassageTextStart(seg: string): number {
     if (isItem(line)) {
       runStart = -1;
       runLen = 0;
-    } else if (line.trim().length > 0) {
+    } else if (line.trim().length >= MIN_PROSE_LINE) {
       if (runStart < 0) runStart = offset;
       runLen += line.trim().length;
       // ≥600 chars of contiguous prose = a reading passage (a summary-completion
