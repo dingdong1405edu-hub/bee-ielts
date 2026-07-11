@@ -10,6 +10,7 @@ import { ExamCountdown } from "@/components/learn/exam-countdown";
 import { StudySchedule } from "@/components/learn/study-schedule";
 import { PremiumCouponCards } from "@/components/learn/premium-coupon-cards";
 import { DashboardClasses, type DashAssignment } from "@/components/learn/dashboard-classes";
+import { WeeklyDigestTrigger } from "@/components/learn/weekly-digest-trigger";
 import { BeeMascot, Leaf } from "@/components/brand";
 
 // Per-skill accent gradients — vibrant, distinct hue per module (Duolingo
@@ -132,6 +133,8 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
+      {/* Sinh tin tổng kết tuần (nếu tuần này chưa có) — chạy nền, không render gì. */}
+      <WeeklyDigestTrigger />
       {/* Hero: always the Bee IELTS mascot on the left (user feedback:
           "cái phần chữ t này để ảnh con ong cơ mà" — the Google default
           letter-avatar must NOT show here; the brand bee always does).

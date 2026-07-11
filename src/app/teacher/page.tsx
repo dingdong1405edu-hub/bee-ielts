@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { canManageAllClasses } from "@/lib/teacher-auth";
 import { TeacherHome, type TeacherClass } from "@/components/teacher/teacher-home";
+import { WeeklyDigestTrigger } from "@/components/learn/weekly-digest-trigger";
 
 export const dynamic = "force-dynamic";
 
@@ -83,5 +84,11 @@ export default async function TeacherPage() {
     })),
   }));
 
-  return <TeacherHome initialClasses={shaped} />;
+  return (
+    <>
+      {/* Sinh bản tổng kết tuần của các lớp (nếu tuần này chưa có) — chạy nền. */}
+      <WeeklyDigestTrigger />
+      <TeacherHome initialClasses={shaped} />
+    </>
+  );
 }

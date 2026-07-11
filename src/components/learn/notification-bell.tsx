@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, Megaphone, Tag, Info, X, Copy, Users, LifeBuoy, GraduationCap } from "lucide-react";
+import { Bell, Megaphone, Tag, Info, X, Copy, Users, LifeBuoy, GraduationCap, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { playNotifySfx } from "@/lib/quiz-sfx";
 
@@ -25,6 +25,8 @@ function meta(k: string) {
     return { label: "Lớp học", Icon: GraduationCap, cls: "bg-honey-tint text-honey-deep dark:bg-honey/20 dark:text-honey" };
   if (k === "support")
     return { label: "Hỗ trợ", Icon: LifeBuoy, cls: "bg-leaf/15 text-leaf-deep dark:bg-leaf/20 dark:text-leaf" };
+  if (k === "weekly")
+    return { label: "Tuần qua", Icon: TrendingUp, cls: "bg-leaf/15 text-leaf-deep dark:bg-leaf/20 dark:text-leaf" };
   if (k === "post")
     return { label: "Cộng đồng", Icon: Users, cls: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300" };
   if (k === "update")

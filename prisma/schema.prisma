@@ -155,6 +155,34 @@ model User {
   questionsCreated    Question[]               @relation("QuestionsCreated") // đề riêng GV tự tạo
   joinRequests        ClassJoinRequest[]       @relation("StudentJoinRequests") // xin vào lớp riêng tư
   notifications       Notification[]           @relation("UserNotifications")
+  weeklyDigests       WeeklyDigest[]           @relation("UserWeeklyDigests")
+}
+
+/// One AI-written weekly summary per user per ISO week ("chủ động đẩy" tổng kết
+/// tuần). Generated lazily the first time the user opens the app in a new week.
+/// The unique (userId, weekStart) doubles as a LOCK: the row is inserted BEFORE
+/// the AI call, so two tabs can't both generate. `body` stays "" until the AI
+/// reply lands — a stale empty row (crashed run) is retried on the next open.
+model WeeklyDigest {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation("UserWeeklyDigests", fields: [userId], references: [id], onDelete: Cascade)
+  /// Monday 00:00 UTC of the week the digest is DELIVERED in. It summarises the
+  /// 7 days immediately before this instant (the week that just ended).
+  weekStart DateTime
+  /// "STUDENT" (kết quả của chính mình) | "TEACHER" (tổng kết các lớp).
+  audience  String
+  title     String
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+  /// Thời điểm giành khoá gần nhất. Một hàng `body = ""` cũ hơn STALE_LOCK_MS
+  /// nghĩa là lần sinh trước đã chết → cho phép thử lại. Gate theo trường này
+  /// (KHÔNG phải createdAt, vốn không bao giờ đổi) nên mỗi lần thử lại đều lùi
+  /// cửa sổ retry — vừa chống trùng, vừa chặn spam gọi AI.
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, weekStart])
+  @@index([userId, createdAt])
 }
 
 /// Per-user notification surfaced in the bell (alongside admin announcements &
@@ -1172,7 +1200,9 @@ model Submission {
   studentId    String
   student      User             @relation("StudentSubmissions", fields: [studentId], references: [id], onDelete: Cascade)
   status       SubmissionStatus @default(PENDING)
-  /// Điểm tổng (phần trăm 0–100). Null khi chưa chấm.
+  /// Điểm tổng — IELTS band 0–9 (bước 0.5), do GradingService ghi `result.band`.
+  /// KHÔNG phải phần trăm: đọc ra phải hiển thị 1 chữ số thập phân (6.5), làm
+  /// tròn về số nguyên sẽ mất nửa band. Null khi chưa chấm.
   totalScore   Float?
   /// Câu trả lời của học sinh — mảng { questionId, answer } (JSON).
   answers      Json?
