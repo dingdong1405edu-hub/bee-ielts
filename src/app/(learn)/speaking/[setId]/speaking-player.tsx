@@ -4,101 +4,41 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Mic, Loader2, Volume2, ArrowRight, Trophy, Play, Timer,
-  Sparkles, MessageSquareQuote, ArrowRightToLine, Wand2, Check, ClipboardList, AlertTriangle, X,
-} from "lucide-react";
-import { formatDuration, cn, personalize } from "@/lib/utils";
-import { TipsCard } from "@/components/learn/tips-card";
-import { VocabSuggestions, type VocabItem } from "@/components/learn/writing-feedback";
+import { Mic, Loader2, Volume2, ArrowRight, Play, Timer, Check, X } from "lucide-react";
+import { formatDuration, cn } from "@/lib/utils";
 import { playExaminerLine, playStartBeep, timeOfDayGreeting, resetTtsPathLock, primeAudioPlayback, stopExaminerLine } from "@/lib/tts";
 import { startWebSpeech, isWebSpeechSupported, type WebSpeechSession } from "@/lib/web-speech";
-import {Leaf, MascotBubble, BeeMascot } from "@/components/brand";
-
-interface DGWord {
-  word: string;
-  confidence: number;
-}
-interface QResult {
-  transcript: string;
-  words: DGWord[];
-}
-interface Phrase {
-  phrase: string;
-  use: string;
-  /** Vietnamese meaning + when to use — so VN learners understand the idiom. */
-  meaningVi?: string;
-}
-interface QTip {
-  question: string;
-  opener: string;
-  advice: string;
-  /** Full model answer to this question, written at the learner's target band. */
-  modelAnswer?: string;
-}
-interface Correction {
-  original: string;
-  corrected: string;
-  explanation: string;
-  /** The exact wrong word/phrase to bold, and its fix shown right beside it. */
-  word?: string;
-  fix?: string;
-  type?: "grammar" | "vocab";
-}
-interface PronFix {
-  word: string;
-  ipa: string;
-  tip: string;
-}
-interface ParaphraseExample {
-  question: string;
-  candidateSaid: string;
-  comment: string;
-}
-interface Paraphrasing {
-  level: "verbatim" | "minimal" | "partial" | "strong";
-  examples: ParaphraseExample[];
-  impact: string;
-}
-interface FluencyFlag {
-  fillerCount?: number;
-  fillers?: string[];
-  severity?: "none" | "low" | "medium" | "high";
-  warning?: string;
-  advice?: string;
-}
-interface SpeakingResult {
-  overallBand: number;
-  criteria: {
-    fluencyCoherence: { band: number; feedback: string };
-    lexicalResource: { band: number; feedback: string };
-    grammaticalRange: { band: number; feedback: string };
-    pronunciation: { band: number; feedback: string; note?: string };
-  };
-  fluency?: FluencyFlag;
-  paraphrasing?: Paraphrasing;
-  observations: string[];
-  corrections?: Correction[];
-  pronunciationFixes?: PronFix[];
-  questionTips?: QTip[];
-  usefulPhrases?: Phrase[];
-  collocations?: VocabItem[];
-  phrasalVerbs?: VocabItem[];
-  improvedSample?: string;
-  /** Band the model answers were written at (= learner's target band). */
-  modelBand?: number | string;
-  summary: string;
-}
+import { Leaf, MascotBubble } from "@/components/brand";
+import {
+  SpeakingResultView,
+  LOW_CONF,
+  FILLER_TOKENS,
+  type SpeakingResult,
+  type QResult,
+  type DGWord,
+  type SpeakingReviewItem,
+} from "@/components/learn/speaking-result-view";
 
 type Phase = "intro" | "part1" | "part2-prep" | "part2-speak" | "part3" | "grading" | "done";
 type PartNum = 1 | 2 | 3;
 
-// Words below this recogniser confidence are treated as mispronounced / unclear.
-const LOW_CONF = 0.7;
-// Filler/hesitation tokens kept in the transcript (filler_words=true). They are
-// the examiner's Fluency evidence, NOT mispronunciations — exclude them from the
-// low-confidence list so they're never shown as "phát âm sai".
-const FILLER_TOKENS = new Set(["um", "uh", "uhh", "umm", "er", "err", "erm", "mm", "mmm", "hmm", "ah", "huh"]);
+/** HOMEWORK mode config. When present, the player skips the practice intro, runs
+ *  a single fixed part (the teacher's question list), grades through the
+ *  submissions endpoint (persisting the band + counting attempts), and shows
+ *  homework CTAs instead of "Làm bài khác". Absent = the normal practice player. */
+export interface HomeworkConfig {
+  assignmentId: string;
+  /** Which IELTS part this homework is (label only — the flow is question-by-question). */
+  partLabel: PartNum;
+  /** 0 = unlimited. */
+  attemptsAllowed: number;
+  attemptCount: number;
+  /** Where "Về lớp học" navigates. */
+  exitHref: string;
+  /** Teacher previewing — grade through the practice endpoint (no membership
+   *  gate, nothing persisted) so they see the exact student player without a 403. */
+  previewMode?: boolean;
+}
 
 const empty = (): QResult => ({ transcript: "", words: [] });
 
@@ -111,6 +51,8 @@ export function SpeakingPlayer({
   part2CueCard,
   part3Questions: rawPart3,
   initialParts,
+  homework,
+  onExit,
 }: {
   setId: string;
   topic: string;
@@ -121,6 +63,11 @@ export function SpeakingPlayer({
   part3Questions: string[];
   /** When provided via ?parts=N, pre-select these parts. A single part skips the intro. */
   initialParts?: PartNum[];
+  /** Present → HOMEWORK mode (see HomeworkConfig): single part, submissions
+   *  endpoint, homework CTAs. Absent → normal practice player. */
+  homework?: HomeworkConfig;
+  /** Overrides where the top-bar "Thoát" navigates (homework → back to class). */
+  onExit?: () => void;
 }) {
   // Config (luyennoi-style intro card): how many Part-1 questions to play,
   // whether to run in "Căng" 30-sec-per-question mode, voice + follow-ups.
@@ -129,11 +76,13 @@ export function SpeakingPlayer({
   const maxQuestions = Math.min(9, maxAvailableP1);
   const defaultNum = Math.min(4, maxAvailableP1);
   const [numQuestions, setNumQuestions] = useState(defaultNum);
-  const [mode, setMode] = useState<"cang" | "thuong">("cang");
+  // Homework isn't cut off at 30s — it defaults to the untimed "Thường" flow so
+  // a student can give a full answer. Practice keeps the exam-like "Căng" default.
+  const [mode, setMode] = useState<"cang" | "thuong">(homework ? "thuong" : "cang");
   const [enableFollowUp, setEnableFollowUp] = useState(true);
-  // Practise format: numQuestions in Part 1, 1 cue card in Part 2, 1 question in Part 3.
-  const part1Questions = rawPart1.slice(0, numQuestions);
-  const part3Questions = rawPart3.slice(0, 1);
+  // Homework runs the WHOLE teacher question list; practice slices to numQuestions.
+  const part1Questions = homework ? rawPart1 : rawPart1.slice(0, numQuestions);
+  const part3Questions = homework ? [] : rawPart3.slice(0, 1);
   const router = useRouter();
   const startedAtRef = useRef<number>(Date.now());
   // Examiner voice — Aurora, served via the user's own hosted endpoint.
@@ -141,17 +90,28 @@ export function SpeakingPlayer({
   // expects it; the server now ignores it and always plays Aurora.
   const voice = "aurora";
 
+  // "Thoát" / exit target: homework → back to the class; practice → /speaking.
+  const exitToHome = () => (onExit ? onExit() : router.push(homework ? homework.exitHref : "/speaking"));
+
   const presetSinglePart = initialParts && initialParts.length === 1 ? initialParts[0] : null;
-  const initialPhase: Phase = presetSinglePart
-    ? presetSinglePart === 1
-      ? "part1"
-      : presetSinglePart === 2
-        ? "part2-prep"
-        : "part3"
-    : "intro";
-  const initialSelected: Record<PartNum, boolean> = initialParts && initialParts.length > 0
-    ? { 1: initialParts.includes(1), 2: initialParts.includes(2), 3: initialParts.includes(3) }
-    : { 1: true, 2: true, 3: true };
+  // Homework still opens on a slim "intro" gate — the audio-playback + mic
+  // permission MUST be primed inside a real user gesture ("Bắt đầu"), or the
+  // browser blocks the examiner TTS and the auto-record. Every question then
+  // runs through the Part-1 machinery (same examiner UI; top bar relabels "PART n").
+  const initialPhase: Phase = homework
+    ? "intro"
+    : presetSinglePart
+      ? presetSinglePart === 1
+        ? "part1"
+        : presetSinglePart === 2
+          ? "part2-prep"
+          : "part3"
+      : "intro";
+  const initialSelected: Record<PartNum, boolean> = homework
+    ? { 1: true, 2: false, 3: false }
+    : initialParts && initialParts.length > 0
+      ? { 1: initialParts.includes(1), 2: initialParts.includes(2), 3: initialParts.includes(3) }
+      : { 1: true, 2: true, 3: true };
 
   const [phase, setPhase] = useState<Phase>(initialPhase);
   const [selectedParts, setSelectedParts] = useState<Record<PartNum, boolean>>(initialSelected);
@@ -164,6 +124,11 @@ export function SpeakingPlayer({
   const [transcribing, setTranscribing] = useState(false);
   const [ttsBusy, setTtsBusy] = useState(false);
   const [result, setResult] = useState<SpeakingResult | null>(null);
+  // Homework attempts left (drives the "Làm lại" footer). 0 allowed = unlimited.
+  const [hwAttempts, setHwAttempts] = useState({
+    allowed: homework?.attemptsAllowed ?? 1,
+    count: homework?.attemptCount ?? 0,
+  });
 
   const [ans, setAns] = useState<{ 1: QResult[]; 2: QResult; 3: QResult[] }>({
     1: part1Questions.map(empty),
@@ -649,6 +614,49 @@ export function SpeakingPlayer({
     ).filter((w) => w && !FILLER_TOKENS.has(w));
 
     try {
+      if (homework) {
+        if (homework.previewMode) {
+          // TEACHER PREVIEW → grade via the practice endpoint (no membership
+          // gate, nothing persisted). Same grader, so the review is identical.
+          const res = await fetch("/api/grade/speaking", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              setId: homework.assignmentId,
+              part: homework.partLabel,
+              topic,
+              questions: allQuestions,
+              transcript: combined,
+              lowConfidenceWords,
+              durationSec,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Chấm thử thất bại");
+          setResult(data.result);
+          toast.success("Xem trước — AI đã chấm thử (không lưu điểm).");
+          setPhase("done");
+          return;
+        }
+        // HOMEWORK → persist to the submission (band saved, attempts counted).
+        // The server reads part/topic/questions from the assignment config; we
+        // send the interleaved Q/A transcript as the candidate's answers.
+        const res = await fetch("/api/submissions/speaking", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ assignmentId: homework.assignmentId, transcript: combined, durationSec }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Nộp bài thất bại");
+        setResult(data.result);
+        setHwAttempts({
+          allowed: data.attemptsAllowed ?? hwAttempts.allowed,
+          count: data.attemptCount ?? hwAttempts.count + 1,
+        });
+        toast.success("Đã nộp — AI đã chấm xong!");
+        setPhase("done");
+        return;
+      }
       const res = await fetch("/api/grade/speaking", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -668,8 +676,8 @@ export function SpeakingPlayer({
       setPhase("done");
     } catch (e) {
       console.error(e);
-      toast.error("Chấm bài thất bại");
-      setPhase("done");
+      toast.error(homework ? (e instanceof Error ? e.message : "Nộp bài thất bại") : "Chấm bài thất bại");
+      setPhase(homework ? "part1" : "done");
     }
   };
 
@@ -704,6 +712,60 @@ export function SpeakingPlayer({
       else if (first === 2) goPart2Prep();
       else setPhase("part3");
     };
+
+    // HOMEWORK start gate — a slim "Bắt đầu" card (no part selector / config).
+    // Its whole job is to capture the user gesture that primes audio + mic, then
+    // drop straight into the examiner-driven recording flow (image 2).
+    if (homework) {
+      return (
+        <div className="max-w-2xl mx-auto py-6">
+          <div className="rounded-3xl border bg-card shadow-sm p-6 md:p-8 space-y-6 text-center">
+            <div className="space-y-2">
+              <h1 className="flex items-center justify-center gap-2 text-xl md:text-2xl font-extrabold tracking-tight">
+                <Mic className="h-5 w-5 text-rose-500 shrink-0" />
+                Speaking — Part {homework.partLabel}
+              </h1>
+              {topic && (
+                <p className="text-sm text-muted-foreground">
+                  Chủ đề: <span className="font-semibold text-foreground">{topic}</span>
+                </p>
+              )}
+              <MascotBubble tone="tip" className="justify-center">
+                Giám khảo AI sẽ đọc từng câu hỏi — bạn chỉ cần trả lời, hệ thống tự ghi âm.
+              </MascotBubble>
+              {homework.previewMode && (
+                <p className="mx-auto max-w-md rounded-lg border border-honey/40 bg-honey-tint/50 px-3 py-2 text-xs font-semibold text-honey-deep dark:bg-honey-deep/15 dark:text-honey">
+                  Bản xem trước của giáo viên — bạn có thể thử toàn bộ trải nghiệm, điểm sẽ KHÔNG được lưu.
+                </p>
+              )}
+            </div>
+            <ul className="mx-auto max-w-md space-y-2.5 text-left text-sm">
+              <li className="flex items-start gap-2">
+                <span className="grid h-5 w-5 place-items-center rounded-full bg-sage-100 text-sage-600 shrink-0 mt-0.5">
+                  <Check className="h-3.5 w-3.5" />
+                </span>
+                <span>{part1Questions.length} câu hỏi — trả lời tự nhiên, không cần vội.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="grid h-5 w-5 place-items-center rounded-full bg-sage-100 text-sage-600 shrink-0 mt-0.5">
+                  <Check className="h-3.5 w-3.5" />
+                </span>
+                <span>AI chấm band + sửa lỗi phát âm, ngữ pháp, từ vựng như bài luyện tập.</span>
+              </li>
+            </ul>
+            <div className="flex items-center justify-center gap-2">
+              <Button variant="outline" size="lg" className="rounded-full px-6" onClick={exitToHome}>
+                Thoát
+              </Button>
+              <Button variant="brand" size="lg" className="rounded-full px-8" onClick={startSession}>
+                Bắt đầu <Play className="h-4 w-4 fill-current" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="max-w-3xl mx-auto py-6">
         <div className="rounded-3xl border bg-card shadow-sm p-6 md:p-8 space-y-6">
@@ -947,344 +1009,78 @@ export function SpeakingPlayer({
 
   // ============================== DONE ==============================
   if (phase === "done" && result) {
-    // Band the AI wrote the model answers at (learner's target band). Tolerate
-    // the grader returning it as a number or a string.
-    const mb = result.modelBand != null ? Number(result.modelBand) : NaN;
-    const modelBandLabel = Number.isFinite(mb) ? ` — band ${mb.toFixed(1)}` : "";
-    return (
-      <div className="max-w-2xl mx-auto space-y-4">
-        <div className="text-center space-y-2">
-          <div className="flex items-center justify-center gap-3">
-            <div className="grid h-16 w-16 place-items-center rounded-2xl gradient-brand text-white shadow-lg shadow-primary/30">
-              <Trophy className="h-8 w-8" />
-            </div>
-            <BeeMascot className="w-16" />
-          </div>
-          <h1 className="flex items-center justify-center gap-2 text-3xl font-extrabold tracking-tight">
-            <Leaf className="h-5 w-5 text-leaf shrink-0" />
-            Hoàn thành Speaking 🎉
-          </h1>
-        </div>
+    // Build the per-question transcript rows the shared result view renders.
+    // Homework only fills Part 1 (single part); the label carries its real part.
+    const reviewItems: SpeakingReviewItem[] = [
+      ...(selectedParts[1]
+        ? part1Questions.map((_q, i) => ({
+            key: `p1-${i}`,
+            label: `Part ${homework ? homework.partLabel : 1} · Câu ${i + 1}`,
+            result: ans[1][i],
+            audioUrl: audioUrls[`p1-${i}`],
+          }))
+        : []),
+      ...(selectedParts[2]
+        ? [{ key: "p2", label: `Part 2 · ${part2CueCard.topic}`, result: ans[2], audioUrl: audioUrls["p2"] }]
+        : []),
+      ...(selectedParts[3]
+        ? part3Questions.map((_q, i) => ({
+            key: `p3-${i}`,
+            label: `Part 3 · Câu ${i + 1}`,
+            result: ans[3][i],
+            audioUrl: audioUrls[`p3-${i}`],
+          }))
+        : []),
+    ];
 
-        <Card className="bg-gradient-to-br from-primary/10 to-accent border-2 border-primary/20">
-          <CardContent className="p-8 text-center">
-            <div className="text-sm text-muted-foreground">Speaking Band</div>
-            <div className="text-6xl font-extrabold gradient-brand-text mt-2">{result.overallBand.toFixed(1)}</div>
-            <p className="text-sm text-muted-foreground mt-3 max-w-md mx-auto">{personalize(result.summary, userName)}</p>
-          </CardContent>
-        </Card>
+    const restartHomework = async () => {
+      // "Làm lại" is a real click → re-prime audio + mic, then restart the flow.
+      primeAudioPlayback();
+      resetTtsPathLock();
+      await ensureMicrophone();
+      setResult(null);
+      setAns({ 1: part1Questions.map(empty), 2: empty(), 3: part3Questions.map(empty) });
+      audioBlobsRef.current.clear();
+      setAudioUrls({});
+      greetedRef.current = { part1: false, part2: false };
+      setQIdx(0);
+      startedAtRef.current = Date.now();
+      setPhase("part1");
+    };
 
-        <div className="grid sm:grid-cols-2 gap-3">
-          {Object.entries(result.criteria).map(([k, v]) => (
-            <Card key={k}>
-              <CardContent className="p-4">
-                <div className="flex justify-between mb-1">
-                  <span className="text-sm font-medium">{labelOf(k)}</span>
-                  <span className="text-lg font-bold text-primary">{v.band.toFixed(1)}</span>
-                </div>
-                <p className="text-xs text-muted-foreground">{personalize(v.feedback, userName)}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {result.paraphrasing && (
-          <ParaphrasingCard data={result.paraphrasing} />
+    const canRetry = !!homework && (hwAttempts.allowed === 0 || hwAttempts.count < hwAttempts.allowed);
+    const footer = homework ? (
+      <div className="flex flex-wrap justify-center gap-2 pt-1">
+        {canRetry && (
+          <Button variant="brand" size="lg" className="rounded-full" onClick={restartHomework}>
+            Làm lại ({hwAttempts.allowed === 0 ? "không giới hạn" : `còn ${Math.max(0, hwAttempts.allowed - hwAttempts.count)} lượt`})
+          </Button>
         )}
-
-        {/* Transcript review — each question shows a native HTML5 audio
-            player for the user's own recording PLUS the transcript with
-            mispronounced words underlined. Same affordance as luyennoi.com. */}
-        <Card>
-          <CardContent className="p-5 space-y-3">
-            <h3 className="font-extrabold flex items-center gap-2">
-              <Volume2 className="h-5 w-5 text-primary" /> Bài nói của bạn (audio + văn bản)
-            </h3>
-            <p className="text-xs text-muted-foreground -mt-1">
-              Nhấn ▶︎ để nghe lại bản ghi âm. Từ <span className="font-bold underline">in đậm gạch chân</span> là phát âm chưa rõ — nhấn để nghe cách đọc đúng.
-            </p>
-            {[
-              ...(selectedParts[1]
-                ? part1Questions.map((_q, i) => ({ q: `Part 1 · Câu ${i + 1}`, r: ans[1][i], key: `p1-${i}` }))
-                : []),
-              ...(selectedParts[2]
-                ? [{ q: `Part 2 · ${part2CueCard.topic}`, r: ans[2], key: "p2" }]
-                : []),
-              ...(selectedParts[3]
-                ? part3Questions.map((_q, i) => ({ q: `Part 3 · Câu ${i + 1}`, r: ans[3][i], key: `p3-${i}` }))
-                : []),
-            ].map((item, i) => (
-              <div key={i} className="rounded-lg border p-3 space-y-2">
-                <div className="text-xs font-bold text-muted-foreground">{item.q}</div>
-                {audioUrls[item.key] && (
-                  <audio
-                    controls
-                    src={audioUrls[item.key]}
-                    className="w-full h-10"
-                    preload="metadata"
-                  />
-                )}
-                <TranscriptView result={item.r} onSpeak={playTTS} />
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        {/* Pronunciation fixes — IPA + tips for unclear words */}
-        {result.pronunciationFixes && result.pronunciationFixes.length > 0 && (
-          <Card>
-            <CardContent className="p-5 space-y-3">
-              <h3 className="font-extrabold flex items-center gap-2">
-                <Volume2 className="h-5 w-5 text-rose-500" /> Sửa phát âm
-              </h3>
-              <p className="text-xs text-muted-foreground -mt-1">
-                Phiên âm IPA + cách đọc đúng cho các từ bạn phát âm chưa rõ. Nhấn loa để nghe.
-              </p>
-              <div className="grid sm:grid-cols-2 gap-2">
-                {result.pronunciationFixes.map((p, i) => (
-                  <div key={i} className="rounded-lg border p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <button
-                        onClick={() => playTTS(p.word)}
-                        disabled={ttsBusy}
-                        className="font-bold inline-flex items-center gap-1.5 hover:text-primary"
-                      >
-                        <Volume2 className="h-4 w-4" /> {p.word}
-                      </button>
-                      <span className="text-sm font-mono text-primary">{p.ipa}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">{p.tip}</p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Hesitation / filler warning — drives the Fluency score */}
-        {result.fluency &&
-          result.fluency.severity &&
-          result.fluency.severity !== "none" &&
-          (result.fluency.warning || (result.fluency.fillerCount ?? 0) > 0) && (
-            <Card>
-              <CardContent className="p-5 space-y-3">
-                <h3 className="font-extrabold flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-amber-500" /> Cảnh báo ngập ngừng (ậm ừ) — ảnh hưởng Fluency
-                </h3>
-                {typeof result.fluency.fillerCount === "number" && result.fluency.fillerCount > 0 && (
-                  <p className="text-sm text-muted-foreground">
-                    Phát hiện{" "}
-                    <span className="font-extrabold text-amber-600">{result.fluency.fillerCount}</span> lần ngập
-                    ngừng/ậm ừ trong bài nói.
-                  </p>
-                )}
-                {result.fluency.fillers && result.fluency.fillers.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {result.fluency.fillers.map((f, i) => (
-                      <span
-                        key={i}
-                        className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-extrabold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
-                      >
-                        {f}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {result.fluency.warning && (
-                  <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">
-                    {result.fluency.warning}
-                  </p>
-                )}
-                {result.fluency.advice && (
-                  <p className="text-xs text-muted-foreground leading-relaxed">💡 {result.fluency.advice}</p>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-        {/* Corrections — warning + bold the wrong word with its fix beside it */}
-        {result.corrections && result.corrections.length > 0 && (
-          <Card>
-            <CardContent className="p-5 space-y-3">
-              <h3 className="font-extrabold flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-amber-500" /> Cảnh báo ngữ pháp &amp; từ vựng
-              </h3>
-              <div className="space-y-2">
-                {result.corrections.map((c, i) => (
-                  <div
-                    key={i}
-                    className="rounded-lg border border-amber-300 bg-amber-50/60 p-3 space-y-1.5 dark:border-amber-500/30 dark:bg-amber-500/10"
-                  >
-                    <div className="inline-flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wider text-amber-700 dark:text-amber-400">
-                      <AlertTriangle className="h-3.5 w-3.5" />
-                      {c.type === "vocab" ? "Lỗi từ vựng" : c.type === "grammar" ? "Lỗi ngữ pháp" : "Cần sửa"}
-                    </div>
-                    {c.word && c.fix && (
-                      <div className="flex flex-wrap items-center gap-2 text-sm">
-                        <span className="font-extrabold text-destructive line-through decoration-2">{c.word}</span>
-                        <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <button
-                          onClick={() => playTTS(c.fix!)}
-                          className="font-extrabold text-success hover:underline inline-flex items-center gap-1"
-                        >
-                          <Volume2 className="h-3.5 w-3.5" /> {c.fix}
-                        </button>
-                      </div>
-                    )}
-                    <p className="text-sm text-destructive/90 line-through">{c.original}</p>
-                    <p className="text-sm font-semibold text-success flex items-start gap-1.5">
-                      <span className="shrink-0">✅</span>
-                      <button onClick={() => playTTS(c.corrected)} className="text-left hover:underline">
-                        {c.corrected}
-                      </button>
-                    </p>
-                    <p className="text-xs text-muted-foreground">{c.explanation}</p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Per-question tips — opening sentence + how to develop the answer (English) */}
-        {result.questionTips && result.questionTips.length > 0 && (
-          <Card>
-            <CardContent className="p-5 space-y-3">
-              <h3 className="font-extrabold flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-gold-500" /> Tips for each question
-              </h3>
-              <p className="text-xs text-muted-foreground -mt-1">
-                Câu mở đầu gợi ý và cách triển khai cho từng câu hỏi. Nhấn loa để nghe.
-              </p>
-              <div className="space-y-2.5">
-                {result.questionTips.map((t, i) => (
-                  <div key={i} className="rounded-lg border p-3 space-y-2">
-                    <div className="flex items-start gap-2">
-                      <button
-                        onClick={() => playTTS(t.question)}
-                        disabled={ttsBusy}
-                        className="text-primary shrink-0 mt-0.5"
-                        aria-label="Nghe câu hỏi"
-                      >
-                        <Volume2 className="h-4 w-4" />
-                      </button>
-                      <p className="text-sm font-bold">{t.question}</p>
-                    </div>
-                    <div className="rounded-md bg-sage-50 dark:bg-sage-950/30 p-2.5">
-                      <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-sage-600 mb-1">
-                        <ArrowRightToLine className="h-3.5 w-3.5" /> Opening sentence
-                      </div>
-                      <button
-                        onClick={() => playTTS(t.opener)}
-                        disabled={ttsBusy}
-                        className="text-sm italic text-sage-800 dark:text-sage-200 hover:underline text-left inline-flex items-start gap-1.5"
-                      >
-                        <Volume2 className="h-3.5 w-3.5 mt-0.5 shrink-0" /> &ldquo;{t.opener}&rdquo;
-                      </button>
-                    </div>
-                    {t.modelAnswer && (
-                      <div className="rounded-md border border-leaf/40 bg-leaf-tint/60 p-2.5 dark:bg-leaf-deep/20">
-                        <div className="mb-1 flex items-center justify-between gap-2">
-                          <div className="inline-flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-leaf-deep dark:text-leaf">
-                            <Sparkles className="h-3.5 w-3.5" /> Bài mẫu{modelBandLabel}
-                          </div>
-                          <button
-                            onClick={() => playTTS(t.modelAnswer!)}
-                            disabled={ttsBusy}
-                            className="text-leaf-deep dark:text-leaf shrink-0"
-                            aria-label="Nghe bài mẫu"
-                          >
-                            <Volume2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                        <p className="text-sm leading-relaxed text-foreground/90">{t.modelAnswer}</p>
-                      </div>
-                    )}
-                    <p className="text-xs text-muted-foreground leading-relaxed">{t.advice}</p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Useful phrases & idioms for this topic */}
-        {result.usefulPhrases && result.usefulPhrases.length > 0 && (
-          <Card>
-            <CardContent className="p-5 space-y-3">
-              <h3 className="font-extrabold flex items-center gap-2">
-                <MessageSquareQuote className="h-5 w-5 text-leaf" /> Useful phrases &amp; idioms
-              </h3>
-              <div className="space-y-1.5">
-                {result.usefulPhrases.map((p, i) => (
-                  <div key={i} className="rounded-lg border bg-leaf-tint dark:bg-leaf-deep/20 p-2.5">
-                    <button
-                      onClick={() => playTTS(p.phrase)}
-                      className="text-sm font-bold text-leaf-deep dark:text-leaf inline-flex items-center gap-1 hover:underline"
-                    >
-                      <Volume2 className="h-3.5 w-3.5" /> {p.phrase}
-                    </button>
-                    {p.meaningVi && (
-                      <div className="text-xs text-foreground/90 mt-0.5">
-                        🇻🇳 <span className="font-medium">{p.meaningVi}</span>
-                      </div>
-                    )}
-                    {p.use && <div className="text-[11px] italic text-muted-foreground mt-0.5">{p.use}</div>}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Collocations & phrasal verbs — expand vocabulary */}
-        <VocabSuggestions
-          collocations={result.collocations}
-          phrasalVerbs={result.phrasalVerbs}
-          onSpeak={playTTS}
-        />
-
-        {result.observations.length > 0 && (
-          <Card className="border-2 border-primary/30 bg-primary/[0.03]">
-            <CardContent className="p-5">
-              <h3 className="text-xl font-extrabold tracking-tight mb-3 flex items-center gap-2">
-                <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/30">
-                  <ClipboardList className="h-5 w-5" />
-                </span>
-                Nhận xét chi tiết
-              </h3>
-              <ul className="space-y-2 text-sm">
-                {result.observations.map((o, i) => (
-                  <li key={i} className="flex gap-2 leading-relaxed">
-                    <span className="text-primary font-bold shrink-0">•</span>
-                    <span>{personalize(o, userName)}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        )}
-
-        {result.improvedSample && (
-          <Card>
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-bold">Câu trả lời mẫu chuẩn{modelBandLabel}</h3>
-                <Button size="sm" variant="outline" className="rounded-full" onClick={() => playTTS(result.improvedSample!)} disabled={ttsBusy}>
-                  <Volume2 className="h-4 w-4" /> Nghe
-                </Button>
-              </div>
-              <div className="whitespace-pre-wrap text-sm text-muted-foreground">{result.improvedSample}</div>
-            </CardContent>
-          </Card>
-        )}
-
-        <TipsCard skill="SPEAKING" score={result.overallBand} context={`Speaking practice, topic: ${topic}`} />
-
-        <Button onClick={() => router.push("/speaking")} variant="brand" size="xl" className="w-full rounded-full">
-          Làm bài khác
+        <Button
+          variant="outline"
+          size="lg"
+          className="rounded-full"
+          onClick={() => (onExit ? onExit() : router.push(homework.exitHref))}
+        >
+          Về lớp học
         </Button>
       </div>
+    ) : (
+      <Button onClick={() => router.push("/speaking")} variant="brand" size="xl" className="w-full rounded-full">
+        Làm bài khác
+      </Button>
+    );
+
+    return (
+      <SpeakingResultView
+        result={result}
+        userName={userName}
+        topic={topic}
+        items={reviewItems}
+        onSpeak={playTTS}
+        ttsBusy={ttsBusy}
+        footer={footer}
+      />
     );
   }
 
@@ -1294,8 +1090,9 @@ export function SpeakingPlayer({
   const currentQ = isQ ? questions[qIdx] : "";
   const currentResult =
     phase === "part1" ? ans[1][qIdx] : phase === "part3" ? ans[3][qIdx] : ans[2];
-  const partTitle =
-    phase === "part1"
+  const partTitle = homework
+    ? `PART ${homework.partLabel}`
+    : phase === "part1"
       ? "PART 1"
       : phase === "part2-prep" || phase === "part2-speak"
         ? "PART 2"
@@ -1312,7 +1109,7 @@ export function SpeakingPlayer({
             mode={mode}
             partTitle="PART 2"
             elapsed={prepElapsed}
-            onExit={() => router.push("/speaking")}
+            onExit={exitToHome}
           />
           <div className="grid md:grid-cols-2 gap-4">
             <Card className="bg-white border-2 border-border dark:bg-muted/40 dark:border-border shadow-sm">
@@ -1384,7 +1181,7 @@ export function SpeakingPlayer({
           mode={mode}
           partTitle={partTitle}
           elapsed={recElapsed}
-          onExit={() => router.push("/speaking")}
+          onExit={exitToHome}
           questionIndex={isQ ? qIdx + 1 : undefined}
           questionTotal={isQ ? partQuestionsTotal : undefined}
         />
@@ -1659,125 +1456,5 @@ function WaveformBars({
         />
       ))}
     </div>
-  );
-}
-
-/** Renders a transcript; words with low recogniser confidence are bold+underlined and clickable. */
-function TranscriptView({ result, onSpeak }: { result: QResult; onSpeak: (t: string) => void }) {
-  if (!result.transcript) {
-    return <p className="text-sm italic text-muted-foreground">(chưa có bài nói)</p>;
-  }
-  if (result.words.length === 0) {
-    return <p className="text-sm leading-relaxed">{result.transcript}</p>;
-  }
-  return (
-    <p className="text-sm leading-relaxed">
-      {result.words.map((w, i) => {
-        const low = w.confidence < LOW_CONF;
-        return (
-          <span key={i}>
-            {low ? (
-              <button
-                onClick={() => onSpeak(w.word)}
-                title={`Phát âm chưa rõ — nhấn để nghe đúng (độ tin cậy ${(w.confidence * 100).toFixed(0)}%)`}
-                className="font-bold underline decoration-2 decoration-rose-500 text-rose-600 hover:text-rose-700"
-              >
-                {w.word}
-              </button>
-            ) : (
-              <span>{w.word}</span>
-            )}{" "}
-          </span>
-        );
-      })}
-    </p>
-  );
-}
-
-function labelOf(k: string) {
-  switch (k) {
-    case "fluencyCoherence":
-      return "Fluency & Coherence";
-    case "lexicalResource":
-      return "Lexical Resource";
-    case "grammaticalRange":
-      return "Grammatical Range";
-    case "pronunciation":
-      return "Pronunciation";
-    default:
-      return k;
-  }
-}
-
-/** Paraphrasing analysis — surfaces the level (verbatim/minimal/partial/strong)
- *  Groq's grader assigned, the actual paraphrases the candidate produced (or
- *  the verbatim moments they should fix), and the impact on Lexical Resource
- *  / Grammatical Range bands. */
-function ParaphrasingCard({ data }: { data: NonNullable<SpeakingResult["paraphrasing"]> }) {
-  const LEVEL_META: Record<
-    Paraphrasing["level"],
-    { label: string; tone: string; emoji: string }
-  > = {
-    verbatim: {
-      label: "Đọc nguyên xi câu hỏi",
-      tone: "bg-rose-100 text-rose-700 border-rose-300",
-      emoji: "🚫",
-    },
-    minimal: {
-      label: "Paraphrase rất ít",
-      tone: "bg-gold-100 text-gold-700 border-gold-300",
-      emoji: "⚠️",
-    },
-    partial: {
-      label: "Paraphrase một phần",
-      tone: "bg-primary/10 text-primary border-primary/30",
-      emoji: "👍",
-    },
-    strong: {
-      label: "Paraphrase tốt",
-      tone: "bg-sage-100 text-sage-700 border-sage-300",
-      emoji: "⭐",
-    },
-  };
-  const meta = LEVEL_META[data.level] ?? LEVEL_META.minimal;
-  return (
-    <Card className="border-2 border-honey/30 bg-honey-tint/40 dark:bg-honey-deep/15">
-      <CardContent className="p-5 space-y-3">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <h3 className="font-extrabold flex items-center gap-2">
-            <Wand2 className="h-5 w-5 text-honey-deep" /> Paraphrasing câu hỏi
-          </h3>
-          <span
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border-2 px-3 py-1 text-xs font-extrabold uppercase tracking-wider",
-              meta.tone,
-            )}
-          >
-            <span>{meta.emoji}</span> {meta.label}
-          </span>
-        </div>
-        <p className="text-sm text-muted-foreground leading-relaxed">{data.impact}</p>
-        {data.examples.length > 0 && (
-          <div className="space-y-2">
-            {data.examples.map((ex, i) => (
-              <div key={i} className="rounded-lg border bg-card p-3 space-y-1.5">
-                <div className="text-[11px] font-extrabold uppercase tracking-wider text-muted-foreground">
-                  Câu hỏi gốc
-                </div>
-                <p className="text-sm italic">{ex.question}</p>
-                <div className="text-[11px] font-extrabold uppercase tracking-wider text-sage-700 mt-2">
-                  Bạn đã nói
-                </div>
-                <p className="text-sm font-semibold">&ldquo;{ex.candidateSaid}&rdquo;</p>
-                <div className="text-[11px] font-extrabold uppercase tracking-wider text-honey-deep mt-2">
-                  Nhận xét
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">{ex.comment}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
   );
 }
