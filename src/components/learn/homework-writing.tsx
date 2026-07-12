@@ -9,13 +9,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { AlertTriangle, CheckCircle2, Loader2, PenLine } from "lucide-react";
+import { AlertTriangle, Loader2, PenLine } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { AssignmentLocked } from "@/components/learn/assignment-locked";
 import { WritingFeedback, type WritingResult } from "@/components/learn/writing-feedback";
-import { AnnotatedEssay } from "@/components/learn/annotated-essay";
+import { TipsCard } from "@/components/learn/tips-card";
+import { ReviewReport, type WritingReviewData } from "@/components/learn/review-report";
+import { BeeMascot } from "@/components/brand";
 
 interface WritingConfig {
   taskType?: number;
@@ -107,22 +109,40 @@ export function HomeworkWriting({ assignmentId }: { assignmentId: string }) {
   if (locked) return <AssignmentLocked title={meta?.title ?? ""} className={meta?.className ?? ""} openAt={locked.openAt} />;
 
   if (done) {
+    // Same result screen as the practice Writing player: band + BeeMascot +
+    // summary, the full WritingFeedback (annotated essay inline), TipsCard and
+    // the printable ReviewReport — only the CTAs differ (homework: Làm lại / lớp).
+    const taskType = (cfg.taskType === 1 ? 1 : 2) as 1 | 2;
+    const hasResult = !!done.result && Object.keys(done.result).length > 0;
     return (
       <div className="mx-auto max-w-3xl space-y-4">
         <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/10 to-accent">
           <CardContent className="p-6 text-center">
-            <CheckCircle2 className="mx-auto h-9 w-9 text-success" />
-            <div className="mt-2 text-xs uppercase tracking-wider text-muted-foreground">Band IELTS</div>
-            <div className="text-5xl font-extrabold gradient-brand-text">{done.band.toFixed(1)}</div>
+            <BeeMascot className="w-16 mx-auto mb-1" />
+            <div className="text-sm text-muted-foreground">Overall Band Score</div>
+            <div className="text-6xl font-bold text-primary mt-2">{done.band.toFixed(1)}</div>
+            {hasResult && done.result.summary && (
+              <p className="text-sm text-muted-foreground mt-3 max-w-md mx-auto">{done.result.summary}</p>
+            )}
           </CardContent>
         </Card>
-        <Card><CardContent className="space-y-2 p-5">
-          <h3 className="font-bold">Bài viết của bạn</h3>
-          <AnnotatedEssay essay={done.essay} annotations={done.result?.annotations ?? []} showCorrections />
-        </CardContent></Card>
-        {done.result && Object.keys(done.result).length > 0 && (
-          <WritingFeedback result={done.result} taskLabel={`Task ${cfg.taskType ?? ""}`} />
+
+        {hasResult && (
+          <>
+            <WritingFeedback result={done.result} taskLabel={`Task ${cfg.taskType ?? ""}`} essay={done.essay} />
+            <TipsCard skill="WRITING" score={done.band} context={`Writing Task ${taskType} essay`} />
+            <ReviewReport
+              data={{
+                kind: "WRITING",
+                taskType,
+                prompt: cfg.prompt ?? "",
+                essay: done.essay,
+                result: done.result,
+              } satisfies WritingReviewData}
+            />
+          </>
         )}
+
         <div className="flex flex-wrap justify-center gap-2">
           {(attempts.allowed === 0 || attempts.count < attempts.allowed) && (
             <Button
@@ -148,12 +168,12 @@ export function HomeworkWriting({ assignmentId }: { assignmentId: string }) {
         </div>
       </header>
 
-      <Card><CardContent className="space-y-3 p-5">
-        <h3 className="font-bold">Đề bài</h3>
-        <p className="whitespace-pre-wrap text-sm">{cfg.prompt}</p>
+      <Card><CardContent className="space-y-3 p-5 md:p-6">
+        <h3 className="text-lg font-extrabold">Đề bài</h3>
+        <p className="whitespace-pre-wrap text-base md:text-lg leading-relaxed">{cfg.prompt}</p>
         {cfg.imageUrl && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={cfg.imageUrl} alt="Đề bài" className="max-h-80 w-full rounded-lg border bg-muted/30 object-contain" />
+          <img src={cfg.imageUrl} alt="Đề bài" className="max-h-[32rem] w-full rounded-lg border bg-muted/30 object-contain" />
         )}
       </CardContent></Card>
 
