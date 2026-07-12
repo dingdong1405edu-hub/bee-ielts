@@ -15,7 +15,7 @@
 import type { ReactNode } from "react";
 import {
   Volume2, ArrowRight, Trophy, Sparkles, MessageSquareQuote,
-  ArrowRightToLine, Wand2, ClipboardList, AlertTriangle,
+  ArrowRightToLine, Wand2, ClipboardList, AlertTriangle, Repeat, Zap,
 } from "lucide-react";
 import { personalize, cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
@@ -82,6 +82,24 @@ export interface FluencyFlag {
   warning?: string;
   advice?: string;
 }
+export interface RepeatedWord {
+  word: string;
+  count: number;
+  alternatives: string[];
+}
+export interface WordVariety {
+  repeatedWords: RepeatedWord[];
+  advice?: string;
+}
+export interface Intensifier {
+  /** The adverb to add — really / strongly / absolutely… */
+  adverb: string;
+  /** What the candidate said that could take the adverb (verbatim), or "". */
+  original?: string;
+  /** The upgraded phrase with the adverb added. */
+  improved?: string;
+  note?: string;
+}
 export interface SpeakingResult {
   overallBand: number;
   criteria: {
@@ -95,6 +113,10 @@ export interface SpeakingResult {
   observations: string[];
   corrections?: Correction[];
   pronunciationFixes?: PronFix[];
+  /** Overused words + synonym suggestions (avoid repetition). */
+  wordVariety?: WordVariety;
+  /** Places to add intensifying/descriptive adverbs (really, strongly…). */
+  intensifiers?: Intensifier[];
   questionTips?: QTip[];
   usefulPhrases?: Phrase[];
   collocations?: VocabItem[];
@@ -319,6 +341,83 @@ export function SpeakingResultView({
                     </button>
                   </p>
                   <p className="text-xs text-muted-foreground">{c.explanation}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Word variety — overused words + synonyms (avoid repetition) */}
+      {result.wordVariety && result.wordVariety.repeatedWords && result.wordVariety.repeatedWords.length > 0 && (
+        <Card>
+          <CardContent className="p-5 space-y-3">
+            <h3 className="font-extrabold flex items-center gap-2">
+              <Repeat className="h-5 w-5 text-amber-500" /> Tránh lặp từ
+            </h3>
+            <p className="text-xs text-muted-foreground -mt-1">
+              Bạn lặp lại những từ này nhiều lần — đổi sang từ đồng nghĩa để nâng điểm Từ vựng. Nhấn để nghe từ thay thế.
+            </p>
+            <div className="space-y-2">
+              {result.wordVariety.repeatedWords.map((r, i) => (
+                <div key={i} className="rounded-lg border p-3">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="font-extrabold text-amber-600">{r.word}</span>
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">
+                      lặp {r.count}×
+                    </span>
+                  </div>
+                  {r.alternatives && r.alternatives.length > 0 && (
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {r.alternatives.map((alt, j) => (
+                        <button
+                          key={j}
+                          onClick={() => onSpeak(alt)}
+                          disabled={ttsBusy}
+                          className="inline-flex items-center gap-1 rounded-full border bg-leaf-tint px-2.5 py-1 text-xs font-semibold text-leaf-deep hover:underline dark:bg-leaf-deep/20 dark:text-leaf"
+                        >
+                          <Volume2 className="h-3 w-3" /> {alt}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            {result.wordVariety.advice && (
+              <p className="text-xs text-muted-foreground leading-relaxed">💡 {result.wordVariety.advice}</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Intensifiers — add descriptive/emphatic adverbs (really, strongly…) */}
+      {result.intensifiers && result.intensifiers.length > 0 && (
+        <Card>
+          <CardContent className="p-5 space-y-3">
+            <h3 className="font-extrabold flex items-center gap-2">
+              <Zap className="h-5 w-5 text-gold-500" /> Thêm từ nhấn mạnh &amp; miêu tả
+            </h3>
+            <p className="text-xs text-muted-foreground -mt-1">
+              Thêm trạng từ như <span className="font-bold">really, strongly, absolutely</span> để câu nói mạnh và sinh động hơn. Nhấn để nghe.
+            </p>
+            <div className="space-y-2">
+              {result.intensifiers.map((it, i) => (
+                <div key={i} className="rounded-lg border p-3 space-y-1.5">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-gold-100 px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wider text-gold-700 dark:bg-gold-500/15 dark:text-gold-300">
+                    + {it.adverb}
+                  </span>
+                  {it.original && <p className="text-sm text-muted-foreground line-through">{it.original}</p>}
+                  {it.improved && (
+                    <button
+                      onClick={() => onSpeak(it.improved!)}
+                      disabled={ttsBusy}
+                      className="inline-flex items-start gap-1.5 text-left text-sm font-semibold text-success hover:underline"
+                    >
+                      <Volume2 className="h-3.5 w-3.5 mt-0.5 shrink-0" /> {it.improved}
+                    </button>
+                  )}
+                  {it.note && <p className="text-xs text-muted-foreground">{it.note}</p>}
                 </div>
               ))}
             </div>

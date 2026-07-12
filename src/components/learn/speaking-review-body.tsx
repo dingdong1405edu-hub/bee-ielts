@@ -4,7 +4,7 @@
  * render IDENTICALLY (transcript + band + 4 criteria + per-question tips +
  * corrections; no audio, matching how the app stores speaking). Server-safe.
  */
-import { ClipboardList, AlertTriangle, ArrowRight } from "lucide-react";
+import { ClipboardList, AlertTriangle, ArrowRight, Repeat, Zap } from "lucide-react";
 import { personalize } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { VocabSuggestions, type VocabItem } from "@/components/learn/writing-feedback";
@@ -29,6 +29,8 @@ export interface SpeakingFeedback {
   observations?: string[];
   corrections?: Correction[];
   pronunciationFixes?: { word: string; ipa: string; tip: string }[];
+  wordVariety?: { repeatedWords: { word: string; count: number; alternatives: string[] }[]; advice?: string };
+  intensifiers?: { adverb: string; original?: string; improved?: string; note?: string }[];
   questionTips?: QuestionTip[];
   collocations?: VocabItem[];
   phrasalVerbs?: VocabItem[];
@@ -123,6 +125,46 @@ export function SpeakingReviewBody({
               {c.original && <p className="text-sm text-destructive/90 line-through">{c.original}</p>}
               {c.corrected && <p className="text-sm font-semibold text-success">✅ {c.corrected}</p>}
               {c.explanation && <p className="text-xs text-muted-foreground">{c.explanation}</p>}
+            </div>
+          ))}
+        </CardContent></Card>
+      )}
+
+      {fb.wordVariety && fb.wordVariety.repeatedWords && fb.wordVariety.repeatedWords.length > 0 && (
+        <Card><CardContent className="space-y-2 p-5">
+          <h3 className="mb-1 flex items-center gap-2 font-extrabold">
+            <Repeat className="h-5 w-5 text-amber-500" /> Tránh lặp từ
+          </h3>
+          {fb.wordVariety.repeatedWords.map((r, i) => (
+            <div key={i} className="rounded-lg border p-3">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="font-extrabold text-amber-600">{r.word}</span>
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:bg-amber-500/15 dark:text-amber-300">lặp {r.count}×</span>
+              </div>
+              {r.alternatives && r.alternatives.length > 0 && (
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {r.alternatives.map((alt, j) => (
+                    <span key={j} className="rounded-full border bg-leaf-tint px-2.5 py-1 text-xs font-semibold text-leaf-deep dark:bg-leaf-deep/20 dark:text-leaf">{alt}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+          {fb.wordVariety.advice && <p className="text-xs leading-relaxed text-muted-foreground">💡 {fb.wordVariety.advice}</p>}
+        </CardContent></Card>
+      )}
+
+      {fb.intensifiers && fb.intensifiers.length > 0 && (
+        <Card><CardContent className="space-y-2 p-5">
+          <h3 className="mb-1 flex items-center gap-2 font-extrabold">
+            <Zap className="h-5 w-5 text-gold-500" /> Thêm từ nhấn mạnh &amp; miêu tả
+          </h3>
+          {fb.intensifiers.map((it, i) => (
+            <div key={i} className="space-y-1 rounded-lg border p-3">
+              <span className="inline-flex items-center gap-1 rounded-full bg-gold-100 px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wider text-gold-700 dark:bg-gold-500/15 dark:text-gold-300">+ {it.adverb}</span>
+              {it.original && <p className="text-sm text-muted-foreground line-through">{it.original}</p>}
+              {it.improved && <p className="text-sm font-semibold text-success">{it.improved}</p>}
+              {it.note && <p className="text-xs text-muted-foreground">{it.note}</p>}
             </div>
           ))}
         </CardContent></Card>

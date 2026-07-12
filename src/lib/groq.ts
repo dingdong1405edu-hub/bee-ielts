@@ -335,7 +335,16 @@ Return ONLY valid JSON:
     { "type": "<grammar | vocab>", "word": "<ĐÚNG từ/cụm SAI cụ thể trong câu — ngắn, để in đậm>", "fix": "<từ/cụm ĐÚNG thay cho 'word'>", "original": "<câu/cụm SAI trích nguyên văn từ transcript>", "corrected": "<bản đã SỬA LẠI cho đúng — tiếng Anh>", "explanation": "<sai ở đâu & vì sao — tiếng Việt>" }
   ],
   "pronunciationFixes": [
-    { "word": "<một từ candidate phát âm chưa chuẩn>", "ipa": "/<phiên âm IPA chuẩn của từ>/", "tip": "<mẹo đọc đúng — tiếng Việt>" }
+    { "word": "<một từ candidate phát âm chưa chuẩn>", "ipa": "/<phiên âm IPA chuẩn của từ>/", "tip": "<mẹo đọc đúng — tiếng Việt: chỉ RÕ âm nào đọc sai và đọc lại thế nào ngay tại từ đó>" }
+  ],
+  "wordVariety": {
+    "repeatedWords": [
+      { "word": "<từ/cụm candidate LẶP LẠI nhiều lần>", "count": <số lần xuất hiện>, "alternatives": ["<từ đồng nghĩa tự nhiên 1>", "<2>", "<3>"] }
+    ],
+    "advice": "<tiếng Việt — nhắc học viên TRÁNH LẶP TỪ, thay bằng từ đồng nghĩa để nâng Lexical Resource; \"\" nếu không lặp>"
+  },
+  "intensifiers": [
+    { "adverb": "<trạng từ nhấn mạnh/miêu tả nên thêm: really, strongly, absolutely, incredibly, deeply, extremely, genuinely, remarkably...>", "original": "<cụm candidate ĐÃ nói mà nên thêm trạng từ — trích nguyên văn transcript; \"\" nếu là gợi ý chung>", "improved": "<cụm đã thêm trạng từ — tiếng Anh>", "note": "<tiếng Việt — vì sao thêm giúp câu mạnh/sinh động hơn>" }
   ],
   "questionTips": [
     {
@@ -361,7 +370,9 @@ Return ONLY valid JSON:
   "summary": "<nhận xét tổng quan ngắn — tiếng Việt>"
 }
 
-Provide 4-6 observations. For "paraphrasing.examples": include 1-3 examples — for "strong"/"partial" levels show the WINNING paraphrases the candidate produced; for "minimal"/"verbatim" show the verbatim/near-verbatim moments so the candidate sees what to avoid; if there is genuinely no paraphrasing evidence (Part 2 cue card or candidate spoke too little), return []. For "corrections": KIỂM TRA KỸ CẢ NGỮ PHÁP VÀ TỪ VỰNG (word choice / collocation) trong transcript. Find the real mistakes and SHOW THE FIXED VERSION (do not merely point them out) — give 3-6 items, or [] if the transcript is genuinely error-free. For EACH item you MUST also fill: "word" = đúng từ/cụm SAI cụ thể (ngắn, để in đậm cảnh báo), "fix" = từ/cụm đúng thay thế, and "type" = "grammar" hoặc "vocab". "word" PHẢI là một chuỗi con xuất hiện nguyên văn trong "original". For "pronunciationFixes": give an item with correct IPA for EACH word in the low-confidence list (and any other clearly mispronounced word) — these are words the candidate said unclearly.
+Provide 4-6 observations. For "paraphrasing.examples": include 1-3 examples — for "strong"/"partial" levels show the WINNING paraphrases the candidate produced; for "minimal"/"verbatim" show the verbatim/near-verbatim moments so the candidate sees what to avoid; if there is genuinely no paraphrasing evidence (Part 2 cue card or candidate spoke too little), return []. For "corrections": KIỂM TRA KỸ CẢ NGỮ PHÁP VÀ TỪ VỰNG (word choice / collocation) trong transcript. Find the real mistakes and SHOW THE FIXED VERSION (do not merely point them out) — give 3-6 items, or [] if the transcript is genuinely error-free. For EACH item you MUST also fill: "word" = đúng từ/cụm SAI cụ thể (ngắn, để in đậm cảnh báo), "fix" = từ/cụm đúng thay thế, and "type" = "grammar" hoặc "vocab". "word" PHẢI là một chuỗi con xuất hiện nguyên văn trong "original". For "pronunciationFixes": give an item with correct IPA for EACH word in the low-confidence list (and any other clearly mispronounced word) — these are words the candidate said unclearly. The "tip" MUST let the learner fix that exact word RIGHT THERE: nói rõ âm nào sai (nguyên âm/phụ âm/trọng âm) và cách đọc lại cho đúng.
+For "wordVariety": scan the transcript for CONTENT words/phrases the candidate OVERUSES — the same word repeated 3+ times (e.g. "good", "like", "very", "thing", "nice", "people", "a lot"). List up to 4, each with its "count" and 2-3 natural higher-level synonyms in "alternatives". Lexical repetition is a REAL Lexical Resource weakness — if it is prominent, reflect it in the lexicalResource band + feedback. If nothing is overused, return repeatedWords [] and advice "".
+For "intensifiers": suggest 3-5 spots where the candidate could add an intensifying / descriptive adverb (really, strongly, absolutely, incredibly, deeply, extremely, genuinely, remarkably) to make a description more vivid and emphatic. Prefer anchoring to what they ACTUALLY said — quote it verbatim in "original" and show the upgraded phrase in "improved"; use "" for a general suggestion. If the candidate already uses varied emphasis well, return [].
 "questionTips": provide EXACTLY ONE entry for EVERY question listed in the prompt — each Part 1 question, the Part 2 cue card, and each Part 3 question — in the SAME ORDER they appear. The "question", "opener" and "advice" fields MUST all be written in ENGLISH. For "band" and "criteria" give an HONEST per-question score based on the portion of the transcript that answers that question; if you cannot identify ANY answer to that specific question (no slice of transcript clearly answers it, or only silence/gibberish for it), set band=0.0 and all four criteria=0 — DO NOT assign a courtesy band. The "transcript" field is the verbatim slice of the candidate's transcript that answers THIS question (used by the UI to show inline annotations); leave it as "" if no answer was given. Provide 4-6 usefulPhrases tailored to THIS topic, not generic.
 Provide 5-7 collocations and 4-6 phrasalVerbs — both MUST be tailored to THIS topic and pitched at band 7+ so the candidate can upgrade their vocabulary.
 
@@ -512,7 +523,9 @@ Score and return JSON only.`;
       { role: "system", content: SPEAKING_SYS },
       { role: "user", content: userMessage },
     ],
-    { jsonMode: true, temperature: 0.3, maxTokens: 3200 },
+    // Bumped from 3200: the extra wordVariety + intensifiers sections can push a
+    // full multi-question review past the old cap and truncate the JSON.
+    { jsonMode: true, temperature: 0.3, maxTokens: 4000 },
   );
   return extractJSON(text);
 }
