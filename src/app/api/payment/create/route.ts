@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
-import { prisma } from "@/lib/db";
-import { getPayos, isConfigured, newOrderCode } from "@/lib/payos";
+import { describePayosFailure, isConfigured, resolveAppUrl } from "@/lib/payos";
+import { createCheckout } from "@/lib/payment";
 
-// PayOS amount is in VND (integer). 2 000đ minimum is PayOS's lower bound.
+/**
+ * Generic "pay any amount" checkout behind /pay. Grants nothing on settlement
+ * (no `meta`) — the Premium purchase flow lives in /api/premium/checkout.
+ */
+
+// PayOS amount is in VND (integer). 2 000đ is our own floor.
 const bodySchema = z.object({
   amount: z.number().int().min(2000).max(500_000_000),
   description: z.string().min(1).max(255),
@@ -13,9 +18,14 @@ const bodySchema = z.object({
   buyerPhone: z.string().max(40).optional(),
 });
 
+export const dynamic = "force-dynamic";
+
 export async function POST(req: Request) {
   if (!isConfigured()) {
-    return NextResponse.json({ error: "PayOS chưa cấu hình trên server" }, { status: 503 });
+    return NextResponse.json(
+      { error: "PayOS chưa cấu hình trên server (thiếu PAYOS_CLIENT_ID / PAYOS_API_KEY / PAYOS_CHECKSUM_KEY)" },
+      { status: 503 },
+    );
   }
   const session = await auth();
   const userId = session?.user?.id ?? null;
@@ -26,45 +36,24 @@ export async function POST(req: Request) {
   }
   const { amount, description, buyerName, buyerEmail, buyerPhone } = parsed.data;
 
-  const orderCode = newOrderCode();
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || new URL(req.url).origin;
-  // PayOS caps `description` at 25 characters; keep the full text on our side
-  // and pass a short version to PayOS so the checkout page renders cleanly.
-  const payosDescription = description.slice(0, 25);
-
   try {
-    const link = await getPayos().paymentRequests.create({
-      orderCode,
+    const { payment, checkoutUrl, qrCode } = await createCheckout({
+      userId,
       amount,
-      description: payosDescription,
-      cancelUrl: `${appUrl}/pay/cancel?orderCode=${orderCode}`,
-      returnUrl: `${appUrl}/pay/success?orderCode=${orderCode}`,
-      items: [{ name: payosDescription, quantity: 1, price: amount }],
+      description,
+      // PayOS rejects a description over 25 chars with code "20"; keep the full
+      // text on our Payment row and show PayOS the short version.
+      payosDescription: description.slice(0, 25),
+      appUrl: resolveAppUrl(req),
       buyerName,
       buyerEmail,
       buyerPhone,
     });
 
-    await prisma.payment.create({
-      data: {
-        orderCode,
-        amount,
-        description,
-        userId,
-        checkoutUrl: link.checkoutUrl,
-      },
-    });
-
-    return NextResponse.json({
-      orderCode,
-      checkoutUrl: link.checkoutUrl,
-      qrCode: link.qrCode,
-    });
+    return NextResponse.json({ orderCode: payment.orderCode, checkoutUrl, qrCode });
   } catch (e) {
-    console.error("[payos create] failed:", e);
-    return NextResponse.json(
-      { error: "Không tạo được link thanh toán. Kiểm tra credentials PayOS." },
-      { status: 502 },
-    );
+    const { message, detail } = describePayosFailure(e);
+    console.error("[payos create] thất bại:", detail, e);
+    return NextResponse.json({ error: message }, { status: 502 });
   }
 }

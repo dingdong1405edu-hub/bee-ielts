@@ -127,9 +127,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (fresh) {
           // Drop a lapsed paid plan back to free. Paid plans set isPremium=true
           // AND premiumUntil; permanent grants (premiumUntil=null) and
-          // OWNER/ADMIN are never touched.
+          // OWNER/ADMIN (premium by role) are never touched. Every other role
+          // — LEARNER, STUDENT, TEACHER, PARENT — can hold a paid plan.
           if (
-            fresh.role === "LEARNER" &&
+            fresh.role !== "OWNER" &&
+            fresh.role !== "ADMIN" &&
             fresh.isPremium &&
             fresh.premiumUntil &&
             fresh.premiumUntil.getTime() < Date.now()

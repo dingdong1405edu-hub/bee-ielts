@@ -1,71 +1,68 @@
 import Link from "next/link";
-import { CheckCircle2 } from "lucide-react";
+import { AlertCircle } from "lucide-react";
+import { auth } from "@/auth";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { prisma } from "@/lib/db";
+import { parseOrderCode, reconcileOrder } from "@/lib/payment";
+import { effectivePremium } from "@/lib/premium";
+import { PaymentResult, type PaymentSnapshot } from "./payment-result";
 
 export const dynamic = "force-dynamic";
 
 /**
- * PayOS return URL after a successful checkout. The orderCode comes back in
- * the query string; we look up the Payment row to confirm it's actually
- * paid (the webhook is the source of truth — this page just informs).
+ * PayOS return URL after checkout. Landing here is itself a settlement trigger:
+ * we ask PayOS whether the order is paid and, if so, flip the row + grant
+ * premium before rendering. The webhook does the same job faster when it is
+ * registered — whichever wins, `settlePaidOrder()` makes sure the grant happens
+ * exactly once.
  */
 export default async function PaymentSuccessPage({
   searchParams,
 }: {
   searchParams: Promise<{ orderCode?: string }>;
 }) {
-  const { orderCode } = await searchParams;
-  const code = orderCode ? Number(orderCode) : NaN;
-  const payment =
-    Number.isFinite(code) && code > 0
-      ? await prisma.payment.findUnique({ where: { orderCode: code } })
-      : null;
-  const confirmed = payment?.status === "PAID";
+  const { orderCode: rawCode } = await searchParams;
+  const orderCode = parseOrderCode(rawCode);
+  const session = await auth();
+  const userId = session?.user?.id ?? null;
 
-  return (
-    <div className="max-w-md mx-auto py-12 space-y-6 text-center">
-      <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-sage-500 text-white shadow-lg shadow-sage-500/30">
-        <CheckCircle2 className="h-8 w-8" />
+  const payment = orderCode !== null ? await reconcileOrder(orderCode) : null;
+
+  // Unknown code, or someone else's order — say so instead of leaking details.
+  if (!payment || (payment.userId && payment.userId !== userId)) {
+    return (
+      <div className="mx-auto max-w-md space-y-6 py-12 text-center">
+        <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-muted text-muted-foreground">
+          <AlertCircle className="h-8 w-8" />
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-3xl font-extrabold tracking-tight">Không tìm thấy đơn hàng</h1>
+          <p className="text-sm text-muted-foreground">
+            Liên kết thanh toán không hợp lệ hoặc đơn không thuộc tài khoản này.
+          </p>
+        </div>
+        <Button asChild variant="brand" size="xl" className="w-full rounded-full">
+          <Link href="/premium">Về trang Premium</Link>
+        </Button>
       </div>
-      <div className="space-y-2">
-        <h1 className="text-3xl font-extrabold tracking-tight">
-          {confirmed ? "Thanh toán thành công 🎉" : "Đã nhận yêu cầu thanh toán"}
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          {confirmed
-            ? "Cảm ơn bạn — đơn hàng đã được ghi nhận trên hệ thống."
-            : "Hệ thống đang đợi PayOS xác nhận. Trạng thái sẽ tự cập nhật trong vài giây."}
-        </p>
-      </div>
-      {payment && (
-        <Card>
-          <CardContent className="p-5 space-y-2 text-left text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Mã đơn</span>
-              <span className="font-mono font-bold">{payment.orderCode}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Số tiền</span>
-              <span className="font-bold">{payment.amount.toLocaleString("vi-VN")}đ</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Nội dung</span>
-              <span className="font-medium text-right line-clamp-2">{payment.description}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Trạng thái</span>
-              <span className="font-bold">
-                {payment.status === "PAID" ? "Đã thanh toán" : "Đang chờ xác nhận"}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-      <Button asChild variant="brand" size="xl" className="w-full rounded-full">
-        <Link href="/dashboard">Về trang chính</Link>
-      </Button>
-    </div>
-  );
+    );
+  }
+
+  const user = userId
+    ? await prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true, isPremium: true, premiumUntil: true },
+      })
+    : null;
+
+  const initial: PaymentSnapshot = {
+    orderCode: payment.orderCode,
+    status: payment.status,
+    amount: payment.amount,
+    description: payment.description,
+    premium: user ? effectivePremium(user) : false,
+    premiumUntil: user?.premiumUntil?.toISOString() ?? null,
+  };
+
+  return <PaymentResult initial={initial} />;
 }

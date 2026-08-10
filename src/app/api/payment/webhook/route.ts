@@ -1,121 +1,89 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
-import { getPayos, isConfigured } from "@/lib/payos";
-import { addMonths } from "@/lib/premium-plans";
+import type { Webhook } from "@payos/node";
+import { isConfigured, getPayos } from "@/lib/payos";
+import { settlePaidOrder } from "@/lib/payment";
 
 /**
  * PayOS webhook receiver. PayOS POSTs the order outcome here — register this
- * URL on the PayOS dashboard (Channels → Webhook).
- *   <NEXT_PUBLIC_APP_URL>/api/payment/webhook
+ * URL on the PayOS dashboard (Channels → Webhook), or run:
+ *   npx tsx scripts/payos-webhook.ts https://beeielts.com/api/payment/webhook
  *
- * The handler verifies the HMAC signature using the checksum key, flips the
- * matching Payment row's status, and — exactly once — grants whatever the
- * order was for (today: a timed Premium upgrade).
+ * The handler verifies the HMAC signature with the checksum key, then hands the
+ * order to `settlePaidOrder()`, which flips the row to PAID and grants premium
+ * exactly once. The /pay/success page reconciles the same order against the
+ * PayOS API, so a missing or failed webhook only delays the upgrade — it can no
+ * longer lose it.
  */
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+/** Reserved order code PayOS uses for its "confirm webhook" test ping. */
+const TEST_ORDER_CODE = 123;
+
+interface RawWebhook {
+  code?: string;
+  desc?: string;
+  success?: boolean;
+  data?: { orderCode?: number; amount?: number; code?: string } | null;
+  signature?: string;
+}
+
 export async function POST(req: Request) {
+  const raw = (await req.json().catch(() => null)) as RawWebhook | null;
+  if (!raw || typeof raw !== "object") {
+    return NextResponse.json({ error: "Body rỗng" }, { status: 400 });
+  }
+
+  // PayOS validates the endpoint before it will save the URL, and it only
+  // accepts a 2xx. Its probe carries either the reserved orderCode 123 or no
+  // usable body at all — acknowledge both BEFORE any signature/config check so
+  // registration can never fail on a technicality. Nothing is written here.
+  if (!raw.data || !raw.signature || raw.data.orderCode === TEST_ORDER_CODE) {
+    return NextResponse.json({ success: true, test: true });
+  }
+
   if (!isConfigured()) {
+    console.error("[payos webhook] PayOS env chưa cấu hình — bỏ qua webhook");
     return NextResponse.json({ error: "PayOS chưa cấu hình" }, { status: 503 });
   }
 
-  const raw = await req.json().catch(() => null);
-  if (!raw) return NextResponse.json({ error: "Body rỗng" }, { status: 400 });
-
   let data;
   try {
-    data = await getPayos().webhooks.verify(raw);
+    data = await getPayos().webhooks.verify(raw as unknown as Webhook);
   } catch (e) {
     console.error("[payos webhook] signature verify failed:", e);
     return NextResponse.json({ error: "Chữ ký không hợp lệ" }, { status: 401 });
   }
 
-  // PayOS sends a one-time test ping with orderCode=123 when you save the
-  // webhook URL on the dashboard — acknowledge it without touching the DB.
-  if (data.orderCode === 123) {
-    return NextResponse.json({ ok: true, test: true });
-  }
+  // PayOS marks a successful transfer with code "00" on the inner data object;
+  // the envelope repeats it. Accept either so a payload shape change can't
+  // silently turn every paid order into a failure.
+  const paid = data.code === "00" || (raw.code === "00" && raw.success === true);
 
-  const existing = await prisma.payment.findUnique({
-    where: { orderCode: data.orderCode },
-  });
-  if (!existing) {
-    console.warn("[payos webhook] no Payment for orderCode", data.orderCode);
+  if (!paid) {
+    console.warn("[payos webhook] non-success payload", {
+      orderCode: data.orderCode,
+      code: data.code,
+      desc: data.desc,
+    });
+    // PayOS only calls us on settled transfers, so a non-"00" payload is an
+    // anomaly, not a cancellation — record it without touching the status, and
+    // let /api/payment/status reconcile the truth against the PayOS API.
     return NextResponse.json({ ok: true, ignored: true });
   }
 
-  // PayOS returns code "00" on a successful transfer.
-  const paid = data.code === "00";
-
-  if (!paid) {
-    // Guard the same way as the success path: PAID/CANCELLED are terminal, so
-    // a late/out-of-order failure webhook can never flip a settled order back
-    // to FAILED (which would corrupt the ledger while the user stays premium).
-    await prisma.payment.updateMany({
-      where: { orderCode: data.orderCode, status: { notIn: ["PAID", "CANCELLED"] } },
-      data: { status: "FAILED", paidAt: null, rawWebhook: raw as object },
-    });
-    return NextResponse.json({ ok: true });
+  try {
+    const result = await settlePaidOrder(data.orderCode, { paidAmount: data.amount, raw });
+    if (result === "unknown") {
+      console.warn("[payos webhook] no Payment row for orderCode", data.orderCode);
+    }
+    // 200 on a verified payload — a non-2xx makes PayOS retry, and we have
+    // already recorded everything we can.
+    return NextResponse.json({ ok: true, result });
+  } catch (e) {
+    // DB unreachable mid-settlement. Answer 5xx *on purpose*: PayOS retries,
+    // and the /pay/success reconcile is the second net under this.
+    console.error("[payos webhook] settle failed for orderCode", data.orderCode, e);
+    return NextResponse.json({ error: "Lỗi xử lý đơn" }, { status: 500 });
   }
-
-  // Flip PENDING → PAID atomically. updateMany only matches rows that aren't
-  // already PAID, so a retried/duplicate webhook can't run the grant twice.
-  const flip = await prisma.payment.updateMany({
-    where: { orderCode: data.orderCode, status: { not: "PAID" } },
-    data: { status: "PAID", paidAt: new Date(), rawWebhook: raw as object },
-  });
-
-  if (flip.count > 0) {
-    await grantOrderReward(existing, data);
-  }
-
-  return NextResponse.json({ ok: true });
-}
-
-/**
- * Dispatch whatever a paid order is worth. The order's intent lives in
- * Payment.meta (written server-side at checkout), so a client can never ask
- * for more than it paid for. Today the only product is a Premium upgrade.
- */
-async function grantOrderReward(
-  existing: { userId: string | null; amount: number; meta: unknown },
-  data: { amount?: number },
-): Promise<void> {
-  const meta = existing.meta as { kind?: string; months?: number } | null;
-  if (!meta || meta.kind !== "premium" || !existing.userId || typeof meta.months !== "number") {
-    return;
-  }
-  // Defensive: refuse to grant if PayOS reports an amount short of what we
-  // charged (the amount itself is server-set, so this should never happen).
-  if (typeof data.amount === "number" && data.amount < existing.amount) {
-    console.warn("[payos webhook] amount mismatch — refusing premium grant", {
-      charged: existing.amount,
-      paid: data.amount,
-    });
-    return;
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: existing.userId },
-    select: { role: true, premiumUntil: true },
-  });
-  if (!user) return;
-  // OWNER/ADMIN are already premium — record the payment, but don't touch them.
-  if (user.role !== "LEARNER") return;
-
-  // Stack the new months on top of any remaining time.
-  const now = new Date();
-  const base =
-    user.premiumUntil && user.premiumUntil.getTime() > now.getTime()
-      ? user.premiumUntil
-      : now;
-  const premiumUntil = addMonths(base, meta.months);
-
-  await prisma.user.update({
-    where: { id: existing.userId },
-    data: {
-      isPremium: true,
-      premiumUntil,
-      premiumGrantedAt: now,
-      premiumGrantedBy: "payos",
-    },
-  });
 }

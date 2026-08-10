@@ -11,6 +11,7 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
+    "payos:webhook": "tsx scripts/payos-webhook.ts",
     "db:studio": "prisma studio"
   },
   "engines": {
