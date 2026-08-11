@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ function formatVnd(n: number): string {
 }
 
 export function PayForm() {
+  const router = useRouter();
   const [amount, setAmount] = useState<number>(100_000);
   const [description, setDescription] = useState("Bee IELTS — nâng cấp Premium");
   const [busy, setBusy] = useState(false);
@@ -40,13 +42,14 @@ export function PayForm() {
         body: JSON.stringify({ amount, description: description.trim() }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.checkoutUrl) {
-        throw new Error(data.error || "Không tạo được link");
+      if (!res.ok || !data.orderCode) {
+        throw new Error(data.error || "Không tạo được đơn");
       }
-      // Hand off to PayOS — they handle the rest of the flow.
-      window.location.href = data.checkoutUrl as string;
+      // Stay inside Bee IELTS: the order page renders the VietQR and watches
+      // the order until the transfer lands.
+      router.push(`/pay/success?orderCode=${data.orderCode}`);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Lỗi tạo link thanh toán");
+      toast.error(e instanceof Error ? e.message : "Lỗi tạo đơn thanh toán");
       setBusy(false);
     }
   };
@@ -94,12 +97,12 @@ export function PayForm() {
 
         <Button onClick={submit} disabled={busy} variant="brand" size="xl" className="w-full rounded-full">
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          {busy ? "Đang tạo link…" : "Sang PayOS"}
+          {busy ? "Đang tạo đơn…" : "Tạo mã QR"}
           {!busy && <ArrowRight className="h-4 w-4" />}
         </Button>
 
         <p className="text-[11px] text-center text-muted-foreground">
-          Bạn sẽ được chuyển sang trang thanh toán an toàn của PayOS.
+          Mã QR hiện ngay tại Bee IELTS — quét bằng app ngân hàng để thanh toán.
         </p>
       </CardContent>
     </Card>

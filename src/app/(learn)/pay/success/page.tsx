@@ -3,7 +3,7 @@ import { AlertCircle } from "lucide-react";
 import { auth } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/db";
-import { parseOrderCode, reconcileOrder } from "@/lib/payment";
+import { buildQrPayload, getTransferInfo, parseOrderCode, reconcileOrder } from "@/lib/payment";
 import { effectivePremium } from "@/lib/premium";
 import { PaymentResult, type PaymentSnapshot } from "./payment-result";
 
@@ -64,5 +64,10 @@ export default async function PaymentSuccessPage({
     premiumUntil: user?.premiumUntil?.toISOString() ?? null,
   };
 
-  return <PaymentResult initial={initial} />;
+  // Still payable → re-render the same QR the checkout dialog showed, so a
+  // closed dialog or a reload never leaves the customer without a way to pay.
+  const transfer = payment.status === "PENDING" ? getTransferInfo(payment) : null;
+  const qr = transfer ? await buildQrPayload(payment, transfer) : null;
+
+  return <PaymentResult initial={initial} qr={qr} />;
 }

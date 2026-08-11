@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { describePayosFailure, isConfigured, resolveAppUrl } from "@/lib/payos";
-import { createCheckout } from "@/lib/payment";
+import { buildQrPayload, createCheckout } from "@/lib/payment";
 
 /**
  * Generic "pay any amount" checkout behind /pay. Grants nothing on settlement
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
   const { amount, description, buyerName, buyerEmail, buyerPhone } = parsed.data;
 
   try {
-    const { payment, checkoutUrl, qrCode } = await createCheckout({
+    const { payment, transfer } = await createCheckout({
       userId,
       amount,
       description,
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
       buyerPhone,
     });
 
-    return NextResponse.json({ orderCode: payment.orderCode, checkoutUrl, qrCode });
+    return NextResponse.json(await buildQrPayload(payment, transfer));
   } catch (e) {
     const { message, detail } = describePayosFailure(e);
     console.error("[payos create] thất bại:", detail, e);

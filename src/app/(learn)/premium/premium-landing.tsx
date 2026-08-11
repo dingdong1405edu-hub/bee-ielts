@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { PREMIUM_PLANS, formatVnd, type PremiumPlan } from "@/lib/premium-plans";
+import type { QrPayload } from "@/components/learn/payment-qr";
+import { PremiumCheckoutDialog } from "./premium-checkout-dialog";
 
 interface LatestRequest {
   id: string;
@@ -37,13 +39,23 @@ export function PremiumLanding({
   const cancelled = sp.get("status") === "cancel";
   const [message, setMessage] = useState(latestRequest?.message ?? "");
   const [submitting, setSubmitting] = useState(false);
-  // Which plan's checkout link is being created (null = none in flight).
+  // Which plan's checkout is being created (null = none in flight).
   const [buyingPlan, setBuyingPlan] = useState<string | null>(null);
+  // Checkout dialog state: the QR lives here instead of on PayOS's site.
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutPlan, setCheckoutPlan] = useState<PremiumPlan | null>(null);
+  const [qrPayload, setQrPayload] = useState<QrPayload | null>(null);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const isOwner = role === "OWNER";
   const isAdmin = role === "ADMIN";
   const hasPending = latestRequest?.status === "PENDING";
 
   const buyPlan = async (plan: PremiumPlan) => {
+    // Open the dialog first so the wait has a home, then fill it in.
+    setCheckoutPlan(plan);
+    setQrPayload(null);
+    setCheckoutError(null);
+    setCheckoutOpen(true);
     setBuyingPlan(plan.id);
     try {
       const res = await fetch("/api/premium/checkout", {
@@ -52,14 +64,26 @@ export function PremiumLanding({
         body: JSON.stringify({ planId: plan.id }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.checkoutUrl) {
-        throw new Error(data.error || "Không tạo được link thanh toán");
+      if (!res.ok || !data.qrSvg) {
+        throw new Error(data.error || "Không tạo được đơn thanh toán");
       }
-      // Hand off to PayOS — they run the rest of the checkout.
-      window.location.href = data.checkoutUrl as string;
+      setQrPayload(data as QrPayload);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Lỗi tạo link thanh toán");
+      const msg = e instanceof Error ? e.message : "Lỗi tạo đơn thanh toán";
+      setCheckoutError(msg);
+      toast.error(msg);
+    } finally {
       setBuyingPlan(null);
+    }
+  };
+
+  const closeCheckout = (open: boolean) => {
+    setCheckoutOpen(open);
+    if (!open) {
+      // Keep the plan around for the label; drop the order so reopening
+      // always starts a fresh one.
+      setQrPayload(null);
+      setCheckoutError(null);
     }
   };
 
@@ -280,6 +304,16 @@ export function PremiumLanding({
           </CardContent>
         </Card>
       )}
+
+      <PremiumCheckoutDialog
+        open={checkoutOpen}
+        onOpenChange={closeCheckout}
+        planLabel={checkoutPlan?.label ?? null}
+        payload={qrPayload}
+        loading={buyingPlan !== null}
+        error={checkoutError}
+        onRetry={() => checkoutPlan && buyPlan(checkoutPlan)}
+      />
     </div>
   );
 }
@@ -302,7 +336,8 @@ function BuyPremiumCard({
           <h3 className="font-extrabold">{extend ? "Gia hạn Premium" : "Mua Premium qua PayOS"}</h3>
         </div>
         <p className="text-sm text-muted-foreground">
-          Thanh toán bằng QR / chuyển khoản qua PayOS — kích hoạt tự động ngay sau khi thành công.
+          Chọn gói là mã QR hiện ngay tại đây — quét bằng app ngân hàng, chuyển xong Premium mở tự
+          động.
         </p>
         <div className="grid gap-3 pt-1 sm:grid-cols-3">
           {PREMIUM_PLANS.map((plan) => {
@@ -333,14 +368,14 @@ function BuyPremiumCard({
                   className="mt-3 w-full rounded-xl"
                 >
                   {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crown className="h-3.5 w-3.5" />}
-                  {busy ? "Đang tạo link…" : extend ? "Gia hạn" : "Mua ngay"}
+                  {busy ? "Đang tạo đơn…" : extend ? "Gia hạn" : "Mua ngay"}
                 </Button>
               </div>
             );
           })}
         </div>
         <p className="text-center text-[11px] text-muted-foreground">
-          Bạn sẽ được chuyển sang trang thanh toán an toàn của PayOS.
+          Thanh toán qua PayOS — bạn không rời khỏi Bee IELTS.
         </p>
       </CardContent>
     </Card>

@@ -1,7 +1,9 @@
 import { Prisma, type Payment, type PaymentStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { bankName } from "@/lib/banks";
 import { PAYOS_CODE, getPayos, isConfigured, newOrderCode, payosCode } from "@/lib/payos";
 import { addMonths } from "@/lib/premium-plans";
+import { renderQrSvg } from "@/lib/qr";
 
 /**
  * Order fulfilment for PayOS checkouts.
@@ -22,6 +24,71 @@ export interface PremiumOrderMeta {
   kind: "premium";
   planId: string;
   months: number;
+}
+
+/**
+ * Bank-transfer details PayOS hands back once, at link creation.
+ *
+ * They are stored on `Payment.meta.transfer` because PayOS's order-lookup API
+ * does NOT return them — `paymentRequests.get()` gives status and amounts only.
+ * Without persisting them, a customer who reloads the QR screen (or reopens it
+ * later) could never be shown the QR again.
+ */
+export interface TransferInfo {
+  /** Raw VietQR/EMVCo payload — what the QR image encodes. */
+  qrCode: string;
+  /** Napas bank identifier of the receiving account. */
+  bin: string;
+  accountNumber: string;
+  accountName: string;
+  /** The exact transfer content PayOS matches on. Must not be edited. */
+  transferContent: string;
+  checkoutUrl: string;
+}
+
+/** Everything the QR screen needs, as stored on a Payment row. */
+export type OrderMeta = Partial<PremiumOrderMeta> & { transfer?: TransferInfo };
+
+/** Read the persisted transfer details off a Payment row, if present. */
+export function getTransferInfo(payment: Pick<Payment, "meta">): TransferInfo | null {
+  const meta = payment.meta as OrderMeta | null;
+  const t = meta?.transfer;
+  if (!t || typeof t.qrCode !== "string" || !t.qrCode) return null;
+  return t;
+}
+
+/** Everything the in-app QR screen renders — no PayOS round-trip needed. */
+export interface QrPayload {
+  orderCode: number;
+  amount: number;
+  /** Our own order description, for the header. */
+  description: string;
+  /** Server-rendered QR, inlined so the client ships no QR library. */
+  qrSvg: string;
+  bankName: string;
+  accountNumber: string;
+  accountName: string;
+  /** Transfer content the customer must not change. */
+  transferContent: string;
+  /** Escape hatch to PayOS's own checkout page. */
+  checkoutUrl: string;
+}
+
+export async function buildQrPayload(
+  payment: Pick<Payment, "orderCode" | "amount" | "description">,
+  transfer: TransferInfo,
+): Promise<QrPayload> {
+  return {
+    orderCode: payment.orderCode,
+    amount: payment.amount,
+    description: payment.description,
+    qrSvg: await renderQrSvg(transfer.qrCode),
+    bankName: bankName(transfer.bin),
+    accountNumber: transfer.accountNumber,
+    accountName: transfer.accountName,
+    transferContent: transfer.transferContent,
+    checkoutUrl: transfer.checkoutUrl,
+  };
 }
 
 export type SettleResult =
@@ -70,12 +137,23 @@ export async function createPendingPayment(input: {
   throw lastError ?? new Error("Không sinh được mã đơn hàng duy nhất");
 }
 
-/** Store the PayOS checkout link on the reserved row (best-effort: the order is
- *  already valid without it — it's only used for support/debugging). */
-export async function attachCheckoutUrl(id: string, checkoutUrl: string): Promise<void> {
+/**
+ * Persist what PayOS returned at link creation: the checkout URL plus the
+ * bank-transfer block the QR screen renders from. Merged into the existing
+ * `meta` so the order's intent (kind/planId/months) survives untouched.
+ */
+async function attachPayosResult(
+  payment: Payment,
+  checkoutUrl: string,
+  transfer: TransferInfo,
+): Promise<void> {
+  const meta: OrderMeta = { ...((payment.meta as OrderMeta | null) ?? {}), transfer };
   await prisma.payment
-    .update({ where: { id }, data: { checkoutUrl } })
-    .catch((e) => console.error("[payment] lưu checkoutUrl thất bại:", e));
+    .update({
+      where: { id: payment.id },
+      data: { checkoutUrl, meta: meta as unknown as Prisma.InputJsonValue },
+    })
+    .catch((e) => console.error("[payment] lưu thông tin PayOS thất bại:", e));
 }
 
 /** The PayOS call blew up — retire the reserved row so it stops showing as pending. */
@@ -112,7 +190,7 @@ export interface CheckoutInput {
  */
 export async function createCheckout(
   input: CheckoutInput,
-): Promise<{ payment: Payment; checkoutUrl: string; qrCode: string }> {
+): Promise<{ payment: Payment; transfer: TransferInfo }> {
   let lastError: unknown = null;
 
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -135,8 +213,18 @@ export async function createCheckout(
         buyerEmail: input.buyerEmail,
         buyerPhone: input.buyerPhone,
       });
-      await attachCheckoutUrl(payment.id, link.checkoutUrl);
-      return { payment, checkoutUrl: link.checkoutUrl, qrCode: link.qrCode };
+      const transfer: TransferInfo = {
+        qrCode: link.qrCode,
+        bin: link.bin,
+        accountNumber: link.accountNumber,
+        accountName: link.accountName,
+        // PayOS matches the incoming transfer on the description IT assigned,
+        // which is not always the string we sent — always echo theirs back.
+        transferContent: link.description,
+        checkoutUrl: link.checkoutUrl,
+      };
+      await attachPayosResult(payment, link.checkoutUrl, transfer);
+      return { payment, transfer };
     } catch (e) {
       // Retire the reserved row either way: it holds the order code, so the
       // next attempt is guaranteed a different one.

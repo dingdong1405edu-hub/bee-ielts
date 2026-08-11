@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { describePayosFailure, isConfigured, resolveAppUrl } from "@/lib/payos";
-import { createCheckout } from "@/lib/payment";
+import { buildQrPayload, createCheckout } from "@/lib/payment";
 import { getPlan } from "@/lib/premium-plans";
 
 /**
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { payment, checkoutUrl, qrCode } = await createCheckout({
+    const { payment, transfer } = await createCheckout({
       userId,
       amount: plan.priceVnd,
       description: `Bee IELTS Premium ${plan.label}`,
@@ -51,7 +51,9 @@ export async function POST(req: Request) {
       buyerEmail: session.user.email ?? undefined,
     });
 
-    return NextResponse.json({ orderCode: payment.orderCode, checkoutUrl, qrCode });
+    // The QR is rendered here rather than sending the raw VietQR string to the
+    // browser, so the client needs no QR library and no third-party image host.
+    return NextResponse.json(await buildQrPayload(payment, transfer));
   } catch (e) {
     const { message, detail } = describePayosFailure(e);
     console.error("[premium checkout] thất bại:", detail, e);

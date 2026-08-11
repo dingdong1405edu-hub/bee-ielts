@@ -5,19 +5,25 @@ import { parseOrderCode, reconcileOrder } from "@/lib/payment";
 import { effectivePremium } from "@/lib/premium";
 
 /**
- * Poll target for the /pay/success page: "is order N paid yet?".
+ * Poll target for the in-app QR screen and /pay/success: "is order N paid yet?".
  *
- * Every call reconciles the order against the PayOS API, so this endpoint is
- * what makes the upgrade automatic even when the webhook never arrives —
- * the customer coming back from the checkout page IS the trigger.
+ * Two depths, because the QR screen can sit open for many minutes:
+ *   - default  → read our own row only. The webhook usually settles the order
+ *     within a second of the transfer, so this catches nearly every payment at
+ *     zero cost to PayOS.
+ *   - ?deep=1  → also reconcile against the PayOS API. This is the path that
+ *     keeps the upgrade automatic when the webhook is unregistered or fails, so
+ *     the client fires it on a slower cadence and on manual re-check.
  */
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  const orderCode = parseOrderCode(new URL(req.url).searchParams.get("orderCode"));
+  const url = new URL(req.url);
+  const orderCode = parseOrderCode(url.searchParams.get("orderCode"));
   if (orderCode === null) {
     return NextResponse.json({ error: "Mã đơn không hợp lệ" }, { status: 400 });
   }
+  const deep = url.searchParams.get("deep") === "1";
 
   const session = await auth();
   const userId = session?.user?.id ?? null;
@@ -35,7 +41,9 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Đơn hàng không thuộc tài khoản này" }, { status: 403 });
   }
 
-  const payment = await reconcileOrder(orderCode);
+  const payment = deep
+    ? await reconcileOrder(orderCode)
+    : await prisma.payment.findUnique({ where: { orderCode } });
   if (!payment) {
     return NextResponse.json({ error: "Không tìm thấy đơn hàng" }, { status: 404 });
   }
